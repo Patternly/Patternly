@@ -261,6 +261,16 @@ input[type=range]{accent-color:var(--accent)}
 .modal-back:hover{color:var(--ink)}
 
 /* ── MOBILE / NARROW SCREENS ── */
+/* Zoom controls stay fixed to the viewport (not just the canvas scroll area)
+   on tablets too, even though the rest of the layout stays desktop-style
+   above 820px — this is the breakpoint where scrolling a large converted
+   image would otherwise carry the zoom buttons off-screen with it. */
+@media (max-width: 1180px){
+  #zoom-controls{
+    position:fixed !important;bottom:1.25rem;right:1.25rem;z-index:999;
+  }
+}
+
 @media (max-width: 820px){
   :root{ --toolbar:auto; }
   #topbar{
@@ -342,7 +352,7 @@ input[type=range]{accent-color:var(--accent)}
 
   #canvas-area{padding:.5rem;flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
   #zoom-controls{
-    position:fixed;bottom:1rem;right:1rem;z-index:500;
+    position:fixed !important;bottom:1rem;right:1rem;z-index:999;
     box-shadow:0 2px 10px rgba(0,0,0,.18);
   }
   .zoom-btn{width:44px;height:44px;font-size:1.4rem}
@@ -1414,11 +1424,20 @@ uploadZone.addEventListener('drop',e=>{e.preventDefault();uploadZone.classList.r
 fileInput.addEventListener('change',()=>{if(fileInput.files[0])loadImage(fileInput.files[0]);});
 
 // Live re-render on any convert setting change
-function liveReconvert(){if(uploadedImg) convertImage();}
+function liveReconvert(){
+  if(!uploadedImg) return;
+  try{
+    convertImage();
+  }catch(err){
+    console.error('convertImage failed:', err);
+    toast('Could not update pattern — please try again');
+  }
+}
 
 colorLimitEl.addEventListener('input',()=>{
   delete colorLimitEl.dataset.customValue;
   document.getElementById('color-limit-val').textContent=colorLimitEl.value;
+  document.getElementById('color-limit-custom').value='';
   liveReconvert();
 });
 
@@ -1528,7 +1547,41 @@ function convertImage(){
     colorUsage[idx]=(colorUsage[idx]||0)+1;
   }
 
-  const topIndices=Object.entries(colorUsage).sort((a,b)=>b[1]-a[1]).slice(0,maxColors).map(([i])=>parseInt(i));
+  // Choose which colours survive the cap. Pure "most pixels wins" would let
+  // a large, smooth background (sky, foliage, fabric) crowd out a small but
+  // visually distinct subject (e.g. a yellow bird), since many subtly
+  // different background shades each out-number any single subject shade.
+  // Instead: always keep the single most-used colour as an anchor, then
+  // greedily add whichever remaining colour is most different (in colour
+  // space) from everything already kept — so small, distinct regions earn
+  // a slot based on how unique they look, not just how many pixels they
+  // cover. A light usage floor still filters out single-pixel noise.
+  const usageEntries=Object.entries(colorUsage).map(([i,n])=>({idx:parseInt(i),count:n})).sort((a,b)=>b.count-a.count);
+  const pal=activePalette();
+  const totalMapped=usageEntries.reduce((s,e)=>s+e.count,0);
+  const minUsage=Math.max(1, Math.floor(totalMapped*0.0005)); // ignore near-invisible noise colours
+  const candidates=usageEntries.filter(e=>e.count>=minUsage);
+  const pool=candidates.length?candidates:usageEntries;
+
+  const topIndices=[];
+  if(pool.length){
+    topIndices.push(pool[0].idx); // dominant colour anchors the palette
+    const remaining=pool.slice(1);
+    while(topIndices.length<maxColors && remaining.length){
+      let bestPos=0,bestScore=-1;
+      for(let p=0;p<remaining.length;p++){
+        const c=pal[remaining[p].idx];
+        let minDist=Infinity;
+        for(const ti of topIndices){
+          const d=colorDist(c,pal[ti]);
+          if(d<minDist) minDist=d;
+        }
+        if(minDist>bestScore){bestScore=minDist;bestPos=p;}
+      }
+      topIndices.push(remaining[bestPos].idx);
+      remaining.splice(bestPos,1);
+    }
+  }
   const topSet=new Set(topIndices);
 
   // Second pass: remap to top colours only
@@ -1552,7 +1605,6 @@ function convertImage(){
   lines=[];
 
   // Save for downloads
-  const pal=activePalette();
   const reducedPalette=topIndices.map(i=>({...pal[i],idx:i}));
   lastRender={w:COLS,h:ROWS,finalIndices,reducedPalette,topColorIndices:topIndices};
 
