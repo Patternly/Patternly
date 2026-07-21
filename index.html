@@ -2715,6 +2715,17 @@ body.threads-mode #landing-page,body.threads-mode #app-wrapper,body.threads-mode
 body.convert-mode #convert-page{display:block}
 body.convert-mode #landing-page,body.convert-mode #app-wrapper,body.convert-mode #projects-page,body.convert-mode #calc-page,body.convert-mode #threads-page,body.convert-mode #tracker-page{display:none!important}
 body.dark #convert-page{background:#171220;color:#e8e3ee}
+#account-page{display:none;min-height:100vh;background:#fdf9f5}
+body.account-mode #account-page{display:block}
+body.account-mode #landing-page,body.account-mode #app-wrapper,body.account-mode #projects-page,body.account-mode #calc-page,body.account-mode #threads-page,body.account-mode #tracker-page,body.account-mode #convert-page{display:none!important}
+body.dark #account-page{background:#171220;color:#e8e3ee}
+.acct-cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.2rem;max-width:860px;margin:1.6rem auto 0}
+@media(max-width:760px){.acct-cards{grid-template-columns:1fr}}
+.acct-card{background:#fff;border:1.5px solid #f0e4e8;border-radius:14px;padding:1.4rem 1.5rem;cursor:pointer;transition:transform .12s,border-color .12s;text-align:left}
+.acct-card:hover{transform:translateY(-2px);border-color:#d9aab5}
+body.dark #account-page .acct-card{background:#221b2e;border-color:#3a3048}
+.acct-status{max-width:860px;margin:0 auto;background:#fff;border:1.5px solid #f0e4e8;border-radius:14px;padding:1.3rem 1.5rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+body.dark #account-page .acct-status{background:#221b2e;border-color:#3a3048}
 .conv-drop{border:2.5px dashed #d9aab5;border-radius:16px;background:#fff;padding:3rem 2rem;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;max-width:640px;margin:0 auto}
 .conv-drop:hover,.conv-drop.dragover{border-color:var(--accent,#8B1A2B);background:#fdf3f5}
 body.dark #convert-page .conv-drop{background:#221b2e;border-color:#57303a}
@@ -5322,6 +5333,33 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <p style="text-align:center;font-size:.75rem;color:#7d6b72;margin-top:1.8rem">What's .Ptly? Patternly's own pattern format — one small file your whole toolset understands: the editor, the tracker, and “Make a new pattern”.</p>
   </div>
 </div><!-- /convert-page -->
+
+<!-- ═════ MY ACCOUNT PAGE ═════ -->
+<div id="account-page">
+  <div class="calc-container">
+    <h1 class="calc-title">My Account</h1>
+    <p class="calc-sub">Your Luca·S account, your patterns and your stitching — in one place.</p>
+    <div class="acct-status" id="acct-status"><!-- filled by acctRenderPage() --></div>
+    <div class="acct-cards">
+      <div class="acct-card" onclick="openApp()">
+        <div style="font-size:1.5rem;margin-bottom:.4rem">🧵</div>
+        <b style="font-size:.95rem">My Patterns</b>
+        <p style="font-size:.8rem;color:#7d6b72;line-height:1.55;margin:.35rem 0 0">Patterns you've designed or converted — open, edit and export them.</p>
+      </div>
+      <div class="acct-card" onclick="openTracker()">
+        <div style="font-size:1.5rem;margin-bottom:.4rem">📊</div>
+        <b style="font-size:.95rem">My Tracked Patterns</b>
+        <p style="font-size:.8rem;color:#7d6b72;line-height:1.55;margin:.35rem 0 0">Kits and charts you're stitching, with your progress saved.</p>
+      </div>
+      <div class="acct-card" onclick="window.open('https://luca-s.com/account','_blank','noopener')">
+        <div style="font-size:1.5rem;margin-bottom:.4rem">📦</div>
+        <b style="font-size:.95rem">Orders &amp; Addresses ↗</b>
+        <p style="font-size:.8rem;color:#7d6b72;line-height:1.55;margin:.35rem 0 0">Your Luca·S shop orders, addresses and details — opens the store account.</p>
+      </div>
+    </div>
+    <p style="text-align:center;font-size:.75rem;color:#7d6b72;margin-top:1.8rem">Patterns and tracking currently save in this browser · cloud sync with your Luca·S account is coming.</p>
+  </div>
+</div><!-- /account-page -->
 
 <!-- Shared confirmation modal (works over any page) -->
 <div id="rp-backdrop" onclick="closeRightPanelMobile()"></div>
@@ -15932,7 +15970,7 @@ document.querySelectorAll('.ct-btn[data-tool]').forEach(btn=>{
 
 // "Open Editor" now leads to the My Patterns page first (like StitchMate)
 function openApp(){
-  document.body.classList.remove('app-mode','calc-mode','tracker-mode','threads-mode','convert-mode','cv-open');
+  document.body.classList.remove('app-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode','cv-open');
   document.body.classList.add('projects-mode');
   pjSelectMode=false; pjSelected.clear();
   renderProjectsPage();
@@ -15940,7 +15978,7 @@ function openApp(){
   window.scrollTo(0,0);
 }
 function goHome(){
-  document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode','cv-open');
+  document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode','cv-open');
   window.scrollTo(0,0);
 }
 
@@ -16495,7 +16533,7 @@ function trackerNav(guarded){
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') hideTrackerSoon(); });
 })();
 function openTracker(){
-  document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode');
+  document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode');
   document.body.classList.add('tracker-mode');
   window.scrollTo(0,0);
   trkShowHome();
@@ -20491,19 +20529,66 @@ function thInit(){
 function lucasAuth(){
   return window.__LUCAS_AUTH__ || {proxied:false, loggedIn:false, customerId:null};
 }
+function acctGo(fn){
+  acctCloseAll();
+  if(document.body.classList.contains('app-mode') && typeof pjGuardedLeave==='function') pjGuardedLeave(fn);
+  else fn();
+}
+function openAccountPage(){
+  document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode');
+  document.body.classList.add('account-mode');
+  acctRenderPage();
+  window.scrollTo(0,0);
+}
+function acctRenderPage(){
+  const el=document.getElementById('acct-status');
+  if(!el) return;
+  const a=lucasAuth();
+  if(a.loggedIn){
+    el.innerHTML=`<div style="width:46px;height:46px;border-radius:50%;background:#fbe3e7;display:flex;align-items:center;justify-content:center;color:var(--lp-red,#8B1A2B);flex-shrink:0"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="8.2" r="3.6"/><path d="M4.8 19.4c1.5-3.1 4.2-4.6 7.2-4.6s5.7 1.5 7.2 4.6"/></svg></div>
+      <div style="flex:1;min-width:180px"><b style="font-size:.95rem">✓ Signed in with your Luca·S account</b><p style="font-size:.76rem;color:#7d6b72;margin:.2rem 0 0">The same account you use in the Luca·S shop.</p></div>
+      <a href="/account/logout" target="_blank" rel="noopener" onclick="setTimeout(acctRefresh,1500)" style="padding:.5rem .9rem;border:1.5px solid #eadde1;border-radius:9px;font-size:.8rem;font-weight:700;color:#5a4a51;text-decoration:none">Sign out</a>`;
+  } else if(a.proxied){
+    el.innerHTML=`<div style="flex:1;min-width:200px"><b style="font-size:.95rem">You're not signed in</b><p style="font-size:.78rem;color:#7d6b72;margin:.25rem 0 0;line-height:1.5">Sign in with your email — you'll get a code, and new customers get an account automatically. It opens in a new tab; come back here afterwards and we'll notice.</p></div>
+      <a href="/account/login" target="_blank" rel="noopener" style="padding:.55rem 1rem;border-radius:9px;background:var(--lp-red,#8B1A2B);color:#fff;font-size:.82rem;font-weight:700;text-decoration:none">Sign in / Create account</a>`;
+  } else {
+    el.innerHTML=`<div style="flex:1"><b style="font-size:.95rem">Accounts work on the Luca·S site</b><p style="font-size:.78rem;color:#7d6b72;margin:.25rem 0 0">Open Patternly there to sign in with your shop account.</p></div>
+      <a href="https://luca-s.com/apps/patternly" style="padding:.55rem 1rem;border-radius:9px;background:var(--lp-red,#8B1A2B);color:#fff;font-size:.82rem;font-weight:700;text-decoration:none">Open on luca-s.com →</a>`;
+  }
+}
+// Live sign-in status: /whoami travels through the App Proxy, so Shopify signs
+// it too — Patternly can re-check without reloading (editor state stays safe).
+let _acctBusy=false;
+async function acctRefresh(){
+  if(_acctBusy) return;
+  if(!/(^|\.)luca-s\.com$/.test(location.hostname)) return;
+  _acctBusy=true;
+  try{
+    const r=await fetch('/apps/patternly/whoami',{cache:'no-store'});
+    if(r.ok){
+      const a=await r.json();
+      window.__LUCAS_AUTH__=a;
+      document.querySelectorAll('.acct-btn').forEach(b=>b.classList.toggle('acct-in', !!a.loggedIn));
+      const open=document.querySelector('.acct-dd.open');
+      if(open) open.innerHTML=acctBuildMenu();
+      if(document.body.classList.contains('account-mode')) acctRenderPage();
+    }
+  }catch(e){}
+  _acctBusy=false;
+}
+window.addEventListener('focus', ()=>acctRefresh());
 function acctBuildMenu(){
   const a=lucasAuth();
-  const ret=encodeURIComponent('/apps/patternly');
   if(a.loggedIn){
     return `<div class="acct-note">✓ Signed in with your Luca·S account</div>
-      <a href="/account">My Account</a>
-      <a href="#" onclick="acctCloseAll();openProjects();return false">My Patterns</a>
-      <a href="/account/logout">Sign out</a>`;
+      <a href="#" onclick="acctGo(openAccountPage);return false">My Account</a>
+      <a href="#" onclick="acctGo(openApp);return false">My Patterns</a>
+      <a href="#" onclick="acctGo(openTracker);return false">My Tracked Patterns</a>
+      <a href="/account/logout" target="_blank" rel="noopener" onclick="acctCloseAll();setTimeout(acctRefresh,1500)">Sign out</a>`;
   }
   if(a.proxied){
-    return `<div class="acct-note">One Luca·S account for the shop and Patternly — sign in to sync purchases and (soon) your patterns.</div>
-      <a href="/account/login?return_url=${ret}">Sign in</a>
-      <a href="/account/register?return_url=${ret}">Create account</a>`;
+    return `<div class="acct-note">Sign in with your email — a code is sent to you, and new customers get an account automatically. Opens in a new tab; come back and we'll notice.</div>
+      <a href="/account/login" target="_blank" rel="noopener">Sign in / Create account</a>`;
   }
   return `<div class="acct-note">Accounts work on the Luca·S site — open Patternly there to sign in with your shop account.</div>
     <a href="https://luca-s.com/apps/patternly">Open on luca-s.com →</a>`;
@@ -20513,14 +20598,14 @@ function acctToggle(btn){
   const dd=btn.parentElement.querySelector('.acct-dd');
   const wasOpen=dd.classList.contains('open');
   acctCloseAll();
-  if(!wasOpen){ dd.innerHTML=acctBuildMenu(); dd.classList.add('open'); }
+  if(!wasOpen){ dd.innerHTML=acctBuildMenu(); dd.classList.add('open'); acctRefresh(); }
 }
 document.addEventListener('click',e=>{ if(!e.target.closest('.acct-wrap')) acctCloseAll(); });
 (function(){
   if(lucasAuth().loggedIn) document.querySelectorAll('.acct-btn').forEach(b=>{ b.classList.add('acct-in'); b.title='Your Luca·S account — signed in'; });
 })();
 function openFileConverter(){
-  document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','threads-mode');
+  document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','account-mode');
   document.body.classList.add('convert-mode');
   const li=document.getElementById('conv-logo-img'), src=document.getElementById('pj-logo-img');
   if(li && src && src.src) li.src=src.src;
@@ -20666,7 +20751,7 @@ async function fconvHandle(fileList){
   }
 }
 function openThreads(){
-  document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','convert-mode');
+  document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','convert-mode','account-mode');
   document.body.classList.add('threads-mode');
   const cv=document.getElementById('th-chart-view'), bv=document.getElementById('th-browse-view'), hub=document.getElementById('th-hub');
   if(cv&&hub){ cv.style.display='none'; if(bv) bv.style.display='none'; hub.style.display='block'; } // always land on the hub
@@ -20676,7 +20761,7 @@ function openThreads(){
   if(typeof thInit==='function') thInit();
 }
 function openCalculators(tab){
-  document.body.classList.remove('app-mode','projects-mode','tracker-mode','threads-mode','convert-mode');
+  document.body.classList.remove('app-mode','projects-mode','tracker-mode','threads-mode','convert-mode','account-mode');
   document.body.classList.add('calc-mode');
   calcShowTab(tab||'fabric');
   window.scrollTo(0,0);
