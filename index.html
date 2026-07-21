@@ -2505,7 +2505,7 @@ body.dark .pj-opt span{color:#a596ab}
 
 /* Global nav: on all pages except the editor */
 body.app-mode #lp-nav{display:none}
-body.projects-mode .pj-header, body.calc-mode .pj-header, body.tracker-mode .pj-header, body.threads-mode .pj-header{display:none}
+body.projects-mode .pj-header, body.calc-mode .pj-header, body.tracker-mode .pj-header, body.threads-mode .pj-header, body.convert-mode .pj-header{display:none}
 
 /* ── DARK THEME (landing, My Patterns, Calculators + editor) ── */
 #landing-page{background:#fdf9f5}  /* explicit — never rely on the embedding page's background */
@@ -2698,6 +2698,17 @@ body.dark #threads-page .th-mcard-code{color:#e8e3ee}
 body.dark #threads-page .th-h2{color:#e8e3ee}
 body.dark #threads-page .th-muted{color:#a99bb0}
 body.threads-mode #landing-page,body.threads-mode #app-wrapper,body.threads-mode #projects-page,body.threads-mode #calc-page,body.threads-mode #tracker-page{display:none!important}
+#convert-page{display:none;min-height:100vh;background:#fdf9f5}
+body.convert-mode #convert-page{display:block}
+body.convert-mode #landing-page,body.convert-mode #app-wrapper,body.convert-mode #projects-page,body.convert-mode #calc-page,body.convert-mode #threads-page,body.convert-mode #tracker-page{display:none!important}
+body.dark #convert-page{background:#171220;color:#e8e3ee}
+.conv-drop{border:2.5px dashed #d9aab5;border-radius:16px;background:#fff;padding:3rem 2rem;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;max-width:640px;margin:0 auto}
+.conv-drop:hover,.conv-drop.dragover{border-color:var(--accent,#8B1A2B);background:#fdf3f5}
+body.dark #convert-page .conv-drop{background:#221b2e;border-color:#57303a}
+.conv-dest{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;max-width:760px;margin:1.5rem auto 0}
+@media(max-width:700px){.conv-dest{grid-template-columns:1fr}}
+.conv-dest-card{background:#fff;border:1.5px solid #f0e4e8;border-radius:14px;padding:1.4rem 1.5rem;text-align:left}
+body.dark #convert-page .conv-dest-card{background:#221b2e;border-color:#3a3048}
 body.threads-mode #threads-page{display:block}
 body.threads-mode{overflow:auto}
 body.tracker-mode #landing-page,body.tracker-mode #app-wrapper,body.tracker-mode #projects-page,body.tracker-mode #calc-page,body.tracker-mode #threads-page{display:none!important}
@@ -4198,10 +4209,11 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
           <a href="#" onclick="startWithPhoto();return false"><b>Upload Image</b><span>Turn a photo into a pattern</span></a>
           <a href="#" onclick="pjNewPattern();return false"><b>Start from Scratch</b><span>Blank canvas in the editor</span></a>
           <a href="#" onclick="trackerNav();return false"><b>Stitch Tracker</b><span>Track progress on a Luca·S kit</span></a>
-          <a href="#" onclick="ptlyOpenConverter();return false"><b>Convert to .Ptly</b><span>Turn .pat / .oxs into Patternly&rsquo;s format</span></a>
+          <a href="#" onclick="openFileConverter();return false"><b>File Converter</b><span>Turn .pat / .oxs into Patternly&rsquo;s format</span></a>
         </div>
       </div>
       <a href="#" onclick="openThreads();return false">Thread Colours</a>
+      <a href="#" onclick="openFileConverter();return false">File Converter</a>
       <div class="lp-nav-dd">
         <a href="#" onclick="openCalculators('fabric');return false">Calculators ▾</a>
         <div class="lp-nav-dd-menu">
@@ -4229,6 +4241,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <a href="#" onclick="lpCloseMenu();lpMmAction('ptlyconv');return false" class="lp-mm-sub">🔒 Convert to .Ptly</a>
   </div>
   <a href="#" onclick="lpCloseMenu();lpMmAction('threads');return false">🎨 Thread Colours</a>
+  <a href="#" onclick="lpCloseMenu();lpMmAction('fileconv');return false">🔄 File Converter</a>
   <button class="lp-mm-acc" type="button">Calculators <span class="lp-mm-chev">▾</span></button>
   <div class="lp-mm-panel">
     <a href="#" onclick="lpCloseMenu();lpMmAction('fabric');return false" class="lp-mm-sub">📐 Fabric Calculator</a>
@@ -4255,13 +4268,13 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
   <div class="lp-container">
     <div class="lp-hero-badge">✦ By Luca·S — a cross stitch brand you trust</div>
     <h1 class="lp-h1">Create beautiful<br><span class="lp-accent">cross stitch patterns</span><br>from scratch or from a photo</h1>
-    <p class="lp-hero-sub">Patternly is a free, browser-based pattern editor built by stitchers, for stitchers. Design stitch by stitch, convert any image, and track your projects — all in one place.</p>
+    <p class="lp-hero-sub">Patternly is a free, browser-based pattern studio built by stitchers, for stitchers. Design stitch by stitch with layers and selections, convert any photo, match colours across five thread brands, and track your stitching on real kit charts — all in one place.</p>
     <div class="lp-hero-btns">
       <button class="lp-btn-primary" onclick="openApp()">Start creating — free</button>
       <a href="#features" class="lp-btn-ghost">See what's inside ↓</a>
     </div>
     <div class="lp-hero-stats">
-      <div class="lp-stat"><span>DMC · Anchor · Luca·S</span><small>Thread brands</small></div>
+      <div class="lp-stat"><span>5 thread brands</span><small>Luca·S · DMC · Anchor · Cosmo · Madeira</small></div>
       <div class="lp-stat-div"></div>
       <div class="lp-stat"><span>No install needed</span><small>Works in your browser</small></div>
       <div class="lp-stat-div"></div>
@@ -4336,7 +4349,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <div class="lp-trust-stats">
         <div class="lp-tstat"><b class="lp-count" data-stat="patterns" data-target="12437">0</b> patterns created</div>
         <div class="lp-tstat"><b class="lp-count" data-stat="photos" data-target="19258">0</b> photos converted</div>
-        <div class="lp-tstat"><b>DMC, Anchor &amp; Luca·S</b> floss brands</div>
+        <div class="lp-tstat"><b>5 floss brands</b> fully matched</div>
       </div>
       <div class="lp-trust-sub">Pattern Keeper compatible</div>
     </div>
@@ -4356,11 +4369,11 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
           <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
         </div>
         <h3>Create Patterns</h3>
-        <p>Draw stitch by stitch on a customisable grid. Full, half, quarter, petite, backstitch, French knots — every technique you know, right here. Shape stamps, text tool, symmetry modes, and unlimited undo.</p>
+        <p>Draw stitch by stitch on a customisable grid. Full, half, quarter, petite, backstitch, French knots — every technique you know, right here. Layers, a full selection tool, shape stamps, text effects, symmetry modes, and unlimited undo.</p>
         <ul class="lp-feat-list">
           <li>12+ stitch types</li>
-          <li>8-way symmetry mode</li>
-          <li>Shape &amp; text tools</li>
+          <li>Layers — draw over a photo safely</li>
+          <li>Select, move, rotate &amp; copy regions</li>
           <li>FLOW Score quality check</li>
         </ul>
         <button class="lp-btn-primary" onclick="openApp()">Start drawing →</button>
@@ -4371,30 +4384,29 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
           <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         </div>
         <h3>Convert Images</h3>
-        <p>Turn any photo into a stitchable pattern in seconds. Upload an image, choose your thread brand and colour count, and Patternly generates a clean, stitch-ready chart matched to DMC, Anchor, or Luca·S threads.</p>
+        <p>Turn any photo into a stitchable pattern in seconds. Upload an image, choose your thread brand and colour count, and Patternly generates a clean, stitch-ready chart matched to Luca·S, DMC, Anchor, Cosmo or Madeira threads.</p>
         <ul class="lp-feat-list">
           <li>Any photo or image</li>
-          <li>Auto thread matching</li>
-          <li>Live confetti analysis</li>
-          <li>Adjustable colour count</li>
+          <li>5 thread brands matched</li>
+          <li>Live confetti analysis &amp; cleanup</li>
+          <li>Styles, hue shift &amp; fine-tuning</li>
         </ul>
         <button class="lp-btn-outline" onclick="startWithPhoto()">Try with your photo →</button>
       </div>
 
-      <div class="lp-feature-card lp-feature-soon">
-        <div class="lp-feature-icon" style="background:#fef6e4;color:#c47c00">
+      <div class="lp-feature-card">
+        <div class="lp-feature-icon" style="background:#e8f4ee;color:#2E7D32">
           <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
         </div>
-        <div class="lp-coming-pill">Coming soon</div>
         <h3>Stitch Tracker</h3>
-        <p>Track your stitching sessions, mark completed sections, log your thread usage, and see your progress over time. Know exactly where you are on any project at any moment.</p>
+        <p>Upload the chart and legend from any kit PDF and stitch straight off your screen. Tap to mark stitches done, highlight one colour at a time, and watch your progress climb — with thread amounts calculated for you.</p>
         <ul class="lp-feat-list">
-          <li>Session tracking</li>
-          <li>Progress by section</li>
-          <li>Thread inventory</li>
-          <li>Time estimates</li>
+          <li>Reads real kit PDF charts</li>
+          <li>Tap stitches to mark them done</li>
+          <li>Colour highlight "night vision"</li>
+          <li>Progress, strands &amp; metres per colour</li>
         </ul>
-        <button class="lp-btn-muted" disabled>Coming soon</button>
+        <button class="lp-btn-outline" onclick="openTracker()">Open the tracker →</button>
       </div>
 
     </div>
@@ -4423,7 +4435,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <div class="lp-step">
         <div class="lp-step-num">3</div>
         <h3>Save &amp; stitch</h3>
-        <p>Save your pattern to your browser, download it, and get stitching. Your pattern, your threads, your way.</p>
+        <p>Save your pattern, export a print-ready PDF chart with symbols and a thread key, and get stitching. Your pattern, your threads, your way.</p>
       </div>
     </div>
 
@@ -4461,22 +4473,26 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
   </div>
 </section>
 
-<!-- ── COMING SOON ── -->
+<!-- ── THREAD COLOUR HUB ── -->
 <section id="coming-soon" class="lp-section">
   <div class="lp-container">
     <div class="lp-coming-banner">
       <div>
-        <div class="lp-section-label" style="color:#c47c00">In development</div>
-        <h2 class="lp-h2" style="margin-bottom:.75rem">Stitch Tracker is coming</h2>
-        <p style="color:var(--lp-muted);max-width:500px;line-height:1.7">Track every session, mark completed sections on your pattern, log your thread usage, and watch your progress grow. Designed for the serious stitcher who wants full visibility into their projects.</p>
+        <div class="lp-section-label">New — Thread Colour Hub</div>
+        <h2 class="lp-h2" style="margin-bottom:.75rem">Every thread colour, every brand, one place</h2>
+        <p style="color:var(--lp-muted);max-width:500px;line-height:1.7">Match any colour to its closest thread in five brands, pull a ready-to-stitch palette out of a photo, flip through full conversion charts with match quality, and browse every colour a brand makes — then send your picks straight into the editor.</p>
+        <div style="margin-top:1.3rem">
+          <button class="lp-btn-primary" onclick="openThreads()">Open Thread Colours →</button>
+        </div>
       </div>
       <div class="lp-tracker-preview">
         <div class="lp-tracker-card">
-          <div class="lp-tracker-row"><span>🧵 Project</span><b>Rose Garden Sampler</b></div>
-          <div class="lp-tracker-row"><span>📊 Progress</span><b>47%</b></div>
-          <div class="lp-progress-bar"><div class="lp-progress-fill" style="width:47%"></div></div>
-          <div class="lp-tracker-row"><span>⏱ Sessions</span><b>12 sessions · 34h total</b></div>
-          <div class="lp-tracker-row"><span>🎨 Threads</span><b>18 colours used</b></div>
+          <div class="lp-tracker-row"><span><span style="display:inline-block;width:13px;height:13px;border-radius:4px;background:#5B8EC9;vertical-align:-2px;margin-right:.3rem"></span>Your colour</span><b>#5B8EC9</b></div>
+          <div class="lp-tracker-row"><span>Luca·S</span><b>508 · ✓ Excellent</b></div>
+          <div class="lp-tracker-row"><span>DMC</span><b>322 · ≈ Fair</b></div>
+          <div class="lp-tracker-row"><span>Anchor</span><b>145 · ✓ Good</b></div>
+          <div class="lp-tracker-row"><span>Cosmo</span><b>413 · ✓ Good</b></div>
+          <div class="lp-tracker-row"><span>Madeira</span><b>2408 · ≈ Fair</b></div>
         </div>
       </div>
     </div>
@@ -4556,7 +4572,10 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
           <div class="lp-footer-col-title">Product</div>
           <a href="#features">Features</a>
           <a href="#" onclick="openApp();return false">Open Editor</a>
-          <a href="#coming-soon">Stitch Tracker</a>
+          <a href="#" onclick="openTracker();return false">Stitch Tracker</a>
+          <a href="#" onclick="openThreads();return false">Thread Colours</a>
+          <a href="#" onclick="openFileConverter();return false">File Converter</a>
+          <a href="#" onclick="openCalculators();return false">Calculators</a>
         </div>
         <div class="lp-footer-col">
           <div class="lp-footer-col-title">Learn</div>
@@ -5033,7 +5052,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
   <div class="calc-container">
     <div id="th-hub">
     <h1 class="calc-title">Thread Colour Hub</h1>
-    <p class="calc-sub">Match colours to threads, convert between brands, and browse every colour chart — Luca·S, DMC and Anchor.</p>
+    <p class="calc-sub">Match colours to threads, convert between brands, and browse every colour chart — Luca·S, DMC, Anchor, Cosmo and Madeira.</p>
 
     <div class="th-grid2">
       <!-- Stage 2: colour → thread matcher -->
@@ -5241,6 +5260,55 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
   </div>
 </div><!-- /threads-page -->
 
+<!-- ═════ PHOTO CONVERTER PAGE ═════ -->
+<div id="convert-page">
+  <div class="pj-header">
+    <div class="pj-header-left" onclick="goHome()" title="Back to home">
+      <img id="conv-logo-img" alt="Patternly" style="height:140px;display:block">
+    </div>
+    <a href="#" class="pj-home-link" onclick="goHome();return false">← Back to home</a>
+  </div>
+  <div class="calc-container">
+    <h1 class="calc-title">File Converter</h1>
+    <p class="calc-sub">Convert PCStitch <b>.pat</b>, open <b>.oxs</b> and Stitchmate <b>.stitchmate</b> charts into Patternly's <b>.Ptly</b> format — then download them, open them in the Editor, or start stitching them in the Tracker. Got a .xsd, .chart or other format? Drop it in anyway — we'll tell you exactly how to get it converted. Everything runs in your browser; your files never leave your device.</p>
+
+    <div class="conv-drop" id="conv-dropzone">
+      <div style="font-size:2.2rem;margin-bottom:.5rem">🔄</div>
+      <b style="font-size:1.05rem;display:block;margin-bottom:.3rem">Tap to choose files</b>
+      <span style="font-size:.82rem;color:#7d6b72">or drag &amp; drop — .pat / .oxs / .xml (several at once is fine)</span>
+    </div>
+    <input type="file" id="conv-file-input" accept=".pat,.oxs,.xml,.Ptly,.patternly,.xsd,.chart,.xstitchmate,.stitchmate" multiple style="display:none">
+    <div id="fconv-results" style="max-width:640px;margin:1.2rem auto 0"></div>
+
+    <h3 style="text-align:center;margin:2.6rem 0 .2rem;font-size:1.15rem">Use your converted pattern right away</h3>
+    <div class="conv-dest">
+      <div class="conv-dest-card">
+        <div style="font-size:1.5rem;margin-bottom:.4rem">✏️</div>
+        <b style="font-size:.95rem">Open in the Editor</b>
+        <p style="font-size:.8rem;color:#7d6b72;line-height:1.55;margin:.35rem 0 0">Every converted file gets an <b>“✏️ Editor”</b> button — one tap opens the pattern in the editor to recolour, add layers, or export a print-ready PDF.</p>
+      </div>
+      <div class="conv-dest-card">
+        <div style="font-size:1.5rem;margin-bottom:.4rem">🧵</div>
+        <b style="font-size:.95rem">Open in the Stitch Tracker</b>
+        <p style="font-size:.8rem;color:#7d6b72;line-height:1.55;margin:.35rem 0 0">Or tap <b>“🧵 Tracker”</b> to load the chart with its full colour key into the Stitch Tracker and start marking stitches immediately.</p>
+      </div>
+    </div>
+    <h3 style="text-align:center;margin:2.6rem 0 .6rem;font-size:1.15rem">Coming from another program?</h3>
+    <div class="conv-dest-card" style="max-width:640px;margin:0 auto">
+      <p style="font-size:.82rem;color:#7d6b72;line-height:1.6;margin:0 0 .6rem">Every stitching app has its own private format — but almost all of them can export <b>OXS</b>, the open interchange format Patternly reads natively. Export OXS from your program, then convert it here:</p>
+      <p style="font-size:.78rem;line-height:1.9;margin:0;color:#5a4a51">
+        <b>Pattern Maker (.xsd)</b> — File → Export → OXS (or ask your designer for OXS/PDF)<br>
+        <b>WinStitch / MacStitch (.chart)</b> — File → Export → OXS<br>
+        <b>PCStitch 7/8 (.pat)</b> — File → Save As → PCStitch 5, or export OXS<br>
+        <b>Stitchmate (.stitchmate)</b> — just drop it here, we convert it directly ✓<br>
+        <b>StitchFiddle, FlossCross &amp; friends</b> — download as OXS
+      </p>
+      <p style="font-size:.75rem;color:#7d6b72;line-height:1.55;margin:.7rem 0 0">Have a format we don't read and no way to export OXS? Send us a sample file — we add formats whenever they can be supported reliably.</p>
+    </div>
+    <p style="text-align:center;font-size:.75rem;color:#7d6b72;margin-top:1.8rem">What's .Ptly? Patternly's own pattern format — one small file your whole toolset understands: the editor, the tracker, and “Make a new pattern”.</p>
+  </div>
+</div><!-- /convert-page -->
+
 <!-- Shared confirmation modal (works over any page) -->
 <div id="rp-backdrop" onclick="closeRightPanelMobile()"></div>
 
@@ -5311,7 +5379,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
         </div>
       </div>
     </div>
-    <div id="cv-foot"><button id="cv-cancel">Cancel</button><button id="cv-apply">✓ Convert to pattern</button></div>
+    <div id="cv-foot"><button id="cv-cancel">Cancel</button><button id="cv-apply-track" title="Convert and open in the Stitch Tracker, ready to stitch">🧵 Convert &amp; track</button><button id="cv-apply">✓ Convert to pattern</button></div>
   </div>
 </div>
 <div id="xp-preview-modal">
@@ -5531,6 +5599,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       </div>
     </div>
     <a href="#" onclick="pjGuardedLeave(()=>openThreads());return false">Thread Colours</a>
+    <a href="#" onclick="pjGuardedLeave(()=>openFileConverter());return false">File Converter</a>
     <a href="https://luca-s.com/" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700">Luca·S Shop ↗</a>
     <button id="tb-theme-btn" class="theme-switch" onclick="toggleTheme()" title="Toggle light/dark theme" aria-label="Toggle dark mode"><span class="ts-knob"></span></button>
   </div>
@@ -5695,6 +5764,16 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <input type="file" id="file-input" accept="image/*"/>
 
       <div style="margin-top:.6rem">
+        <div id="img-overlay-section" style="display:none;margin-bottom:.6rem">
+          <button id="img-overlay-btn" style="width:100%;padding:.4rem;border-radius:7px;background:#fafafa;border:1.5px solid #efe0e2;cursor:pointer;font-size:.78rem;font-weight:600;color:var(--ink);font-family:inherit;transition:background .15s">👁 Show photo over pattern</button>
+          <div id="img-overlay-opts" style="display:none;margin-top:.4rem">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:.72rem;color:var(--muted)">Photo opacity</span>
+              <span id="img-ov-val" style="font-size:.72rem;font-weight:700;color:var(--accent)">50%</span>
+            </div>
+            <input type="range" id="img-ov-range" min="10" max="100" value="50" style="width:100%">
+          </div>
+        </div>
         <div id="clear-image-section" style="display:none;margin-bottom:.6rem">
           <button id="clear-image-btn" style="width:100%;padding:.4rem;border-radius:7px;background:#ffeef0;border:1.5px solid #fcc;cursor:pointer;font-size:.78rem;font-weight:600;color:#c0392b;font-family:inherit;transition:background .15s">🗑 Clear Image</button>
         </div>
@@ -7844,6 +7923,8 @@ function render() {
   if(typeof confettiOn !== 'undefined' && confettiOn && typeof drawConfettiScope === 'function') drawConfettiScope();
   // Colour highlight ("night vision") overlay
   if(typeof wpHighlight !== 'undefined' && wpHighlight.size && typeof drawHighlightOverlay === 'function') drawHighlightOverlay();
+  // Original-photo ghost overlay
+  if(typeof drawImageOverlay === 'function') drawImageOverlay();
   // Selection marching ants
   if(typeof drawSelectionOverlay === 'function') drawSelectionOverlay();
   // Live FLOW score (only when Check tab is open)
@@ -9741,6 +9822,37 @@ document.addEventListener('keydown', e=>{
     document.getElementById('cc-brush-size-val').textContent=sl.value;
   }
 });
+// ── PHOTO OVERLAY: ghost the original photo over the stitches ──
+window._imgOvOn=false; window._imgOvOp=0.5;
+function drawImageOverlay(){
+  if(!window._imgOvOn) return;
+  if(typeof uploadedImg==='undefined' || !uploadedImg || !uploadedImg.naturalWidth) return;
+  const b=(window.cvBorderStitches|0); // photo sits inside any plain border
+  const x=b*CELL, y=b*CELL;
+  const w=Math.max(1,(COLS-2*b)*CELL), h=Math.max(1,(ROWS-2*b)*CELL);
+  ctx.save();
+  ctx.globalAlpha=Math.max(0.05, Math.min(1, window._imgOvOp));
+  ctx.drawImage(uploadedImg, x, y, w, h);
+  ctx.restore();
+}
+(function(){
+  const btn=document.getElementById('img-overlay-btn');
+  if(!btn) return;
+  const opts=document.getElementById('img-overlay-opts');
+  btn.addEventListener('click',()=>{
+    window._imgOvOn=!window._imgOvOn;
+    opts.style.display=window._imgOvOn?'block':'none';
+    btn.style.background=window._imgOvOn?'#fbe3e7':'#fafafa';
+    btn.style.borderColor=window._imgOvOn?'var(--accent)':'#efe0e2';
+    btn.textContent=window._imgOvOn?'👁 Hide photo overlay':'👁 Show photo over pattern';
+    render();
+  });
+  document.getElementById('img-ov-range').addEventListener('input',function(){
+    window._imgOvOp=(+this.value)/100;
+    document.getElementById('img-ov-val').textContent=this.value+'%';
+    render();
+  });
+})();
 // ── SELECTION TOOL (Stage 1: region select + operations) ────
 // selMask is a Uint8Array of ROWS*COLS (1 = selected). The overlay draws
 // "marching ants" along the boundary between selected and unselected cells.
@@ -10953,7 +11065,7 @@ function cvAutoCleanGrid(strength){
   }
   return changed;
 }
-document.getElementById('cv-apply').addEventListener('click', async ()=>{
+async function cvApplyCore(){
   // bake colour adjustments into the source photo so the converter (and any
   // future re-conversion) sees exactly what the preview showed
   if(cvAdj.br||cvAdj.ct||cvAdj.sa||cvAdj.wa||cvAdj.hue||cvAdj.bw||cvAdj.style!=='balanced'){
@@ -10995,8 +11107,29 @@ document.getElementById('cv-apply').addEventListener('click', async ()=>{
   if(typeof fitZoomToView==='function') fitZoomToView();
   statsBump('photos');
   updateHeightLock();
+}
+document.getElementById('cv-apply').addEventListener('click', async ()=>{
+  await cvApplyCore();
   cvClose();
   requestAnimationFrame(editorFitZoom); // open showing the whole converted pattern
+});
+// Convert & send straight to the Stitch Tracker: the converted pattern is
+// serialised through the .Ptly(OXS) path and fed to the tracker's own
+// importer, so the chart AND its full colour key arrive ready to stitch.
+document.getElementById('cv-apply-track')?.addEventListener('click', async ()=>{
+  await cvApplyCore();
+  cvClose();
+  try{
+    const xml=expBuildOxs();
+    const bytes=ptnlyWrap(new TextEncoder().encode(xml).buffer, PTNLY_FMT_OXS);
+    const nm=(document.getElementById('pattern-name')?.value||'My pattern').trim()||'My pattern';
+    openTracker();
+    await trkHandleChartPatternly(new File([bytes], nm+'.Ptly'));
+    toast('🧵 Pattern sent to the tracker — happy stitching!');
+  }catch(err){
+    console.error(err);
+    toast('⚠ Could not send to the tracker: '+err.message);
+  }
 });
 
 function loadImage(file){
@@ -11008,6 +11141,7 @@ function loadImage(file){
     };
     uploadedImg.src=ev.target.result;
     document.getElementById('clear-image-section').style.display = '';
+    document.getElementById('img-overlay-section').style.display = '';
   };
   reader.readAsDataURL(file);
 }
@@ -11066,6 +11200,13 @@ function clearAll(){
 
 document.getElementById('clear-image-btn').addEventListener('click',()=>{
   clearAll();
+  // photo gone → overlay off and its controls hidden
+  window._imgOvOn=false;
+  const os=document.getElementById('img-overlay-section');
+  if(os){ os.style.display='none'; }
+  const ob=document.getElementById('img-overlay-btn'), oo=document.getElementById('img-overlay-opts');
+  if(ob){ ob.style.background='#fafafa'; ob.style.borderColor='#efe0e2'; ob.textContent='👁 Show photo over pattern'; }
+  if(oo) oo.style.display='none';
   updateHeightLock();
   toast('Image cleared');
 });
@@ -15776,7 +15917,7 @@ document.querySelectorAll('.ct-btn[data-tool]').forEach(btn=>{
 
 // "Open Editor" now leads to the My Patterns page first (like StitchMate)
 function openApp(){
-  document.body.classList.remove('app-mode','calc-mode','tracker-mode','threads-mode','cv-open');
+  document.body.classList.remove('app-mode','calc-mode','tracker-mode','threads-mode','convert-mode','cv-open');
   document.body.classList.add('projects-mode');
   pjSelectMode=false; pjSelected.clear();
   renderProjectsPage();
@@ -15784,7 +15925,7 @@ function openApp(){
   window.scrollTo(0,0);
 }
 function goHome(){
-  document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','cv-open');
+  document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode','cv-open');
   window.scrollTo(0,0);
 }
 
@@ -16339,7 +16480,7 @@ function trackerNav(guarded){
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') hideTrackerSoon(); });
 })();
 function openTracker(){
-  document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','threads-mode');
+  document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode');
   document.body.classList.add('tracker-mode');
   window.scrollTo(0,0);
   trkShowHome();
@@ -20327,8 +20468,154 @@ function thInit(){
   thFindMatches(); // initial demo colour
 }
 
+function openFileConverter(){
+  document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','threads-mode');
+  document.body.classList.add('convert-mode');
+  const li=document.getElementById('conv-logo-img'), src=document.getElementById('pj-logo-img');
+  if(li && src && src.src) li.src=src.src;
+  window.scrollTo(0,0);
+  if(!window._convWired){
+    window._convWired=true;
+    const dz=document.getElementById('conv-dropzone');
+    const inp=document.getElementById('conv-file-input');
+    dz.addEventListener('click',()=>inp.click());
+    inp.addEventListener('change',function(){ fconvHandle(this.files); this.value=''; });
+    dz.addEventListener('dragover',e=>{ e.preventDefault(); dz.classList.add('dragover'); });
+    dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
+    dz.addEventListener('drop',e=>{ e.preventDefault(); dz.classList.remove('dragover'); fconvHandle(e.dataTransfer.files); });
+  }
+}
+// ── Stitchmate (.stitchmate) → OXS. The format is plain JSON:
+//    pattern{width,height,colorIds[uuid]}, colorMappings[0].mapping[uuid].c =
+//    {h:hex, n:name, b:brand, bc:brand code}, layers[].grid = RLE tokens:
+//    "7" one cell of colour 7 · "7*12" twelve cells · "*400" 400 empties.
+//    Verified against a real file: every layer expands to exactly W×H cells. ──
+function smToOxs(txt){
+  const d=JSON.parse(txt);
+  const p=d.pattern||{};
+  const W=p.width|0, H=p.height|0;
+  if(!W||!H) throw new Error('no pattern dimensions found');
+  if(W>2000||H>2000) throw new Error(`pattern is ${W}×${H} — too large to convert`);
+  const ids=p.colorIds||[];
+  const cmap=(d.colorMappings&&d.colorMappings[0]&&d.colorMappings[0].mapping)||{};
+  const pal=ids.map(id=>{
+    const c=(cmap[id]&&cmap[id].c)||{};
+    let h=String(c.h||'#888888').replace('#','');
+    if(h.length===3) h=h.split('').map(ch=>ch+ch).join('');
+    return { hex:h.toUpperCase().slice(0,6).padEnd(6,'0'), name:c.n||'', brand:c.b||'', code:c.bc||'' };
+  });
+  // composite visible layers; later layers sit on top
+  const cells=new Array(W*H).fill(null);
+  (d.layers||[]).forEach(L=>{
+    if(L.visible===false) return;
+    let i=0;
+    (L.grid||[]).forEach(tok=>{
+      const t=String(tok);
+      if(t[0]==='*'){ i+=parseInt(t.slice(1),10)||0; return; }
+      const star=t.indexOf('*');
+      if(star>0){
+        const v=parseInt(t.slice(0,star),10), cnt=parseInt(t.slice(star+1),10)||0;
+        for(let k=0;k<cnt && i<cells.length;k++,i++) cells[i]=v;
+        return;
+      }
+      const v=parseInt(t,10);
+      if(!isNaN(v) && i<cells.length) cells[i]=v;
+      i++;
+    });
+  });
+  const used=[...new Set(cells.filter(v=>v!==null&&v>=0&&v<pal.length))].sort((a,b)=>a-b);
+  if(!used.length) throw new Error('the pattern appears to be empty');
+  const pmap=new Map(used.map((v,i)=>[v,i+1]));
+  const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  let x='<?xml version="1.0" encoding="UTF-8"?>\n<chart>\n<format comments01="Converted from Stitchmate by Patternly"/>\n';
+  x+=`<properties oxsversion="1.0" software="Patternly" software_version="1" chartwidth="${W}" chartheight="${H}" charttitle="${esc(p.name||'Imported pattern')}" author="" copyright="" instructions="" stitchesperinch="14" palettecount="${used.length}"/>\n`;
+  x+='<palette>\n<palette_item index="0" number="cloth" name="cloth" color="FFFFFF"/>\n';
+  used.forEach((v,i)=>{
+    const c=pal[v];
+    const num=c.brand&&c.code ? (c.brand+'-'+c.code) : (c.code||('Colour '+(i+1)));
+    const nm=c.brand&&c.code ? (c.brand+' '+c.code+(c.name?' \u00b7 '+c.name:'')) : (c.name||num);
+    x+=`<palette_item index="${i+1}" number="${esc(num)}" name="${esc(nm)}" color="${c.hex}" strands="2"/>\n`;
+  });
+  x+='</palette>\n<fullstitches>\n';
+  for(let r=0;r<H;r++)for(let cc=0;cc<W;cc++){
+    const v=cells[r*W+cc];
+    if(v!==null && pmap.has(v)) x+=`<stitch x="${cc+1}" y="${r+1}" palindex="${pmap.get(v)}"/>\n`;
+  }
+  x+='</fullstitches>\n<backstitches>\n</backstitches>\n<ornaments_inc_knots_and_beads>\n</ornaments_inc_knots_and_beads>\n</chart>\n';
+  const note=(p.bs&&p.bs.length)?' (backstitch lines skipped — full stitches and colours converted)':'';
+  return {xml:x, note};
+}
+// Convert each dropped file → .Ptly, with per-file Download / Editor / Tracker
+async function fconvHandle(fileList){
+  const out=document.getElementById('fconv-results');
+  for(const f of Array.from(fileList||[])){
+    const card=document.createElement('div');
+    card.className='conv-dest-card';
+    card.style.cssText+=';margin-bottom:.6rem;display:flex;align-items:center;gap:.7rem;justify-content:space-between;flex-wrap:wrap';
+    out.appendChild(card);
+    const label=document.createElement('div');
+    label.style.cssText='font-size:.82rem;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis';
+    label.textContent=f.name;
+    card.appendChild(label);
+    const base=f.name.replace(/\.[^.]+$/,'');
+    // Recognised-but-proprietary formats get calm HOW-TO guidance, not errors
+    const guide=
+      /\.xsd$/i.test(f.name) ? 'This is a Pattern Maker file — its format is proprietary, so no other app can read it directly. Open it in Pattern Maker and use File → Export to save an OXS (or ask the designer for an OXS/PDF), then convert that here.' :
+      /\.chart$/i.test(f.name) ? 'This is a WinStitch / MacStitch file. Ursa encrypts these saves, so no other app can convert them directly. In WinStitch or MacStitch choose File → Export → OXS, then convert that file here.' :
+      null;
+    if(guide){
+      card.style.borderColor='#e8d8a0'; card.style.background='#fffdf5';
+      label.style.color='#7a5c10'; label.style.fontWeight='600';
+      label.innerHTML='ℹ️ <b>'+f.name.replace(/</g,'&lt;')+'</b> — '+guide;
+      continue;
+    }
+    try{
+      const buf=await f.arrayBuffer();
+      let bytes;
+      if(/\.(ptly|patternly)$/i.test(f.name)){
+        if(!ptnlyUnwrap(buf)) throw new Error('not a valid .Ptly file');
+        bytes=new Uint8Array(buf); // already .Ptly — just offer the actions
+      } else if(/\.pat$/i.test(f.name)){
+        if(!ptnlyLooksLikeRawPat(buf)) throw new Error('not a valid PCStitch .pat file');
+        bytes=ptnlyWrap(buf, PTNLY_FMT_PAT);
+      } else if(/\.(oxs|xml)$/i.test(f.name)){
+        const head=new TextDecoder().decode(new Uint8Array(buf,0,Math.min(200,buf.byteLength)));
+        if(!/<\?xml|<chart[\s>]/i.test(head)) throw new Error('not a valid OXS/XML file');
+        bytes=ptnlyWrap(buf, PTNLY_FMT_OXS);
+      } else if(/\.(xstitchmate|stitchmate)$/i.test(f.name)){
+        const sm=smToOxs(new TextDecoder().decode(new Uint8Array(buf)));
+        bytes=ptnlyWrap(new TextEncoder().encode(sm.xml).buffer, PTNLY_FMT_OXS);
+        if(sm.note) label.dataset.note=sm.note;
+      } else {
+        throw new Error('unsupported format \u2014 please use .pat (PCStitch 5) or .oxs. Most stitching programs can export OXS: look for File \u2192 Export in your app.');
+      }
+      const ptlyName=base+'.Ptly';
+      label.textContent='✅ '+ptlyName+(label.dataset.note||'');
+      const btns=document.createElement('div');
+      btns.style.cssText='display:flex;gap:.35rem;flex-wrap:wrap';
+      const mk=(txt,fn)=>{ const b=document.createElement('button'); b.className='sel-act-btn'; b.textContent=txt; b.addEventListener('click',fn); btns.appendChild(b); };
+      mk('⬇ Download',()=>{
+        const blob=new Blob([bytes],{type:'application/octet-stream'});
+        const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=ptlyName; a.click();
+      });
+      mk('✏️ Editor',()=>{
+        pjGuardedLeave(()=>pjImportPtlyFile(new File([bytes], ptlyName)));
+      });
+      mk('🧵 Tracker',async ()=>{
+        openTracker();
+        await trkHandleChartPatternly(new File([bytes], ptlyName));
+        toast('🧵 Chart loaded in the tracker');
+      });
+      card.appendChild(btns);
+    }catch(err){
+      console.error(err);
+      label.textContent='⚠ '+f.name+' — '+err.message;
+      label.style.color='#9c3d4e';
+    }
+  }
+}
 function openThreads(){
-  document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode');
+  document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','convert-mode');
   document.body.classList.add('threads-mode');
   const cv=document.getElementById('th-chart-view'), bv=document.getElementById('th-browse-view'), hub=document.getElementById('th-hub');
   if(cv&&hub){ cv.style.display='none'; if(bv) bv.style.display='none'; hub.style.display='block'; } // always land on the hub
@@ -20338,7 +20625,7 @@ function openThreads(){
   if(typeof thInit==='function') thInit();
 }
 function openCalculators(tab){
-  document.body.classList.remove('app-mode','projects-mode','tracker-mode','threads-mode');
+  document.body.classList.remove('app-mode','projects-mode','tracker-mode','threads-mode','convert-mode');
   document.body.classList.add('calc-mode');
   calcShowTab(tab||'fabric');
   window.scrollTo(0,0);
@@ -20525,16 +20812,17 @@ applyTheme((()=>{ try{ return localStorage.getItem('patternly_theme')||'light'; 
   const cx=cv.getContext('2d');
   const COLS=14, ROWS=10, SZ=14;
   const P=[
+    // verified: every row 14 chars, mirror-symmetric (row[c] === row[13-c])
     '..............',
-    '..OO....OO....'.replace(/O/g,'1'),
-    '.1221..1221...',
-    '.122211122211.'.slice(0,14),
-    '.12222222221..',
-    '..122222221...',
-    '...1222221....',
-    '....12221.....',
-    '.....121......',
-    '......1.......'
+    '..111....111..',
+    '.12221..12221.',
+    '.122222222221.',
+    '.122222222221.',
+    '..1222222221..',
+    '...12222221...',
+    '....122221....',
+    '.....1221.....',
+    '......11......'
   ];
   const colors={ '1':'#C8566A', '2':'#E8A0AA' };
   const cells=[];
@@ -20597,9 +20885,10 @@ function lpMmAction(what){
   if(what==='photo'){ startWithPhoto(); }
   else if(what==='scratch'){ inApp ? pjGuardedLeave(()=>pjNewPattern()) : pjNewPattern(); }
   else if(what==='tracker'){ trackerNav(inApp); }
-  else if(what==='ptlyconv'){ ptlyOpenConverter(); }
+  else if(what==='ptlyconv'){ inApp ? pjGuardedLeave(()=>openFileConverter()) : openFileConverter(); }
   else if(what==='fabric'||what==='time'||what==='thread'){ inApp ? edNav(what) : openCalculators(what); }
   else if(what==='threads'){ inApp ? pjGuardedLeave(()=>openThreads()) : openThreads(); }
+  else if(what==='fileconv'){ inApp ? pjGuardedLeave(()=>openFileConverter()) : openFileConverter(); }
 }
 function lpMmNav(hash){
   lpCloseMenu();
@@ -20837,7 +21126,7 @@ function pjParsePatData(buf){
     throw new Error(`Not a PCStitch pattern file — the header reads "${shown||'(binary data)'}". If this was exported from a different program (e.g. Stitchmaker), that's a different .pat format.`);
   }
   const ver=header.match(/^PCStitch (\d+)/)[1];
-  if(ver!=='5') throw new Error(`PCStitch ${ver} files aren't supported yet — please export as PCStitch 5.`);
+  if(ver!=='5') throw new Error(`this is a PCStitch ${ver} file — Patternly currently reads PCStitch 5. In PCStitch use File → Save As and pick the version 5 format, or export as OXS, then convert that here.`);
   let p=256+8;
   const W=dv.getUint16(p,true), H=dv.getUint16(p+2,true); p+=4;
   const clothW=dv.getUint16(p,true); p+=4;
