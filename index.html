@@ -20549,8 +20549,8 @@ function acctRenderPage(){
       <div style="flex:1;min-width:180px"><b style="font-size:.95rem">✓ Signed in with your Luca·S account</b><p style="font-size:.76rem;color:#7d6b72;margin:.2rem 0 0">The same account you use in the Luca·S shop.</p></div>
       <a href="/account/logout" target="_blank" rel="noopener" onclick="setTimeout(acctRefresh,1500)" style="padding:.5rem .9rem;border:1.5px solid #eadde1;border-radius:9px;font-size:.8rem;font-weight:700;color:#5a4a51;text-decoration:none">Sign out</a>`;
   } else if(a.proxied){
-    el.innerHTML=`<div style="flex:1;min-width:200px"><b style="font-size:.95rem">You're not signed in</b><p style="font-size:.78rem;color:#7d6b72;margin:.25rem 0 0;line-height:1.5">Sign in with your email — you'll get a code, and new customers get an account automatically. It opens in a new tab; come back here afterwards and we'll notice.</p></div>
-      <a href="/account/login" target="_blank" rel="noopener" style="padding:.55rem 1rem;border-radius:9px;background:var(--lp-red,#8B1A2B);color:#fff;font-size:.82rem;font-weight:700;text-decoration:none">Sign in / Create account</a>`;
+    el.innerHTML=`<div style="flex:1;min-width:200px"><b style="font-size:.95rem">You're not signed in</b><p style="font-size:.78rem;color:#7d6b72;margin:.25rem 0 0;line-height:1.5">Sign in with your email — you'll get a code, and new customers get an account automatically. A small sign-in window opens; the moment you're done, Patternly notices by itself.</p></div>
+      <a href="#" onclick="acctOpenLogin();return false" style="padding:.55rem 1rem;border-radius:9px;background:var(--lp-red,#8B1A2B);color:#fff;font-size:.82rem;font-weight:700;text-decoration:none">Sign in / Create account</a>`;
   } else {
     el.innerHTML=`<div style="flex:1"><b style="font-size:.95rem">Accounts work on the Luca·S site</b><p style="font-size:.78rem;color:#7d6b72;margin:.25rem 0 0">Open Patternly there to sign in with your shop account.</p></div>
       <a href="https://luca-s.com/apps/patternly" style="padding:.55rem 1rem;border-radius:9px;background:var(--lp-red,#8B1A2B);color:#fff;font-size:.82rem;font-weight:700;text-decoration:none">Open on luca-s.com →</a>`;
@@ -20577,6 +20577,30 @@ async function acctRefresh(){
   _acctBusy=false;
 }
 window.addEventListener('focus', ()=>acctRefresh());
+// Sign-in in a centred popup (Google-style). Shopify's email-code login can't
+// be embedded in our own UI (their security model forbids it), but a popup +
+// live polling is the closest thing: finish the code in the popup and the app
+// flips to signed-in on its own, work untouched.
+let _acctLoginWin=null, _acctPollTimer=null;
+function acctOpenLogin(){
+  acctCloseAll();
+  const w=460, h=640;
+  const x=Math.max(0,(screen.width-w)/2), y=Math.max(0,(screen.height-h)/2);
+  _acctLoginWin=window.open('/account/login','lucas_login',`popup=yes,width=${w},height=${h},left=${x},top=${y}`);
+  if(!_acctLoginWin){ window.open('/account/login','_blank','noopener'); return; } // popup blocked → tab
+  clearInterval(_acctPollTimer);
+  _acctPollTimer=setInterval(async ()=>{
+    const was=lucasAuth().loggedIn;
+    await acctRefresh();
+    if(lucasAuth().loggedIn && !was){
+      clearInterval(_acctPollTimer);
+      try{ _acctLoginWin && _acctLoginWin.close(); }catch(e){}
+      if(typeof toast==='function') toast('✓ Signed in with your Luca·S account');
+      return;
+    }
+    if(_acctLoginWin && _acctLoginWin.closed){ clearInterval(_acctPollTimer); acctRefresh(); }
+  }, 2500);
+}
 function acctBuildMenu(){
   const a=lucasAuth();
   if(a.loggedIn){
@@ -20587,8 +20611,8 @@ function acctBuildMenu(){
       <a href="/account/logout" target="_blank" rel="noopener" onclick="acctCloseAll();setTimeout(acctRefresh,1500)">Sign out</a>`;
   }
   if(a.proxied){
-    return `<div class="acct-note">Sign in with your email — a code is sent to you, and new customers get an account automatically. Opens in a new tab; come back and we'll notice.</div>
-      <a href="/account/login" target="_blank" rel="noopener">Sign in / Create account</a>`;
+    return `<div class="acct-note">Sign in with your email — a code is sent to you, and new customers get an account automatically.</div>
+      <a href="#" onclick="acctOpenLogin();return false">Sign in / Create account</a>`;
   }
   return `<div class="acct-note">Accounts work on the Luca·S site — open Patternly there to sign in with your shop account.</div>
     <a href="https://luca-s.com/apps/patternly">Open on luca-s.com →</a>`;
