@@ -2489,6 +2489,19 @@ body.dark .pj-opt span{color:#a596ab}
 .lp-nav-links{display:flex;gap:1.4rem;margin-left:auto;align-items:center}
 .lp-nav-links a{text-decoration:none;font-size:.88rem;color:var(--lp-muted);font-weight:500;transition:color .15s;white-space:nowrap}
 .lp-nav-links a:hover{color:var(--lp-red)}
+.acct-btn{position:relative;width:36px;height:36px;border-radius:50%;border:1.5px solid var(--lp-border,#eadde1);background:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--lp-ink,#2b2226);flex-shrink:0;transition:border-color .15s}
+.acct-btn:hover{border-color:var(--lp-red,#8B1A2B);color:var(--lp-red,#8B1A2B)}
+.acct-btn.acct-in{border-color:var(--lp-red,#8B1A2B)}
+.acct-btn.acct-in::after{content:'';position:absolute;right:-1px;top:-1px;width:10px;height:10px;border-radius:50%;background:#2E7D32;border:2px solid var(--lp-bg,#fff)}
+.acct-dd{position:absolute;top:calc(100% + 10px);right:0;min-width:230px;background:#fff;border:1.5px solid #eadde1;border-radius:12px;box-shadow:0 10px 30px rgba(43,34,38,.14);padding:.45rem;display:none;z-index:9999;text-align:left}
+.acct-dd.open{display:block}
+.acct-dd .acct-note{font-size:.7rem;color:#7d6b72;padding:.35rem .55rem .5rem;line-height:1.45;border-bottom:1px solid #f6edf0;margin-bottom:.3rem}
+.acct-dd a{display:block;padding:.5rem .55rem;border-radius:8px;font-size:.84rem;font-weight:600;color:#2b2226;text-decoration:none;white-space:nowrap}
+.acct-dd a:hover{background:#f8ecee;color:var(--lp-red,#8B1A2B)}
+.acct-wrap{position:relative;display:inline-flex}
+body.dark .acct-dd{background:#221b2e;border-color:#3a3048}
+body.dark .acct-dd a{color:#e8e3ee}
+body.dark .acct-dd a:hover{background:#2c2440}
 /* ── Nav dropdown ── */
 .lp-nav-dd{position:relative}
 .lp-nav-dd-menu{display:none;position:absolute;top:100%;left:50%;transform:translateX(-50%);padding-top:.6rem;z-index:200;min-width:280px}
@@ -4225,6 +4238,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <a href="https://luca-s.com/" target="_blank" rel="noopener" style="color:var(--lp-red);font-weight:600">Luca·S Shop ↗</a>
     </div>
     <button id="lp-menu-btn" onclick="lpToggleMenu()" title="Menu" style="display:none;background:none;border:1.5px solid var(--lp-border);border-radius:9px;width:36px;height:36px;cursor:pointer;font-size:1.05rem;line-height:1;flex-shrink:0;color:var(--lp-ink)">☰</button>
+    <span class="acct-wrap"><button class="acct-btn" id="acct-btn-nav" title="Your account" onclick="acctToggle(this)"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="8.2" r="3.6"/><path d="M4.8 19.4c1.5-3.1 4.2-4.6 7.2-4.6s5.7 1.5 7.2 4.6"/></svg></button><span class="acct-dd" id="acct-dd-nav"></span></span>
     <button id="lp-theme-btn" class="theme-switch" onclick="toggleTheme()" title="Toggle light/dark theme" aria-label="Toggle dark mode"><span class="ts-knob"></span></button>
     <button class="lp-cta-btn" onclick="openApp()" style="margin-left:0">Open Editor →</button>
   </div>
@@ -5601,6 +5615,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <a href="#" onclick="pjGuardedLeave(()=>openThreads());return false">Thread Colours</a>
     <a href="#" onclick="pjGuardedLeave(()=>openFileConverter());return false">File Converter</a>
     <a href="https://luca-s.com/" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700">Luca·S Shop ↗</a>
+    <span class="acct-wrap"><button class="acct-btn" id="acct-btn-tb" title="Your account" onclick="acctToggle(this)"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="8.2" r="3.6"/><path d="M4.8 19.4c1.5-3.1 4.2-4.6 7.2-4.6s5.7 1.5 7.2 4.6"/></svg></button><span class="acct-dd" id="acct-dd-tb"></span></span>
     <button id="tb-theme-btn" class="theme-switch" onclick="toggleTheme()" title="Toggle light/dark theme" aria-label="Toggle dark mode"><span class="ts-knob"></span></button>
   </div>
   <div class="topbar-actions">
@@ -20468,6 +20483,42 @@ function thInit(){
   thFindMatches(); // initial demo colour
 }
 
+// ── LUCA·S ACCOUNT (via Shopify App Proxy) ─────────────────
+// When served through luca-s.com/apps/patternly, a Cloudflare Pages Function
+// verifies Shopify's signed query params and injects window.__LUCAS_AUTH__:
+//   {proxied:true, loggedIn:true|false, customerId, shop}
+// Anywhere else (pages.dev, GitHub) the global is absent → signed-out UX.
+function lucasAuth(){
+  return window.__LUCAS_AUTH__ || {proxied:false, loggedIn:false, customerId:null};
+}
+function acctBuildMenu(){
+  const a=lucasAuth();
+  const ret=encodeURIComponent('/apps/patternly');
+  if(a.loggedIn){
+    return `<div class="acct-note">✓ Signed in with your Luca·S account</div>
+      <a href="/account">My Account</a>
+      <a href="#" onclick="acctCloseAll();openProjects();return false">My Patterns</a>
+      <a href="/account/logout">Sign out</a>`;
+  }
+  if(a.proxied){
+    return `<div class="acct-note">One Luca·S account for the shop and Patternly — sign in to sync purchases and (soon) your patterns.</div>
+      <a href="/account/login?return_url=${ret}">Sign in</a>
+      <a href="/account/register?return_url=${ret}">Create account</a>`;
+  }
+  return `<div class="acct-note">Accounts work on the Luca·S site — open Patternly there to sign in with your shop account.</div>
+    <a href="https://luca-s.com/apps/patternly">Open on luca-s.com →</a>`;
+}
+function acctCloseAll(){ document.querySelectorAll('.acct-dd.open').forEach(d=>d.classList.remove('open')); }
+function acctToggle(btn){
+  const dd=btn.parentElement.querySelector('.acct-dd');
+  const wasOpen=dd.classList.contains('open');
+  acctCloseAll();
+  if(!wasOpen){ dd.innerHTML=acctBuildMenu(); dd.classList.add('open'); }
+}
+document.addEventListener('click',e=>{ if(!e.target.closest('.acct-wrap')) acctCloseAll(); });
+(function(){
+  if(lucasAuth().loggedIn) document.querySelectorAll('.acct-btn').forEach(b=>{ b.classList.add('acct-in'); b.title='Your Luca·S account — signed in'; });
+})();
 function openFileConverter(){
   document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','threads-mode');
   document.body.classList.add('convert-mode');
