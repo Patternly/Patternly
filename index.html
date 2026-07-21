@@ -2502,6 +2502,14 @@ body.dark .pj-opt span{color:#a596ab}
 body.dark .acct-dd{background:#221b2e;border-color:#3a3048}
 body.dark .acct-dd a{color:#e8e3ee}
 body.dark .acct-dd a:hover{background:#2c2440}
+#acct-modal{display:none;position:fixed;inset:0;background:rgba(43,34,38,.45);z-index:100000;align-items:center;justify-content:center;padding:1rem}
+#acct-modal.open{display:flex}
+.acct-m-box{background:#fff;border-radius:16px;box-shadow:0 18px 50px rgba(43,34,38,.25);padding:1.6rem 1.7rem;max-width:380px;width:100%;text-align:center}
+body.dark .acct-m-box{background:#221b2e;color:#e8e3ee}
+.acct-spin{width:34px;height:34px;border:3.5px solid #f0d5da;border-top-color:var(--lp-red,#8B1A2B);border-radius:50%;margin:0 auto .8rem;animation:acctspin 1s linear infinite}
+@keyframes acctspin{to{transform:rotate(360deg)}}
+.acct-m-btn{padding:.5rem .9rem;border-radius:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:inherit;border:1.5px solid #eadde1;background:#fafafa;color:#5a4a51}
+.acct-m-btn.primary{background:var(--lp-red,#8B1A2B);border-color:var(--lp-red,#8B1A2B);color:#fff}
 /* ── Nav dropdown ── */
 .lp-nav-dd{position:relative}
 .lp-nav-dd-menu{display:none;position:absolute;top:100%;left:50%;transform:translateX(-50%);padding-top:.6rem;z-index:200;min-width:280px}
@@ -3883,6 +3891,11 @@ body.dark .fabric-item.sel{background:rgba(255,255,255,.08);color:#f0b8c2}
 #tb-nav > a, #tb-nav .lp-nav-dd > a{text-decoration:none;font-size:.85rem;color:var(--muted);font-weight:600;white-space:nowrap;transition:color .15s}
 #tb-nav > a:hover, #tb-nav .lp-nav-dd > a:hover{color:var(--accent)}
 @media(max-width:1180px){#tb-nav{gap:.85rem}#tb-nav > a,#tb-nav .lp-nav-dd > a{font-size:.78rem}}
+/* Tablet band (iPads, small laptops): the editor topbar is control-dense, so
+   page links step aside — they all live on Home anyway. Account emblem and
+   theme toggle stay. */
+@media(max-width:1440px){#tb-nav > a, #tb-nav .lp-nav-dd{display:none}}
+#tb-nav{overflow:hidden}
 @media(max-width:820px){#tb-nav{display:none}}
 
 /* ── EXPORT PANEL ── */
@@ -5333,6 +5346,19 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <p style="text-align:center;font-size:.75rem;color:#7d6b72;margin-top:1.8rem">What's .Ptly? Patternly's own pattern format — one small file your whole toolset understands: the editor, the tracker, and “Make a new pattern”.</p>
   </div>
 </div><!-- /convert-page -->
+
+<!-- Sign-in orchestration modal -->
+<div id="acct-modal">
+  <div class="acct-m-box">
+    <div class="acct-spin" id="acct-m-spin"></div>
+    <b id="acct-m-title" style="font-size:.98rem;display:block;margin-bottom:.35rem">Signing you in…</b>
+    <p id="acct-m-text" style="font-size:.8rem;color:#7d6b72;line-height:1.55;margin:0 0 1rem">A secure Luca·S sign-in window has opened. Enter your email there — you'll get a code, and new customers get an account automatically. This page will notice by itself.</p>
+    <div style="display:flex;gap:.5rem;justify-content:center">
+      <button class="acct-m-btn" id="acct-m-reopen" onclick="acctReopen()">Reopen window</button>
+      <button class="acct-m-btn" onclick="acctModalClose(true)">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <!-- ═════ MY ACCOUNT PAGE ═════ -->
 <div id="account-page">
@@ -15783,15 +15809,27 @@ document.querySelectorAll('.ct-btn[data-tool]').forEach(btn=>{
     hCtx.textAlign='left'; hCtx.textBaseline='top';
     hCtx.fillText(unit, 2, 2);
     hCtx.font = FONT_B;
+    // Adaptive density: when zoomed out, label every 2nd/5th/10th… unit so
+    // numbers never collide (min ~34px between labels).
+    const _stepsH=[1,2,5,10,20,25,50,100,200];
+    const stepH=_stepsH.find(st=>st*pxPerUnitH>=34)||500;
+    const halfH = pxPerUnitH>=14, minorH = pxPerUnitH>=7;
     for(let u=1; u<=Math.ceil(totalUnitsH)+1; u++){
       const pos = Math.round(u * pxPerUnitH);
       if(pos > canvasW + 2) break;
-      hCtx.beginPath(); hCtx.moveTo(pos, RH-9); hCtx.lineTo(pos, RH-1); hCtx.lineWidth=1; hCtx.stroke();
-      hCtx.textAlign='center'; hCtx.textBaseline='top';
-      hCtx.fillText(u, pos, 2);
-      const posH = Math.round((u-0.5)*pxPerUnitH);
-      if(posH>0 && posH<canvasW){
-        hCtx.beginPath(); hCtx.moveTo(posH, RH-5); hCtx.lineTo(posH, RH-1); hCtx.lineWidth=0.7; hCtx.stroke();
+      const major = (u % stepH)===0;
+      if(major){
+        hCtx.beginPath(); hCtx.moveTo(pos, RH-9); hCtx.lineTo(pos, RH-1); hCtx.lineWidth=1; hCtx.stroke();
+        hCtx.textAlign='center'; hCtx.textBaseline='top';
+        hCtx.fillText(u, pos, 2);
+      } else if(minorH){
+        hCtx.beginPath(); hCtx.moveTo(pos, RH-6); hCtx.lineTo(pos, RH-1); hCtx.lineWidth=0.8; hCtx.stroke();
+      }
+      if(halfH){
+        const posH = Math.round((u-0.5)*pxPerUnitH);
+        if(posH>0 && posH<canvasW){
+          hCtx.beginPath(); hCtx.moveTo(posH, RH-5); hCtx.lineTo(posH, RH-1); hCtx.lineWidth=0.7; hCtx.stroke();
+        }
       }
     }
 
@@ -15813,15 +15851,25 @@ document.querySelectorAll('.ct-btn[data-tool]').forEach(btn=>{
     vCtx.textAlign='center'; vCtx.textBaseline='top';
     vCtx.fillText(unit, RW/2, 2);
     vCtx.font = FONT_B;
+    const _stepsV=[1,2,5,10,20,25,50,100,200];
+    const stepV=_stepsV.find(st=>st*pxPerUnitV>=26)||500;
+    const halfV = pxPerUnitV>=14, minorV = pxPerUnitV>=7;
     for(let u=1; u<=Math.ceil(totalUnitsV)+1; u++){
       const pos = Math.round(u * pxPerUnitV);
       if(pos > canvasH + 2) break;
-      vCtx.beginPath(); vCtx.moveTo(RW-9, pos); vCtx.lineTo(RW-1, pos); vCtx.lineWidth=1; vCtx.stroke();
-      vCtx.textAlign='right'; vCtx.textBaseline='middle';
-      vCtx.fillText(u, RW-12, pos);
-      const posH = Math.round((u-0.5)*pxPerUnitV);
-      if(posH>0 && posH<canvasH){
-        vCtx.beginPath(); vCtx.moveTo(RW-5, posH); vCtx.lineTo(RW-1, posH); vCtx.lineWidth=0.7; vCtx.stroke();
+      const major = (u % stepV)===0;
+      if(major){
+        vCtx.beginPath(); vCtx.moveTo(RW-9, pos); vCtx.lineTo(RW-1, pos); vCtx.lineWidth=1; vCtx.stroke();
+        vCtx.textAlign='right'; vCtx.textBaseline='middle';
+        vCtx.fillText(u, RW-12, pos);
+      } else if(minorV){
+        vCtx.beginPath(); vCtx.moveTo(RW-6, pos); vCtx.lineTo(RW-1, pos); vCtx.lineWidth=0.8; vCtx.stroke();
+      }
+      if(halfV){
+        const posH = Math.round((u-0.5)*pxPerUnitV);
+        if(posH>0 && posH<canvasH){
+          vCtx.beginPath(); vCtx.moveTo(RW-5, posH); vCtx.lineTo(RW-1, posH); vCtx.lineWidth=0.7; vCtx.stroke();
+        }
       }
     }
 
@@ -20582,24 +20630,70 @@ window.addEventListener('focus', ()=>acctRefresh());
 // live polling is the closest thing: finish the code in the popup and the app
 // flips to signed-in on its own, work untouched.
 let _acctLoginWin=null, _acctPollTimer=null;
-function acctOpenLogin(){
-  acctCloseAll();
+function acctModalShow(){
+  const m=document.getElementById('acct-modal');
+  document.getElementById('acct-m-spin').style.display='';
+  document.getElementById('acct-m-title').textContent='Signing you in…';
+  document.getElementById('acct-m-text').textContent='A secure Luca·S sign-in window has opened. Enter your email there — you\u2019ll get a code, and new customers get an account automatically. This page will notice by itself.';
+  document.getElementById('acct-m-reopen').style.display='';
+  m.classList.add('open');
+}
+function acctModalSuccess(){
+  const m=document.getElementById('acct-modal');
+  if(!m.classList.contains('open')) return;
+  document.getElementById('acct-m-spin').style.display='none';
+  document.getElementById('acct-m-title').textContent='✓ Signed in!';
+  document.getElementById('acct-m-text').textContent='Welcome back — your Luca·S account is connected.';
+  document.getElementById('acct-m-reopen').style.display='none';
+  setTimeout(()=>acctModalClose(false), 1400);
+}
+function acctModalClose(cancelled){
+  document.getElementById('acct-modal').classList.remove('open');
+  if(cancelled){
+    clearInterval(_acctPollTimer);
+    try{ _acctLoginWin && _acctLoginWin.close(); }catch(e){}
+  }
+}
+function acctReopen(){
   const w=460, h=640;
   const x=Math.max(0,(screen.width-w)/2), y=Math.max(0,(screen.height-h)/2);
   _acctLoginWin=window.open('/account/login','lucas_login',`popup=yes,width=${w},height=${h},left=${x},top=${y}`);
-  if(!_acctLoginWin){ window.open('/account/login','_blank','noopener'); return; } // popup blocked → tab
+}
+async function acctOpenLogin(){
+  acctCloseAll();
+  // Already signed in (e.g. logged into the shop in another tab)? Detect it
+  // BEFORE opening anything — no popup, just the green dot and a toast.
+  await acctRefresh();
+  if(lucasAuth().loggedIn){
+    if(typeof toast==='function') toast('✓ You\u2019re signed in with your Luca·S account');
+    return;
+  }
+  acctModalShow();
+  acctReopen();
+  if(!_acctLoginWin){
+    // popup blocked → plain tab; the modal keeps orchestrating
+    window.open('/account/login','_blank','noopener');
+    document.getElementById('acct-m-text').textContent='A sign-in tab has opened. Finish there and come back — this page will notice by itself.';
+  }
   clearInterval(_acctPollTimer);
-  _acctPollTimer=setInterval(async ()=>{
+  const tick=async ()=>{
     const was=lucasAuth().loggedIn;
     await acctRefresh();
     if(lucasAuth().loggedIn && !was){
       clearInterval(_acctPollTimer);
       try{ _acctLoginWin && _acctLoginWin.close(); }catch(e){}
+      acctModalSuccess();
       if(typeof toast==='function') toast('✓ Signed in with your Luca·S account');
       return;
     }
-    if(_acctLoginWin && _acctLoginWin.closed){ clearInterval(_acctPollTimer); acctRefresh(); }
-  }, 2500);
+    if(_acctLoginWin && _acctLoginWin.closed){
+      const t=document.getElementById('acct-m-text');
+      if(t && document.getElementById('acct-modal').classList.contains('open'))
+        t.textContent='The sign-in window was closed. Reopen it to continue, or cancel.';
+    }
+  };
+  setTimeout(tick, 700);
+  _acctPollTimer=setInterval(tick, 2500);
 }
 function acctBuildMenu(){
   const a=lucasAuth();
