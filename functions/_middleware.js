@@ -1,10 +1,10 @@
-// Patternly — Cloudflare Pages Function v2 (auth injection + /whoami endpoint)
-// REPLACES the previous functions/_middleware.js — paste this over its contents.
+// Patternly — Cloudflare Pages Function v3
+// v2 + /patterns/* : serves the Luca-S kit catalogue and pattern files from R2.
 //
-// New in v2: GET /whoami returns the auth state as JSON. Because the browser
-// requests it THROUGH the Shopify App Proxy (luca-s.com/apps/patternly/whoami),
-// Shopify signs that request too — so Patternly can re-check sign-in status
-// live (e.g. after the user logs in from another tab) without reloading.
+// The files are deliberately NOT on a public R2 URL. Everything goes through
+// this function so that adding "did this customer buy this kit?" later is an
+// edit here rather than a migration. Until that check exists, the only gate is
+// the App Proxy signature (optional — see ENFORCE_PROXY below).
 
 const enc = new TextEncoder();
 
@@ -30,9 +30,6 @@ async function readAuth(url, env) {
   const sig = url.searchParams.get("signature");
   if (!sig || !env.SHOPIFY_APP_SECRET) return auth;
 
-  // App Proxy signature: params except `signature`, duplicate keys' values
-  // comma-joined, sorted by key, concatenated key=value with NO separator,
-  // HMAC-SHA256 hex with the shared secret.
   const grouped = {};
   url.searchParams.forEach((v, k) => {
     if (k === "signature") return;
@@ -51,6 +48,62 @@ async function readAuth(url, env) {
   return auth;
 }
 
+// Set to true once you're happy that every real request arrives signed.
+// Leave false while testing straight against <project>.pages.dev.
+const ENFORCE_PROXY = false;
+
+const MIME = {
+  json: "application/json",
+  pdf: "application/pdf",
+  ptly: "application/octet-stream",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp"
+};
+
+async function servePattern(key, auth, env) {
+  if (!env.PATTERNS) {
+    return new Response("pattern storage not bound", { status: 500 });
+  }
+  // No traversal, no absolute keys.
+  if (!key || key.includes("..") || key.startsWith("/")) {
+    return new Response("not found", { status: 404 });
+  }
+
+  if (ENFORCE_PROXY && !auth.proxied) {
+    return new Response("forbidden", { status: 403 });
+  }
+
+  // ── Entitlement hook ──────────────────────────────────────────────────
+  // When you're ready to restrict kits to buyers, resolve the SKU from the
+  // key and check it against this customer's orders. Returning 403 here is
+  // all the app needs — it already shows "only available to customers who
+  // bought it" for that status.
+  //
+  //   const sku = key.split("/")[0];
+  //   if (!(await customerOwns(auth.customerId, sku, env))) {
+  //     return new Response("forbidden", { status: 403 });
+  //   }
+
+  const obj = await env.PATTERNS.get(key);
+  if (!obj) return new Response("not found", { status: 404 });
+
+  const headers = new Headers();
+  obj.writeHttpMetadata(headers);
+  headers.set("etag", obj.httpEtag);
+  // The manifest changes whenever you add a kit; the pattern files never do.
+  headers.set(
+    "cache-control",
+    key.endsWith("kits.json") ? "no-store" : "private, max-age=3600"
+  );
+  if (!headers.has("content-type")) {
+    const ext = key.split(".").pop().toLowerCase();
+    headers.set("content-type", MIME[ext] || "application/octet-stream");
+  }
+  return new Response(obj.body, { headers });
+}
+
 export async function onRequest(context) {
   const { request, next, env } = context;
   const url = new URL(request.url);
@@ -59,11 +112,18 @@ export async function onRequest(context) {
   // ── /whoami: live auth check for the running app ──
   if (url.pathname === "/whoami" || url.pathname.endsWith("/whoami")) {
     return new Response(JSON.stringify(auth), {
-      headers: {
-        "content-type": "application/json",
-        "cache-control": "no-store"
-      }
+      headers: { "content-type": "application/json", "cache-control": "no-store" }
     });
+  }
+
+  // ── /patterns/*: kit catalogue + files from R2 ──
+  // Matched by index rather than prefix so it works both on the bare Pages
+  // domain and under the Shopify App Proxy path, same as /whoami above.
+  const MARK = "/patterns/";
+  const at = url.pathname.indexOf(MARK);
+  if (at !== -1) {
+    const key = decodeURIComponent(url.pathname.slice(at + MARK.length));
+    return servePattern(key, auth, env);
   }
 
   // ── everything else: serve the site, injecting auth into the HTML ──
@@ -71,7 +131,15 @@ export async function onRequest(context) {
   const ct = res.headers.get("content-type") || "";
   if (!ct.includes("text/html")) return res;
 
-  const inject = `<script>window.__LUCAS_AUTH__=${JSON.stringify(auth)};</script>`;
+  // Tell the app where its kit files live, relative to wherever it is being
+  // served from — root-relative would break under the App Proxy path.
+  const dir = url.pathname.replace(/\/[^/]*$/, "");
+  const kitsBase = (dir === "" ? "" : dir) + "/patterns";
+
+  const inject =
+    `<script>window.__LUCAS_AUTH__=${JSON.stringify(auth)};` +
+    `window.PATTERNLY_KITS_BASE=${JSON.stringify(kitsBase)};</script>`;
+
   return new HTMLRewriter()
     .on("head", { element(el) { el.prepend(inject, { html: true }); } })
     .transform(res);
