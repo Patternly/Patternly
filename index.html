@@ -4731,6 +4731,30 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     </div>
     <div id="trk-upload">
     <a href="#" id="trk-back-home" style="display:none;font-size:.78rem;color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none" onclick="trkShowHome();return false">← My tracked patterns</a>
+    <!-- Step 0 · where is this pattern coming from -->
+    <div id="trk-source" class="trk-cards">
+      <div class="trk-card" id="trk-src-lucas" role="button" tabindex="0">
+        <div class="trk-card-icon">🧶</div>
+        <h3>Luca-S kit</h3>
+        <p style="color:#6a626f;font-size:.86rem;line-height:1.5;margin:.35rem 0 0">Pick your kit from our catalogue — the chart and colour key are already loaded. Nothing to upload.</p>
+      </div>
+      <div class="trk-card" id="trk-src-other" role="button" tabindex="0">
+        <div class="trk-card-icon">📄</div>
+        <h3>Other brand kit</h3>
+        <p style="color:#6a626f;font-size:.86rem;line-height:1.5;margin:.35rem 0 0">Upload the chart and legend from any kit — PDF, OXS, .pat or .Ptly.</p>
+      </div>
+    </div>
+    <!-- Luca-S catalogue -->
+    <div id="trk-kits" style="display:none">
+      <a href="#" id="trk-kits-back" style="display:inline-block;margin-bottom:.7rem;font-size:.78rem;color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">← Choose a different kit type</a>
+      <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.9rem">
+        <input id="trk-kits-search" type="search" placeholder="Search by name or code (e.g. BU5102)"
+               style="flex:1;height:38px;border:1.5px solid #e6d9dd;border-radius:10px;padding:0 .8rem;font-size:.86rem;font-family:inherit">
+        <span id="trk-kits-count" style="font-size:.78rem;color:#6a626f;white-space:nowrap"></span>
+      </div>
+      <div id="trk-kits-status" style="font-size:.86rem;color:#6a626f;padding:.6rem 0"></div>
+      <div id="trk-kits-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.8rem"></div>
+    </div>
     <div class="trk-cards">
       <div class="trk-card" id="trk-chart-card" onclick="document.getElementById('trk-chart-input').click()">
         <div class="trk-card-icon">🧵</div>
@@ -16310,6 +16334,16 @@ function trkSaveProject(){
       fontMissing: _fontMode ? [...missSet] : null,
       sprites: _fontMode ? fontModeSprites : Object.fromEntries(Object.entries(trackerSprites).map(([k,v])=>[k,v.url])),
       symbolsOnly:trackerSymbolsOnly, bwOnly:trackerBwOnly,
+      // Half-stitch positions, delta-coded in base 36 — without them a reopened
+      // project would draw every half cell as a full stitch. Runs of adjacent
+      // halves collapse to single characters, so this stays small next to the
+      // cell text it accompanies.
+      half: (trackerGrid.halfCells && trackerGrid.halfCells.size)
+        ? (()=>{ const pm=trackerGrid.partMask;
+                 const a=[...trackerGrid.halfCells].map(k=>{ const i=k.indexOf(':');
+                   return {v:+k.slice(0,i)*trackerGrid.cols + +k.slice(i+1), m:(pm&&pm.get(k))||6}; }).sort((x,y)=>x.v-y.v);
+                 let prev=0; return a.map(o=>{ const d=o.v-prev; prev=o.v; return d.toString(36)+o.m.toString(16); }).join('.'); })()
+        : null,
       backstitch: (trackerGrid.backstitch&&trackerGrid.backstitch.length)?trackerGrid.backstitch:null,
       knotsList: (trackerGrid.knotsList&&trackerGrid.knotsList.length)?trackerGrid.knotsList:null
     }));
@@ -16358,6 +16392,24 @@ function trkOpenProject(id){
       if(s.fontCells) trackerGrid.fontCells=s.fontCells.split('\n').map(r=>r.split('\u0001'));
     }
     trackerGrid.fontMissing = new Set(s.fontMissing||[]);
+    // Half/part cells: index delta in base 36 with the quadrant mask as a
+    // trailing hex digit. Older saves have no mask digit — those decode as
+    // plain deltas and fall back to a half stitch, which is what they were.
+    trackerGrid.halfCells = new Set();
+    trackerGrid.partMask = new Map();
+    if(s.half){
+      let p=0;
+      for(const t of s.half.split('.')){
+        let d, m;
+        if(/^[0-9a-z]+[0-9a-f]$/.test(t) && t.length>1){ d=parseInt(t.slice(0,-1),36); m=parseInt(t.slice(-1),16); }
+        else { d=parseInt(t,36); m=6; }
+        if(!(d>=0)) continue;
+        p+=d;
+        const k=Math.floor(p/s.cols)+':'+(p%s.cols);
+        trackerGrid.halfCells.add(k);
+        trackerGrid.partMask.set(k, m||6);
+      }
+    }
     if(s.backstitch) trackerGrid.backstitch=s.backstitch;
     if(s.knotsList) trackerGrid.knotsList=s.knotsList;
     trkFinalToRaw = s.finalToRaw || {};
@@ -16534,16 +16586,147 @@ function trkShowUpload(){
   document.getElementById('trk-workspace').style.display='none';
   document.getElementById('trk-upload').style.display='';
   document.getElementById('trk-back-home').style.display = trkIndex().length ? 'inline-block' : 'none';
-  const cards=document.querySelector('#trk-upload .trk-cards');
+  const cards=document.querySelector('#trk-upload .trk-cards:not(#trk-source)');
+  const src=document.getElementById('trk-source'), kits=document.getElementById('trk-kits');
   const soon=trkPdfSoonPanel();
   if(window.TRACKER_PDF_COMING_SOON){
     if(cards) cards.style.display='none';
+    if(src) src.style.display='none';
+    if(kits) kits.style.display='none';
     soon.style.display='';
   }else{
-    if(cards) cards.style.display='';
+    // Step 0 first: a Luca-S kit needs no uploads at all, so asking which kind
+    // it is before showing file pickers saves most people the whole exercise.
+    if(cards) cards.style.display='none';
+    if(kits) kits.style.display='none';
+    if(src) src.style.display='';
     soon.style.display='none';
   }
 }
+// Reveal either the upload cards or the Luca-S catalogue.
+function trkChooseSource(kind){
+  const cards=document.querySelector('#trk-upload .trk-cards:not(#trk-source)');
+  const src=document.getElementById('trk-source'), kits=document.getElementById('trk-kits');
+  if(src) src.style.display='none';
+  if(kind==='lucas'){
+    if(cards) cards.style.display='none';
+    if(kits) kits.style.display='';
+    trkKitsLoad();
+  }else{
+    if(kits) kits.style.display='none';
+    if(cards) cards.style.display='';
+  }
+}
+
+// ── Luca-S kit catalogue ──────────────────────────────────────────────────
+// Kits live in object storage behind our own endpoint rather than on a public
+// CDN, because that endpoint is what will later enforce "you bought this kit".
+// That is why these are fetches and not plain links. The base is overridable
+// so staging and production can point at different buckets.
+const TRK_KITS_BASE = String(window.PATTERNLY_KITS_BASE || '/patterns').replace(/\/+$/,'');
+let trkKitList = null, trkKitsLoading = false;
+
+function trkKitFileUrl(kit, which){
+  const f = kit.files && kit.files[which];
+  if(f) return /^https?:/i.test(f) ? f : TRK_KITS_BASE+'/'+String(f).replace(/^\/+/,'');
+  const leaf = which==='ptly' ? 'pattern.Ptly' : which+'.pdf';
+  return TRK_KITS_BASE+'/'+encodeURIComponent(kit.sku)+'/'+leaf;
+}
+
+async function trkKitsLoad(force){
+  const st=document.getElementById('trk-kits-status');
+  if(trkKitsLoading) return;
+  if(trkKitList && !force){ trkKitsRender(); return; }
+  trkKitsLoading=true;
+  st.style.color=''; st.textContent='Loading the Luca-S catalogue…';
+  document.getElementById('trk-kits-grid').innerHTML='';
+  try{
+    const r=await fetch(TRK_KITS_BASE+'/kits.json', {credentials:'include', cache:'no-cache'});
+    if(!r.ok) throw new Error('catalogue returned '+r.status);
+    const data=await r.json();
+    trkKitList=(Array.isArray(data)?data:(data.kits||[])).filter(k=>k && k.sku);
+    st.textContent = trkKitList.length ? '' : 'No kits are available yet.';
+    trkKitsRender();
+  }catch(err){
+    console.warn('[tracker] kit catalogue failed', err);
+    st.style.color='#b25f10';
+    st.innerHTML='Couldn\u2019t load the kit catalogue ('+String(err.message||err).replace(/</g,'&lt;')+').<br>'
+      +'You can still <a href="#" id="trk-kits-fallback" style="color:var(--lp-red,#8B1A2B);font-weight:700">upload your kit\u2019s files</a> instead.';
+    const fb=document.getElementById('trk-kits-fallback');
+    if(fb) fb.onclick=e=>{ e.preventDefault(); trkChooseSource('other'); };
+  }finally{ trkKitsLoading=false; }
+}
+
+function trkKitsRender(){
+  const grid=document.getElementById('trk-kits-grid'), sIn=document.getElementById('trk-kits-search');
+  if(!grid) return;
+  const q=((sIn&&sIn.value)||'').trim().toLowerCase();
+  const all=trkKitList||[];
+  const list=all.filter(k=>!q
+    || String(k.sku).toLowerCase().includes(q)
+    || String(k.title||'').toLowerCase().includes(q));
+  const cnt=document.getElementById('trk-kits-count');
+  if(cnt) cnt.textContent = all.length ? list.length+' of '+all.length : '';
+  grid.innerHTML='';
+  if(!list.length && all.length){
+    grid.innerHTML='<div style="grid-column:1/-1;color:#6a626f;font-size:.86rem">No kit matches that search.</div>';
+    return;
+  }
+  const esc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  for(const kit of list){
+    const card=document.createElement('div');
+    card.style.cssText='background:#fff;border:1.5px solid #e6d9dd;border-radius:12px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column';
+    const meta=[(kit.w&&kit.h)?kit.w+'\u00d7'+kit.h:'', kit.colours?kit.colours+' colours':''].filter(Boolean).join(' \u00b7 ');
+    card.innerHTML =
+      (kit.image?`<img src="${esc(kit.image)}" alt="" loading="lazy" style="width:100%;aspect-ratio:1;object-fit:cover;background:#f6f1f2">`
+                :`<div style="width:100%;aspect-ratio:1;background:#f6f1f2"></div>`)+
+      `<div style="padding:.55rem .6rem"><div style="font-weight:700;font-size:.82rem;line-height:1.3">${esc(kit.title||kit.sku)}</div>`+
+      `<div style="font-size:.72rem;color:#6a626f;margin-top:.15rem">${esc(kit.sku)}${meta?' \u00b7 '+meta:''}</div></div>`;
+    card.onclick=()=>trkOpenKit(kit);
+    grid.appendChild(card);
+  }
+}
+
+// Pull a kit's files and hand them to the ordinary import path, so a catalogue
+// kit and an uploaded one become the same kind of tracker project.
+async function trkOpenKit(kit){
+  const st=document.getElementById('trk-kits-status');
+  st.style.color=''; st.textContent='Opening '+(kit.title||kit.sku)+'\u2026';
+  const grab=async (which, name)=>{
+    const r=await fetch(trkKitFileUrl(kit, which), {credentials:'include'});
+    if(r.status===401||r.status===403) throw new Error('This kit is only available to customers who bought it.');
+    if(!r.ok) throw new Error(name+' unavailable ('+r.status+')');
+    return new File([await r.blob()], name, {type:r.headers.get('content-type')||'application/octet-stream'});
+  };
+  try{
+    trkPendingName = kit.title || kit.sku;
+    if(kit.ptly || (kit.files && kit.files.ptly)){
+      await trkHandleChart(await grab('ptly', kit.sku+'.Ptly'));   // exact data, no legend needed
+    }else{
+      // The legend goes first: the chart parser uses its declared width, and
+      // trkHandleLegend re-runs the chart itself once one is attached.
+      await trkHandleLegend(await grab('legend', kit.sku+'-legend.pdf'));
+      await trkHandleChart(await grab('chart', kit.sku+'-chart.pdf'));
+    }
+    st.textContent='';
+  }catch(err){
+    console.error('[tracker] kit open failed', err);
+    st.style.color='#b25f10';
+    st.textContent=String(err.message||err);
+  }
+}
+
+(function(){
+  const l=document.getElementById('trk-src-lucas'), o=document.getElementById('trk-src-other');
+  if(l) l.addEventListener('click', ()=>trkChooseSource('lucas'));
+  if(o) o.addEventListener('click', ()=>trkChooseSource('other'));
+  const b=document.getElementById('trk-kits-back');
+  if(b) b.addEventListener('click', e=>{ e.preventDefault();
+    const k=document.getElementById('trk-kits'), s=document.getElementById('trk-source');
+    if(k) k.style.display='none'; if(s) s.style.display=''; });
+  const s=document.getElementById('trk-kits-search');
+  if(s) s.addEventListener('input', ()=>trkKitsRender());
+})();
 // Inline "PDF upload coming soon" panel shown in place of the upload cards.
 function trkPdfSoonPanel(){
   let el=document.getElementById('trk-pdf-soon');
@@ -17316,7 +17499,7 @@ async function parseChartPdf(file, expectedWidth){
   trackerChartBuf = buf;
   await trkRegisterChartFont(buf);
   const pdf = await pdfjsLib.getDocument({data: new Uint8Array(buf.slice(0))}).promise;
-  const glyphPos = {}; const pitches = []; const pageRulers = [];
+  const glyphPos = {}; const pitches = []; const pageRulers = []; const pageOrigins = [];
   const pages = [];
   for(let p=1; p<=pdf.numPages; p++){
     const page = await pdf.getPage(p);
@@ -17326,6 +17509,7 @@ async function parseChartPdf(file, expectedWidth){
     // alias-normalisation used by the shape-matching path.
     const _normChar = trackerChartFontReady ? (x=>x) : normSymbolStr;
     const rawItems0 = content.items.map(it=>({str: _normChar(it.str), x: it.transform[4], y: it.transform[5],
+      w: it.width||0,
       h: Math.abs(it.transform[3])||it.height||0}));
     // Half-stitch marks print SMALLER than the lattice glyphs (evidence
     // BU5102: 6.72pt vs 10.32pt, two marks per cell) and sit slightly off the
@@ -17333,9 +17517,47 @@ async function parseChartPdf(file, expectedWidth){
     // phantom rows. Split by height class; snap the small class back into
     // empty lattice cells after the lattice is measured.
     const hMode = (()=>{ const f={}; let bk=0,bc=0; for(const it of rawItems0){ if(!it.str.trim())continue; const k=Math.round(it.h*4)/4; f[k]=(f[k]||0)+1; if(f[k]>bc){bc=f[k];bk=k;} } return bk; })();
-    const smallClass = rawItems0.filter(it=>it.str.trim() && it.h>3 && it.h < hMode*0.85);
+    // ── Ruler labels: identified by ROLE, never by size ───────────────────
+    // A chart can print three distinct text sizes (evidence BU5102: 10.25pt
+    // lattice glyphs, 7.92pt ruler labels, 6.72pt half-stitch marks). The
+    // half-stitch split below keys off size alone, so unprotected it swallows
+    // the rulers — the page then has NO readable ruler (band layout collapses
+    // and pages stack vertically) AND the labels get snapped into the grid as
+    // phantom half stitches. Rulers are instead recognised by what they are:
+    // multiples of ten in a straight, evenly-spaced, constant-step run.
+    const rulerSet = new Set();
+    (function(){
+      const nums = rawItems0.filter(it=>/^\d+$/.test(it.str.trim()) && +it.str>=10 && +it.str%10===0);
+      const findRuns = (axis, along)=>{
+        const by = new Map();
+        for(const it of nums){
+          const k = Math.round(it[axis]*2)/2;
+          if(!by.has(k)) by.set(k, []);
+          by.get(k).push(it);
+        }
+        for(const grp of by.values()){
+          if(grp.length < 3) continue;
+          grp.sort((a,b)=>a[along]-b[along]);
+          const step = +grp[1].str - +grp[0].str;
+          // Either direction: column labels rise with x, but row labels FALL
+          // as y rises, because PDF y grows upward while row numbers grow
+          // downward. Demanding an ascending run silently loses every row
+          // ruler on any page whose half-stitch class trips the size filter.
+          let ok = step !== 0;
+          for(let i=1; ok && i<grp.length; i++) if(+grp[i].str - +grp[i-1].str !== step) ok = false;
+          if(!ok) continue;                       // not a monotone constant-step run
+          const gaps=[]; for(let i=1;i<grp.length;i++) gaps.push(Math.abs(grp[i][along]-grp[i-1][along]));
+          const med = gaps.slice().sort((a,b)=>a-b)[gaps.length>>1];
+          if(!(med>0) || gaps.some(g=>Math.abs(g-med) > med*0.25)) continue; // not evenly spaced
+          for(const it of grp) rulerSet.add(it);
+        }
+      };
+      findRuns('y','x');   // column ruler — shared baseline, values rising across the page
+      findRuns('x','y');   // row ruler    — shared left edge, values rising down the page
+    })();
+    const smallClass = rawItems0.filter(it=>it.str.trim() && it.h>3 && it.h < hMode*0.85 && !rulerSet.has(it));
     const smallItems = smallClass.length>=10 ? smallClass : [];
-    const rawItems = smallItems.length ? rawItems0.filter(it=>!(it.h>3 && it.h < hMode*0.85)) : rawItems0;
+    const rawItems = smallItems.length ? rawItems0.filter(it=>rulerSet.has(it) || !(it.h>3 && it.h < hMode*0.85)) : rawItems0;
     const items = bucketRowsByY(rawItems, 2);
     // Phase 1: group items into rows, keeping positions
     let lastRowY=null, rowIts=[]; const rowsIt=[];
@@ -17352,9 +17574,80 @@ async function parseChartPdf(file, expectedWidth){
     const mode=arr=>{ const f={}; let bk=null,bc=0; for(const v of arr){ const k=Math.round(v*2)/2; f[k]=(f[k]||0)+1; if(f[k]>bc){bc=f[k];bk=k;} } return bk; };
     const gx0=longRows.length?mode(longRows.map(r=>r[0].x)):null;
     const gx1=longRows.length?mode(longRows.map(r=>r[r.length-1].x)):null;
-    const pMed=(()=>{ const ds=[]; for(const r of longRows.slice(0,20)) for(let i=1;i<r.length;i++){ const d=r[i].x-r[i-1].x; if(d>1&&d<60) ds.push(d); } ds.sort((a,b)=>a-b); return ds[ds.length>>1]||8; })();
+      // Cell advance measured across a WHOLE row, not from adjacent gaps. The
+    // median adjacent gap under-reads the advance by a fraction of a point
+    // (evidence BU5102 p8: 11.523 vs 11.60) and the error ACCUMULATES: by the
+    // fortieth cell the modular phase has walked past the on-lattice window,
+    // so latticeFrac reads ~0.4 even on a dense full-width row and the
+    // alignment test silently degrades back into the old cell-count test.
+    // The span between the modal left and right edges divided by the modal
+    // cell count has no such drift — it is one measurement, not a sum of many.
+    const pMed=(()=>{
+      if(gx0!==null && gx1!==null && gx1>gx0){
+        const lc={}; let wide=0, wb=-1;
+        for(const r of longRows){
+          if(Math.abs(r[0].x-gx0)>0.6 || Math.abs(r[r.length-1].x-gx1)>0.6) continue;
+          lc[r.length]=(lc[r.length]||0)+1;
+          if(lc[r.length]>wb){ wb=lc[r.length]; wide=r.length; }
+        }
+        if(wide>=8 && wb>=3){ const d=(gx1-gx0)/(wide-1); if(d>1 && d<60) return d; }
+      }
+      const ds=[]; for(const r of longRows.slice(0,20)) for(let i=1;i<r.length;i++){ const d=r[i].x-r[i-1].x; if(d>1&&d<60) ds.push(d); } ds.sort((a,b)=>a-b); return ds[ds.length>>1]||8;
+    })();
     const zoneL = gx0!==null ? gx0 - pMed*0.55 : -Infinity;
     const zoneR = gx1!==null ? gx1 + pMed*0.55 : Infinity;
+    // ── Row de-fragmentation ──────────────────────────────────────────────
+    // bucketRowsByY splits rows on a 2pt tolerance, but a mark printed a
+    // shade off the glyph baseline (half-stitch strokes, stray fragments)
+    // then mints a row of its own. Left alone that row either reads as an
+    // extra chart row — pushing everything below it down — or gets binned as
+    // junk, losing the stitch. Any row sitting far nearer a neighbour than
+    // the true row pitch is a fragment of it: fold it in, never discard.
+    if(rowsIt.length > 2){
+      const ys = rowsIt.map(r=>r[0].rowY);
+      const diffs=[]; for(let i=1;i<ys.length;i++){ const d=Math.abs(ys[i]-ys[i-1]); if(d>0.5) diffs.push(d); }
+      diffs.sort((a,b)=>a-b);
+      const rPitch = diffs[diffs.length>>1] || pMed;
+      if(rPitch > 1){
+        const merged=[];
+        for(const r of rowsIt){
+          const prev = merged[merged.length-1];
+          if(prev && Math.abs(r[0].rowY - prev[0].rowY) < rPitch*0.5){
+            for(const it of r) prev.push(it);
+            prev.sort((a,b)=>a.x-b.x);
+          } else merged.push(r);
+        }
+        rowsIt.length=0; for(const r of merged) rowsIt.push(r);
+        // ── Blank-row reconstruction ──────────────────────────────────────
+        // A row with no stitches at all prints no glyphs, so the text layer
+        // simply has no line for it and every row below silently shifts up.
+        // The row lattice still knows it was there: a gap of k pitches means
+        // k-1 blank rows. Only whole, clean multiples are trusted.
+        const ys2 = rowsIt.map(r=>r[0].rowY);
+        if(ys2.length >= 5){
+          const d2=[]; for(let i=1;i<ys2.length;i++) d2.push(Math.abs(ys2[i]-ys2[i-1]));
+          d2.sort((a,b)=>a-b);
+          const rp = d2[d2.length>>1];
+          if(rp > 1){
+            const dir = ys2.length>1 && ys2[1] < ys2[0] ? -1 : 1;
+            const out2=[];
+            for(let i=0;i<rowsIt.length;i++){
+              out2.push(rowsIt[i]);
+              if(i+1 >= rowsIt.length) continue;
+              const gap = Math.abs(ys2[i+1]-ys2[i]);
+              const k = Math.round(gap/rp);
+              if(k >= 2 && k <= 400 && Math.abs(gap/rp - k) < 0.2){
+                for(let j=1;j<k;j++){
+                  const ty = ys2[i] + dir*j*rp;
+                  out2.push([{str:'', x:(gx0===null?0:gx0), y:ty, rowY:ty, blank:true}]);
+                }
+              }
+            }
+            rowsIt.length=0; for(const r of out2) rowsIt.push(r);
+          }
+        }
+      }
+    }
     // Lattice completion (evidence BU5102 pages 7–8): a grid row whose every
     // cell is a half stitch has no main-class glyph, so it never formed a row.
     // Without it the snapped cells are lost AND band assembly misaligns whole
@@ -17367,18 +17660,28 @@ async function parseChartPdf(file, expectedWidth){
       const rPitch = diffs[diffs.length>>1] || pMed;
       const dir = ys.length>1 && ys[1] < ys[0] ? -1 : 1;
       const have = ys.slice();
-      const wantYs = [];
+      // A genuinely missing row prints a mark in every cell it occupies, so it
+      // is supported by dozens of them. One or two strays are a mark sitting a
+      // shade low on a row that ALREADY exists — minting for those invents a
+      // row the chart never had, and every row below it then shears (evidence
+      // BU5102 p7/p8: two phantom rows per page, so the page offered 62 grid
+      // lines where its own ruler declares 60). Cluster the candidates and
+      // require real weight before believing in a new row.
+      const cand=[];
       for(const sm of smallItems){
         if(sm.x < zoneL || sm.x > zoneR) continue;
         let near=false;
-        for(const y of have){ if(Math.abs(sm.y-y) <= rPitch*0.4){ near=true; break; } }
-        if(near) continue;
-        for(const y of wantYs){ if(Math.abs(sm.y-y) <= rPitch*0.4){ near=true; break; } }
+        for(const y of have){ if(Math.abs(sm.y-y) <= rPitch*0.6){ near=true; break; } }
         if(near) continue;
         const k = Math.round((sm.y - ys[0]) / (rPitch*dir));
         const ty = ys[0] + k*rPitch*dir;
-        if(Math.abs(sm.y-ty) <= rPitch*0.45) wantYs.push(ty);
+        if(Math.abs(sm.y-ty) > rPitch*0.45) continue;
+        const c = cand.find(c=>Math.abs(c.ty-ty) <= rPitch*0.4);
+        if(c) c.n++; else cand.push({ty, n:1});
       }
+      const wantYs = cand.filter(c=>c.n>=6).map(c=>c.ty);
+      if(cand.length !== wantYs.length)
+        console.log('[tracker] page '+p+': ignored '+(cand.length-wantYs.length)+' weakly-supported half-stitch row candidate(s)');
       for(const ty of wantYs){
         const anchor={str:'', x: gx0 - pMed*10, y:ty, rowY:ty};
         let ins=0; while(ins<rowsIt.length && (dir<0 ? rowsIt[ins][0].rowY > ty : rowsIt[ins][0].rowY < ty)) ins++;
@@ -17402,42 +17705,97 @@ async function parseChartPdf(file, expectedWidth){
         if(!byRow.has(ri)) byRow.set(ri, []);
         byRow.get(ri).push(sm);
       }
+      // Marks sit in the CORNERS of a cell, and which corners is precisely what
+      // a fractional stitch is: one corner is a quarter, two a half, three a
+      // three-quarter. So measure the occupied quadrants rather than assume an
+      // orientation — BU5102 runs bottom-left to top-right, but that is a fact
+      // about this chart, not a rule. Value follows for free: corners ÷ 4.
+      const cellMarks = new Map();          // "row:col" -> marks in that cell
       for(const [ri, marks] of byRow){
-        marks.sort((a,b)=>a.x-b.x);
-        const clusters=[];
         for(const m of marks){
-          const c=clusters[clusters.length-1];
-          if(c && m.x - c[c.length-1].x < pMed*0.7) c.push(m); else clusters.push([m]);
+          const col = Math.round((m.x - gx0)/pMed);
+          const k = ri+':'+col;
+          if(!cellMarks.has(k)) cellMarks.set(k, []);
+          cellMarks.get(k).push(m);
         }
+      }
+      // The row lattice holds glyph BASELINES, which are not cell centres. A
+      // two-mark cell straddles its own centre, so the median of those
+      // midpoints recovers the offset — and then single marks can be placed too.
+      const offs=[];
+      for(const [k, ms] of cellMarks){
+        if(ms.length!==2) continue;
+        offs.push((ms[0].y+ms[1].y)/2 - rowYs[+k.slice(0, k.indexOf(':'))]);
+      }
+      offs.sort((a,b)=>a-b);
+      const yMid = offs.length ? offs[offs.length>>1] : 0;
+      const Q_TL=1, Q_TR=2, Q_BL=4, Q_BR=8;
+      for(const [k, ms] of cellMarks){
+        const i=k.indexOf(':'), ri=+k.slice(0,i), col=+k.slice(i+1);
+        const snapX = gx0 + col*pMed, cy = rowYs[ri] + yMid;
+        let mask=0;
+        for(const m of ms){
+          const right = m.x > snapX;
+          const top   = m.y > cy;           // PDF y grows upward
+          mask |= right ? (top?Q_TR:Q_BR) : (top?Q_TL:Q_BL);
+        }
+        if(!mask) continue;
         const row = rowsIt[ri];
-        for(const c of clusters){
-          const cx = (c[0].x + c[c.length-1].x)/2;
-          const col = Math.round((cx - gx0)/pMed);
-          const snapX = gx0 + col*pMed;
-          let occupied=false;
-          for(const it of row){ if(Math.abs(it.x - snapX) < pMed*0.45){ occupied=true; break; } }
-          if(occupied) continue;
-          let ins=row.length; while(ins>0 && row[ins-1].x > snapX) ins--;
-          row.splice(ins, 0, {str: c[0].str, x: snapX, y: c[0].y, rowY: rowYs[ri], half: true});
-        }
+        let occupied=false;
+        for(const it of row){ if(Math.abs(it.x - snapX) < pMed*0.45){ occupied=true; break; } }
+        if(occupied) continue;
+        let ins=row.length; while(ins>0 && row[ins-1].x > snapX) ins--;
+        row.splice(ins, 0, {str: ms[0].str, x: snapX, y: ms[0].y, rowY: rowYs[ri], half: true, mask});
       }
     }
     // Phase 3: strip ruler-zone items (drop pure numbers/marks; unfuse digits
     // glued onto edge cells), then emit string rows + pitch/glyph capture
-    const lines=[];
+    const lines=[]; const rowRulerLabels=[];
     for(const r of rowsIt){
-      const out=[]; let prevX=null;
+      const out=[]; let prevX=null; let rowLabel=null; const nums=[];
+      let onLat=0, offLat=0;
       r.forEach((it,idx)=>{
         let s=it.str;
         if(it.x < zoneL){
-          const m=s.match(/^\d+(\D.*)$/);
-          if(m) s=m[1]; else return; // pure ruler number or mark — outside the grid
+          const m=s.match(/^(\d+)(\D.*)$/);
+          if(m){
+            // a row-ruler label fused onto this row's first cell
+            if(rowLabel===null) rowLabel=+m[1];
+            if(+m[1]>=10 && +m[1]%10===0) rowRulerLabels.push({v:+m[1], y:it.rowY});
+            s=m[2];
+          } else {
+            // pure ruler number or mark — outside the grid. The VALUE plus its
+            // y is the only statement the page makes about which absolute rows
+            // it holds — and row labels print on their OWN line rather than
+            // bucketing with the grid row, so the y has to travel with it.
+            const t=s.trim();
+            if(/^\d+$/.test(t)){
+              if(rowLabel===null) rowLabel=+t;
+              if(+t>=10 && +t%10===0) rowRulerLabels.push({v:+t, y:it.rowY});
+            }
+            return;
+          }
         } else if(it.x > zoneR){
           const m=s.match(/^(.*\D)\d+$/);
           if(m) s=m[1]; else return;
+        } else if(/^\d+$/.test(s)){
+          // Inside the lattice span, so it stays a cell (digits are legitimate
+          // symbols) — but record its centre in case this line turns out to be
+          // the column ruler. The label prints CENTRED on its tick, so the text
+          // origin sits half a label-width to the left of the column it marks.
+          nums.push({v:+s, cx: it.x + (it.w||0)/2});
         }
         if(!s.trim()) return;
-        out.push(it.half ? '\u0001'+s : s); // sentinel marks half-stitch cells through band assembly
+        // Does this cell sit ON the column lattice? A sparse but genuine row
+        // (a fading edge, a few scattered singles) keeps the pitch; a caption,
+        // watermark or footer does not. Counting cells cannot tell those
+        // apart — alignment can.
+        if(gx0!==null && pMed>0){
+          const f = Math.abs(((it.x - gx0)/pMed) % 1);
+          if(Math.min(f, 1-f) < 0.25) onLat++; else offLat++;
+        }
+        // sentinel + quadrant mask ride through band assembly with the cell
+        out.push(it.half ? '\u0001'+String.fromCharCode(0x30+(it.mask||6))+s : s);
         if(!it.half){
           // Keep the first occurrence as the sprite anchor plus an ALTERNATE a
           // few rows deeper. Edge cells sit beside ruler labels, and when cell
@@ -17451,6 +17809,10 @@ async function parseChartPdf(file, expectedWidth){
         if(prevX!==null){ const d=it.x-prevX; if(d>1 && d<60) pitches.push(d); }
         prevX=it.x;
       });
+      if(rowLabel!==null) out.rowLabel=rowLabel;
+      if(onLat+offLat > 0) out.latticeFrac = onLat/(onLat+offLat);
+      if(r.length===1 && r[0].blank) out.blankRow = true;   // reconstructed empty chart row
+      if(nums.length) out.nums=nums;
       lines.push(out);
     }
     // Column ruler: a line of ≥3 numeric tokens (10 20 30 …). Its maximum
@@ -17464,18 +17826,77 @@ async function parseChartPdf(file, expectedWidth){
       }
     }
     pageRulers.push(rulerMax);
+    // ── Page column origin ────────────────────────────────────────────────
+    // A ruler label V sits over absolute column V. Measuring which LOCAL
+    // column that is gives the absolute column of the tile's local column 0 —
+    // i.e. where this tile belongs in the finished chart. Every label on the
+    // line votes; a lone reading is never trusted, so a stray number can't
+    // shift a whole page.
+    let colOffset=null, colVotes=0, colSamples=0;
+    for(const l of lines){
+      if(!(l.length>=3 && l.every(c=>/^\d+$/.test(c)))) continue;
+      const tens=(l.nums||[]).filter(n=>n.v>=10 && n.v<=4000 && n.v%10===0);
+      if(tens.length<2) continue;
+      const votes={};
+      for(const n of tens){
+        const i=Math.round((n.cx - (gx0 + pMed/2))/pMed); // local column, 0-based
+        const off=n.v - 1 - i;                            // absolute column of local 0
+        votes[off]=(votes[off]||0)+1;
+        colSamples++;
+      }
+      for(const k in votes) if(votes[k]>colVotes){ colVotes=votes[k]; colOffset=+k; }
+    }
+    // ── Page row origin ───────────────────────────────────────────────────
+    // Row labels sit on their own line, so they are matched to the nearest
+    // grid row by y. The label baseline is offset ~1 row from the row it
+    // marks (it is centred on the cell band, the glyphs sit on a baseline),
+    // which biases every label on every page by the SAME amount — so the
+    // bias cancels during assembly, where the topmost band is pinned to row 0.
+    const gridRowYs=[];
+    for(let i=0;i<lines.length;i++){
+      const l=lines[i];
+      if(l.length < 8) continue;
+      if(l.every(c=>/^\d+$/.test(c))) continue;   // the column ruler line itself
+      gridRowYs.push(rowsIt[i][0].rowY);
+    }
+    let rowRaw=null, rowVotes=0;
+    if(rowRulerLabels.length && gridRowYs.length){
+      const votes={};
+      for(const L of rowRulerLabels){
+        let bi=-1, bd=Infinity;
+        for(let i=0;i<gridRowYs.length;i++){
+          const d=Math.abs(gridRowYs[i]-L.y);
+          if(d<bd){ bd=d; bi=i; }
+        }
+        if(bi<0) continue;
+        const off=L.v-1-bi;
+        votes[off]=(votes[off]||0)+1;
+        if(votes[off]>rowVotes){ rowVotes=votes[off]; rowRaw=off; }
+      }
+    }
+    const origin={page:p, col: colVotes>=2 ? colOffset : null, colVotes, colSamples,
+                  rowRaw: rowVotes>=2 ? rowRaw : null, rowVotes, gridRowYs: gridRowYs.length,
+                  maxRowLabel: rowRulerLabels.length ? Math.max(...rowRulerLabels.map(L=>L.v)) : 0,
+                  pitch:pMed, gx0};
+    pageOrigins.push(origin);
+    console.log('[tracker] page '+p+' origin — column '+(origin.col===null?'UNRESOLVED':origin.col)
+      +' ('+colVotes+'/'+colSamples+' labels agree) · row raw '+(origin.rowRaw===null?'UNRESOLVED':origin.rowRaw)
+      +' ('+rowVotes+'/'+rowRulerLabels.length+') · ruler max '+rulerMax+' · pitch '+(pMed?pMed.toFixed(2):'?'));
     pages.push(lines);
   }
-  const grid = assembleChartGrid(pages, expectedWidth, pageRulers);
+  const grid = assembleChartGrid(pages, expectedWidth, pageRulers, pageOrigins);
   // Unwrap half-stitch sentinels into a positional set — legends count a half
   // stitch as ½, so verification and progress need to know which cells they are.
-  grid.halfCells = new Set();
+  grid.halfCells = new Set();      // cells that are not a whole cross
+  grid.partMask  = new Map();      // and which quadrants each of them fills
   for(let r=0;r<grid.cells.length;r++){
     const row=grid.cells[r];
     for(let c=0;c<row.length;c++){
       if(typeof row[c]==='string' && row[c].charCodeAt(0)===1){
-        row[c]=row[c].slice(1);
+        const mask=(row[c].charCodeAt(1)-0x30)&15;
+        row[c]=row[c].slice(2);
         grid.halfCells.add(r+':'+c);
+        grid.partMask.set(r+':'+c, mask||6);
       }
     }
   }
@@ -17493,14 +17914,14 @@ async function parseChartPdf(file, expectedWidth){
   return grid;
 }
 
-function assembleChartGrid(pages, expectedWidth, pageRulers){
+function assembleChartGrid(pages, expectedWidth, pageRulers, pageOrigins){
   let pageGrids = pages.map(lines=>{
     // Junk lines must go WITHOUT touching sparse grid rows — every wrongly
     // dropped row shifts the whole band during assembly. Old heuristics
     // (fewer than 8 cells → junk, all-digit cells → ruler) mass-dropped rows
     // on sparse colour charts where digits are legitimate symbols.
     let gridLines = lines.filter(l => {
-      if(!l.length) return false;
+      if(!l.length) return !!l.blankRow;   // an empty line is junk unless it is a real blank row
       // column ruler: mostly multiples of ten, all numeric, several tokens
       if(l.length>=3 && l.every(c=>/^\d+$/.test(c))){
         const tens=l.map(Number).filter(v=>v%10===0 && v>=10);
@@ -17512,7 +17933,10 @@ function assembleChartGrid(pages, expectedWidth, pageRulers){
       if(l.length===1) return l[0].length<=2 && !/^\d+$/.test(l[0]);
       return true;
     });
-    gridLines = gridLines.map(line=>{
+    gridLines = gridLines.map(srcLine=>{
+      // The rewrite below returns fresh arrays, which would drop the ruler
+      // label recorded during parsing — carry it across.
+      const outLine=(line=>{
       // Row-ruler labels (10, 20, 30…) can fuse with or precede the first
       // symbol. But digits can also BE symbols in the legend ("5", "2"…),
       // so only strip values that are genuine ruler labels: multiples of 10.
@@ -17535,26 +17959,95 @@ function assembleChartGrid(pages, expectedWidth, pageRulers){
         if(m && +m[2]>=10 && +m[2]%10===0) line=[...line.slice(0,-1), m[1]];
       }
       return line;
+      })(srcLine);
+      for(const k of ['rowLabel','latticeFrac','nums','blankRow'])
+        if(srcLine[k]!==undefined && outLine[k]===undefined) outLine[k]=srcLine[k];
+      return outLine;
     });
     if(gridLines.length > 3){
       const counts = {};
       for(const l of gridLines){ counts[l.length] = (counts[l.length]||0) + 1; }
       let mode = gridLines[0].length, best = -1;
       for(const len in counts){ if(counts[len] > best){ best = counts[len]; mode = parseInt(len); } }
-      gridLines = gridLines.filter(l => l.length >= mode*0.5);
+      // Judge a line by whether its cells sit ON the lattice, not by how many
+      // it has. A chart that fades out at an edge prints genuinely sparse rows
+      // — the old "at least half the modal count" test threw those away as
+      // junk (evidence BU5102: 8 real rows lost off the bottom of the last
+      // band, and the pages of that band then disagreed on height, shearing
+      // everything below sideways). Alignment separates a thin real row from a
+      // caption; the count cannot. Charts parsed before this tag existed fall
+      // back to the old test.
+      gridLines = gridLines.filter(l => l.blankRow ? true :
+        typeof l.latticeFrac === 'number' ? (l.latticeFrac >= 0.75 || l.length >= mode*0.5)
+                                          : l.length >= mode*0.5);
     }
     return gridLines;
   });
 
   // Some kits embed the whole chart twice (screen + watermarked print copy)
   let rulers = pageRulers ? pageRulers.slice() : pageGrids.map(()=>0);
+  let origins = pageOrigins ? pageOrigins.slice() : pageGrids.map(()=>null);
   if(pageGrids.length > 1){
-    const seen = [], deduped = [], dedupedRulers = [];
+    const seen = [], deduped = [], dedupedRulers = [], dedupedOrigins = [];
     pageGrids.forEach((g,i)=>{
       const sig = g.map(r=>r.join('\u0001')).join('\n');
-      if(!seen.includes(sig)){ seen.push(sig); deduped.push(g); dedupedRulers.push(rulers[i]||0); }
+      if(!seen.includes(sig)){ seen.push(sig); deduped.push(g); dedupedRulers.push(rulers[i]||0); dedupedOrigins.push(origins[i]||null); }
     });
-    pageGrids = deduped; rulers = dedupedRulers;
+    pageGrids = deduped; rulers = dedupedRulers; origins = dedupedOrigins;
+  }
+
+  // ── Page row origins ──────────────────────────────────────────────────
+  // Unlike columns, rows need no geometry: the ruler label was bucketed into
+  // its own row during parsing, so a label V on grid line j means this tile
+  // starts at absolute row V-1-j. Computed here because junk filtering above
+  // is what finally settles which lines are grid rows.
+  origins.forEach((o,i)=>{
+    if(!o) return;
+    o.height = pageGrids[i].length;
+    const counts={}; let w=0, wb=-1;
+    for(const r of pageGrids[i]){ counts[r.length]=(counts[r.length]||0)+1; if(counts[r.length]>wb){ wb=counts[r.length]; w=r.length; } }
+    o.width = w;
+  });
+  // The row-label baseline is offset from the row it marks by a constant on
+  // every page, so the raw offsets are all shifted by the same amount. The
+  // chart necessarily starts at row 0, so subtracting the smallest raw offset
+  // cancels the bias without needing to know what it was.
+  const rawRows = origins.filter(o=>o && o.rowRaw!==null).map(o=>o.rowRaw);
+  if(rawRows.length){
+    const bias = Math.min(...rawRows);
+    origins.forEach(o=>{ if(o) o.row = (o.rowRaw===null ? null : o.rowRaw - bias); });
+  } else {
+    origins.forEach(o=>{ if(o) o.row = null; });
+  }
+  // Trailing blank rows print nothing and have no following row to bracket
+  // them, so the lattice cannot infer them — but the ruler states outright how
+  // far the page reaches. A page must extend to its own last row label.
+  origins.forEach((o,i)=>{
+    if(!o || o.row===null || !o.maxRowLabel) return;
+    const need = o.maxRowLabel - o.row, have = pageGrids[i].length;
+    // Only genuine trailing blanks are padded, and a page can only end in a
+    // handful of them. A larger gap is not a run of empty rows — it is rows
+    // that were read and then lost, and filling those with blanks hides the
+    // loss behind a chart of exactly the right size. Say so instead.
+    if(need > have){
+      if(need - have <= 2){
+        for(let k=have;k<need;k++){ const blank=[]; blank.blankRow=true; pageGrids[i].push(blank); }
+        o.height = pageGrids[i].length;
+      } else {
+        o.shortfall = need - have;
+        console.warn('[tracker] page '+o.page+' is '+o.shortfall+' row(s) short of its own ruler ('
+          + have+' read, '+need+' printed) — rows were lost in parsing, not padded');
+      }
+    } else if(have > need){
+      o.overshoot = have - need;
+      console.warn('[tracker] page '+o.page+' has '+o.overshoot+' row(s) more than its own ruler ('
+        + have+' read, '+need+' printed) — phantom rows');
+    }
+  });
+  if(origins.some(o=>o)){
+    console.log('[tracker] page origins (col,row → size):', origins.map(o=>o
+      ? `p${o.page}: ${o.col===null?'?':o.col},${o.row===null?'?':o.row} → ${o.width}×${o.height}`
+      : '—').join(' | '));
   }
 
   if(pageGrids.length === 1) return normalizeGrid(pageGrids[0]);
@@ -17587,6 +18080,50 @@ function assembleChartGrid(pages, expectedWidth, pageRulers){
     pagesPerBand = 1;
   }
 
+  // ── Absolute placement ────────────────────────────────────────────────
+  // Each tile knows from its own printed rulers exactly which absolute column
+  // and row it starts at, so it is written where it belongs rather than
+  // appended in sequence. Concatenation cannot survive two pages of a band
+  // disagreeing on height — every row below shears sideways — and cannot clip
+  // a tile whose ruler overshoots the lattice. Falls back to concatenation
+  // whenever the rulers were not readable on every page.
+  const placeable = pageGrids.length>1 && origins.length===pageGrids.length
+                    && origins.every(o=>o && o.col!==null && o.row!==null);
+  if(placeable){
+    let W=0, H=0;
+    origins.forEach((o,i)=>{ W=Math.max(W,o.col+o.width); H=Math.max(H,o.row+pageGrids[i].length); });
+    // A legend-declared width wins when it agrees to within a couple of
+    // cells: the final tile's ruler can print past the end of the lattice.
+    if(expectedWidth && Math.abs(expectedWidth-W)<=5) W=expectedWidth;
+    const cells=[];
+    for(let r=0;r<H;r++){ const row=new Array(W); row.fill(' '); cells.push(row); }
+    let stitchesIn=0, clipped=0;
+    origins.forEach((o,i)=>{
+      const g=pageGrids[i];
+      for(let r=0;r<g.length;r++){
+        const line=g[r], R=o.row+r;
+        for(let c=0;c<line.length;c++){
+          const v=line[c];
+          if(v===undefined || v===' ') continue;
+          stitchesIn++;
+          const C=o.col+c;
+          if(R<0||R>=H||C<0||C>=W){ clipped++; continue; }
+          cells[R][C]=v;
+        }
+      }
+    });
+    let stitchesOut=0;
+    for(const row of cells) for(const v of row) if(v!==' ') stitchesOut++;
+    // Conservation check: every stitch read off the pages must appear exactly
+    // once in the assembled chart. A shortfall means tiles overlapped and
+    // overwrote each other; it is the one thing dimensions alone cannot show.
+    console.log('[tracker] absolute placement '+W+'x'+H
+      +' · stitches in '+stitchesIn+' → out '+stitchesOut
+      +(clipped?(' · '+clipped+' clipped past the chart edge'):'')
+      +((stitchesOut+clipped)===stitchesIn?' · conserved ✓':' · ⚠ MISMATCH'));
+    return {cols:W, rows:H, cells, pageOrigins:origins};
+  }
+
   const bands = [];
   for(let i=0;i<pageGrids.length;i+=pagesPerBand) bands.push(pageGrids.slice(i, i+pagesPerBand));
   const bandGrids = bands.map(bandPages=>{
@@ -17601,7 +18138,9 @@ function assembleChartGrid(pages, expectedWidth, pageRulers){
   });
   let fullGrid = [];
   for(const bg of bandGrids){ fullGrid = fullGrid.concat(bg); }
-  return normalizeGrid(fullGrid);
+  const ng = normalizeGrid(fullGrid);
+  ng.pageOrigins = origins;
+  return ng;
 }
 
 function normalizeGrid(rows){
@@ -17671,15 +18210,24 @@ function resolveTrackerColours(legend){
 }
 
 // ── Exactness verification: parsed grid vs the legend's declared stitch counts ──
+// Value of one cell: a whole cross is 1, a fractional stitch is its occupied
+// corners over four. Legends count fractionals this way, so verification,
+// progress and the colour list all have to agree with it.
+function trkPopCount(m){ let n=0; while(m){ n+=m&1; m>>=1; } return n; }
+function trkCellWeight(r,c){
+  const g=trackerGrid; if(!g) return 1;
+  const m=g.partMask && g.partMask.get(r+':'+c);
+  if(m!==undefined) return trkPopCount(m)/4;
+  return (g.halfCells && g.halfCells.has(r+':'+c)) ? 0.5 : 1;   // pre-quadrant saves
+}
 function trackerVerifyCounts(){
   const found = {}; let totalGrid = 0, unknown = 0; const unknownBy = {};
-  const halves = trackerGrid.halfCells;
   for(let r=0;r<trackerGrid.cells.length;r++){
     const row = trackerGrid.cells[r];
     for(let c=0;c<row.length;c++){
       const ch = row[c];
       if(ch === ' ') continue;
-      const w = (halves && halves.has(r+':'+c)) ? 0.5 : 1; // legends count half stitches as ½
+      const w = trkCellWeight(r,c);
       totalGrid += w;
       found[ch] = (found[ch]||0) + w;
       if(!trackerColourMap[ch]){ unknown++; unknownBy[ch] = (unknownBy[ch]||0) + 1; }
@@ -18608,6 +19156,32 @@ function renderTracker(){
   const chartFontPx = Math.round(cell*0.92);
   const chartGlyphAt = (r,c)=>{ const row=trackerGrid.fontCells && trackerGrid.fontCells[r]; const g=row?row[c]:''; return (g&&g!==' ')?g:''; };
   const fontMiss = (g)=> !!(trackerGrid.fontMissing && trackerGrid.fontMissing.has(g));
+  // ── Fractional stitches ───────────────────────────────────────────────
+  // A partial stitch prints the same glyph as its full counterpart, smaller
+  // and once per occupied CORNER of the cell — one corner is a quarter, two a
+  // half, three a three-quarter. Which corners is measured from the chart at
+  // parse time, never assumed, so a chart that runs its halves the other way
+  // draws the other way (evidence BU5102: every partial cell is TR+BL).
+  const _HC = trackerGrid.halfCells, _PM = trackerGrid.partMask;
+  const partAt = (r,c)=> (_PM && _PM.get(r+':'+c)) || ((_HC && _HC.has(r+':'+c)) ? 6 : 0);
+  const QPOS = {1:[0.27,0.27], 2:[0.73,0.27], 4:[0.27,0.73], 8:[0.73,0.73]};
+  const QBITS = [1,2,4,8];
+  const drawGlyph=(g, px, x, y, mask, stack)=>{
+    trkCtx.textAlign='center'; trkCtx.textBaseline='middle';
+    if(mask){
+      trkCtx.font=`${Math.max(5,Math.round(px*0.6))}px `+stack;
+      for(const b of QBITS) if(mask&b) trkCtx.fillText(g, x+cell*QPOS[b][0], y+cell*QPOS[b][1]);
+    } else {
+      trkCtx.font=`${px}px `+stack;
+      trkCtx.fillText(g, x+cell*0.5, y+cell*0.5);
+    }
+  };
+  const drawSprite=(img, x, y, mask)=>{
+    if(mask){
+      const w=(cell-1)*0.46;
+      for(const b of QBITS) if(mask&b) trkCtx.drawImage(img, x+cell*QPOS[b][0]-w/2, y+cell*QPOS[b][1]-w/2, w, w);
+    } else trkCtx.drawImage(img, x+1, y+1, cell-1, cell-1);
+  };
   for(let r=vp.r0;r<vp.r0+vp.nr;r++){
     for(let c=vp.c0;c<vp.c0+vp.nc;c++){
       const sym=trackerGrid.cells[r][c];
@@ -18631,25 +19205,23 @@ function renderTracker(){
           continue;
         }
         if(showSymbol && !ghost){
+          const part=partAt(r,c);
           if(useChartFont){
             const g=chartGlyphAt(r,c);
             if(g && fontMiss(g)){
               const spr=trackerSprites[sym];
-              if(spr) trkCtx.drawImage(spr.dark, x+1, y+1, cell-1, cell-1);
+              if(spr) drawSprite(spr.dark, x, y, part);
             } else if(g){
               trkCtx.fillStyle='rgba(0,0,0,0.9)';
-              trkCtx.font=`${chartFontPx}px `+trkChartFontStack;
-              trkCtx.textAlign='center'; trkCtx.textBaseline='middle';
-              trkCtx.fillText(g, x+cell*0.5, y+cell*0.5);
+              drawGlyph(g, chartFontPx, x, y, part, trkChartFontStack);
             }
           } else {
             const spr=trackerSprites[sym];
-            if(spr) trkCtx.drawImage(spr.dark, x+1, y+1, cell-1, cell-1);
+            if(spr) drawSprite(spr.dark, x, y, part);
             else {
               trkCtx.fillStyle='rgba(0,0,0,0.9)';
-              trkCtx.font=`bold ${fontSize}px "PatternlySymbols","Segoe UI Symbol","Noto Sans Symbols",Arial,sans-serif`;
-              trkCtx.textAlign='center'; trkCtx.textBaseline='middle';
-              trkCtx.fillText((sym.length>1?sym[0]:sym)+'\uFE0E', x+cell*0.5, y+cell*0.5);
+              drawGlyph((sym.length>1?sym[0]:sym)+'\uFE0E', fontSize, x, y, part,
+                '"PatternlySymbols","Segoe UI Symbol","Noto Sans Symbols",Arial,sans-serif');
             }
           }
         } else if(!showSymbol && !ghost){
@@ -18671,26 +19243,24 @@ function renderTracker(){
       trkCtx.fillRect(x+1,y+1,cell-1,cell-1);
       if(showSymbol && !stitched && !ghost){
         const lum=col?(0.299*col.r+0.587*col.g+0.114*col.b):128;
+        const part=partAt(r,c);
         if(useChartFont){
           const g=chartGlyphAt(r,c);
           if(g && fontMiss(g)){
             const spr=trackerSprites[sym];
-            if(spr) trkCtx.drawImage(lum>140?spr.dark:spr.light, x+1, y+1, cell-1, cell-1);
+            if(spr) drawSprite(lum>140?spr.dark:spr.light, x, y, part);
           } else if(g){
             trkCtx.fillStyle=lum>140?'rgba(0,0,0,0.85)':'rgba(255,255,255,0.9)';
-            trkCtx.font=`${chartFontPx}px `+trkChartFontStack;
-            trkCtx.textAlign='center'; trkCtx.textBaseline='middle';
-            trkCtx.fillText(g, x+cell*0.5, y+cell*0.5);
+            drawGlyph(g, chartFontPx, x, y, part, trkChartFontStack);
           }
         } else {
           const spr=trackerSprites[sym];
           if(spr){
-            trkCtx.drawImage(lum>140?spr.dark:spr.light, x+1, y+1, cell-1, cell-1);
+            drawSprite(lum>140?spr.dark:spr.light, x, y, part);
           } else {
             trkCtx.fillStyle=lum>140?'rgba(0,0,0,0.75)':'rgba(255,255,255,0.85)';
-            trkCtx.font=`bold ${fontSize}px "PatternlySymbols","Segoe UI Symbol","Noto Sans Symbols",Arial,sans-serif`;
-            trkCtx.textAlign='center'; trkCtx.textBaseline='middle';
-            trkCtx.fillText((sym.length>1?sym[0]:sym)+'\uFE0E', x+cell*0.5, y+cell*0.5);
+            drawGlyph((sym.length>1?sym[0]:sym)+'\uFE0E', fontSize, x, y, part,
+              '"PatternlySymbols","Segoe UI Symbol","Noto Sans Symbols",Arial,sans-serif');
           }
         }
       }
@@ -18925,12 +19495,27 @@ document.getElementById('trk-canvas-wrap').addEventListener('wheel', e=>{
 function updateTrackerProgressUI(){
   if(typeof trkSyncLegendBtn==='function') trkSyncLegendBtn(); // show 📋 only when a legend exists
   if(!trackerGrid||!trackerStitched) return;
-  const done={}, total={};
+  const done={}, total={}, partTotal={}, partDone={}, partMaskOf={};
   for(let r=0;r<trackerGrid.rows;r++)for(let c=0;c<trackerGrid.cols;c++){
     const s=trackerGrid.cells[r][c]; if(s===' ') continue;
+    const st=trackerStitched[r][c];
     total[s]=(total[s]||0)+1;
-    if(trackerStitched[r][c]) done[s]=(done[s]||0)+1;
+    if(st) done[s]=(done[s]||0)+1;
+    // Fractional cells are a SUBSET of the totals, so the header and the sel
+    // card keep counting whole cells; only the list splits a colour by
+    // fraction. Bucketed by how many corners they fill, so a chart using
+    // quarters and halves of one thread gets a row for each.
+    const mk = trackerGrid.partMask ? trackerGrid.partMask.get(r+':'+c) : undefined;
+    const n = mk!==undefined ? trkPopCount(mk)
+            : (trackerGrid.halfCells && trackerGrid.halfCells.has(r+':'+c)) ? 2 : 4;
+    if(n<4){
+      (partTotal[s]=partTotal[s]||{})[n]=(partTotal[s][n]||0)+1;
+      if(st) (partDone[s]=partDone[s]||{})[n]=(partDone[s][n]||0)+1;
+      const mm=(partMaskOf[s]=partMaskOf[s]||{});
+      mm[n]=mm[n]||{}; mm[n][mk===undefined?6:mk]=(mm[n][mk===undefined?6:mk]||0)+1;
+    }
   }
+  const FRACNAME={1:'Quarter stitch',2:'Half stitch',3:'Three-quarter stitch'};
   const list=document.getElementById('trk-colors'); list.innerHTML='';
   // In CrossStitch3 mode the colour list draws its symbols with the same font
   // (and the same chart character each colour maps to) so the swatches match the
@@ -18950,6 +19535,29 @@ function updateTrackerProgressUI(){
     return spr?`<img class="sy" src="${spr.url}" style="width:${px+3}px;height:${px+3}px" alt="">`
               :`<span class="sy">${_esc(sym.length>1?sym[0]:sym)}</span>`;
   };
+  // The chart prints a half stitch as the same glyph, smaller and twice in the
+  // cell — so the list draws it that way too, and says so in words. Two rows
+  // carrying the same thread name need both: the picture matches the paper,
+  // the label removes any doubt about which is which.
+  const symPartHtml = (sym, px, mask)=>{
+    const sp = Math.max(6, Math.round(px*0.52));
+    let one;
+    if(useFont){
+      const gch=trkFinalToRaw[sym]||sym;
+      const spr0=trackerSprites[sym];
+      one = (trackerGrid.fontMissing && trackerGrid.fontMissing.has(gch) && spr0)
+        ? `<img src="${spr0.url}" style="width:${sp}px;height:${sp}px" alt="">`
+        : `<span style="font-family:${trkChartFontStack};font-size:${sp}px;line-height:${sp}px">${_esc(gch)}</span>`;
+    } else {
+      const spr=trackerSprites[sym];
+      one = spr ? `<img src="${spr.url}" style="width:${sp}px;height:${sp}px" alt="">`
+                : `<span style="font-size:${sp}px;line-height:${sp}px">${_esc(sym.length>1?sym[0]:sym)}</span>`;
+    }
+    const POS={1:['27%','27%'],2:['73%','27%'],4:['27%','73%'],8:['73%','73%']};
+    const marks=[1,2,4,8].filter(b=>mask&b).map(b=>
+      `<span style="position:absolute;left:${POS[b][0]};top:${POS[b][1]};transform:translate(-50%,-50%);display:inline-flex">${one}</span>`).join('');
+    return `<span class="sy" style="position:relative;width:${px+3}px;height:${px+3}px;display:inline-block;overflow:hidden">${marks}</span>`;
+  };
   if(trkSelActive()){
     const clear=document.createElement('button');
     clear.id='trk-clear-sel'; clear.textContent='✕ Show all colours';
@@ -18960,7 +19568,12 @@ function updateTrackerProgressUI(){
   let totalAll=0, totalDone=0;
   for(const e of entries){
     const col=trackerColourMap[e.symbol], t=total[e.symbol]||0, d=done[e.symbol]||0;
+    const pT=partTotal[e.symbol]||{}, pD=partDone[e.symbol]||{};
+    let sumPT=0, sumPD=0;
+    for(const k in pT){ sumPT+=pT[k]; sumPD+=pD[k]||0; }
+    const fT=t-sumPT, fD=d-sumPD;
     totalAll+=t; totalDone+=d;
+    const label=(col.label||'').replace(/</g,'&lt;')||('Symbol '+e.nr);
     const row=document.createElement('div'); row.className='trk-crow';
     row.dataset.sym=e.symbol;
     if(trkSelHas(e.symbol)) row.classList.add('sel');
@@ -18968,13 +19581,31 @@ function updateTrackerProgressUI(){
       trkSelToggle(e.symbol);
       renderTracker(); updateTrackerProgressUI();
     };
-    if(t>0&&d===t) row.style.opacity='0.45';
-    const sprS=trackerSprites[e.symbol];
+    if(fT>0&&fD===fT) row.style.opacity='0.45';
     row.innerHTML=`<span class="sw" style="background:rgb(${col.r},${col.g},${col.b})"></span>`+
       symHtml(e.symbol, 17)+
-      `<span class="lb">${(col.label||'').replace(/</g,'&lt;')||('Symbol '+e.nr)}</span>`+
-      `<span class="ct">${d}/${t}</span>`;
+      `<span class="lb">${label}</span>`+
+      `<span class="ct">${fD}/${fT}</span>`;
     list.appendChild(row);
+    // Same thread, same glyph, worked as a fractional stitch — a row per
+    // fraction, drawn in the corners the chart actually uses, and named
+    // outright so nobody has to infer it from the legend.
+    for(const n of Object.keys(pT).map(Number).sort((a,b)=>a-b)){
+      const nT=pT[n], nD=pD[n]||0;
+      const masks=(partMaskOf[e.symbol]||{})[n]||{};
+      let mask=6, best=-1;
+      for(const m in masks) if(masks[m]>best){ best=masks[m]; mask=+m; }
+      const prow=document.createElement('div'); prow.className='trk-crow';
+      prow.dataset.sym=e.symbol;
+      if(trkSelHas(e.symbol)) prow.classList.add('sel');
+      prow.onclick=row.onclick;
+      if(nD===nT) prow.style.opacity='0.45';
+      prow.innerHTML=`<span class="sw" style="background:rgb(${col.r},${col.g},${col.b})"></span>`+
+        symPartHtml(e.symbol, 17, mask)+
+        `<span class="lb">${label}<span style="display:block;font-size:.62rem;opacity:.7;font-weight:600">${FRACNAME[n]||'Part stitch'}</span></span>`+
+        `<span class="ct">${nD}/${nT}</span>`;
+      list.appendChild(prow);
+    }
   }
   // Thread-length estimate: 2.5 cm of working thread per full cross at 14 ct,
   // scaled by the kit's fabric count (same formula as the editor's estimator)
@@ -19886,10 +20517,27 @@ async function trkHandleChartPat(file, preBuf){
 // (multi-page band offsets are a later step).
 async function trkExtractPdfBackstitch(buf, grid){
   const pdf=await pdfjsLib.getDocument({data:new Uint8Array(buf.slice(0))}).promise;
-  if(pdf.numPages!==1) { console.log('[Patternly] backstitch scan: multi-page chart — skipped'); return null; }
-  const page=await pdf.getPage(1);
-  const ops=await page.getOperatorList();
   const O=pdfjsLib.OPS;
+  // Each page carries its own vector lattice, so it self-calibrates locally;
+  // the page origin then lifts those page-local stitch coordinates into chart
+  // space. Without origins a multi-page scan cannot be positioned, so it is
+  // skipped rather than guessed.
+  const pageOrigins = (grid && grid.pageOrigins) || null;
+  if(pdf.numPages>1 && !pageOrigins){
+    console.log('[Patternly] backstitch scan: multi-page chart without page origins — skipped');
+    return null;
+  }
+  const merged=[], seenSeg=new Set();
+  let lattices=0;
+  for(let pg=1; pg<=pdf.numPages; pg++){
+  let colOff=0, rowOff=0;
+  if(pdf.numPages>1){
+    const org=pageOrigins.find(o=>o && o.page===pg);
+    if(!org || org.col===null || org.row===null) continue;   // duplicate or unreadable page
+    colOff=org.col; rowOff=org.row;
+  }
+  const page=await pdf.getPage(pg);
+  const ops=await page.getOperatorList();
   // CTM + graphics state walk
   const I=[1,0,0,1,0,0];
   const mul=(a,b)=>[a[0]*b[0]+a[2]*b[1], a[1]*b[0]+a[3]*b[1], a[0]*b[2]+a[2]*b[3], a[1]*b[2]+a[3]*b[3], a[0]*b[4]+a[2]*b[5]+a[4], a[1]*b[4]+a[3]*b[5]+a[5]];
@@ -19930,7 +20578,7 @@ async function trkExtractPdfBackstitch(buf, grid){
     }
     else if(f===O.endPath || f===O.fill || f===O.eoFill) pend=null;
   }
-  if(!segs.length) return null;
+  if(!segs.length) continue;
   // Split axis-aligned long lines (grid candidates) from the rest
   const AX=0.8; // pt tolerance for axis alignment
   const vx=[], hy=[], rest=[];
@@ -19952,15 +20600,31 @@ async function trkExtractPdfBackstitch(buf, grid){
     const cl=[arr[0]]; for(const v of arr){ if(v-cl[cl.length-1]>0.6) cl.push(v); }
     if(cl.length<8) return null;
     const difs=[]; for(let i=1;i<cl.length;i++) difs.push(cl[i]-cl[i-1]);
-    difs.sort((a,b)=>a-b);
-    const med=difs[Math.floor(difs.length/2)];
-    const good=difs.filter(d=>Math.abs(d-med)<med*0.25);
-    if(good.length<difs.length*0.7 || med<1.5) return null;
-    const pitch=good.reduce((a,b)=>a+b,0)/good.length;
-    return {o:cl[0], pitch, n:cl.length};
+    const med=difs.slice().sort((a,b)=>a-b)[Math.floor(difs.length/2)];
+    if(!(med>=1.5)) return null;
+    // Anchor on the longest UNBROKEN run at the modal pitch, never on the
+    // first clustered line. A page frame or the corner page-index thumbnail
+    // contributes a rule far outside the lattice; taking cl[0] and cl.length
+    // at face value then seats the origin on that stray and inflates the line
+    // count, which slides every mapped coordinate (evidence BU5102: a rule at
+    // y=0.3 put the row origin 121.7pt — 10.5 cells — below the true top line,
+    // so the whole backstitch overlay sat ten rows away from the stitches it
+    // outlines). Checking that most GAPS look regular cannot catch this; the
+    // strays are at the ends, where they do the damage.
+    let bStart=0, bLen=1, start=0, len=1;
+    for(let i=0;i<difs.length;i++){
+      if(Math.abs(difs[i]-med) < med*0.25) len++;
+      else { if(len>bLen){ bLen=len; bStart=start; } start=i+1; len=1; }
+    }
+    if(len>bLen){ bLen=len; bStart=start; }
+    if(bLen<8) return null;
+    const run=cl.slice(bStart, bStart+bLen);
+    const pitch=(run[run.length-1]-run[0])/(run.length-1);
+    return {o:run[0], pitch, n:run.length};
   };
   const cx=calib(vx), cy=calib(hy);
-  if(!cx || !cy){ console.log('[Patternly] backstitch scan: no grid lattice in vector layer — skipped'); return null; }
+  if(!cx || !cy) continue;                       // no lattice on this page
+  lattices++;
   // Map the remaining segments to stitch space; PDF y is up ⇒ row 0 is at TOP
   // boundary = max clustered y
   const yTop=cy.o + (cy.n-1)*cy.pitch;
@@ -19971,7 +20635,7 @@ async function trkExtractPdfBackstitch(buf, grid){
     let c1=toCol(s.x1), r1=toRow(s.y1), c2=toCol(s.x2), r2=toRow(s.y2);
     const len=Math.hypot(c2-c1, r2-r1);
     if(len<0.35 || len>60) continue;                          // noise / frames
-    const sl=-0.6, sc=grid.cols+0.6, sr=grid.rows+0.6;
+    const sl=-0.6, sc=cx.n+0.6, sr=cy.n+0.6;      // page-local bounds
     if(c1<sl||c2<sl||r1<sl||r2<sl||c1>sc||c2>sc||r1>sr||r2>sr) continue;
     c1=snap(c1); r1=snap(r1); c2=snap(c2); r2=snap(r2);
     // an axis-aligned segment sitting exactly ON a grid line is lattice debris
@@ -20003,13 +20667,36 @@ async function trkExtractPdfBackstitch(buf, grid){
         for(const s of g){ mnx=Math.min(mnx,s.x1,s.x2); mxx=Math.max(mxx,s.x1,s.x2);
                            mny=Math.min(mny,s.y1,s.y2); mxy=Math.max(mxy,s.y1,s.y2); }
         if(mxx-mnx<1.7 && mxy-mny<1.7) continue; // tiny closed marker
+        // The page-index thumbnail — the miniature grid Luca-S prints in the
+        // corner of every chart page to show which tile you are looking at —
+        // is taller than that, so it used to survive and get pasted into the
+        // design (evidence BU5102: eight clusters of 20 black segments,
+        // 2.0x3.3 cells, at tile-local column 0 on all eight pages). It is a
+        // lattice in miniature: many strokes, every one of them axis-aligned,
+        // packed into a couple of cells. Backstitch never draws that.
+        if(g.length>=6 && mxx-mnx<=6 && mxy-mny<=6
+           && g.every(s=>s.x1===s.x2 || s.y1===s.y2)) continue;
       }
       keep.push(...g);
     }
     out.length=0; out.push(...keep);
   }
-  console.log('[Patternly] backstitch scan: '+segs.length+' segments · lattice '+cx.n+'×'+cy.n+' · '+out.length+' backstitch');
-  return out.length?out:null;
+  // Lift into chart space and drop the duplicates that tile seams produce.
+  for(const sgm of out){
+    sgm.x1+=colOff; sgm.x2+=colOff; sgm.y1+=rowOff; sgm.y2+=rowOff;
+    if(sgm.x1<-0.6||sgm.x2<-0.6||sgm.y1<-0.6||sgm.y2<-0.6) continue;
+    if(sgm.x1>grid.cols+0.6||sgm.x2>grid.cols+0.6||sgm.y1>grid.rows+0.6||sgm.y2>grid.rows+0.6) continue;
+    const a=[sgm.x1,sgm.y1], b=[sgm.x2,sgm.y2];
+    const k=(a[0]<b[0]||(a[0]===b[0]&&a[1]<=b[1]))
+      ? a.concat(b).join(',') : b.concat(a).join(',');
+    const key=k+'|'+sgm.r+','+sgm.g+','+sgm.b;
+    if(seenSeg.has(key)) continue;
+    seenSeg.add(key);
+    merged.push(sgm);
+  }
+  }
+  console.log('[Patternly] backstitch scan: '+pdf.numPages+' page(s) · '+lattices+' with a vector lattice · '+merged.length+' backstitch');
+  return merged.length?merged:null;
 }
 async function trkHandleChart(file){
   if(/\.(ptly|patternly)$/i.test(file.name)) return trkHandleChartPatternly(file);
