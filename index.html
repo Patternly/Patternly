@@ -16654,14 +16654,24 @@ function trkKitImageUrl(kit){
 // A temporary shared code, checked by the FUNCTION, not here — a code compared
 // in the browser is visible in view-source and gates nothing. This is a
 // stopgap until entitlement comes from the customer's actual orders.
-function trkKitCode(){ try{ return localStorage.getItem('patternly_kit_code')||''; }catch(e){ return ''; } }
-function trkKitCodeSet(v){ try{ v?localStorage.setItem('patternly_kit_code',v):localStorage.removeItem('patternly_kit_code'); }catch(e){} }
+// Stored per SKU, falling back to a shared one, so a customer holding codes for
+// three kits keeps all three and a per-pattern scheme needs no change here.
+function trkKitCode(sku){
+  try{ return (sku && localStorage.getItem('patternly_kit_code:'+sku))
+            || localStorage.getItem('patternly_kit_code') || ''; }catch(e){ return ''; }
+}
+function trkKitCodeSet(sku, v){
+  try{
+    const k = sku ? 'patternly_kit_code:'+sku : 'patternly_kit_code';
+    if(v) localStorage.setItem(k, v); else localStorage.removeItem(k);
+  }catch(e){}
+}
 
 // Header first; if the response says the code was missing, retry once with it
 // as a query parameter. Proxies do not all forward custom headers, and this
 // settles the question without a round trip to find out.
-async function trkKitFetch(url){
-  const code = trkKitCode();
+async function trkKitFetch(url, sku){
+  const code = trkKitCode(sku);
   const opts = {credentials:'include', cache:'no-cache'};
   let r = await fetch(url, Object.assign({}, opts, code?{headers:{'x-patternly-code':code}}:{}));
   if(r.status===401 && code && r.headers.get('x-code-seen')!=='1'){
@@ -16670,10 +16680,8 @@ async function trkKitFetch(url){
   return r;
 }
 
-function trkKitsAskCode(msg){
+function trkKitsAskCode(msg, kit){
   const st=document.getElementById('trk-kits-status');
-  document.getElementById('trk-kits-grid').innerHTML='';
-  document.getElementById('trk-kits-count').textContent='';
   st.style.color='';
   st.innerHTML='<div style="max-width:340px">'
     +'<div style="margin-bottom:.55rem">'+String(msg||'This catalogue needs an access code.').replace(/</g,'&lt;')+'</div>'
@@ -16686,8 +16694,8 @@ function trkKitsAskCode(msg){
   const go=()=>{
     const v=(document.getElementById('trk-kit-code').value||'').trim();
     if(!v) return;
-    trkKitCodeSet(v);
-    trkKitsLoad(true);
+    trkKitCodeSet(kit?kit.sku:null, v);
+    if(kit) trkOpenKit(kit); else trkKitsLoad(true);
   };
   document.getElementById('trk-kit-code-go').onclick=go;
   document.getElementById('trk-kit-code').addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
@@ -16703,13 +16711,6 @@ async function trkKitsLoad(force){
   document.getElementById('trk-kits-grid').innerHTML='';
   try{
     const r=await trkKitFetch(TRK_KITS_BASE+'/kits.json');
-    if(r.status===401){
-      trkKitCodeSet('');
-      trkKitsLoading=false;
-      trkKitsAskCode(trkKitCode() ? 'That code was not accepted. Try again.'
-        : 'Luca-S patterns are locked while we finish testing. Enter your access code to continue.');
-      return;
-    }
     if(!r.ok) throw new Error('catalogue returned '+r.status);
     const data=await r.json();
     trkKitList=(Array.isArray(data)?data:(data.kits||[])).filter(k=>k && k.sku);
@@ -16761,8 +16762,8 @@ async function trkOpenKit(kit){
   const st=document.getElementById('trk-kits-status');
   st.style.color=''; st.textContent='Opening '+(kit.title||kit.sku)+'\u2026';
   const grab=async (which, name)=>{
-    const r=await trkKitFetch(trkKitFileUrl(kit, which));
-    if(r.status===401) throw new Error('Your access code is no longer valid \u2014 reload and enter it again.');
+    const r=await trkKitFetch(trkKitFileUrl(kit, which), kit.sku);
+    if(r.status===401){ const e=new Error('code'); e.needsCode=true; throw e; }
     if(r.status===403) throw new Error('This kit is only available to customers who bought it.');
     if(!r.ok) throw new Error(name+' unavailable ('+r.status+')');
     return new File([await r.blob()], name, {type:r.headers.get('content-type')||'application/octet-stream'});
@@ -16779,6 +16780,13 @@ async function trkOpenKit(kit){
     }
     st.textContent='';
   }catch(err){
+    if(err && err.needsCode){
+      const had = trkKitCode(kit.sku);
+      trkKitCodeSet(kit.sku, '');
+      trkKitsAskCode(had ? 'That code doesn\u2019t open ' + (kit.title||kit.sku) + '. Try again.'
+                         : 'Enter the access code for ' + (kit.title||kit.sku) + '.', kit);
+      return;
+    }
     console.error('[tracker] kit open failed', err);
     st.style.color='#b25f10';
     st.textContent=String(err.message||err);
