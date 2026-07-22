@@ -1,10 +1,14 @@
-// Patternly — Cloudflare Pages Function v3
+// Patternly — Cloudflare Pages Function v4
 // v2 + /patterns/* : serves the Luca-S kit catalogue and pattern files from R2.
 //
 // The files are deliberately NOT on a public R2 URL. Everything goes through
 // this function so that adding "did this customer buy this kit?" later is an
 // edit here rather than a migration. Until that check exists, the only gate is
 // the App Proxy signature (optional — see ENFORCE_PROXY below).
+
+// Bump on every edit. /whoami reports it, so you can see at a glance whether
+// the deploy that is actually running is the file you think you pushed.
+const MW_VERSION = "v4";
 
 const enc = new TextEncoder();
 
@@ -139,7 +143,16 @@ export async function onRequest(context) {
 
   // ── /whoami: live auth check for the running app ──
   if (url.pathname === "/whoami" || url.pathname.endsWith("/whoami")) {
-    return new Response(JSON.stringify(auth), {
+    // Config readout: presence only, never values. This is what tells you
+    // whether a missing gate is a stale deploy or a missing variable.
+    const body = {
+      ...auth,
+      mw: MW_VERSION,
+      patternsBound: !!env.PATTERNS,
+      accessCodeSet: !!env.PATTERN_ACCESS_CODE,
+      enforceProxy: ENFORCE_PROXY
+    };
+    return new Response(JSON.stringify(body), {
       headers: { "content-type": "application/json", "cache-control": "no-store" }
     });
   }
