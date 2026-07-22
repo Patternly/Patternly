@@ -131,14 +131,12 @@ export async function onRequest(context) {
   const ct = res.headers.get("content-type") || "";
   if (!ct.includes("text/html")) return res;
 
-  // Tell the app where its kit files live, relative to wherever it is being
-  // served from — root-relative would break under the App Proxy path.
-  const dir = url.pathname.replace(/\/[^/]*$/, "");
-  const kitsBase = (dir === "" ? "" : dir) + "/patterns";
-
-  const inject =
-    `<script>window.__LUCAS_AUTH__=${JSON.stringify(auth)};` +
-    `window.PATTERNLY_KITS_BASE=${JSON.stringify(kitsBase)};</script>`;
+  // NOTE: we deliberately do NOT inject PATTERNLY_KITS_BASE. Under the Shopify
+  // App Proxy this function is handed "/" while the browser sits at
+  // /apps/patternly, so any base computed here is wrong by the length of the
+  // proxy prefix. The app works it out from its own location instead. Set the
+  // variable here only to point at a different origin on purpose.
+  const inject = `<script>window.__LUCAS_AUTH__=${JSON.stringify(auth)};</script>`;
 
   return new HTMLRewriter()
     .on("head", { element(el) { el.prepend(inject, { html: true }); } })
