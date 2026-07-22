@@ -52,6 +52,23 @@ async function readAuth(url, env) {
 // Leave false while testing straight against <project>.pages.dev.
 const ENFORCE_PROXY = false;
 
+// Temporary shared access code for the kit catalogue, read from the
+// PATTERN_ACCESS_CODE environment variable. Leave the variable unset and the
+// catalogue is open — so this is opt-in, and dev deploys need no code.
+//
+// A shared code is weak by nature: anyone who has it can pass it on, and it
+// cannot tell one customer from another. It is a curtain while you finish
+// testing, not the entitlement check. That arrives with the order lookup.
+function checkAccessCode(request, url, env) {
+  const want = env.PATTERN_ACCESS_CODE;
+  if (!want) return { ok: true, seen: false };
+  const got =
+    request.headers.get("x-patternly-code") ||
+    url.searchParams.get("pcode") ||
+    "";
+  return { ok: timingSafeEqual(got, want), seen: got.length > 0 };
+}
+
 const MIME = {
   json: "application/json",
   pdf: "application/pdf",
@@ -62,7 +79,7 @@ const MIME = {
   webp: "image/webp"
 };
 
-async function servePattern(key, auth, env) {
+async function servePattern(key, auth, request, url, env) {
   if (!env.PATTERNS) {
     return new Response("pattern storage not bound", { status: 500 });
   }
@@ -73,6 +90,17 @@ async function servePattern(key, auth, env) {
 
   if (ENFORCE_PROXY && !auth.proxied) {
     return new Response("forbidden", { status: 403 });
+  }
+
+  // 401 means "you need a code / that code is wrong" and the app prompts for
+  // one. 403 is reserved for "you are known, and you don't own this kit", so
+  // the two cases stay distinguishable once entitlement lands.
+  const code = checkAccessCode(request, url, env);
+  if (!code.ok) {
+    return new Response("access code required", {
+      status: 401,
+      headers: { "x-code-seen": code.seen ? "1" : "0", "cache-control": "no-store" }
+    });
   }
 
   // ── Entitlement hook ──────────────────────────────────────────────────
@@ -123,7 +151,7 @@ export async function onRequest(context) {
   const at = url.pathname.indexOf(MARK);
   if (at !== -1) {
     const key = decodeURIComponent(url.pathname.slice(at + MARK.length));
-    return servePattern(key, auth, env);
+    return servePattern(key, auth, request, url, env);
   }
 
   // ── everything else: serve the site, injecting auth into the HTML ──
