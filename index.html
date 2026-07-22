@@ -16621,9 +16621,19 @@ function trkChooseSource(kind){
 // ── Luca-S kit catalogue ──────────────────────────────────────────────────
 // Kits live in object storage behind our own endpoint rather than on a public
 // CDN, because that endpoint is what will later enforce "you bought this kit".
-// That is why these are fetches and not plain links. The base is overridable
-// so staging and production can point at different buckets.
-const TRK_KITS_BASE = String(window.PATTERNLY_KITS_BASE || '/patterns').replace(/\/+$/,'');
+// That is why these are fetches and not direct links.
+//
+// The base is worked out from the BROWSER's location, never from the server's.
+// Under the Shopify App Proxy the page is at luca-s.com/apps/patternly while
+// the Pages function is handed "/", so anything the server computes is wrong by
+// the length of the proxy prefix — a root-relative "/patterns/..." then leaves
+// the proxy path entirely and Shopify answers 404 before Cloudflare sees it.
+const TRK_KITS_BASE = (function(){
+  if(window.PATTERNLY_KITS_BASE) return String(window.PATTERNLY_KITS_BASE).replace(/\/+$/,'');
+  let p = location.pathname;
+  if(/\/[^/]*\.[^/]*$/.test(p)) p = p.replace(/\/[^/]*$/, '');   // drop a trailing file name
+  return p.replace(/\/+$/,'') + '/patterns';
+})();
 let trkKitList = null, trkKitsLoading = false;
 
 function trkKitFileUrl(kit, which){
