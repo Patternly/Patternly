@@ -1,4 +1,4 @@
-// Patternly — Cloudflare Pages Function v4
+// Patternly — Cloudflare Pages Function v5
 // v2 + /patterns/* : serves the Luca-S kit catalogue and pattern files from R2.
 //
 // The files are deliberately NOT on a public R2 URL. Everything goes through
@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v4";
+const MW_VERSION = "v5";
 
 const enc = new TextEncoder();
 
@@ -63,8 +63,39 @@ const ENFORCE_PROXY = false;
 // A shared code is weak by nature: anyone who has it can pass it on, and it
 // cannot tell one customer from another. It is a curtain while you finish
 // testing, not the entitlement check. That arrives with the order lookup.
-function checkAccessCode(request, url, env) {
-  const want = env.PATTERN_ACCESS_CODE;
+// The catalogue listing and cover art stay open — browsing the shop window
+// costs nothing. The pattern data behind it is what the code protects.
+function needsCode(key) {
+  if (!key.includes("/")) return false;                 // kits.json at the root
+  const leaf = key.split("/").pop().toLowerCase();
+  if (/\.(jpg|jpeg|png|webp|gif|avif|svg)$/.test(leaf)) return false;
+  return true;
+}
+
+// Which code opens this key. A per-SKU entry in PATTERN_CODES wins, so a code
+// can unlock exactly one pattern; PATTERN_ACCESS_CODE is the fallback that
+// opens everything. Set only the fallback and you have one shared code; fill
+// in PATTERN_CODES and each kit gets its own without touching this file.
+//
+//   PATTERN_CODES = {"BU5102":"12345","BU5104":"98765"}
+//
+// Move this to a KV namespace when issuing a code should not mean a redeploy.
+function codeFor(key, env) {
+  const sku = key.split("/")[0];
+  if (env.PATTERN_CODES) {
+    try {
+      const map = JSON.parse(env.PATTERN_CODES);
+      if (map && map[sku]) return String(map[sku]);
+    } catch (e) {
+      console.warn("PATTERN_CODES is not valid JSON — ignoring it");
+    }
+  }
+  return env.PATTERN_ACCESS_CODE || null;
+}
+
+function checkAccessCode(request, url, env, key) {
+  if (!needsCode(key)) return { ok: true, seen: false };
+  const want = codeFor(key, env);
   if (!want) return { ok: true, seen: false };
   const got =
     request.headers.get("x-patternly-code") ||
@@ -99,7 +130,7 @@ async function servePattern(key, auth, request, url, env) {
   // 401 means "you need a code / that code is wrong" and the app prompts for
   // one. 403 is reserved for "you are known, and you don't own this kit", so
   // the two cases stay distinguishable once entitlement lands.
-  const code = checkAccessCode(request, url, env);
+  const code = checkAccessCode(request, url, env, key);
   if (!code.ok) {
     return new Response("access code required", {
       status: 401,
@@ -150,6 +181,7 @@ export async function onRequest(context) {
       mw: MW_VERSION,
       patternsBound: !!env.PATTERNS,
       accessCodeSet: !!env.PATTERN_ACCESS_CODE,
+      perKitCodes: !!env.PATTERN_CODES,
       enforceProxy: ENFORCE_PROXY
     };
     return new Response(JSON.stringify(body), {
