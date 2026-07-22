@@ -4261,7 +4261,6 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
           <a href="#" onclick="startWithPhoto();return false"><b>Upload Image</b><span>Turn a photo into a pattern</span></a>
           <a href="#" onclick="pjNewPattern();return false"><b>Start from Scratch</b><span>Blank canvas in the editor</span></a>
           <a href="#" onclick="trackerNav();return false"><b>Stitch Tracker</b><span>Track progress on a Luca·S kit</span></a>
-          <a href="#" onclick="openFileConverter();return false"><b>File Converter</b><span>Turn .pat / .oxs into Patternly&rsquo;s format</span></a>
         </div>
       </div>
       <a href="#" onclick="openThreads();return false">Thread Colours</a>
@@ -4291,8 +4290,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <a href="#" onclick="lpCloseMenu();lpMmAction('photo');return false" class="lp-mm-sub">🖼 Upload Image</a>
     <a href="#" onclick="lpCloseMenu();lpMmAction('scratch');return false" class="lp-mm-sub">✏️ Start from Scratch</a>
     <a href="#" onclick="lpCloseMenu();lpMmAction('tracker');return false" class="lp-mm-sub">🧭 Stitch Tracker</a>
-    <a href="#" onclick="lpCloseMenu();lpMmAction('ptlyconv');return false" class="lp-mm-sub">🔒 Convert to .Ptly</a>
-  </div>
+    </div>
   <a href="#" onclick="lpCloseMenu();lpMmAction('threads');return false">🎨 Thread Colours</a>
   <a href="#" onclick="lpCloseMenu();lpMmAction('fileconv');return false">🔄 File Converter</a>
   <button class="lp-mm-acc" type="button">Calculators <span class="lp-mm-chev">▾</span></button>
@@ -4743,10 +4741,11 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
             <option value="pdf">PDF</option>
             <option value="patternly">Patternly (.Ptly)</option>
             <option value="oxs">OXS</option>
-            <option value="pat">PCStitch (.pat)</option>
+
           </select>
         </div>
         <p id="trk-chart-desc">The stitch chart pages from your kit.</p>
+        <p style="font-size:.72rem;color:var(--muted);margin:.35rem 0 0;line-height:1.5">Got a different format (.pat, .xsm, .xsp&hellip;)? <a href="#" onclick="event.stopPropagation();pjGuardedLeave(()=>openFileConverter());return false" style="color:var(--accent);font-weight:600">Convert it to .Ptly first &rarr;</a></p>
         <div class="trk-status" id="trk-chart-status"></div>
         <button class="trk-clear" id="trk-chart-clear" onclick="event.stopPropagation();trkClearChart()">✕ Clear file</button>
       </div>
@@ -4758,7 +4757,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
         <button class="trk-clear" id="trk-legend-clear" onclick="event.stopPropagation();trkClearLegend()">✕ Clear file</button>
         <button id="trk-exact-continue" onclick="event.stopPropagation();trkExactContinue()" style="display:none">➡ Continue with generic symbols</button>
         <button id="trk-manual-btn" onclick="event.stopPropagation();trkManualOpen()" disabled>✍️ No legend? Assign colours manually</button>
-        <button id="trk-skip-btn" onclick="event.stopPropagation();trkSkipOpen()" disabled>⏭ Skip — track by symbols only</button>
+        <button id="trk-skip-btn" onclick="event.stopPropagation();trkSkipOpen()" disabled style="display:none">⏭ Skip — track by symbols only</button>
       </div>
     </div>
     <div id="trk-manual" style="display:none"></div>
@@ -4819,6 +4818,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
               <button id="trk-mode-pan" class="active">✋ Pan</button><button id="trk-mode-mark">✏️ Mark</button><button id="trk-tips" title="Gestures">💡</button>
             </span>
             <span class="trk-group" id="trk-backupgroup">
+              <button id="trk-legend-btn" type="button" onclick="trkViewLegend()" title="View the legend you uploaded — symbols, thread codes and stitch counts" style="display:none">📋 Legend</button>
               <button id="trk-export-btn" type="button" onclick="trkExportBackup()" title="Download a backup of this pattern including your stitched progress">⬇ Back up</button>
             </span>
           </div>
@@ -5328,9 +5328,9 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <div class="conv-drop" id="conv-dropzone">
       <div style="font-size:2.2rem;margin-bottom:.5rem">🔄</div>
       <b style="font-size:1.05rem;display:block;margin-bottom:.3rem">Tap to choose files</b>
-      <span style="font-size:.82rem;color:#7d6b72">or drag &amp; drop — .pat / .oxs / .xml (several at once is fine)</span>
+      <span style="font-size:.82rem;color:#7d6b72">or drag &amp; drop — .xsm / .xsp / .pat / .oxs (several at once is fine)</span>
     </div>
-    <input type="file" id="conv-file-input" accept=".pat,.oxs,.xml,.Ptly,.patternly,.xsd,.chart,.xstitchmate,.stitchmate" multiple style="display:none">
+    <input type="file" id="conv-file-input" accept=".pat,.oxs,.xml,.Ptly,.patternly,.xsm,.xsp,.xsd,.chart,.xstitchmate,.stitchmate" multiple style="display:none">
     <div id="fconv-results" style="max-width:640px;margin:1.2rem auto 0"></div>
 
     <h3 style="text-align:center;margin:2.6rem 0 .2rem;font-size:1.15rem">Use your converted pattern right away</h3>
@@ -16401,6 +16401,48 @@ function trkOpenProject(id){
   }catch(e){ console.error(e); toast('Could not load saved pattern'); }
 }
 // ── Backup / restore: lossless native project file (chart + colours + symbols + progress) ──
+function trkLegendAvailable(){ return !!(trackerLegendBuf && window.pdfjsLib); }
+function trkSyncLegendBtn(){
+  const b=document.getElementById('trk-legend-btn');
+  if(b) b.style.display = trkLegendAvailable() ? '' : 'none';
+}
+async function trkViewLegend(){
+  if(!trkLegendAvailable()){ toast('No legend was uploaded for this pattern'); return; }
+  let ov=document.getElementById('trk-legend-overlay');
+  if(!ov){
+    ov=document.createElement('div');
+    ov.id='trk-legend-overlay';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(43,34,38,.6);z-index:100001;display:flex;flex-direction:column;padding:0';
+    ov.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.6rem .9rem;background:#fff;border-bottom:1px solid #eadde1;flex-shrink:0">'
+      + '<b style="font-size:.95rem">Your kit legend</b>'
+      + '<button onclick="document.getElementById(\'trk-legend-overlay\').style.display=\'none\'" style="padding:.45rem .9rem;border-radius:8px;border:1.5px solid #eadde1;background:#fafafa;font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer">✕ Close</button></div>'
+      + '<div id="trk-legend-pages" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:1rem;text-align:center;background:#f4eff1"></div>';
+    document.body.appendChild(ov);
+  }
+  ov.style.display='flex';
+  const host=document.getElementById('trk-legend-pages');
+  if(host.dataset.done==='1') return;           // render once, then reuse
+  host.innerHTML='<p style="font-size:.85rem;color:#7d6b72">Loading legend…</p>';
+  try{
+    const pdf=await pdfjsLib.getDocument({data:new Uint8Array(trackerLegendBuf.slice(0))}).promise;
+    host.innerHTML='';
+    const wide=Math.min(1000, Math.max(320, (host.clientWidth||600)-24));
+    for(let i=1;i<=pdf.numPages;i++){
+      const page=await pdf.getPage(i);
+      const base=page.getViewport({scale:1});
+      const vp=page.getViewport({scale: wide/base.width});
+      const cv=document.createElement('canvas');
+      cv.width=Math.ceil(vp.width); cv.height=Math.ceil(vp.height);
+      cv.style.cssText='max-width:100%;height:auto;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.15);margin-bottom:1rem;border-radius:4px';
+      await page.render({canvasContext:cv.getContext('2d'), viewport:vp}).promise;
+      host.appendChild(cv);
+    }
+    host.dataset.done='1';
+  }catch(err){
+    console.error(err);
+    host.innerHTML='<p style="font-size:.85rem;color:#9c3d4e">Sorry — the legend could not be displayed.</p>';
+  }
+}
 function trkExportBackup(){
   if(!trackerGrid || !trackerActiveProjectKey){ toast('Open a pattern first'); return; }
   trkSaveProject(); // flush latest chart/legend/sprites + index entry to storage
@@ -16485,6 +16527,9 @@ function trkDeleteProject(id, name){
 }
 function trkShowUpload(){
   trkTitleReset();
+  /* Start each visit with empty slots - the previous session's chart/legend
+     used to stay attached and had to be cleared by hand. */
+  if(!window._trkKeepFiles){ try{ trkClearChart(); trkClearLegend(); }catch(e){} }
   document.getElementById('trk-projects').style.display='none';
   document.getElementById('trk-workspace').style.display='none';
   document.getElementById('trk-upload').style.display='';
@@ -16817,14 +16862,15 @@ function parseLegendText(text){
     // The 'Blend' label may arrive FRAGMENTED across text items ("Blen"+"d" —
     // evidence BU5102 p2 under pdf.js 3.11), so label detection must join
     // consecutive alphabetic tokens into the word they spell before testing.
-    const wordRunAt = k=>{ let j=k, w=''; while(j<toks.length && isAlphaTok(toks[j]) && w.length<12){ w+=toks[j]; j++; } return {word:w, end:j}; };
+    const LABEL_WORD=/^(blend|blended|mix|mixed|melange|m\u00e9lange|misto|mezcla|meliert)$/i;
+    const wordRunAt = k=>{ let j=k, w=''; while(j<toks.length && isAlphaTok(toks[j]) && w.length<12){ w+=toks[j]; j++; if(LABEL_WORD.test(w)) break; } return {word:w, end:j}; };
     const run1 = wordRunAt(1);
-    if(blendPair || /^blend$/i.test(run1.word)){
+    if(blendPair || LABEL_WORD.test(run1.word)){
       let sym=null;
       // Labelled layout: the symbol is the token right after the (possibly
       // fragmented) 'Blend' label — even a digit ("73 Blend 4 Nr.60-1 450+449
       // 875"), which the structural scan below must skip.
-      if(/^blend$/i.test(run1.word) && toks[run1.end] && !/^X\d?$/i.test(toks[run1.end]) && !/^Nr\.?/i.test(toks[run1.end])) sym=toks[run1.end];
+      if(LABEL_WORD.test(run1.word) && toks[run1.end] && !/^X\d?$/i.test(toks[run1.end]) && !/^Nr\.?/i.test(toks[run1.end])) sym=toks[run1.end];
       if(!sym) for(let k=1;k<toks.length;k++){
         const t=toks[k];
         // A run of alphabetic tokens spelling a 3+ letter word is label/side
@@ -16896,7 +16942,7 @@ function parseLegendText(text){
       const strands=/^X\d$/i.test(toks[xi]) ? +toks[xi].slice(1)
                    : (/^\d$/.test(toks[xi+1]||'') ? +toks[xi+1] : null);
       const symsOk = syms.length>=1 && syms.length<=2 &&
-        !syms.some(t=>/^\d{2,}$/.test(t) || /\//.test(t)) &&
+        !syms.some(t=>/^\d{2,}$/.test(t) || (t.includes('/') && [...t].length>1)) &&
         (syms.length===1 || syms[0]===syms[1] || !/^\d+$/.test(syms[1]));
       if(symsOk){
         const symbol=syms[syms.length-1]; // chart-symbol column is the last one
@@ -17626,7 +17672,7 @@ function resolveTrackerColours(legend){
 
 // ── Exactness verification: parsed grid vs the legend's declared stitch counts ──
 function trackerVerifyCounts(){
-  const found = {}; let totalGrid = 0, unknown = 0;
+  const found = {}; let totalGrid = 0, unknown = 0; const unknownBy = {};
   const halves = trackerGrid.halfCells;
   for(let r=0;r<trackerGrid.cells.length;r++){
     const row = trackerGrid.cells[r];
@@ -17636,7 +17682,7 @@ function trackerVerifyCounts(){
       const w = (halves && halves.has(r+':'+c)) ? 0.5 : 1; // legends count half stitches as ½
       totalGrid += w;
       found[ch] = (found[ch]||0) + w;
-      if(!trackerColourMap[ch]) unknown++;
+      if(!trackerColourMap[ch]){ unknown++; unknownBy[ch] = (unknownBy[ch]||0) + 1; }
     }
   }
   const mismatches = []; let totalLegend = 0;
@@ -17646,7 +17692,7 @@ function trackerVerifyCounts(){
     const f = found[sym] || 0;
     if(Math.abs(f - e.stitches) > 0.5) mismatches.push({symbol:sym, code:e.code, expected:e.stitches, found:Math.round(f)});
   }
-  return {totalGrid, totalLegend, mismatches, unknown};
+  return {totalGrid, totalLegend, mismatches, unknown, unknownBy};
 }
 
 function trackerShowVerification(){
@@ -17700,7 +17746,13 @@ function trackerShowVerification(){
   }
   let msg = `<b style="color:#b25f10">⚠ Verification found discrepancies</b> — the tracker will not silently show a wrong chart.<br>`;
   msg += `Grid: ${trackerGrid.cols}×${trackerGrid.rows}` + (dims?` (legend declares ${dims.w}×${dims.h})`:'') + ` · stitches parsed: ${v.totalGrid.toLocaleString()} vs legend total ${v.totalLegend.toLocaleString()}.`;
-  if(v.unknown) msg += `<br>${v.unknown} stitches use symbols not present in the legend.`;
+  if(v.unknown){
+    const ub = Object.entries(v.unknownBy||{}).sort((a,b)=>b[1]-a[1]);
+    msg += `<br><b>${v.unknown.toLocaleString()} stitches use ${ub.length} symbol${ub.length===1?'':'s'} the legend didn\u2019t provide</b>`;
+    if(ub.length) msg += ': ' + ub.slice(0,10).map(([ch,c])=>`&ldquo;${String(ch).replace(/</g,'&lt;')}&rdquo; (${c.toLocaleString()} st)`).join(' \u00b7 ')
+      + (ub.length>10?` \u00b7 and ${ub.length-10} more`:'')
+      + '. <span style="color:var(--lp-muted,#7d6b72)">These are usually legend rows that didn\u2019t parse \u2014 e.g. blended-thread rows, or a symbol that clashes with punctuation.</span>';
+  }
   if(pend.length) msg += `<br>${pend.length} legend row(s) had no readable symbol and could not be matched by stitch count: ` + pend.map(p=>`code ${p.code} (${p.stitches} st)`).join(', ') + '.';
   if(v.mismatches.length){
     msg += '<br>Per-colour mismatches: ' + v.mismatches.slice(0,8).map(m=>`${m.symbol} (${m.code}): expected ${m.expected}, found ${m.found}`).join(' · ');
@@ -18871,6 +18923,7 @@ document.getElementById('trk-canvas-wrap').addEventListener('wheel', e=>{
 
 // ── Progress panel ──
 function updateTrackerProgressUI(){
+  if(typeof trkSyncLegendBtn==='function') trkSyncLegendBtn(); // show 📋 only when a legend exists
   if(!trackerGrid||!trackerStitched) return;
   const done={}, total={};
   for(let r=0;r<trackerGrid.rows;r++)for(let c=0;c<trackerGrid.cols;c++){
@@ -19961,6 +20014,18 @@ async function trkExtractPdfBackstitch(buf, grid){
 async function trkHandleChart(file){
   if(/\.(ptly|patternly)$/i.test(file.name)) return trkHandleChartPatternly(file);
   if(/\.pat$/i.test(file.name)) return trkHandleChartPat(file);
+  if(/\.(xsm|xsp)$/i.test(file.name)){
+    /* Decode in place and hand the resulting OXS to the existing exact-import
+       path - identical to converting to .Ptly first, minus the round trip. */
+    try{
+      const xml=xsmToOxs(await file.arrayBuffer());
+      return trkHandleChartOxs(new File([xml], file.name.replace(/\.\w+$/,'')+'.oxs', {type:'application/xml'}));
+    }catch(err){
+      console.error(err);
+      trkErrorPopup('chart', 'Could not read this XSM/XSP file: '+err.message);
+      return;
+    }
+  }
   window.trkExactGrid=false;
   { const b=document.getElementById('trk-exact-continue'); if(b) b.style.display='none'; }
   if(/\.(oxs|xml)$/i.test(file.name)) return trkHandleChartOxs(file);
@@ -20014,6 +20079,19 @@ async function trkHandleChart(file){
     }catch(e){ console.warn('[Patternly] backstitch scan failed (ignored)', e); }
     card.classList.add('done');
     let status = `✅ ${file.name} — ${trackerGrid.cols}×${trackerGrid.rows} stitches detected` + (trackerGrid.chartFont ? ' · vector symbols ✓' : ' · bitmap symbols'+(trackerChartFontReason?' ['+trackerChartFontReason+']':''));
+    // The grid itself is exact; only the symbol thumbnails are reconstructed
+    // from page pixels when the PDF doesn't carry a usable symbol font.
+    if(!trackerGrid.chartFont && !window._trkBitmapNoticeShown){
+      window._trkBitmapNoticeShown = true;
+      setTimeout(()=>pjShowModal({
+        title:'Symbols may look slightly different',
+        body:'Your chart has been read <b>100% accurately</b> — every stitch is in the right place, and the colours and counts are exact.<br><br>'
+           + 'This PDF doesn\u2019t include a usable symbol font (common with secured or protected PDFs), so the little symbol pictures in the side panel are rebuilt from the page image and a few may look slightly different from your printed chart.<br><br>'
+           + 'If a symbol ever looks unclear, check it against your kit\u2019s legend by its <b>thread colour</b> or <b>stitch count</b> — those are always exact.',
+        confirmLabel:'Got it',
+        onConfirm(){}
+      }), 400);
+    }
     if(trackerGrid.backstitch && trackerGrid.backstitch.length) status += ` · ${trackerGrid.backstitch.length} backstitch`;
     document.getElementById('trk-manual-btn').disabled=false;
     document.getElementById('trk-skip-btn').disabled=false;
@@ -20037,9 +20115,6 @@ async function trkHandleChart(file){
     } else if(sel.value==='oxs'){
       input.setAttribute('accept','.oxs,.xml');
       desc.textContent='Exported from your stitch software — exact data, 100% accuracy.';
-    } else if(sel.value==='pat'){
-      input.setAttribute('accept','.pat');
-      desc.textContent='PCStitch 5 export — exact data, 100% accuracy.';
     } else {
       input.setAttribute('accept','application/pdf');
       desc.textContent='The stitch chart pages from your kit.';
@@ -20856,6 +20931,80 @@ function smToOxs(txt){
   const note=(p.bs&&p.bs.length)?' (backstitch lines skipped — full stitches and colours converted)':'';
   return {xml:x, note};
 }
+// ── XSM / XSP (Ursa authoring format) → OXS ──────────────────────────────
+// Format decoded clean-room from a sample + its printed legend. Layout:
+//   0xc553  dimensions — two little-endian uint32: width, then height
+//   0xc57a  palette RGB — 4-byte records {R, G, B, 0x5b}; 0x5b is the record
+//           marker and terminates the array. Entry 0 is the cloth colour.
+//           The array is padded well past the used colours.
+//   0xc8ea  thread codes — null-terminated ASCII ("501", "467", "Black",
+//           "White"…) in the SAME order as the palette, so the code for
+//           palette index i is the (i-1)th string (index 0 = cloth, no code).
+//   0xe6df  stitch grid — 3 bytes per cell, row-major:
+//             byte0: 2 = fractional stitch, else 0
+//             byte1: partner colour for those fractional cells
+//             byte2: PALETTE INDEX  ← the stitch colour
+//   0x2e11f backstitch — uint16 coordinate pairs, "fd 01" separators (TODO)
+//   0x30cbe font name "CrossStitch3w" / 0x30f1f palette brand
+// Palette indices are assigned in ascending stitch-count order.
+// XSP is the same format; it differs only in a flag byte at 0xc547.
+// NOTE: the original symbol characters are not yet decoded, so Patternly
+// assigns its own symbols on import — exactly as it does for any OXS.
+function xsmToOxs(buf){
+  const d=new Uint8Array(buf), dv=new DataView(buf);
+  if(d.length<0xe6df+16) throw new Error('file is too small to be an XSM/XSP chart');
+  const W=dv.getUint32(0xc553,true), H=dv.getUint32(0xc557,true);
+  if(!(W>0&&H>0&&W<=2000&&H<=2000)) throw new Error('could not read the pattern size — is this an XSM/XSP file?');
+  // palette: RGB records terminated by a non-0x5b marker
+  const pal=[];
+  for(let o=0xc57a; o+3<d.length && d[o+3]===0x5b && pal.length<512; o+=4) pal.push([d[o],d[o+1],d[o+2]]);
+  if(pal.length<2) throw new Error('no colour palette found');
+  // thread codes: null-terminated ASCII, in palette order
+  const codes=[]; {
+    let cur='', lastAt=-99;
+    for(let o=0xc8e0; o<Math.min(d.length,0xe36c); o++){
+      const c=d[o];
+      // match the TRAILING run — a printable byte can immediately precede the
+      // code inside the record, which would otherwise discard a valid entry
+      if(c===0){
+        const m=/([0-9]{1,3}|Black|White)$/.exec(cur);
+        // Records sit ~25+ bytes apart. A second string arriving only a few
+        // bytes after the last one is debris from inside the SAME record
+        // (e.g. a blend's component code) — accepting it shifted every later
+        // colour's thread number by one.
+        if(m && o-lastAt>=20){ codes.push(m[1]); lastAt=o; }
+        cur='';
+      }
+      else if(c>=32 && c<127) cur+=String.fromCharCode(c); else cur='';
+    }
+  }
+  // grid
+  const G=0xe6df, N=W*H;
+  if(G+N*3>d.length) throw new Error('the stitch grid is truncated');
+  const cells=new Array(N);
+  const used=new Set();
+  for(let i=0;i<N;i++){ const v=d[G+i*3+2]; cells[i]=v; if(v>0) used.add(v); }
+  if(!used.size) throw new Error('the pattern appears to be empty');
+  const order=[...used].sort((a,b)=>a-b);
+  const map=new Map(order.map((v,i)=>[v,i+1]));
+  const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const hex=c=>c.map(v=>v.toString(16).padStart(2,'0')).join('').toUpperCase();
+  let x='<?xml version="1.0" encoding="UTF-8"?>\n<chart>\n<format comments01="Converted from XSM/XSP by Patternly"/>\n';
+  x+=`<properties oxsversion="1.0" software="Patternly" software_version="1" chartwidth="${W}" chartheight="${H}" charttitle="Imported pattern" author="" copyright="" instructions="" stitchesperinch="16" palettecount="${order.length}"/>\n`;
+  x+='<palette>\n<palette_item index="0" number="cloth" name="cloth" color="FFFFFF"/>\n';
+  order.forEach((v,i)=>{
+    const rgb=pal[v]||[128,128,128];
+    const code=codes[v-1]||String(v);
+    x+=`<palette_item index="${i+1}" number="${esc(code)}" name="${esc('Luca-S '+code)}" color="${hex(rgb)}" strands="2"/>\n`;
+  });
+  x+='</palette>\n<fullstitches>\n';
+  for(let i=0;i<N;i++){
+    const v=cells[i]; if(!v||!map.has(v)) continue;
+    x+=`<stitch x="${(i%W)+1}" y="${Math.floor(i/W)+1}" palindex="${map.get(v)}"/>\n`;
+  }
+  x+='</fullstitches>\n<backstitches>\n</backstitches>\n<ornaments_inc_knots_and_beads>\n</ornaments_inc_knots_and_beads>\n</chart>\n';
+  return x;
+}
 // Convert each dropped file → .Ptly, with per-file Download / Editor / Tracker
 async function fconvHandle(fileList){
   const out=document.getElementById('fconv-results');
@@ -20893,6 +21042,9 @@ async function fconvHandle(fileList){
         const head=new TextDecoder().decode(new Uint8Array(buf,0,Math.min(200,buf.byteLength)));
         if(!/<\?xml|<chart[\s>]/i.test(head)) throw new Error('not a valid OXS/XML file');
         bytes=ptnlyWrap(buf, PTNLY_FMT_OXS);
+      } else if(/\.(xsm|xsp)$/i.test(f.name)){
+        const xml=xsmToOxs(buf);
+        bytes=ptnlyWrap(new TextEncoder().encode(xml).buffer, PTNLY_FMT_OXS);
       } else if(/\.(xstitchmate|stitchmate)$/i.test(f.name)){
         const sm=smToOxs(new TextDecoder().decode(new Uint8Array(buf)));
         bytes=ptnlyWrap(new TextEncoder().encode(sm.xml).buffer, PTNLY_FMT_OXS);
@@ -21249,7 +21401,7 @@ function edNav(t){
 function goProjects(){ pjGuardedLeave(openApp); }
 function goHomeGuarded(){ pjGuardedLeave(goHome); }
 function enterEditor(){
-  document.body.classList.remove('projects-mode','calc-mode','tracker-mode');
+  document.body.classList.remove('projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode');
   document.body.classList.add('app-mode');
 }
 
