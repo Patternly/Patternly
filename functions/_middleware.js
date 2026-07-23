@@ -1,4 +1,4 @@
-// Patternly — Cloudflare Pages Function v7
+// Patternly — Cloudflare Pages Function v8
 // v2 + /patterns/* : serves the Luca-S kit catalogue and pattern files from R2.
 //
 // The files are deliberately NOT on a public R2 URL. Everything goes through
@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v7";
+const MW_VERSION = "v8";
 
 const enc = new TextEncoder();
 
@@ -252,6 +252,151 @@ async function serveCatalogue(auth, request, url, env) {
   });
 }
 
+// ── Entitlement: does this customer own this pattern? ─────────────────────
+// The proxy already tells us WHO they are — logged_in_customer_id, signed by
+// Shopify, so it cannot be forged. This adds WHAT THEY BOUGHT.
+//
+// Lookup is by EMAIL, not customer id. A shop using email-code sign-in keys
+// everything to the address, and a guest checkout under the same address ends
+// up on the same customer record — querying by email catches both, where
+// customer_id alone would miss guest orders.
+//
+// Needs, in addition to the catalogue vars:
+//   SHOPIFY_CLIENT_ID / SHOPIFY_CLIENT_SECRET   from the app's Credentials
+// Scopes: read_customers, read_orders — and read_all_orders once Shopify
+// approves it, without which only the last 60 days of orders are visible.
+//
+// Leave the client vars unset and entitlement is simply off: the access code
+// remains the only gate, so nothing breaks while approval is pending.
+
+const _cache = new Map();                       // key -> {v, exp}
+function cacheGet(k) {
+  const hit = _cache.get(k);
+  if (hit && hit.exp > Date.now()) return hit.v;
+  if (hit) _cache.delete(k);
+  return null;
+}
+function cacheSet(k, v, ttlMs) {
+  if (_cache.size > 500) _cache.clear();        // isolate-local, keep it bounded
+  _cache.set(k, { v, exp: Date.now() + ttlMs });
+}
+
+async function adminToken(env) {
+  const cached = cacheGet("admin_token");
+  if (cached) return cached;
+  const store = env.SHOPIFY_STORE;
+  const id = env.SHOPIFY_CLIENT_ID, secret = env.SHOPIFY_CLIENT_SECRET;
+  if (!store || !id || !secret) return null;
+  const resp = await fetch(`https://${store}/admin/oauth/access_token`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      grant_type: "client_credentials",
+      client_id: id,
+      client_secret: secret
+    })
+  });
+  if (!resp.ok) throw new Error("admin token " + resp.status);
+  const json = await resp.json();
+  if (!json.access_token) throw new Error("admin token missing from response");
+  // Re-mint well before any expiry rather than tracking it exactly.
+  const ttl = Math.min(((json.expires_in || 3600) - 120) * 1000, 45 * 60 * 1000);
+  cacheSet("admin_token", json.access_token, Math.max(ttl, 60000));
+  return json.access_token;
+}
+
+async function adminQuery(env, query, variables) {
+  const token = await adminToken(env);
+  if (!token) return null;
+  const version = env.SHOPIFY_API_VERSION || "2026-07";
+  const resp = await fetch(`https://${env.SHOPIFY_STORE}/admin/api/${version}/graphql.json`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "X-Shopify-Access-Token": token },
+    body: JSON.stringify({ query, variables })
+  });
+  if (!resp.ok) throw new Error("admin API " + resp.status);
+  const json = await resp.json();
+  if (json.errors && json.errors.length) {
+    throw new Error("admin API: " + json.errors.map(e => e.message).join("; "));
+  }
+  return json.data;
+}
+
+const CUSTOMER_EMAIL_QUERY = `
+query CustomerEmail($id: ID!) { customer(id: $id) { email } }`;
+
+const ORDER_SKUS_QUERY = `
+query OrderSkus($q: String!, $cursor: String) {
+  orders(first: 50, query: $q, after: $cursor) {
+    pageInfo { hasNextPage endCursor }
+    nodes {
+      cancelledAt
+      lineItems(first: 100) { nodes { sku } }
+    }
+  }
+}`;
+
+// Every SKU this customer has ever bought, upper-cased for comparison.
+async function ownedSkus(customerId, env) {
+  const ck = "owned:" + customerId;
+  const cached = cacheGet(ck);
+  if (cached) return cached;
+
+  const who = await adminQuery(env, CUSTOMER_EMAIL_QUERY, {
+    id: "gid://shopify/Customer/" + customerId
+  });
+  if (!who) return null;                        // not configured
+  const email = who.customer && who.customer.email;
+  if (!email) return new Set();
+
+  const skus = new Set();
+  let cursor = null;
+  for (let page = 0; page < 10; page++) {       // up to 500 orders
+    const data = await adminQuery(env, ORDER_SKUS_QUERY, {
+      q: `email:${JSON.stringify(email)}`, cursor
+    });
+    const orders = data && data.orders;
+    if (!orders) break;
+    for (const o of orders.nodes) {
+      if (o.cancelledAt) continue;              // a cancelled order is not a purchase
+      for (const li of o.lineItems.nodes) {
+        if (li.sku) skus.add(String(li.sku).trim().toUpperCase());
+      }
+    }
+    if (!orders.pageInfo.hasNextPage) break;
+    cursor = orders.pageInfo.endCursor;
+  }
+  cacheSet(ck, skus, 10 * 60 * 1000);           // 10 min: new orders appear soon enough
+  return skus;
+}
+
+// null  → entitlement not configured, fall through to the access code
+// true  → owns it
+// false → signed in, does not own it
+// "anon"→ nobody is signed in, so ownership cannot be judged
+async function customerOwns(auth, sku, env) {
+  if (!env.SHOPIFY_CLIENT_ID || !env.SHOPIFY_CLIENT_SECRET) return null;
+  if (!auth.loggedIn || !auth.customerId) return "anon";
+  const owned = await ownedSkus(auth.customerId, env);
+  if (!owned) return null;
+  return owned.has(String(sku).trim().toUpperCase());
+}
+
+// Streams an object out of R2 with the right headers.
+async function deliver(key, env) {
+  const obj = await env.PATTERNS.get(key);
+  if (!obj) return new Response("not found", { status: 404 });
+  const headers = new Headers();
+  obj.writeHttpMetadata(headers);
+  headers.set("etag", obj.httpEtag);
+  headers.set("cache-control", "private, max-age=3600");
+  if (!headers.has("content-type")) {
+    const ext = key.split(".").pop().toLowerCase();
+    headers.set("content-type", MIME[ext] || "application/octet-stream");
+  }
+  return new Response(obj.body, { headers });
+}
+
 async function servePattern(key, auth, request, url, env) {
   if (!env.PATTERNS) {
     return new Response("pattern storage not bound", { status: 500 });
@@ -276,16 +421,48 @@ async function servePattern(key, auth, request, url, env) {
     });
   }
 
-  // ── Entitlement hook ──────────────────────────────────────────────────
-  // When you're ready to restrict kits to buyers, resolve the SKU from the
-  // key and check it against this customer's orders. Returning 403 here is
-  // all the app needs — it already shows "only available to customers who
-  // bought it" for that status.
-  //
-  //   const sku = key.split("/")[0];
-  //   if (!(await customerOwns(auth.customerId, sku, env))) {
-  //     return new Response("forbidden", { status: 403 });
-  //   }
+  // ── Entitlement ───────────────────────────────────────────────────────
+  // Owning the kit is the primary key. The access code stays as a fallback so
+  // that a buyer the lookup misses — an old order while read_all_orders is
+  // still pending, a different email at checkout — is not locked out of a
+  // pattern they paid for.
+  if (needsCode(key)) {
+    const sku = key.split("/")[0];
+    let owns = null;
+    try {
+      owns = await customerOwns(auth, sku, env);
+    } catch (e) {
+      // A Shopify outage must not lock buyers out; fall through to the code.
+      console.warn("entitlement lookup failed for " + sku + ":", e.message);
+    }
+    if (owns === true) {
+      return deliver(key, env);                 // bought it — no code needed
+    }
+    if (owns === false || owns === "anon") {
+      // Not a buyer (or not signed in): the access code is the remaining route.
+      const c = checkAccessCode(request, url, env, key);
+      if (!c.ok) {
+        return new Response(
+          JSON.stringify({
+            error: owns === "anon" ? "signin" : "notpurchased",
+            sku,
+            message: owns === "anon"
+              ? "Sign in to your Luca-S account to open the patterns you've bought."
+              : "This pattern comes with the kit. Buy it, or enter an access code."
+          }),
+          {
+            status: owns === "anon" ? 401 : 403,
+            headers: {
+              "content-type": "application/json",
+              "x-code-seen": c.seen ? "1" : "0",
+              "cache-control": "no-store"
+            }
+          }
+        );
+      }
+      return deliver(key, env);
+    }
+  }
 
   const obj = await env.PATTERNS.get(key);
   if (!obj) return new Response("not found", { status: 404 });
@@ -320,6 +497,7 @@ export async function onRequest(context) {
       patternsBound: !!env.PATTERNS,
       accessCodeSet: !!env.PATTERN_ACCESS_CODE,
       perKitCodes: !!env.PATTERN_CODES,
+      entitlement: !!(env.SHOPIFY_CLIENT_ID && env.SHOPIFY_CLIENT_SECRET),
       catalogueLive: !!(env.SHOPIFY_STORE && env.SHOPIFY_STOREFRONT_TOKEN),
       enforceProxy: ENFORCE_PROXY
     };
