@@ -2767,7 +2767,9 @@ body.tracker-mode{overflow:auto}
 /* The catalogue is a grid of covers, so it gets the full container width and
    bigger cards; the upload flow stays a narrow reading column. */
 #tracker-page #trk-kits{max-width:1180px;margin-left:auto;margin-right:auto}
-#tracker-page #trk-kits-grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:1.1rem}
+#tracker-page #trk-kits-grid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.3rem}
+#tracker-page #trk-kits-grid > div{transition:transform .15s,box-shadow .15s}
+#tracker-page #trk-kits-grid > div:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(139,26,43,.12)}
 #tracker-page .trk-cards{display:flex}
 #tracker-page #trk-verify{margin-bottom:1rem}
 .trk-cards{display:flex;gap:1.4rem;flex-wrap:wrap;margin:1.6rem 0}
@@ -2787,6 +2789,10 @@ body.tracker-mode{overflow:auto}
 #trk-exact-continue{margin-top:.55rem;border:1.5px solid var(--lp-red,#8B1A2B);background:var(--lp-red,#8B1A2B);color:#fff;border-radius:8px;padding:.4rem .8rem;font-size:.72rem;font-weight:700;cursor:pointer}
 #trk-manual-btn{margin-top:.55rem;border:1.5px dashed #d9c8ce;background:none;border-radius:8px;padding:.35rem .6rem;font-size:.7rem;font-weight:700;color:var(--lp-red,#8B1A2B);cursor:pointer}
 #trk-manual-btn:disabled{opacity:.4;cursor:default}
+#trk-convert-btn{margin-top:.4rem;border:1.5px dashed #d9c8ce;background:none;border-radius:8px;padding:.35rem .7rem;font-size:.7rem;font-weight:700;color:var(--lp-red,#8B1A2B);cursor:pointer;font-family:inherit;transition:background .15s,border-color .15s}
+#trk-convert-btn:hover{background:#fdf2f4;border-color:var(--lp-red,#8B1A2B)}
+#trk-legend-brand{font-family:inherit;font-size:.72rem;font-weight:700;color:var(--lp-red,#8B1A2B);padding:.2rem .4rem;border:1.5px solid #e6d9dd;border-radius:8px;background:#fff;cursor:pointer}
+#trk-legend-brand:focus{outline:none;border-color:var(--lp-red,#8B1A2B)}
 #trk-skip-btn{margin-top:.35rem;border:none;background:none;font-size:.7rem;font-weight:700;color:var(--lp-muted,#7d6b72);cursor:pointer;text-decoration:underline}
 #trk-skip-btn:disabled{opacity:.4;cursor:default}
 #trk-manual{max-width:760px;margin:0 auto 1rem;background:#fff;border:1.5px solid #e6d9dd;border-radius:12px;padding:1rem}
@@ -2842,7 +2848,8 @@ body.dark #trk-selcard-sym{background:#221b2d;border-color:#4a3d55}
 .trk-crow.sel{background:#fdeef2;outline:1.5px solid var(--lp-red,#8B1A2B)}
 body.dark .trk-crow:hover{background:#2b2338}
 body.dark .trk-crow.sel{background:#3a2130}
-#trk-proj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:1rem;max-width:1000px;margin:0 auto 1.2rem}
+#trk-proj-grid,#trk-saved-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:1rem;max-width:1000px;margin:0 auto 1.2rem}
+#tracker-page #trk-saved{max-width:1000px;margin-left:auto;margin-right:auto}
 .trk-pcard{background:#fff;border:1.5px solid #eadde1;border-radius:14px;overflow:hidden;box-shadow:0 2px 10px rgba(43,34,38,.05)}
 .trk-pcard .thumb{width:100%;height:150px;object-fit:contain;display:block;background:
   repeating-conic-gradient(#f4eef0 0 25%,#fff 0 50%) 0 0/16px 16px}
@@ -2894,6 +2901,9 @@ body.dark #trk-minimap span{background:#221b2d}
 #trk-canvas-wrap{overflow:auto;height:74vh;border:1.5px solid #e6d9dd;border-radius:10px;background:#fff;display:flex}
 #trk-canvas{margin:auto}
 #trk-canvas{display:block;touch-action:none}
+/* The scroll container must not let the browser claim pinch either, or the
+   gesture is intercepted before the canvas ever sees it. */
+#trk-canvas-wrap{touch-action:pan-x pan-y}
 #trk-canvas.panning{cursor:grab}
 body.dark #trk-side{background:#221b2d;border-color:#4a3d55}
 body.dark #trk-canvas-wrap{border-color:#4a3d55}
@@ -2973,7 +2983,15 @@ body.dark #trk-modes button{background:#221b2d;border-color:#4a3d55}
 /* HERO */
 #lp-hero{max-width:1100px;margin:0 auto;padding:5rem 2rem 4rem;display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center}
 @media(max-width:860px){#lp-hero{grid-template-columns:1fr;gap:2.5rem;padding:3rem 1.5rem 2rem}}
-#lp-mobile-menu{display:none;position:fixed;top:var(--mm-top,64px);left:0;right:0;z-index:960;background:#fff;border-bottom:1px solid var(--lp-border);box-shadow:0 16px 32px rgba(43,34,38,.22);padding:.35rem 0 .6rem;max-height:calc(100vh - var(--mm-top,64px));overflow-y:auto}
+/* A left-hand drawer running the full height of the screen but only part of
+   its width, so the page stays visible behind it and the menu can be dismissed
+   by tapping what you were looking at. */
+#lp-mobile-menu{display:none;position:fixed;top:0;bottom:0;left:0;width:min(86vw,340px);z-index:960;background:#fff;border-right:1px solid var(--lp-border);box-shadow:0 0 40px rgba(43,34,38,.28);padding:.35rem 0 1.2rem;overflow-y:auto;-webkit-overflow-scrolling:touch;transform:translateX(-100%);transition:transform .22s ease}
+#lp-mobile-menu.open{transform:none}
+#lp-mm-scrim{display:none;position:fixed;inset:0;z-index:955;background:rgba(30,22,28,.42);opacity:0;transition:opacity .22s ease}
+#lp-mm-scrim.open{display:block;opacity:1}
+#lp-mm-close{position:sticky;top:0;display:flex;justify-content:flex-end;background:inherit;padding:.5rem .9rem .2rem}
+#lp-mm-close button{background:none;border:none;font-size:1.4rem;line-height:1;color:var(--lp-muted);cursor:pointer;padding:.2rem .35rem}
 .lp-mm-acc{display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:none;padding:.72rem 1.4rem;font-family:inherit;font-size:.95rem;font-weight:500;color:var(--lp-ink);cursor:pointer;text-align:left}
 .lp-mm-acc:active{background:var(--lp-red-light)}
 .lp-mm-chev{font-size:.75rem;color:var(--lp-muted);transition:transform .2s}
@@ -2989,6 +3007,7 @@ body.dark .lp-mm-panel{background:#251e36}
 body.dark .lp-mm-theme{border-color:#37303f}
 body.dark .lp-mm-theme span{color:#efe9f3}
 #lp-mobile-menu.open{display:block}
+body.mm-open{overflow:hidden}
 #lp-mobile-menu a{display:block;padding:.72rem 1.4rem;text-decoration:none;color:var(--lp-ink);font-size:.95rem;font-weight:500}
 #lp-mobile-menu a:active{background:var(--lp-red-light)}
 #lp-mobile-menu .lp-mm-label{padding:.6rem 1.4rem .2rem;font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--lp-muted)}
@@ -2997,12 +3016,16 @@ body.dark #lp-mobile-menu{background:#1e1830;border-color:#37303f}
 body.dark #lp-mobile-menu a{color:#efe9f3}
 body.dark #lp-menu-btn{border-color:#37303f;color:#efe9f3}
 @media(max-width:860px){
-  #lp-logo-img{height:64px!important}
-  .lp-nav-inner{gap:.5rem;padding:.4rem 1rem}
-  .lp-cta-btn{margin-left:auto !important;padding:.4rem .8rem;font-size:.8rem;order:2}
+  /* Three-slot header: menu | logo | account. The logo centres because the two
+     side slots are given equal width, so it stays centred whatever they hold. */
+  #lp-logo-img{height:56px!important}
+  .lp-nav-inner{gap:.4rem;padding:.4rem .75rem;display:flex;align-items:center}
   .lp-nav-links{display:none}
-  #lp-theme-btn{display:none !important} /* theme toggle lives inside the menu on mobile */
-  #lp-menu-btn{display:inline-flex !important;align-items:center;justify-content:center;order:3}
+  #lp-theme-btn{display:none !important}   /* theme toggle lives inside the menu */
+  .lp-cta-btn{display:none !important}      /* Open Editor moves into the menu   */
+  #lp-menu-btn{display:inline-flex !important;align-items:center;justify-content:center;order:1;flex:0 0 44px}
+  .lp-nav-inner > .lp-logo{order:2;flex:1 1 auto;display:flex;justify-content:center;min-width:0}
+  .lp-nav-inner > .acct-wrap{order:3;flex:0 0 44px;display:flex;justify-content:flex-end}
 }
 .lp-hero-badge{display:inline-flex;align-items:center;gap:.4rem;background:var(--lp-red-light);color:var(--lp-red);font-size:.75rem;font-weight:600;padding:.35rem .8rem;border-radius:99px;margin-bottom:1.25rem;border:1px solid #f5c5cd}
 .lp-h1{font-family:'DM Serif Display',serif;font-size:3rem;line-height:1.18;color:var(--lp-ink);margin-bottom:1.25rem}
@@ -4289,6 +4312,12 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 <!-- Mobile dropdown menu — shared by the landing header AND the editor topbar,
      mirrors the desktop nav: Features ▾ / How it works / Calculators ▾ / About / Shop -->
 <div id="lp-mobile-menu">
+  <div id="lp-mm-close"><button type="button" onclick="lpCloseMenu()" aria-label="Close menu">&times;</button></div>
+  <!-- Open Editor lives here on mobile: the header only has room for menu,
+       logo and account, and this is the first thing most people want. -->
+  <div style="padding:.1rem 1.4rem .7rem">
+    <button class="lp-btn-primary" style="width:100%;justify-content:center" onclick="lpCloseMenu();openApp()">Open Editor &rarr;</button>
+  </div>
   <button class="lp-mm-acc" type="button">Features <span class="lp-mm-chev">▾</span></button>
   <div class="lp-mm-panel">
     <a href="#" onclick="lpCloseMenu();lpMmAction('photo');return false" class="lp-mm-sub">🖼 Upload Image</a>
@@ -4735,6 +4764,11 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     </div>
     <div id="trk-upload">
     <a href="#" id="trk-back-home" style="display:none;font-size:.78rem;color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none" onclick="trkShowHome();return false">← My tracked patterns</a>
+    <div id="trk-saved" style="display:none">
+      <h3 id="trk-saved-title" style="font-family:var(--lp-serif,Georgia,serif);font-size:1.15rem;margin:2.1rem 0 .3rem;text-align:center">My Tracked Patterns</h3>
+      <p id="trk-saved-sub" style="font-size:.78rem;color:#6a626f;text-align:center;margin:0 0 1rem"></p>
+      <div id="trk-saved-grid"></div>
+    </div>
     <!-- Step 0 · where is this pattern coming from -->
     <div id="trk-source" class="trk-cards">
       <div class="trk-card" id="trk-src-lucas" role="button" tabindex="0">
@@ -4785,7 +4819,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
         <p>The colour key — symbols, thread codes and stitch counts.</p>
         <div style="font-size:.72rem;color:var(--muted);margin:.15rem 0 .35rem" onclick="event.stopPropagation()">
           Thread brand:
-          <select id="trk-legend-brand" style="font-family:inherit;font-size:.72rem;padding:.15rem .3rem;border:1px solid #e6d9dd;border-radius:6px;background:#fff">
+          <select id="trk-legend-brand">
             <option value="lucas">Luca-S</option>
             <option value="dmc">DMC</option>
             <option value="anchor">Anchor</option>
@@ -16599,7 +16633,7 @@ function trkShowUpload(){
   document.getElementById('trk-projects').style.display='none';
   document.getElementById('trk-workspace').style.display='none';
   document.getElementById('trk-upload').style.display='';
-  document.getElementById('trk-back-home').style.display = trkIndex().length ? 'inline-block' : 'none';
+  document.getElementById('trk-back-home').style.display='none';   // list is inline now
   const cards=document.querySelector('#trk-upload .trk-cards:not(#trk-source)');
   const src=document.getElementById('trk-source'), kits=document.getElementById('trk-kits');
   const soon=trkPdfSoonPanel();
@@ -16616,7 +16650,20 @@ function trkShowUpload(){
     if(src) src.style.display='';
     soon.style.display='none';
     const ub=document.getElementById('trk-upload-back'); if(ub) ub.style.display='none';
+    trkRenderSaved();
   }
+}
+// The saved patterns sit under the two source cards, so the tracker's front
+// page offers both "start one" and "carry on" without a hop to another screen.
+function trkRenderSaved(show){
+  const wrap=document.getElementById('trk-saved');
+  if(!wrap) return;
+  const list = (typeof trkIndex==='function') ? trkIndex() : [];
+  if(show===false || !list.length){ wrap.style.display='none'; return; }
+  const sub=document.getElementById('trk-saved-sub');
+  if(sub) sub.innerHTML=`Saved in this browser on this device — <b>${list.length} of 8</b> slots used. · <a href="#" onclick="trkImportPick();return false" style="color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">\u2b06 Restore a backup</a>`;
+  trkRenderProjectCards(document.getElementById('trk-saved-grid'), list, false);
+  wrap.style.display='';
 }
 // Reveal either the upload cards or the Luca-S catalogue.
 function trkChooseSource(kind){
@@ -16624,6 +16671,9 @@ function trkChooseSource(kind){
   const src=document.getElementById('trk-source'), kits=document.getElementById('trk-kits');
   if(src) src.style.display='none';
   const ub=document.getElementById('trk-upload-back');
+  const home=document.getElementById('trk-back-home');
+  if(home) home.style.display='none';   // the step back-link supersedes it here
+  trkRenderSaved(false);                // saved list belongs to the chooser only
   if(kind==='lucas'){
     if(cards) cards.style.display='none';
     if(ub) ub.style.display='none';
@@ -16633,6 +16683,17 @@ function trkChooseSource(kind){
     if(kits) kits.style.display='none';
     if(cards) cards.style.display='';
     if(ub) ub.style.display='inline-block';
+    // Uploaded files have no reliable title, so name it here — but only once,
+    // and never over a name the user already gave.
+    if(!trkPendingName && typeof pjShowModal==='function'){
+      pjShowModal({
+        title:'Name your project',
+        body:'Give this tracked pattern a title so you can find it later.',
+        input:{placeholder:'e.g. Winter Wolves', value:'', maxLength:40},
+        confirmLabel:'Continue',
+        onConfirm(v){ trkPendingName=(v||'').trim()||'Tracked Pattern'; }
+      });
+    }
   }
 }
 
@@ -16767,8 +16828,8 @@ function trkKitsRender(){
     card.innerHTML =
       (kit.image?`<img src="${esc(trkKitImageUrl(kit))}" alt="" loading="lazy" style="width:100%;aspect-ratio:1;object-fit:cover;background:#f6f1f2">`
                 :`<div style="width:100%;aspect-ratio:1;background:#f6f1f2"></div>`)+
-      `<div style="padding:.55rem .6rem"><div style="font-weight:700;font-size:.82rem;line-height:1.3">${esc(kit.title||kit.sku)}</div>`+
-      `<div style="font-size:.72rem;color:#6a626f;margin-top:.15rem">${esc(kit.sku)}${meta?' \u00b7 '+meta:''}</div></div>`;
+      `<div style="padding:.7rem .75rem"><div style="font-weight:700;font-size:.92rem;line-height:1.35">${esc(kit.title||kit.sku)}</div>`+
+      `<div style="font-size:.76rem;color:#6a626f;margin-top:.25rem">${esc(kit.sku)}${meta?' \u00b7 '+meta:''}</div></div>`;
     card.onclick=()=>trkOpenKit(kit);
     grid.appendChild(card);
   }
@@ -16820,7 +16881,10 @@ async function trkOpenKit(kit){
     e.preventDefault();
     const k=document.getElementById('trk-kits'), s=document.getElementById('trk-source'),
           c=document.querySelector('#trk-upload .trk-cards:not(#trk-source)'),
-          u=document.getElementById('trk-upload-back');
+          u=document.getElementById('trk-upload-back'),
+          h=document.getElementById('trk-back-home');
+    if(h) h.style.display='none';
+    trkRenderSaved();
     if(k) k.style.display='none';
     if(c) c.style.display='none';
     if(u) u.style.display='none';
@@ -16854,22 +16918,18 @@ function trkPdfSoonPanel(){
   return el;
   function cardsAnchor(){ return document.querySelector('#trk-upload .trk-cards'); }
 }
-function trkShowHome(){
-  const list=trkIndex();
-  if(!list.length){ trkShowUpload(); return; }
-  document.getElementById('trk-upload').style.display='none';
-  document.getElementById('trk-workspace').style.display='none';
-  const wrap=document.getElementById('trk-projects');
-  wrap.style.display='';
-  const grid=document.getElementById('trk-proj-grid');
+// Fills a grid with the saved-project cards. `withAdd` draws the "Track New
+// Pattern" tile, which only makes sense on the standalone page — inline under
+// the source chooser, starting a new one is what the page is already for.
+function trkRenderProjectCards(grid, list, withAdd){
   grid.innerHTML='';
-  const t=document.querySelector('#tracker-page .calc-title'), s=document.querySelector('#tracker-page .calc-sub');
-  if(t) t.textContent='My Tracked Patterns';
-  if(s) s.innerHTML=`Saved in this browser on this device — <b>${list.length} of 8</b> slots used. · <a href="#" onclick="trkImportPick();return false" style="color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">⬆ Restore a backup</a>`;
   const rel=ts=>{ const m=Math.floor((Date.now()-ts)/60000); if(m<60) return m<=1?'just now':m+'m ago'; const h=Math.floor(m/60); if(h<24) return h+'h ago'; return Math.floor(h/24)+'d ago'; };
-  const add=document.createElement('div'); add.className='trk-pcard new';
-  add.innerHTML='<span class="plus">+</span><span>Track New Pattern</span>';
-  grid.appendChild(add);
+  let add=null;
+  if(withAdd){
+    add=document.createElement('div'); add.className='trk-pcard new';
+    add.innerHTML='<span class="plus">+</span><span>Track New Pattern</span>';
+    grid.appendChild(add);
+  }
   for(const p of list){
     const pct=p.total?Math.round(p.done/p.total*100):0;
     const card=document.createElement('div'); card.className='trk-pcard';
@@ -16891,16 +16951,26 @@ function trkShowHome(){
     card.querySelector('.del').onclick=e=>{ e.stopPropagation(); trkDeleteProject(p.id, p.name); };
     grid.appendChild(card);
   }
-  add.onclick=()=>{
+  if(add) add.onclick=()=>{
     if(window.TRACKER_PDF_COMING_SOON){ showTrackerSoon(); return; }
-    pjShowModal({
-      title:'Name your project',
-      body:'Give this tracked pattern a title so you can find it later.',
-      input:{placeholder:'e.g. Winter Wolves', value:'', maxLength:40},
-      confirmLabel:'Continue',
-      onConfirm(v){ trkPendingName=(v||'').trim()||'Tracked Pattern'; trkShowUpload(); }
-    });
+    // No name prompt here any more: a Luca-S kit already has the product title,
+    // so asking first meant typing a name the app was about to overwrite. The
+    // upload branch asks for one at the point it is actually needed.
+    trkPendingName='';
+    trkShowUpload();
   };
+}
+function trkShowHome(){
+  const list=trkIndex();
+  if(!list.length){ trkShowUpload(); return; }
+  document.getElementById('trk-upload').style.display='none';
+  document.getElementById('trk-workspace').style.display='none';
+  const wrap=document.getElementById('trk-projects');
+  wrap.style.display='';
+  const t=document.querySelector('#tracker-page .calc-title'), s=document.querySelector('#tracker-page .calc-sub');
+  if(t) t.textContent='My Tracked Patterns';
+  if(s) s.innerHTML=`Saved in this browser on this device — <b>${list.length} of 8</b> slots used. · <a href="#" onclick="trkImportPick();return false" style="color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">⬆ Restore a backup</a>`;
+  trkRenderProjectCards(document.getElementById('trk-proj-grid'), list, true);
 }
 function trkTitleReset(){
   const t=document.querySelector('#tracker-page .calc-title'), s=document.querySelector('#tracker-page .calc-sub');
@@ -19485,8 +19555,12 @@ function trkSelectSymbolAt(cell){
 function trkCancelLong(){ if(trkLongT){ clearTimeout(trkLongT); trkLongT=null; } }
 
 function trkApplyMode(){
-  // In pan mode the browser handles touch scrolling natively; in mark mode we own the gesture
-  trkCanvas.style.touchAction = trkMode==='pan' ? 'auto' : 'none';
+  // In pan mode the browser handles one-finger scrolling natively; in mark mode
+  // we own the gesture entirely. Either way pinch stays OURS: 'auto' handed
+  // every touch to the browser, so a two-finger pinch zoomed the whole page and
+  // never reached the canvas's own zoom. 'pan-x pan-y' keeps native scrolling
+  // and reserves pinch for us.
+  trkCanvas.style.touchAction = trkMode==='pan' ? 'pan-x pan-y' : 'none';
   trkCanvas.classList.toggle('panning', trkMode==='pan');
   document.getElementById('trk-mode-pan').classList.toggle('active', trkMode==='pan');
   document.getElementById('trk-mode-mark').classList.toggle('active', trkMode==='mark');
@@ -19531,6 +19605,7 @@ trkCanvas.addEventListener('pointerdown', e=>{
   trkPtrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(trkPtrs.size===2){
     // second finger: cancel any marking, start pinch-zoom
+    e.preventDefault();
     trkMarking=null; trkTap=null; trkCancelLong();
     const p=[...trkPtrs.values()];
     trkPinch={d:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y), idx:trkZoomIdx, scale:trkPageScale};
@@ -19560,6 +19635,7 @@ trkCanvas.addEventListener('pointermove', e=>{
   const p=trkPtrs.get(e.pointerId);
   if(p){ p.x=e.clientX; p.y=e.clientY; }
   if(trkPinch && trkPtrs.size===2){
+    e.preventDefault();
     const pts=[...trkPtrs.values()];
     const d=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);
     const steps=Math.round(Math.log(d/trkPinch.d)/Math.log(1.3));
@@ -22121,22 +22197,34 @@ applyTheme((()=>{ try{ return localStorage.getItem('patternly_theme')||'light'; 
 })();
 
 // Mobile hamburger menu
+// The menu is a full-height drawer now, so it no longer docks under the header;
+// it gets a scrim instead, and the page underneath is locked so the drawer
+// scrolls rather than the page behind it.
+function lpMmScrim(){
+  let sc=document.getElementById('lp-mm-scrim');
+  if(!sc){
+    sc=document.createElement('div');
+    sc.id='lp-mm-scrim';
+    sc.addEventListener('click', lpCloseMenu);
+    document.body.appendChild(sc);
+  }
+  return sc;
+}
 function lpToggleMenu(){
   const mm=document.getElementById('lp-mobile-menu');
-  if(!mm.classList.contains('open')){
-    // dock under whichever header is showing: landing nav or the editor topbar
-    const hdr=document.body.classList.contains('app-mode')
-      ? document.getElementById('topbar') : document.getElementById('lp-nav');
-    const b=hdr ? hdr.getBoundingClientRect().bottom : 64;
-    mm.style.setProperty('--mm-top', Math.max(0,Math.round(b))+'px');
-  }
-  mm.classList.toggle('open');
+  if(mm.classList.contains('open')){ lpCloseMenu(); return; }
+  lpMmScrim().classList.add('open');
+  mm.classList.add('open');
+  document.body.classList.add('mm-open');
 }
-function lpCloseMenu(){ document.getElementById('lp-mobile-menu').classList.remove('open'); }
-document.addEventListener('click', e=>{
+function lpCloseMenu(){
   const mm=document.getElementById('lp-mobile-menu');
-  if(mm && mm.classList.contains('open') && !mm.contains(e.target) && !e.target.closest('#lp-menu-btn,#tb-menu-btn')) lpCloseMenu();
-});
+  if(mm) mm.classList.remove('open');
+  const sc=document.getElementById('lp-mm-scrim');
+  if(sc) sc.classList.remove('open');
+  document.body.classList.remove('mm-open');
+}
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') lpCloseMenu(); });
 // Accordion groups inside the mobile menu — one open at a time, like the desktop dropdowns
 document.querySelectorAll('.lp-mm-acc').forEach(btn=>{
   btn.addEventListener('click', ()=>{
