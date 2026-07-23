@@ -1,4 +1,4 @@
-// Patternly — Cloudflare Pages Function v6
+// Patternly — Cloudflare Pages Function v7
 // v2 + /patterns/* : serves the Luca-S kit catalogue and pattern files from R2.
 //
 // The files are deliberately NOT on a public R2 URL. Everything goes through
@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v6";
+const MW_VERSION = "v7";
 
 const enc = new TextEncoder();
 
@@ -181,6 +181,33 @@ async function buildCatalogue(env) {
   return kits;
 }
 
+// Which SKUs actually have pattern files in the bucket. The metafield says a
+// product is MEANT to be a kit; this says the files are really there. Listing a
+// kit without them gives the customer a card that 404s when clicked, so the
+// catalogue is the intersection of the two. That also means you can tag every
+// product in the collection up front and each one appears by itself as its
+// folder is uploaded.
+async function readySkus(env) {
+  if (!env.PATTERNS) return null;
+  const ready = new Set();
+  let cursor;
+  for (let page = 0; page < 10; page++) {          // up to 10k objects
+    const listed = await env.PATTERNS.list({ limit: 1000, cursor });
+    for (const obj of listed.objects) {
+      const slash = obj.key.indexOf("/");
+      if (slash <= 0) continue;                    // root files aren't kits
+      const leaf = obj.key.slice(slash + 1).toLowerCase();
+      // A kit is openable when it has a chart — either a .Ptly or a chart PDF.
+      if (leaf === "chart.pdf" || leaf === "pattern.ptly") {
+        ready.add(obj.key.slice(0, slash));
+      }
+    }
+    if (!listed.truncated) break;
+    cursor = listed.cursor;
+  }
+  return ready;
+}
+
 async function serveCatalogue(auth, request, url, env) {
   // The catalogue listing is open; only the pattern files are gated.
   let kits = null;
@@ -190,7 +217,22 @@ async function serveCatalogue(auth, request, url, env) {
     console.warn("catalogue build failed, falling back to stored kits.json:", e.message);
   }
   if (kits) {
-    return new Response(JSON.stringify({ kits }), {
+    let listed = kits;
+    try {
+      const ready = await readySkus(env);
+      if (ready) {
+        const hidden = kits.filter(k => !ready.has(k.sku)).map(k => k.sku);
+        if (hidden.length) {
+          console.log("catalogue: tagged but no files yet — " + hidden.join(", "));
+        }
+        listed = kits.filter(k => ready.has(k.sku));
+      }
+    } catch (e) {
+      // If the bucket can't be listed, show everything rather than nothing —
+      // a card that fails on click beats an empty shop.
+      console.warn("readySkus failed, listing all tagged kits:", e.message);
+    }
+    return new Response(JSON.stringify({ kits: listed }), {
       headers: { "content-type": "application/json", "cache-control": "no-store" }
     });
   }
