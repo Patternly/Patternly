@@ -1,4 +1,4 @@
-// Patternly — Cloudflare Pages Function v15
+// Patternly — Cloudflare Pages Function v16
 // v2 + /patterns/* : serves the Luca-S kit catalogue and pattern files from R2.
 //
 // The files are deliberately NOT on a public R2 URL. Everything goes through
@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v15";
+const MW_VERSION = "v16";
 
 const enc = new TextEncoder();
 
@@ -653,6 +653,58 @@ export async function onRequest(context) {
     return new Response(JSON.stringify(body), {
       headers: { "content-type": "application/json", "cache-control": "no-store" }
     });
+  }
+
+  // ── /progress: stitch progress that follows the account ──────────────────
+  // Only for catalogue kits: the chart itself re-downloads from R2 by SKU, so
+  // the sync carries progress alone — one bit per cell, a few KB even for a
+  // 43,000-stitch kit. Uploaded patterns stay local; their chart is the user's
+  // own file and there is nothing to re-fetch it from.
+  //
+  // GET  /progress?sku=B724   -> {data, done, ts}
+  // PUT  /progress?sku=B724   <- {data, done}
+  if (url.pathname === "/progress" || url.pathname.endsWith("/progress")) {
+    const bad = (msg, code) => new Response(JSON.stringify({ error: msg }), {
+      status: code, headers: { "content-type": "application/json", "cache-control": "no-store" }
+    });
+    if (!auth.loggedIn || !auth.customerId) return bad("signin", 401);
+    if (!env.ENTITLEMENTS) return bad("storage not configured", 500);
+    const sku = (url.searchParams.get("sku") || "").trim().toUpperCase();
+    if (!sku || !/^[A-Z0-9_-]{1,40}$/.test(sku)) return bad("bad sku", 400);
+
+    // You can only sync progress for a kit you own — otherwise this is free
+    // storage for anyone with an account.
+    try {
+      const owns = await customerOwns(auth, sku, env);
+      if (owns === false) return bad("notpurchased", 403);
+    } catch (e) {
+      console.warn("progress entitlement check failed:", e.message);
+    }
+
+    const key = "prog:" + auth.customerId + ":" + sku;
+    if (request.method === "GET") {
+      const raw = await env.ENTITLEMENTS.get(key);
+      return new Response(raw || JSON.stringify({ data: null }), {
+        headers: { "content-type": "application/json", "cache-control": "no-store" }
+      });
+    }
+    if (request.method === "PUT" || request.method === "POST") {
+      let body;
+      try { body = await request.json(); } catch (e) { return bad("bad body", 400); }
+      if (typeof body.data !== "string" || body.data.length > 400000) return bad("bad data", 400);
+      const rec = {
+        data: body.data,
+        cols: body.cols | 0,
+        rows: body.rows | 0,
+        done: body.done | 0,
+        ts: Date.now()
+      };
+      await env.ENTITLEMENTS.put(key, JSON.stringify(rec));
+      return new Response(JSON.stringify({ ok: true, ts: rec.ts }), {
+        headers: { "content-type": "application/json", "cache-control": "no-store" }
+      });
+    }
+    return bad("method", 405);
   }
 
   // ── /patterns/*: kit catalogue + files from R2 ──
