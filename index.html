@@ -16975,6 +16975,11 @@ async function trkOpenKit(kit){
       trkKitBusy(true, 'Reading the chart\u2026');
       await trkHandleChart(await grab('chart', kit.sku+'-chart.pdf'));
     }
+    // The parse is done but the first paint of a 40,000-cell canvas is not
+    // instant. Hold the overlay until the browser has actually drawn it,
+    // rather than until our promises resolve.
+    trkKitBusy(true, 'Drawing the chart\u2026');
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
     st.textContent='';
   }catch(err){
     if(err && err.gate === 'signin'){
@@ -20467,8 +20472,8 @@ async function trkHandleLegend(file){
     if(trackerLegend.stitchesSize) status += ` · ${trackerLegend.stitchesSize.w}×${trackerLegend.stitchesSize.h}`;
     if(resolved.missing.length){ status += ` · ⚠ ${resolved.missing.length} code(s) not in palette`; st.style.color='#b25f10'; }
     st.textContent = status;
-    if(trackerLastChartFile && !trackerGrid) trkHandleChart(trackerLastChartFile);
-    else tryBuildTracker();
+    if(trackerLastChartFile && !trackerGrid) await trkHandleChart(trackerLastChartFile);
+    else await tryBuildTracker();
   }catch(err){
     console.error(err);
     trkErrorPopup('legend', err.message);
@@ -21110,7 +21115,7 @@ async function trkHandleChart(file){
     document.getElementById('trk-skip-btn').disabled=false;
     if(expectedWidth && trackerGrid.cols !== expectedWidth){ status += ` · ⚠ legend declares ${expectedWidth} wide`; st.style.color='#b25f10'; }
     st.textContent = status;
-    tryBuildTracker();
+    await tryBuildTracker();
   }catch(err){
     console.error(err);
     trkErrorPopup('chart', err.message);
