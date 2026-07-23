@@ -1,4 +1,4 @@
-// Patternly — Cloudflare Pages Function v9
+// Patternly — Cloudflare Pages Function v10
 // v2 + /patterns/* : serves the Luca-S kit catalogue and pattern files from R2.
 //
 // The files are deliberately NOT on a public R2 URL. Everything goes through
@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v9";
+const MW_VERSION = "v10";
 
 const enc = new TextEncoder();
 
@@ -287,16 +287,40 @@ async function adminToken(env) {
   const store = env.SHOPIFY_STORE;
   const id = env.SHOPIFY_CLIENT_ID, secret = env.SHOPIFY_CLIENT_SECRET;
   if (!store || !id || !secret) return null;
-  const resp = await fetch(`https://${store}/admin/oauth/access_token`, {
+  // JSON first; if the endpoint rejects the shape, retry form-encoded. Which
+  // one Shopify wants has moved around, and one retry is cheaper than a
+  // debugging round trip.
+  let resp = await fetch(`https://${store}/admin/oauth/access_token`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "accept": "application/json" },
     body: JSON.stringify({
       grant_type: "client_credentials",
       client_id: id,
       client_secret: secret
     })
   });
-  if (!resp.ok) throw new Error("admin token " + resp.status);
+  if (resp.status === 400) {
+    resp = await fetch(`https://${store}/admin/oauth/access_token`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        "accept": "application/json"
+      },
+      body: new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: id,
+        client_secret: secret
+      }).toString()
+    });
+  }
+  if (!resp.ok) {
+    // Shopify names the reason (invalid_client, application_cannot_be_found,
+    // …) and the reason is the whole diagnosis here, so pass it through rather
+    // than reporting a bare status code.
+    let detail = "";
+    try { detail = (await resp.text()).slice(0, 300); } catch (e) {}
+    throw new Error("admin token " + resp.status + (detail ? " — " + detail : ""));
+  }
   const json = await resp.json();
   if (!json.access_token) throw new Error("admin token missing from response");
   // Re-mint well before any expiry rather than tracking it exactly.
