@@ -2653,6 +2653,48 @@ body.dark.app-mode #download-modal img{filter:invert(1) hue-rotate(180deg)}
 body.calc-mode #landing-page,body.calc-mode #app-wrapper,body.calc-mode #projects-page{display:none!important}
 body.calc-mode #calc-page{display:block}
 body.calc-mode{overflow:auto}
+#pricing-page{display:none;min-height:100vh;background:#faf6f7;font-family:'Inter',system-ui,sans-serif}
+body.pricing-mode #pricing-page{display:block}
+body.pricing-mode{overflow:auto}
+body.pricing-mode #landing-page,body.pricing-mode #app-wrapper,body.pricing-mode #projects-page,
+body.pricing-mode #calc-page,body.pricing-mode #threads-page,body.pricing-mode #tracker-page,
+body.pricing-mode #convert-page,body.pricing-mode #account-page{display:none!important}
+.pr-wrap{max-width:940px;margin:0 auto;padding:2.4rem 1.1rem 4rem}
+.pr-head{text-align:center;margin-bottom:1.6rem}
+.pr-head h1{font-family:var(--lp-serif,Georgia,serif);font-size:2.1rem;margin:0 0 .5rem;color:var(--lp-ink,#2b2226)}
+.pr-head p{font-size:.95rem;color:#6a626f;margin:0 auto;max-width:520px;line-height:1.6}
+/* Currency follows the shop the customer buys in, so the control is a plain
+   picker rather than a guess we cannot undo. */
+.pr-cur{display:flex;justify-content:center;gap:.3rem;margin:1.3rem 0 1.9rem}
+.pr-cur button{border:1.5px solid #e6d9dd;background:#fff;font-family:inherit;font-size:.8rem;font-weight:700;
+  padding:.4rem .9rem;border-radius:9px;cursor:pointer;color:#5a4a51}
+.pr-cur button.on{background:var(--lp-red,#8B1A2B);border-color:var(--lp-red,#8B1A2B);color:#fff}
+.pr-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.2rem;align-items:start}
+.pr-card{background:#fff;border:1.5px solid #e6d9dd;border-radius:18px;padding:1.6rem 1.4rem;position:relative}
+.pr-card.feat{border-color:var(--lp-red,#8B1A2B);box-shadow:0 10px 34px rgba(139,26,43,.13)}
+.pr-badge{position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--lp-red,#8B1A2B);
+  color:#fff;font-size:.66rem;font-weight:700;letter-spacing:.04em;padding:.28rem .75rem;border-radius:999px;white-space:nowrap}
+.pr-name{font-family:var(--lp-serif,Georgia,serif);font-size:1.32rem;margin:0 0 .2rem;color:var(--lp-ink,#2b2226)}
+.pr-tag{font-size:.8rem;color:#6a626f;margin:0 0 1rem;line-height:1.5;min-height:2.4em}
+.pr-price{display:flex;align-items:baseline;gap:.25rem;margin-bottom:.2rem}
+.pr-amount{font-size:2.3rem;font-weight:800;color:var(--lp-ink,#2b2226);letter-spacing:-.02em}
+.pr-per{font-size:.82rem;color:#6a626f;font-weight:600}
+.pr-note{font-size:.72rem;color:#8a7d84;margin:0 0 1.2rem;min-height:1.2em}
+.pr-cta{display:block;width:100%;box-sizing:border-box;text-align:center;border:none;border-radius:11px;
+  padding:.78rem;font-family:inherit;font-size:.92rem;font-weight:700;cursor:pointer;text-decoration:none;margin-bottom:1.2rem}
+.pr-cta.primary{background:var(--lp-red,#8B1A2B);color:#fff}
+.pr-cta.ghost{background:none;color:var(--lp-red,#8B1A2B);border:1.5px solid #e6d9dd}
+.pr-feats{list-style:none;margin:0;padding:0}
+.pr-feats li{display:flex;gap:.55rem;align-items:flex-start;font-size:.83rem;color:#4c424a;line-height:1.5;padding:.3rem 0}
+.pr-feats li::before{content:"\2713";color:var(--lp-red,#8B1A2B);font-weight:800;flex-shrink:0}
+.pr-feats li.no{color:#a2969c}
+.pr-feats li.no::before{content:"\2013";color:#c9bcc2}
+.pr-faq{max-width:660px;margin:3rem auto 0}
+.pr-faq h2{font-family:var(--lp-serif,Georgia,serif);font-size:1.3rem;text-align:center;margin:0 0 1rem}
+.pr-faq details{background:#fff;border:1.5px solid #e6d9dd;border-radius:12px;padding:.75rem 1rem;margin-bottom:.6rem}
+.pr-faq summary{font-size:.87rem;font-weight:700;cursor:pointer;color:var(--lp-ink,#2b2226)}
+.pr-faq p{font-size:.83rem;color:#5a4a51;line-height:1.6;margin:.55rem 0 0}
+@media(max-width:700px){ .pr-head h1{font-size:1.7rem} .pr-wrap{padding-top:1.6rem} }
 #threads-page{display:none;min-height:100vh;background:#faf6f7;font-family:'Inter',system-ui,sans-serif}
 .th-grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.4rem}
 .th-grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin-bottom:1.4rem}
@@ -2901,6 +2943,40 @@ body.dark #trk-minimap span{background:#221b2d}
 #trk-canvas-wrap{overflow:auto;height:74vh;border:1.5px solid #e6d9dd;border-radius:10px;background:#fff;display:flex}
 #trk-canvas{margin:auto}
 #trk-canvas{display:block;touch-action:none}
+/* The canvas is only ever the size of the visible area — a 328x200 chart at
+   300% would be 236 million pixels, far past what any browser will paint, and
+   an oversized canvas simply renders white. The sizer supplies the scrollable
+   extent instead, and the canvas is parked over whatever part is on screen. */
+/* The wrapper is a flex container that centred the canvas with margin:auto.
+   With a sizer inside, flex shrank it to fit instead of letting it overflow —
+   so the chart never scrolled horizontally. Keep the sizer at its natural size
+   and centre it only when it is smaller than the viewport. */
+#trk-scroll-sizer{position:relative;flex:0 0 auto;margin:auto}
+/* ── Fullscreen ─────────────────────────────────────────────────────────
+   The chart takes the whole viewport and the controls float over it, so the
+   stitcher sees as much of the pattern as the screen allows. */
+body.trk-fs #trk-workspace{position:fixed;inset:0;z-index:9400;background:#fff;margin:0;padding:0;overflow:hidden}
+body.trk-fs #trk-canvas-wrap{height:100dvh;border:none;border-radius:0}
+body.trk-fs #trk-side,body.trk-fs #trk-verify,body.trk-fs #trk-zoombar,body.trk-fs #trk-ws-back{display:none!important}
+body.trk-fs #trk-main{display:block;height:100dvh}
+body.trk-fs #trk-fsbar{display:flex}
+body.trk-fs{overflow:hidden}
+#trk-fsbar{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:max(.7rem,env(safe-area-inset-bottom));
+  z-index:9450;background:rgba(255,255,255,.97);border:1.5px solid #e6d9dd;border-radius:14px;
+  box-shadow:0 8px 28px rgba(43,34,38,.2);padding:.35rem;gap:.15rem;backdrop-filter:blur(6px)}
+#trk-fsbar button{display:flex;flex-direction:column;align-items:center;gap:.1rem;border:none;background:none;
+  font-family:inherit;font-size:1.05rem;line-height:1;padding:.45rem .6rem;border-radius:10px;cursor:pointer;color:#5a4a51}
+#trk-fsbar button span{font-size:.58rem;font-weight:700;letter-spacing:.01em}
+#trk-fsbar button.active{background:var(--lp-red,#8B1A2B);color:#fff}
+#trk-fspanel{display:none;position:fixed;right:0;top:0;bottom:0;width:min(88vw,320px);z-index:9460;
+  background:#fff;border-left:1.5px solid #e6d9dd;box-shadow:-8px 0 30px rgba(43,34,38,.18);
+  overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:5rem}
+#trk-fspanel.open{display:block}
+#trk-fspanel-head{position:sticky;top:0;background:#fff;display:flex;align-items:center;justify-content:space-between;
+  padding:.8rem .9rem .5rem;border-bottom:1px solid #f0e4e8;font-size:.9rem}
+#trk-fspanel-head button{border:none;background:none;font-size:1.1rem;cursor:pointer;color:#7d6b72}
+#trk-fspanel-body{padding:.7rem .9rem}
+#trk-scroll-sizer > #trk-canvas{position:sticky;top:0;left:0;margin:0}
 /* The scroll container must not let the browser claim pinch either, or the
    gesture is intercepted before the canvas ever sees it. */
 #trk-canvas-wrap{touch-action:pan-x pan-y}
@@ -4304,6 +4380,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     </a>
     <div class="lp-nav-links">
       <a href="#" onclick="lpLogoHome();return false">Home</a>
+      <a href="#" onclick="openPricing();return false">Pricing</a>
       <div class="lp-nav-dd">
         <a href="#features">Features ▾</a>
         <div class="lp-nav-dd-menu">
@@ -4343,6 +4420,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <button class="lp-btn-primary" style="width:100%;justify-content:center" onclick="lpCloseMenu();openApp()">Open Editor &rarr;</button>
   </div>
   <a href="#" onclick="lpCloseMenu();lpLogoHome();return false">Home</a>
+  <a href="#" onclick="lpCloseMenu();openPricing();return false">Pricing</a>
   <button class="lp-mm-acc" type="button">Features <span class="lp-mm-chev">▾</span></button>
   <div class="lp-mm-panel">
     <a href="#" onclick="lpCloseMenu();lpMmAction('tracker');return false" class="lp-mm-sub">Stitch Tracker</a>
@@ -4893,6 +4971,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
               <div id="trk-grid-pop">
                 <label class="tg-row"><span>Grid</span><input type="checkbox" id="tg-on" checked></label>
                 <label class="tg-row" id="tg-bs-row" style="display:none"><span>Backstitch</span><input type="checkbox" id="tg-bs" checked></label>
+                <label class="tg-row"><span>Centre lines</span><input type="checkbox" id="tg-centre"></label>
                 <div class="tg-row"><span>Line opacity</span><span id="tg-op-val">35%</span></div>
                 <input type="range" id="tg-op" min="5" max="100" value="35">
                 <div class="tg-row"><span>Block size</span></div>
@@ -4923,12 +5002,26 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
             <span class="trk-group" id="trk-modes">
               <button id="trk-mode-pan" class="active">✋ Pan</button><button id="trk-mode-mark">✏️ Mark</button><button id="trk-tips" title="Gestures">💡</button>
             </span>
+            <span class="trk-group" id="trk-fsgroup">
+              <button id="trk-fs-btn" type="button" onclick="trkToggleFullscreen()" title="Fill the screen with the chart">⛶ Full screen</button>
+            </span>
             <span class="trk-group" id="trk-backupgroup">
               <button id="trk-legend-btn" type="button" onclick="trkViewLegend()" title="View the legend you uploaded — symbols, thread codes and stitch counts" style="display:none">📋 Legend</button>
               <button id="trk-export-btn" type="button" onclick="trkExportBackup()" title="Download a backup of this pattern including your stitched progress">⬇ Back up</button>
             </span>
           </div>
-          <div id="trk-canvas-wrap"><canvas id="trk-canvas"></canvas></div>
+          <div id="trk-canvas-wrap"><div id="trk-scroll-sizer"><canvas id="trk-canvas"></canvas></div></div>
+          <!-- Fullscreen controls. Pan/Mark stay on the bar because they are
+               switched constantly while stitching; colours and settings are
+               panels because they are consulted, not toggled. -->
+          <div id="trk-fsbar">
+            <button id="fsb-pan" class="active" title="Pan">✋<span>Pan</span></button>
+            <button id="fsb-mark" title="Mark">✏️<span>Mark</span></button>
+            <button id="fsb-colours" title="Colours">🎨<span>Colours</span></button>
+            <button id="fsb-settings" title="Settings">⚙<span>Settings</span></button>
+            <button id="fsb-exit" title="Leave full screen">✕<span>Close</span></button>
+          </div>
+          <div id="trk-fspanel"><div id="trk-fspanel-head"><b id="trk-fspanel-title"></b><button onclick="trkFsPanel(null)">✕</button></div><div id="trk-fspanel-body"></div></div>
         </div>
       </div>
     </div>
@@ -5201,6 +5294,74 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 <!-- ═════════════════════════════════════════════════
      THREAD COLOUR HUB PAGE
      ═════════════════════════════════════════════════ -->
+<div id="pricing-page">
+  <div class="pj-header">
+    <div class="pj-header-left" onclick="goHome()" title="Back to home">
+      <img id="pricing-logo-img" alt="Patternly" style="height:140px;display:block">
+    </div>
+    <a href="#" class="pj-home-link" onclick="goHome();return false">&larr; Back to home</a>
+  </div>
+  <div class="pr-wrap">
+    <div class="pr-head">
+      <h1>Simple pricing</h1>
+      <p>Everything you need to design and stitch is free. Plus adds the things that help with bigger projects.</p>
+    </div>
+
+    <div class="pr-cur" id="pr-cur">
+      <button data-cur="GBP" class="on">&pound; GBP</button>
+      <button data-cur="EUR">&euro; EUR</button>
+      <button data-cur="USD">$ USD</button>
+    </div>
+
+    <div class="pr-cards">
+      <div class="pr-card">
+        <h3 class="pr-name">Free</h3>
+        <p class="pr-tag">For trying things out and smaller projects.</p>
+        <div class="pr-price"><span class="pr-amount">0</span><span class="pr-per">forever</span></div>
+        <p class="pr-note">No card needed</p>
+        <button class="pr-cta ghost" onclick="openApp()">Open the editor</button>
+        <ul class="pr-feats">
+          <li>Full pattern editor</li>
+          <li>Photo to pattern conversion</li>
+          <li>Stitch tracker for your Luca-S kits</li>
+          <li>Thread colour tools &amp; calculators</li>
+          <li>PDF export with symbol key</li>
+          <li class="no">3 saved patterns</li>
+          <li class="no">Patterns saved in this browser only</li>
+        </ul>
+      </div>
+
+      <div class="pr-card feat">
+        <span class="pr-badge">2 weeks free</span>
+        <h3 class="pr-name">Plus</h3>
+        <p class="pr-tag">For stitchers with several projects on the go.</p>
+        <div class="pr-price"><span class="pr-amount" id="pr-amount">&pound;2.98</span><span class="pr-per">/ month</span></div>
+        <p class="pr-note" id="pr-note">Free for 14 days, then <span id="pr-note-price">&pound;2.98</span> a month. Cancel any time.</p>
+        <button class="pr-cta primary" onclick="prStartTrial()">Start your free trial</button>
+        <ul class="pr-feats">
+          <li>Everything in Free</li>
+          <li>Unlimited saved patterns</li>
+          <li>Patterns &amp; progress synced to your account</li>
+          <li>Pick up any project on any device</li>
+          <li>Backup &amp; restore your whole library</li>
+          <li>Priority support</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="pr-faq">
+      <h2>Questions</h2>
+      <details><summary>Do I need Plus to use my Luca-S kit patterns?</summary>
+        <p>No. Every kit you buy from Luca-S includes its pattern in the Stitch Tracker, on the free plan, for as long as you own it.</p></details>
+      <details><summary>What happens after the free trial?</summary>
+        <p>You'll be asked whether to continue. Nothing is charged during the 14 days, and if you stop, your patterns stay — you just go back to the free plan's limits.</p></details>
+      <details><summary>Can I cancel any time?</summary>
+        <p>Yes, from your account page. You keep Plus until the end of the period you've paid for.</p></details>
+      <details><summary>What happens to my patterns if I cancel?</summary>
+        <p>Nothing is deleted. You keep access to everything you've made; new saves go back to the free plan's limit.</p></details>
+    </div>
+  </div>
+</div>
 <div id="threads-page">
   <div class="pj-header">
     <div class="pj-header-left" onclick="goHome()" title="Back to home">
@@ -16468,7 +16629,20 @@ function trkSaveProject(){
       threads:(trackerLegend.rowCount||Object.keys(trackerColourMap).length),
       sessions:(prev&&prev.sessions)||{}});
     trkPendingName='';
-    trkIndexWrite(list.slice(0,8)); // keep the most recent 8 to respect storage limits
+    // Trimming to the slot limit used to silently discard the oldest project
+    // and its progress. Tell the person, and clear the orphaned data properly
+    // rather than leaving it occupying storage forever.
+    if(list.length>8){
+      for(const gone of list.slice(8)){
+        try{
+          localStorage.removeItem('patternly_trk_proj_'+gone.id);
+          localStorage.removeItem('patternly_tracker_'+gone.id);
+        }catch(e){}
+      }
+      const names=list.slice(8).map(g=>g.name).join(', ');
+      setTimeout(()=>toast('Storage full — removed the oldest tracked pattern ('+names+')'), 400);
+    }
+    trkIndexWrite(list.slice(0,8));
   }catch(e){ console.warn('[tracker] project save failed (storage full?)', e); }
 }
 function trkUpdateIndexProgress(done){
@@ -16626,7 +16800,7 @@ async function trkViewLegend(){
     ov.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.6rem .9rem;background:#fff;border-bottom:1px solid #eadde1;flex-shrink:0">'
       + '<b style="font-size:.95rem">Your kit legend</b>'
       + '<button onclick="document.getElementById(\'trk-legend-overlay\').style.display=\'none\'" style="padding:.45rem .9rem;border-radius:8px;border:1.5px solid #eadde1;background:#fafafa;font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer">✕ Close</button></div>'
-      + '<div id="trk-legend-pages" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:1rem;text-align:center;background:#f4eff1"></div>';
+      + '<div id="trk-legend-pages" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:1rem;text-align:center;background:#f4eff1;touch-action:pinch-zoom"></div>';
     document.body.appendChild(ov);
   }
   ov.style.display='flex';
@@ -16639,11 +16813,26 @@ async function trkViewLegend(){
     const wide=Math.min(1000, Math.max(320, (host.clientWidth||600)-24));
     for(let i=1;i<=pdf.numPages;i++){
       const page=await pdf.getPage(i);
+      // Render at DEVICE pixels, not CSS pixels. Rendering at the CSS width and
+      // then letting the browser stretch it meant a phone at 3x DPR displayed
+      // every rendered pixel across three physical ones — which is why the
+      // legend looked soft on mobile and fine on a desktop. The canvas is drawn
+      // large and displayed small, so the text lands on real pixels.
+      // Capped so a many-page legend cannot exhaust memory on a phone.
+      const dpr=Math.min(window.devicePixelRatio||1, 3);
       const base=page.getViewport({scale:1});
-      const vp=page.getViewport({scale: wide/base.width});
+      const cssScale=wide/base.width;
+      let renderScale=cssScale*dpr;
+      const MAX_PX=12000000;
+      if(base.width*renderScale*base.height*renderScale>MAX_PX){
+        renderScale=Math.sqrt(MAX_PX/(base.width*base.height));
+      }
+      const vp=page.getViewport({scale:renderScale});
       const cv=document.createElement('canvas');
       cv.width=Math.ceil(vp.width); cv.height=Math.ceil(vp.height);
-      cv.style.cssText='max-width:100%;height:auto;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.15);margin-bottom:1rem;border-radius:4px';
+      // Display size stays in CSS pixels; only the backing store is larger.
+      const cssW=Math.round(base.width*cssScale);
+      cv.style.cssText='width:'+cssW+'px;max-width:100%;height:auto;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.15);margin-bottom:1rem;border-radius:4px';
       await page.render({canvasContext:cv.getContext('2d'), viewport:vp}).promise;
       host.appendChild(cv);
     }
@@ -17335,6 +17524,9 @@ function trackerNav(guarded){
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') hideTrackerSoon(); });
 })();
 function openTracker(){
+  // Plus gate. Placed here because every route into the tracker comes through
+  // this function, so there is one door rather than four to keep in step.
+  if(typeof trkPlusOk==='function' && !trkPlusOk()){ trkPlusGate(); return; }
   document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode');
   document.body.classList.add('tracker-mode');
   window.scrollTo(0,0);
@@ -19657,9 +19849,33 @@ function trkViewport(){
   const c0=px*N, r0=py*N;
   return {r0, c0, nr:Math.min(N,trackerGrid.rows-r0), nc:Math.min(N,trackerGrid.cols-c0), tiles:tx*ty};
 }
+let trkColourSort = localStorage.getItem('patternly_trk_csort') || 'nr';
+// [hue bucket, lightness] — greys have no meaningful hue, so they are bucketed
+// last rather than scattered through the colours by a meaningless angle.
+function trkHueKey(col){
+  if(!col) return [999,0];
+  const r=col.r/255,g=col.g/255,b=col.b/255;
+  const mx=Math.max(r,g,b), mn=Math.min(r,g,b), d=mx-mn, l=(mx+mn)/2;
+  if(d<0.08) return [900, l];
+  let h;
+  if(mx===r) h=((g-b)/d+6)%6; else if(mx===g) h=(b-r)/d+2; else h=(r-g)/d+4;
+  return [Math.round(h*60/15), l];      // 15-degree buckets
+}
+let trkView={sx:0,sy:0,viewW:0,viewH:0,cell:16,dpr:1};
 let trkShowBackstitch = localStorage.getItem('patternly_trk_bs')!=='0';
+let trkCentreLines = localStorage.getItem('patternly_trk_centre')==='1';
 const trkCanvas=document.getElementById('trk-canvas');
 const trkCtx=trkCanvas.getContext('2d');
+// Scrolling now changes WHAT is drawn, not just what is visible, so the canvas
+// has to be repainted as the window moves. One frame per scroll event.
+(function(){
+  const wrap=document.getElementById('trk-canvas-wrap');
+  if(!wrap) return;
+  let pending=false;
+  const redraw=()=>{ pending=false; if(trackerGrid) renderTracker(); };
+  wrap.addEventListener('scroll', ()=>{ if(!pending){ pending=true; requestAnimationFrame(redraw); } }, {passive:true});
+  window.addEventListener('resize', ()=>{ if(trackerGrid) renderTracker(); });
+})();
 
 function renderTracker(){
   if(!trackerGrid) return;
@@ -19674,10 +19890,40 @@ function renderTracker(){
     trkRenderMinimap(vp);
   }
   const cell=trackerCellPx;
-  trkCanvas.width=vp.nc*cell+1;
-  trkCanvas.height=vp.nr*cell+1;
+  // ── Only draw what is on screen ──────────────────────────────────────────
+  // The canvas used to be the size of the WHOLE chart, so zoom was capped by
+  // the browser's canvas limit — 328x200 at 200% asks for 67M pixels against a
+  // ceiling near 16.7M, and an oversized canvas paints white rather than
+  // failing loudly. Now a sizer element supplies the scrollable extent and the
+  // canvas covers just the visible window, so any zoom costs the same to draw.
+  const wrap=document.getElementById('trk-canvas-wrap');
+  const sizer=document.getElementById('trk-scroll-sizer');
+  const fullW=vp.nc*cell+1, fullH=vp.nr*cell+1;
+  if(sizer){ sizer.style.width=fullW+'px'; sizer.style.height=fullH+'px'; }
+
+  const dpr=Math.min(window.devicePixelRatio||1, 2);
+  const viewW=Math.min(fullW, (wrap?wrap.clientWidth:fullW)||fullW);
+  const viewH=Math.min(fullH, (wrap?wrap.clientHeight:fullH)||fullH);
+  const sx=wrap?wrap.scrollLeft:0, sy=wrap?wrap.scrollTop:0;
+
+  trkCanvas.width=Math.max(1,Math.round(viewW*dpr));
+  trkCanvas.height=Math.max(1,Math.round(viewH*dpr));
+  trkCanvas.style.width=viewW+'px';
+  trkCanvas.style.height=viewH+'px';
+  trkCtx.setTransform(dpr,0,0,dpr,0,0);
+  // Shift the world so the visible window sits at the canvas origin.
+  trkCtx.translate(-sx,-sy);
+  trkView={sx,sy,viewW,viewH,cell,dpr};
+
   trkCtx.fillStyle='#ffffff';
-  trkCtx.fillRect(0,0,trkCanvas.width,trkCanvas.height);
+  trkCtx.fillRect(sx,sy,viewW,viewH);
+
+  // Cell range actually on screen, with a one-cell margin so partly visible
+  // cells at the edges still draw.
+  const vc0=Math.max(vp.c0, vp.c0+Math.floor(sx/cell)-1);
+  const vr0=Math.max(vp.r0, vp.r0+Math.floor(sy/cell)-1);
+  const vc1=Math.min(vp.c0+vp.nc, vp.c0+Math.ceil((sx+viewW)/cell)+1);
+  const vr1=Math.min(vp.r0+vp.nr, vp.r0+Math.ceil((sy+viewH)/cell)+1);
   const showSymbol=cell>=10, fontSize=Math.round(cell*0.62);
   // CrossStitch3 font mode: draw each cell's OWN character with the chart's
   // embedded font (pixel-exact) instead of cropped bitmaps. Colour still comes
@@ -19712,8 +19958,8 @@ function renderTracker(){
       for(const b of QBITS) if(mask&b) trkCtx.drawImage(img, x+cell*QPOS[b][0]-w/2, y+cell*QPOS[b][1]-w/2, w, w);
     } else trkCtx.drawImage(img, x+1, y+1, cell-1, cell-1);
   };
-  for(let r=vp.r0;r<vp.r0+vp.nr;r++){
-    for(let c=vp.c0;c<vp.c0+vp.nc;c++){
+  for(let r=vr0;r<vr1;r++){
+    for(let c=vc0;c<vc1;c++){
       const sym=trackerGrid.cells[r][c];
       const x=(c-vp.c0)*cell, y=(r-vp.r0)*cell;
       if(sym===' ') continue;
@@ -19819,8 +20065,22 @@ function renderTracker(){
     // bold lines aligned to the GLOBAL block grid, so pages match the paper chart
     const B=trkGridCfg.block;
     trkCtx.strokeStyle=`rgba(0,0,0,${boldA})`; trkCtx.lineWidth=trkGridCfg.bw;
-    for(let gc=Math.ceil(vp.c0/B)*B; gc<=vp.c0+vp.nc; gc+=B){const x=(gc-vp.c0)*cell+0.5;trkCtx.beginPath();trkCtx.moveTo(x,0);trkCtx.lineTo(x,vp.nr*cell);trkCtx.stroke();}
-    for(let gr=Math.ceil(vp.r0/B)*B; gr<=vp.r0+vp.nr; gr+=B){const y=(gr-vp.r0)*cell+0.5;trkCtx.beginPath();trkCtx.moveTo(0,y);trkCtx.lineTo(vp.nc*cell,y);trkCtx.stroke();}
+    for(let gc=Math.ceil(vc0/B)*B; gc<=vc1; gc+=B){const x=(gc-vp.c0)*cell+0.5;trkCtx.beginPath();trkCtx.moveTo(x,trkView.sy);trkCtx.lineTo(x,trkView.sy+trkView.viewH);trkCtx.stroke();}
+    for(let gr=Math.ceil(vr0/B)*B; gr<=vr1; gr+=B){const y=(gr-vp.r0)*cell+0.5;trkCtx.beginPath();trkCtx.moveTo(trkView.sx,y);trkCtx.lineTo(trkView.sx+trkView.viewW,y);trkCtx.stroke();}
+    // Centre lines: printed charts mark the middle so you can find your place
+    // when starting from the centre of the fabric, which is the usual method.
+    if(trkCentreLines){
+      const midC=trackerGrid.cols/2, midR=trackerGrid.rows/2;
+      trkCtx.save();
+      trkCtx.strokeStyle='rgba(200,30,60,'+Math.min(1,op*1.8)+')';
+      trkCtx.lineWidth=Math.max(1, bw*1.4);
+      trkCtx.setLineDash([Math.max(4,cell*0.6), Math.max(3,cell*0.4)]);
+      const cx=(midC-vp.c0)*cell+0.5;
+      if(cx>=trkView.sx-1 && cx<=trkView.sx+trkView.viewW+1){ trkCtx.beginPath(); trkCtx.moveTo(cx,trkView.sy); trkCtx.lineTo(cx,trkView.sy+trkView.viewH); trkCtx.stroke(); }
+      const cy=(midR-vp.r0)*cell+0.5;
+      if(cy>=trkView.sy-1 && cy<=trkView.sy+trkView.viewH+1){ trkCtx.beginPath(); trkCtx.moveTo(trkView.sx,cy); trkCtx.lineTo(trkView.sx+trkView.viewW,cy); trkCtx.stroke(); }
+      trkCtx.restore();
+    }
   }
   // ── Backstitch & French knot overlay (exact-format imports) ──
   // Drawn above the grid, exactly like a printed chart. The ⚙ popover has a
@@ -19834,8 +20094,8 @@ function renderTracker(){
     trkCtx.globalAlpha=dim;
     for(const l of trackerGrid.backstitch){
       const x1=(l.x1-vp.c0)*cell, y1=(l.y1-vp.r0)*cell, x2=(l.x2-vp.c0)*cell, y2=(l.y2-vp.r0)*cell;
-      if(Math.max(x1,x2)<0 || Math.min(x1,x2)>trkCanvas.width) continue;
-      if(Math.max(y1,y2)<0 || Math.min(y1,y2)>trkCanvas.height) continue;
+      if(Math.max(x1,x2)<trkView.sx || Math.min(x1,x2)>trkView.sx+trkView.viewW) continue;
+      if(Math.max(y1,y2)<trkView.sy || Math.min(y1,y2)>trkView.sy+trkView.viewH) continue;
       trkCtx.strokeStyle=bwMode?'#000':`rgb(${l.r},${l.g},${l.b})`;
       trkCtx.beginPath(); trkCtx.moveTo(x1,y1); trkCtx.lineTo(x2,y2); trkCtx.stroke();
     }
@@ -19848,7 +20108,7 @@ function renderTracker(){
     trkCtx.globalAlpha=dim;
     for(const k of trackerGrid.knotsList){
       const x=(k.x-vp.c0)*cell, y=(k.y-vp.r0)*cell;
-      if(x<-cell||x>trkCanvas.width+cell||y<-cell||y>trkCanvas.height+cell) continue;
+      if(x<trkView.sx-cell||x>trkView.sx+trkView.viewW+cell||y<trkView.sy-cell||y>trkView.sy+trkView.viewH+cell) continue;
       trkCtx.fillStyle=bwMode?'#000':`rgb(${k.r},${k.g},${k.b})`;
       trkCtx.beginPath(); trkCtx.arc(x,y,Math.max(2,cell*0.18),0,7); trkCtx.fill();
       trkCtx.strokeStyle='rgba(0,0,0,0.5)'; trkCtx.lineWidth=1;
@@ -19861,8 +20121,10 @@ function renderTracker(){
 // ── Marking cells (tap or drag; touch-friendly) ──
 function trkCellAt(pt){
   const rect=trkCanvas.getBoundingClientRect();
-  const px=(pt.clientX-rect.left)*(trkCanvas.width/rect.width);
-  const py=(pt.clientY-rect.top)*(trkCanvas.height/rect.height);
+  // Canvas-space -> world-space: the canvas is a window onto the chart now, so
+  // add back the scroll offset it was drawn with.
+  const px=(pt.clientX-rect.left)+trkView.sx;
+  const py=(pt.clientY-rect.top)+trkView.sy;
   const vp=trkViewport();
   const c=Math.floor(px/trackerCellPx)+vp.c0, r=Math.floor(py/trackerCellPx)+vp.r0;
   if(r<vp.r0||r>=vp.r0+vp.nr||c<vp.c0||c>=vp.c0+vp.nc) return null;
@@ -19913,10 +20175,16 @@ document.getElementById('tg-bs').addEventListener('change',function(){
   try{ localStorage.setItem('patternly_trk_bs', this.checked?'1':'0'); }catch(e){}
   renderTracker();
 });
+document.getElementById('tg-centre').addEventListener('change',function(){
+  trkCentreLines=this.checked;
+  try{ localStorage.setItem('patternly_trk_centre', this.checked?'1':'0'); }catch(e){}
+  renderTracker();
+});
 document.getElementById('trk-grid-btn').addEventListener('click',function(){
   const hasOv=!!(trackerGrid && ((trackerGrid.backstitch&&trackerGrid.backstitch.length)||(trackerGrid.knotsList&&trackerGrid.knotsList.length)));
   document.getElementById('tg-bs-row').style.display=hasOv?'':'none';
   document.getElementById('tg-bs').checked=trkShowBackstitch;
+  document.getElementById('tg-centre').checked=trkCentreLines;
   document.getElementById('trk-grid-pop').classList.toggle('open');
 });
 (function(){
@@ -19949,7 +20217,7 @@ trkCanvas.addEventListener('pointerdown', e=>{
     e.preventDefault();
     trkMarking=null; trkTap=null; trkCancelLong();
     const p=[...trkPtrs.values()];
-    trkPinch={d:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y), idx:trkZoomIdx, scale:trkPageScale};
+    trkPinch={d:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y), idx:trkZoomIdx, scale:trkPageScale, px:trackerCellPx};
     return;
   }
   const cell=trkCellAt(e); if(!cell) return;
@@ -19979,13 +20247,34 @@ trkCanvas.addEventListener('pointermove', e=>{
     e.preventDefault();
     const pts=[...trkPtrs.values()];
     const d=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);
-    const steps=Math.round(Math.log(d/trkPinch.d)/Math.log(1.3));
+    const ratio=d/trkPinch.d;
     if(trkPageMode){
-      const sc=Math.max(1,Math.min(4,(trkPinch.scale||1)*Math.pow(1.25,steps)));
-      if(sc!==trkPageScale){ trkPageScale=sc; renderTracker(); }
+      const sc=Math.max(1,Math.min(4,(trkPinch.scale||1)*ratio));
+      if(Math.abs(sc-trkPageScale)>0.005){ trkPageScale=sc; renderTracker(); }
     } else {
-      const idx=Math.max(0,Math.min(trkZoomLevels.length-1,trkPinch.idx+steps));
-      if(idx!==trkZoomIdx){ trkZoomIdx=idx; applyTrackerZoom(); }
+      // Continuous, not stepped. The old code snapped to the nearest preset
+      // level, so a pinch jumped between sizes instead of following the
+      // fingers; with only the visible window being drawn, any cell size costs
+      // the same to render, so there is no reason to quantise.
+      const target=Math.max(1.5, Math.min(64, (trkPinch.px||trackerCellPx)*ratio));
+      if(Math.abs(target-trackerCellPx)>0.01){
+        // Keep the point between the fingers under the fingers.
+        const wrap=document.getElementById('trk-canvas-wrap');
+        const rect=trkCanvas.getBoundingClientRect();
+        const mx=(pts[0].x+pts[1].x)/2-rect.left+ (wrap?wrap.scrollLeft:0);
+        const my=(pts[0].y+pts[1].y)/2-rect.top + (wrap?wrap.scrollTop:0);
+        const k=target/trackerCellPx;
+        trkSetZoomPx(target);
+        if(wrap){
+          wrap.scrollLeft = mx*k - ((pts[0].x+pts[1].x)/2-rect.left);
+          wrap.scrollTop  = my*k - ((pts[0].y+pts[1].y)/2-rect.top);
+        }
+        // keep +/- sensible afterwards
+        let best=0;
+        for(let i=0;i<trkZoomLevels.length;i++)
+          if(Math.abs(trkZoomLevels[i]-target)<Math.abs(trkZoomLevels[best]-target)) best=i;
+        trkZoomIdx=best;
+      }
     }
     return;
   }
@@ -20100,7 +20389,42 @@ function updateTrackerProgressUI(){
     clear.onclick=()=>{ trkSelClear(); renderTracker(); updateTrackerProgressUI(); };
     list.appendChild(clear);
   }
-  const entries=Object.values(trackerLegend.bySymbol).slice().sort((a,b)=>a.nr-b.nr);
+  // Sort control. Kit order (the legend's own numbering) is the default because
+  // it matches the printed key; by colour groups shades together for choosing
+  // what to stitch next; by stitches surfaces the big blocks of work.
+  const sortRow=document.createElement('div');
+  sortRow.style.cssText='display:flex;align-items:center;gap:.3rem;font-size:.66rem;color:var(--lp-muted,#7d6b72);margin:.1rem 0 .35rem';
+  sortRow.innerHTML='<span>Sort</span>';
+  const sel=document.createElement('select');
+  sel.style.cssText='flex:1;font-family:inherit;font-size:.66rem;padding:.15rem .25rem;border:1px solid #e6d9dd;border-radius:6px;background:#fff;color:inherit';
+  for(const [v,label] of [['nr','Kit order'],['code','Thread number'],['colour','Colour'],['stitches','Stitches']]){
+    const o=document.createElement('option'); o.value=v; o.textContent=label;
+    if(v===trkColourSort) o.selected=true;
+    sel.appendChild(o);
+  }
+  sel.onchange=()=>{ trkColourSort=sel.value;
+    try{ localStorage.setItem('patternly_trk_csort', sel.value); }catch(e){}
+    updateTrackerProgressUI(); };
+  sortRow.appendChild(sel);
+  list.appendChild(sortRow);
+
+  const entries=Object.values(trackerLegend.bySymbol).slice().sort((a,b)=>{
+    if(trkColourSort==='stitches') return (total[b.symbol]||0)-(total[a.symbol]||0);
+    if(trkColourSort==='code'){
+      // Thread codes are mostly numeric but not always ("White", "B5200"), so
+      // compare numerically when both sides are numbers and fall back to text.
+      const na=parseInt(a.code,10), nb=parseInt(b.code,10);
+      if(!isNaN(na) && !isNaN(nb) && na!==nb) return na-nb;
+      return String(a.code).localeCompare(String(b.code));
+    }
+    if(trkColourSort==='colour'){
+      // Group by hue, then light to dark, so related shades sit together.
+      const ha=trkHueKey(trackerColourMap[a.symbol]), hb=trkHueKey(trackerColourMap[b.symbol]);
+      if(ha[0]!==hb[0]) return ha[0]-hb[0];
+      return hb[1]-ha[1];
+    }
+    return a.nr-b.nr;
+  });
   let totalAll=0, totalDone=0;
   for(const e of entries){
     const col=trackerColourMap[e.symbol], t=total[e.symbol]||0, d=done[e.symbol]||0;
@@ -20183,7 +20507,28 @@ function updateTrackerProgressUI(){
   const xb=document.getElementById('trk-selcard-x');
   if(xb) xb.onclick=()=>{ trkSelClear(); renderTracker(); updateTrackerProgressUI(); };
   const pct=totalAll>0?Math.round(totalDone/totalAll*100):0;
-  document.getElementById('trk-overall').textContent=`${totalDone.toLocaleString()} / ${totalAll.toLocaleString()} stitches · ${pct}%`;
+  (function(){
+    const el=document.getElementById('trk-overall');
+    const left=Math.max(0, totalAll-totalDone);
+    let extra='';
+    if(totalDone>0 && left>0){
+      // Rate from actual stitching time on this project, when there is enough
+      // of it to mean anything. No made-up averages.
+      const idx=(typeof trkIndex==='function')?trkIndex().find(p=>p.id===trackerActiveProjectKey):null;
+      const ms=idx&&idx.timeMs;
+      if(ms && ms>300000 && totalDone>200){
+        const perMs=totalDone/ms, mins=Math.round(left/perMs/60000);
+        if(mins>0 && mins<100000){
+          extra = mins<90 ? ` · ~${mins}m left`
+                : mins<1440 ? ` · ~${Math.round(mins/60)}h left`
+                : ` · ~${Math.round(mins/1440)}d left`;
+        }
+      }
+    }
+    el.innerHTML=`${totalDone.toLocaleString()} / ${totalAll.toLocaleString()} · ${pct}%`
+      + (left>0?`<span style="display:block;font-weight:400;font-size:.72rem;color:var(--lp-muted,#7d6b72);margin-top:.1rem">${left.toLocaleString()} to go${extra}</span>`:
+                `<span style="display:block;font-weight:700;font-size:.72rem;color:#2E7D32;margin-top:.1rem">Finished 🎉</span>`);
+  })();
   trkUpdateIndexProgress(totalDone);
 }
 
@@ -20197,7 +20542,7 @@ document.getElementById('trk-view-bw').addEventListener('click',function(){
   trackerViewMode='bw'; this.classList.add('active');
   document.getElementById('trk-view-color').classList.remove('active'); renderTracker();
 });
-const trkZoomLevels=[2,3,4,6,8,10,12,16,20,26,32];
+const trkZoomLevels=[2,3,4,6,8,10,12,16,20,26,32,40,48];   // 48px = 300%
 let trkZoomIdx=7; // 16px cells = 100%, symbols visible
 function trkSetZoomPx(px){
   trackerCellPx=px;
@@ -20264,13 +20609,24 @@ function trkRenderMinimap(vp){
   [...mm.children].forEach((s,i)=>s.classList.toggle('cur', i===trkPageIdx));
 }
 document.getElementById('trk-reset').addEventListener('click',()=>{
+  const done=(()=>{ let n=0; if(trackerStitched) for(const row of trackerStitched) for(const v of row) if(v) n++; return n; })();
   pjShowModal({
+    // Progress syncs now, so a reset is not a local action any more. Saying
+    // how much work is at stake makes the consequence concrete — "every
+    // stitched mark" reads as abstract when it is 12,000 stitches.
     title:'Reset progress?',
-    body:'This clears every stitched mark on this chart. It cannot be undone.',
+    body:'This clears <b>'+done.toLocaleString()+'</b> stitched '+(done===1?'mark':'marks')+' on this chart'
+        +(trkCloudSku?', on this device and every other device signed in to your account':'')
+        +'. It cannot be undone.',
+    requireCheck: done>500 ? 'Yes, clear all '+done.toLocaleString()+' stitches' : null,
     confirmLabel:'Reset progress', danger:true,
     onConfirm(){
       trackerStitched=Array.from({length:trackerGrid.rows},()=>Array(trackerGrid.cols).fill(false));
       renderTracker(); updateTrackerProgressUI(); saveTrackerProgress();
+      // Push the cleared state straight away rather than waiting for the
+      // debounce: until the account copy is overwritten, another device could
+      // re-upload the old progress and the union merge would restore it all.
+      if(typeof trkCloudPush==='function') trkCloudPush();
     }
   });
 });
@@ -22727,6 +23083,224 @@ function lpMmRenderAccount(){
 // version enumerated modes, so each new page had to remember to add itself —
 // and the account page never did.
 // Leaving the workspace: save first, so backing out never costs progress.
+// ── Fullscreen ────────────────────────────────────────────────────────────
+// The panels reuse the existing colour list and grid popover rather than
+// duplicating them, so a change in one place shows up in both.
+function trkToggleFullscreen(on){
+  const b=document.body;
+  const want = (on===undefined) ? !b.classList.contains('trk-fs') : !!on;
+  b.classList.toggle('trk-fs', want);
+  if(!want){ trkFsPanel(null); trkFsRestore(); }
+  else trkFsSyncMode();
+  const btn=document.getElementById('trk-fs-btn');
+  if(btn) btn.textContent = want ? '⛶ Exit full screen' : '⛶ Full screen';
+  // The canvas is sized from its container, so it must be redrawn once the
+  // layout has settled.
+  requestAnimationFrame(()=>{ if(trackerGrid) renderTracker(); });
+}
+function trkFsPanel(kind){
+  const panel=document.getElementById('trk-fspanel');
+  const title=document.getElementById('trk-fspanel-title');
+  const body=document.getElementById('trk-fspanel-body');
+  const bar=document.getElementById('trk-fsbar');
+  if(bar) [...bar.querySelectorAll('button')].forEach(x=>{
+    if(x.id==='fsb-colours'||x.id==='fsb-settings') x.classList.remove('active');
+  });
+  // Always return borrowed nodes first. Switching straight from one panel to
+  // another used to clear the body, which DESTROYED the live element that had
+  // been moved into it — the colour list simply vanished from the app.
+  trkFsRestore();
+  if(!kind){ panel.classList.remove('open'); return; }
+  if(kind==='colours'){
+    title.textContent='Colours';
+    const side=document.getElementById('trk-side');
+    if(side){ side.style.display=''; side.style.width='auto'; side.style.maxWidth='none'; body.appendChild(side); }
+    const btn=document.getElementById('fsb-colours'); if(btn) btn.classList.add('active');
+  } else if(kind==='settings'){
+    title.textContent='Settings';
+    const pop=document.getElementById('trk-grid-pop');
+    if(pop){ pop.classList.add('open'); pop.style.position='static'; pop.style.width='auto';
+             pop.style.border='none'; pop.style.boxShadow='none'; pop.style.padding='0'; body.appendChild(pop); }
+    // Zoom moves in here: with pinch working, the buttons are a fallback rather
+    // than the main control.
+    const zg=document.getElementById('trk-zoomgroup');
+    if(zg){ const w=document.createElement('div'); w.style.cssText='margin-top:.9rem;display:flex;gap:.3rem;align-items:center';
+            w.appendChild(zg); body.appendChild(w); }
+    const btn=document.getElementById('fsb-settings'); if(btn) btn.classList.add('active');
+  }
+  panel.classList.add('open');
+}
+(function(){
+  const on=(id,fn)=>{ const e=document.getElementById(id); if(e) e.addEventListener('click',fn); };
+  on('fsb-pan', ()=>{ trkMode='pan'; trkApplyMode(); trkFsSyncMode(); });
+  on('fsb-mark',()=>{ trkMode='mark'; trkApplyMode(); trkFsSyncMode(); });
+  on('fsb-colours', ()=>trkFsPanel(document.getElementById('fsb-colours').classList.contains('active')?null:'colours'));
+  on('fsb-settings',()=>trkFsPanel(document.getElementById('fsb-settings').classList.contains('active')?null:'settings'));
+  on('fsb-exit', ()=>trkToggleFullscreen(false));
+  document.addEventListener('keydown', e=>{
+    if(e.key==='Escape' && document.body.classList.contains('trk-fs')){
+      if(document.getElementById('trk-fspanel').classList.contains('open')) trkFsPanel(null);
+      else trkToggleFullscreen(false);
+    }
+  });
+})();
+// Return the borrowed elements to the normal layout. They are live nodes, so
+// leaving them in the panel would empty the standard workspace.
+function trkFsRestore(){
+  const main=document.getElementById('trk-main');
+  const side=document.getElementById('trk-side');
+  if(side && main && side.parentElement!==main){
+    side.style.width=''; side.style.maxWidth='';
+    main.insertBefore(side, main.firstChild);
+  }
+  const pop=document.getElementById('trk-grid-pop');
+  const gbtn=document.getElementById('trk-grid-btn');
+  if(pop && gbtn && pop.parentElement!==gbtn.parentElement){
+    pop.classList.remove('open');
+    pop.style.position=''; pop.style.width=''; pop.style.border=''; pop.style.boxShadow=''; pop.style.padding='';
+    gbtn.parentElement.appendChild(pop);
+  }
+  const zg=document.getElementById('trk-zoomgroup');
+  const tb=document.getElementById('trk-zoombar');
+  if(zg && tb && !tb.contains(zg)) tb.appendChild(zg);
+  const body=document.getElementById('trk-fspanel-body');
+  if(body) body.innerHTML='';
+}
+function trkFsSyncMode(){
+  const p=document.getElementById('fsb-pan'), m=document.getElementById('fsb-mark');
+  if(p) p.classList.toggle('active', trkMode==='pan');
+  if(m) m.classList.toggle('active', trkMode==='mark');
+}
+// ── Pricing ───────────────────────────────────────────────────────────────
+// Prices are set per currency, not converted from a base. A live conversion of
+// £2.98 gives €3.43 and $3.77 — numbers nobody would choose to print — so each
+// market gets a figure picked to read well there.
+const PR_PRICES = {
+  GBP:{sym:'\u00a3', amount:'2.98'},
+  EUR:{sym:'\u20ac', amount:'3.98'},
+  USD:{sym:'$',       amount:'4.98'}
+};
+function prSetCurrency(cur){
+  const p=PR_PRICES[cur]||PR_PRICES.GBP;
+  const txt=p.sym+p.amount;
+  const a=document.getElementById('pr-amount'); if(a) a.textContent=txt;
+  const n=document.getElementById('pr-note-price'); if(n) n.textContent=txt;
+  const box=document.getElementById('pr-cur');
+  if(box) [...box.querySelectorAll('button')].forEach(b=>b.classList.toggle('on', b.dataset.cur===cur));
+  try{ localStorage.setItem('patternly_currency', cur); }catch(e){}
+}
+function prGuessCurrency(){
+  try{
+    const saved=localStorage.getItem('patternly_currency');
+    if(saved && PR_PRICES[saved]) return saved;
+    // A reasonable first guess from the browser's locale, which the picker
+    // overrides — this is a default, not a decision.
+    const loc=(navigator.language||'en-GB');
+    if(/GB|UK/i.test(loc)) return 'GBP';
+    if(/US|CA/i.test(loc)) return 'USD';
+    if(/DE|FR|ES|IT|NL|IE|PT|AT|BE|FI|GR|SK|SI|LV|LT|EE|CY|MT|LU/i.test(loc)) return 'EUR';
+  }catch(e){}
+  return 'GBP';
+}
+// ── Plus gate on the Stitch Tracker ──────────────────────────────────────
+// Every route into the tracker passes through openTracker(), so the check sits
+// there rather than being repeated at each entry point — nav link, landing
+// card, #tracker deep link, and the account page all land in the same place.
+function trkPlusOk(){
+  const a=(typeof lucasAuth==='function')?lucasAuth():{};
+  // Not signed in through the shop: we genuinely cannot tell, so let them in
+  // rather than block someone who has paid. The pattern files are gated
+  // server-side regardless, so this is not the security boundary.
+  if(!a.proxied) return true;
+  return !!a.plus;
+}
+function trkPlusGate(){
+  const a=(typeof lucasAuth==='function')?lucasAuth():{};
+  const ov=document.createElement('div');
+  ov.id='trk-plus-gate';
+  ov.style.cssText='position:fixed;inset:0;z-index:9700;background:rgba(30,22,28,.55);display:flex;'
+    +'align-items:center;justify-content:center;padding:1.1rem;overflow-y:auto;font-family:inherit';
+  const feats=[
+    ['\ud83d\udcd0','Your chart on any screen','Pinch to zoom right into the symbols \u2014 no more squinting at a folded paper chart.'],
+    ['\u2714','Never lose your place','Every stitch you mark is saved. Close the app, come back weeks later, carry on.'],
+    ['\ud83d\udcf1','Phone, tablet, laptop','Your progress follows your account, so you can stitch anywhere and pick up where you left off.'],
+    ['\ud83c\udfa8','Work colour by colour','Isolate a single thread, see what is left of it, and watch the count go down.'],
+    ['\u23f1','Know how far you have come','Stitches done, stitches to go, and a realistic estimate of the time left.']
+  ].map(([i,t,d])=>'<li style="display:flex;gap:.7rem;align-items:flex-start;padding:.45rem 0">'
+      +'<span style="font-size:1.1rem;line-height:1.3;flex-shrink:0">'+i+'</span>'
+      +'<span><b style="font-size:.86rem;color:var(--lp-ink,#2b2226)">'+t+'</b>'
+      +'<span style="display:block;font-size:.79rem;color:#5a4a51;line-height:1.5;margin-top:.1rem">'+d+'</span></span></li>').join('');
+  const trialUsed = !!a.trialUsed;
+  ov.innerHTML='<div style="background:#fff;border-radius:20px;max-width:480px;width:100%;padding:1.7rem 1.5rem 1.4rem;box-shadow:0 24px 70px rgba(43,34,38,.34)">'
+    +'<div style="text-align:center;margin-bottom:1.1rem">'
+    +'<div style="font-size:1.8rem;line-height:1">\ud83e\uddf5</div>'
+    +'<h2 style="font-family:var(--lp-serif,Georgia,serif);font-size:1.45rem;margin:.35rem 0 .3rem">The Stitch Tracker is part of Plus</h2>'
+    +'<p style="font-size:.84rem;color:#6a626f;line-height:1.55;margin:0">Your kit already includes its printed chart. Plus turns it into something you can carry, zoom, and tick off.</p>'
+    +'</div>'
+    +'<ul style="list-style:none;margin:0 0 1.2rem;padding:0">'+feats+'</ul>'
+    +(trialUsed
+        ? '<button id="tpg-go" class="pr-cta primary" style="margin-bottom:.5rem">See plans</button>'
+        : '<button id="tpg-trial" class="pr-cta primary" style="margin-bottom:.5rem">Start 14 days free</button>'
+          +'<p style="font-size:.72rem;color:#8a7d84;text-align:center;margin:0 0 .7rem">No card needed to start</p>'
+          +'<button id="tpg-go" class="pr-cta ghost" style="margin-bottom:.5rem">See plans &amp; pricing</button>')
+    +'<button id="tpg-close" style="display:block;width:100%;background:none;border:none;font-family:inherit;'
+    +'font-size:.8rem;font-weight:700;color:#7d6b72;cursor:pointer;padding:.5rem">Not now</button>'
+    +'</div>';
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.addEventListener('click', e=>{ if(e.target===ov) close(); });
+  document.getElementById('tpg-close').onclick=close;
+  document.getElementById('tpg-go').onclick=()=>{ close(); openPricing(); };
+  const t=document.getElementById('tpg-trial');
+  if(t) t.onclick=async ()=>{
+    t.disabled=true; t.textContent='Starting\u2026';
+    try{
+      const base=TRK_KITS_BASE.replace(/\/patterns$/,'');
+      const r=await fetch(base+'/plus/trial',{method:'POST',credentials:'include'});
+      if(r.status===401){ close(); toast('Sign in to your Luca-S account to start the trial'); return; }
+      if(!r.ok && r.status!==409){ throw new Error('trial '+r.status); }
+      // Refresh auth so the gate opens without a reload.
+      try{
+        const w=await fetch(base+'/whoami',{credentials:'include',cache:'no-store'});
+        if(w.ok) window.__LUCAS_AUTH__=await w.json();
+      }catch(e){}
+      close();
+      toast('Your 14-day trial has started \u2014 enjoy the tracker');
+      openTracker();
+    }catch(e){
+      console.warn('[plus] trial start failed', e);
+      t.disabled=false; t.textContent='Start 14 days free';
+      toast('Could not start the trial just now');
+    }
+  };
+}
+function openPricing(){
+  pjGuardedLeave(()=>{
+    document.body.classList.remove('app-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode','projects-mode','cv-open');
+    document.body.classList.add('pricing-mode');
+    const img=document.getElementById('pricing-logo-img');
+    if(img && !img.src){ const src=document.getElementById('lp-logo-img'); if(src) img.src=src.src; }
+    prSetCurrency(prGuessCurrency());
+    window.scrollTo({top:0});
+  });
+}
+function prStartTrial(){
+  // Placeholder until checkout is wired up. Saying so plainly beats a button
+  // that appears to do nothing.
+  pjShowModal({
+    title:'Not connected yet',
+    body:'Checkout isn\u2019t live yet \u2014 this page is a preview of the plans. '
+        +'When it goes live, this button will start your 14-day trial with no card required up front.',
+    confirmLabel:'OK'
+  });
+}
+(function(){
+  const box=document.getElementById('pr-cur');
+  if(box) box.addEventListener('click', e=>{
+    const b=e.target.closest('button[data-cur]');
+    if(b) prSetCurrency(b.dataset.cur);
+  });
+})();
 function trkWorkspaceBack(){
   try{ if(typeof trkSaveProject==='function') trkSaveProject(); }catch(e){}
   if(typeof trkShowHome==='function' && typeof trkIndex==='function' && trkIndex().length) trkShowHome();
@@ -23578,7 +24152,8 @@ document.querySelectorAll('#lp-nav a[href^="#"]').forEach(a=>{
     threads:   () => (typeof openThreads === 'function') && openThreads(),
     convert:   () => (typeof openFileConverter === 'function') && openFileConverter(),
     account:   () => (typeof openAccountPage === 'function') && openAccountPage(),
-    calc:      (arg) => (typeof openCalculators === 'function') && openCalculators(arg)
+    calc:      (arg) => (typeof openCalculators === 'function') && openCalculators(arg),
+    pricing:   () => (typeof openPricing === 'function') && openPricing()
   };
 
   let replaying = false;
@@ -23609,6 +24184,7 @@ document.querySelectorAll('#lp-nav a[href^="#"]').forEach(a=>{
   wrap('openFileConverter','convert');
   wrap('openAccountPage','account');
   wrap('openCalculators','calc', true);
+  wrap('openPricing','pricing');
 
   function apply(name, arg){
     const fn = ROUTES[name] || ROUTES.home;
