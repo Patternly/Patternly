@@ -1,4 +1,4 @@
-// Patternly — Cloudflare Pages Function v17
+// Patternly — Cloudflare Pages Function v18
 // v2 + /patterns/* : serves the Luca-S kit catalogue and pattern files from R2.
 //
 // The files are deliberately NOT on a public R2 URL. Everything goes through
@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v17";
+const MW_VERSION = "v18";
 
 const enc = new TextEncoder();
 
@@ -711,6 +711,35 @@ export async function onRequest(context) {
     if (!auth.loggedIn || !auth.customerId) return bad("signin", 401);
     if (!env.ENTITLEMENTS) return bad("storage not configured", 500);
     const sku = (url.searchParams.get("sku") || "").trim().toUpperCase();
+
+    // No sku: list every kit this account has progress for, so the tracked
+    // list can be rebuilt on a device that has never opened them. Returns
+    // summaries only — the stitch data itself is fetched per kit.
+    if (!sku && request.method === "GET") {
+      const out = [];
+      let cursor;
+      for (let page = 0; page < 5; page++) {
+        const listed = await env.ENTITLEMENTS.list({
+          prefix: "prog:" + auth.customerId + ":", limit: 1000, cursor
+        });
+        for (const k of listed.keys) {
+          const raw = await env.ENTITLEMENTS.get(k.name);
+          if (!raw) continue;
+          try {
+            const rec = JSON.parse(raw);
+            out.push({
+              sku: k.name.split(":").pop(),
+              done: rec.done | 0, cols: rec.cols | 0, rows: rec.rows | 0, ts: rec.ts || 0
+            });
+          } catch (e) {}
+        }
+        if (!listed.list_complete) cursor = listed.cursor; else break;
+      }
+      out.sort((a, b) => b.ts - a.ts);
+      return new Response(JSON.stringify({ kits: out }), {
+        headers: { "content-type": "application/json", "cache-control": "no-store" }
+      });
+    }
     if (!sku || !/^[A-Z0-9_-]{1,40}$/.test(sku)) return bad("bad sku", 400);
 
     // You can only sync progress for a kit you own — otherwise this is free
