@@ -1,4 +1,4 @@
-// Patternly — Cloudflare Pages Function v10
+// Patternly — Cloudflare Pages Function v11
 // v2 + /patterns/* : serves the Luca-S kit catalogue and pattern files from R2.
 //
 // The files are deliberately NOT on a public R2 URL. Everything goes through
@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v10";
+const MW_VERSION = "v11";
 
 const enc = new TextEncoder();
 
@@ -282,6 +282,13 @@ function cacheSet(k, v, ttlMs) {
 }
 
 async function adminToken(env) {
+  // A permanent token from a legacy custom app wins outright: no OAuth, no
+  // expiry, no organization requirement. The client-credentials path below is
+  // kept as a fallback, but it only works when the app and the store are in
+  // the same Shopify org — a Partner-org app talking to a production store
+  // gets "shop_not_permitted", which is exactly what this store returns.
+  if (env.SHOPIFY_ADMIN_TOKEN) return env.SHOPIFY_ADMIN_TOKEN;
+
   const cached = cacheGet("admin_token");
   if (cached) return cached;
   const store = env.SHOPIFY_STORE;
@@ -399,7 +406,7 @@ async function ownedSkus(customerId, env) {
 // false → signed in, does not own it
 // "anon"→ nobody is signed in, so ownership cannot be judged
 async function customerOwns(auth, sku, env) {
-  if (!env.SHOPIFY_CLIENT_ID || !env.SHOPIFY_CLIENT_SECRET) return null;
+  if (!env.SHOPIFY_ADMIN_TOKEN && !(env.SHOPIFY_CLIENT_ID && env.SHOPIFY_CLIENT_SECRET)) return null;
   if (!auth.loggedIn || !auth.customerId) return "anon";
   const owned = await ownedSkus(auth.customerId, env);
   if (!owned) return null;
@@ -521,7 +528,8 @@ export async function onRequest(context) {
       patternsBound: !!env.PATTERNS,
       accessCodeSet: !!env.PATTERN_ACCESS_CODE,
       perKitCodes: !!env.PATTERN_CODES,
-      entitlement: !!(env.SHOPIFY_CLIENT_ID && env.SHOPIFY_CLIENT_SECRET),
+      entitlement: !!(env.SHOPIFY_ADMIN_TOKEN || (env.SHOPIFY_CLIENT_ID && env.SHOPIFY_CLIENT_SECRET)),
+      adminTokenDirect: !!env.SHOPIFY_ADMIN_TOKEN,
       catalogueLive: !!(env.SHOPIFY_STORE && env.SHOPIFY_STOREFRONT_TOKEN),
       enforceProxy: ENFORCE_PROXY
     };
@@ -532,9 +540,9 @@ export async function onRequest(context) {
     if (url.searchParams.get("debug") === "1") {
       const d = { step: "start" };
       try {
-        if (!env.SHOPIFY_CLIENT_ID || !env.SHOPIFY_CLIENT_SECRET) {
+        if (!env.SHOPIFY_ADMIN_TOKEN && !(env.SHOPIFY_CLIENT_ID && env.SHOPIFY_CLIENT_SECRET)) {
           d.step = "not-configured";
-          d.hint = "SHOPIFY_CLIENT_ID / SHOPIFY_CLIENT_SECRET missing from this deploy";
+          d.hint = "Set SHOPIFY_ADMIN_TOKEN (from a legacy custom app), or SHOPIFY_CLIENT_ID + SHOPIFY_CLIENT_SECRET";
         } else if (!auth.proxied) {
           d.step = "not-proxied";
           d.hint = "Open this through luca-s.com/apps/patternly/whoami?debug=1 — a bare pages.dev request carries no Shopify signature";
