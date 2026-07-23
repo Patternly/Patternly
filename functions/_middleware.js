@@ -1,4 +1,4 @@
-// Patternly — Cloudflare Pages Function v14
+// Patternly — Cloudflare Pages Function v15
 // v2 + /patterns/* : serves the Luca-S kit catalogue and pattern files from R2.
 //
 // The files are deliberately NOT on a public R2 URL. Everything goes through
@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v14";
+const MW_VERSION = "v15";
 
 const enc = new TextEncoder();
 
@@ -449,7 +449,7 @@ async function ownedSkus(customerId, env) {
   // Record everything found, then answer with the union.
   await latchSkus(customerId, skus, env);
   if (latched) for (const s of latched) skus.add(s);
-  cacheSet(ck, skus, 10 * 60 * 1000);           // 10 min: new orders appear soon enough
+  cacheSet(ck, skus, 60 * 1000);                // 1 min: a fresh purchase should appear almost at once
   return skus;
 }
 
