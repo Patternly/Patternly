@@ -16759,6 +16759,20 @@ async function trkKitFetch(url, sku){
   return r;
 }
 
+// Not signed in: asking for a code here would be answering a question they
+// didn't ask. Point them at their account first, with the code as a fallback.
+function trkKitsSignIn(msg, kit){
+  const st=document.getElementById('trk-kits-status');
+  st.style.color='';
+  st.innerHTML='<div style="max-width:380px">'
+    +'<div style="margin-bottom:.6rem">'+String(msg||'Sign in to open the patterns you\u2019ve bought.').replace(/</g,'&lt;')+'</div>'
+    +'<a href="https://luca-s.com/account/login" style="display:inline-block;background:var(--lp-red,#8B1A2B);color:#fff;'
+    +'font-weight:700;font-size:.82rem;padding:.45rem .9rem;border-radius:9px;text-decoration:none">Sign in to Luca-S</a>'
+    +' <a href="#" id="trk-kit-usecode" style="font-size:.78rem;color:var(--lp-red,#8B1A2B);font-weight:700;margin-left:.5rem">Use an access code</a>'
+    +'</div>';
+  const uc=document.getElementById('trk-kit-usecode');
+  if(uc) uc.onclick=e=>{ e.preventDefault(); trkKitsAskCode('Enter the access code for '+(kit.title||kit.sku)+'.', kit); };
+}
 function trkKitsAskCode(msg, kit){
   const st=document.getElementById('trk-kits-status');
   st.style.color='';
@@ -16842,8 +16856,16 @@ async function trkOpenKit(kit){
   st.style.color=''; st.textContent='Opening '+(kit.title||kit.sku)+'\u2026';
   const grab=async (which, name)=>{
     const r=await trkKitFetch(trkKitFileUrl(kit, which), kit.sku);
-    if(r.status===401){ const e=new Error('code'); e.needsCode=true; throw e; }
-    if(r.status===403) throw new Error('This kit is only available to customers who bought it.');
+    if(r.status===401 || r.status===403){
+      // The function distinguishes "sign in" from "you haven't bought this"
+      // from "wrong code", and each wants a different thing from the reader.
+      let info=null;
+      try{ info=await r.clone().json(); }catch(e){}
+      const e=new Error('gate');
+      e.gate = (info && info.error) || 'code';
+      e.gateMessage = info && info.message;
+      throw e;
+    }
     if(!r.ok) throw new Error(name+' unavailable ('+r.status+')');
     return new File([await r.blob()], name, {type:r.headers.get('content-type')||'application/octet-stream'});
   };
@@ -16860,11 +16882,19 @@ async function trkOpenKit(kit){
     }
     st.textContent='';
   }catch(err){
-    if(err && err.needsCode){
+    if(err && err.gate === 'signin'){
+      trkKitsSignIn(err.gateMessage, kit);
+      return;
+    }
+    if(err && err.gate){
       const had = trkKitCode(kit.sku);
       trkKitCodeSet(kit.sku, '');
+      const base = err.gate==='notpurchased'
+        ? (err.gateMessage || 'This pattern comes with the kit.')
+        : '';
       trkKitsAskCode(had ? 'That code doesn\u2019t open ' + (kit.title||kit.sku) + '. Try again.'
-                         : 'Enter the access code for ' + (kit.title||kit.sku) + '.', kit);
+                         : (base ? base + ' If you have an access code, enter it below.'
+                                 : 'Enter the access code for ' + (kit.title||kit.sku) + '.'), kit);
       return;
     }
     console.error('[tracker] kit open failed', err);
