@@ -1,4 +1,4 @@
-// Patternly — Cloudflare Pages Function v8
+// Patternly — Cloudflare Pages Function v9
 // v2 + /patterns/* : serves the Luca-S kit catalogue and pattern files from R2.
 //
 // The files are deliberately NOT on a public R2 URL. Everything goes through
@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v8";
+const MW_VERSION = "v9";
 
 const enc = new TextEncoder();
 
@@ -501,6 +501,49 @@ export async function onRequest(context) {
       catalogueLive: !!(env.SHOPIFY_STORE && env.SHOPIFY_STOREFRONT_TOKEN),
       enforceProxy: ENFORCE_PROXY
     };
+
+    // ?debug=1 runs the entitlement lookup live and reports where it stops.
+    // A customer only ever sees their OWN purchases here, and every step is
+    // named, so a failure points at one layer instead of "it doesn't work".
+    if (url.searchParams.get("debug") === "1") {
+      const d = { step: "start" };
+      try {
+        if (!env.SHOPIFY_CLIENT_ID || !env.SHOPIFY_CLIENT_SECRET) {
+          d.step = "not-configured";
+          d.hint = "SHOPIFY_CLIENT_ID / SHOPIFY_CLIENT_SECRET missing from this deploy";
+        } else if (!auth.proxied) {
+          d.step = "not-proxied";
+          d.hint = "Open this through luca-s.com/apps/patternly/whoami?debug=1 — a bare pages.dev request carries no Shopify signature";
+        } else if (!auth.loggedIn) {
+          d.step = "not-signed-in";
+          d.hint = "Signature verified, but Shopify sent no logged_in_customer_id — sign in on luca-s.com first";
+        } else {
+          d.customerId = auth.customerId;
+          d.step = "minting-admin-token";
+          const tok = await adminToken(env);
+          d.tokenOk = !!tok;
+          d.step = "reading-customer";
+          const who = await adminQuery(env, CUSTOMER_EMAIL_QUERY, {
+            id: "gid://shopify/Customer/" + auth.customerId
+          });
+          const email = who && who.customer && who.customer.email;
+          d.emailFound = !!email;
+          if (email) d.emailMasked = email.replace(/^(.).*(@.*)$/, "$1***$2");
+          d.step = "reading-orders";
+          const owned = await ownedSkus(auth.customerId, env);
+          d.skus = owned ? [...owned].sort() : null;
+          d.skuCount = owned ? owned.size : 0;
+          d.step = "done";
+          if (!d.skuCount) {
+            d.hint = "No SKUs found. Either the order is older than 60 days (needs read_all_orders), the checkout used a different email, or the line items carry no SKU.";
+          }
+        }
+      } catch (e) {
+        d.error = e.message;
+        d.hint = "Lookup threw at step '" + d.step + "'. A 403 here usually means the app install has not been updated with read_customers / read_orders.";
+      }
+      body.entitlementCheck = d;
+    }
     return new Response(JSON.stringify(body), {
       headers: { "content-type": "application/json", "cache-control": "no-store" }
     });
