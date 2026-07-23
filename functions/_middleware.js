@@ -1,4 +1,4 @@
-// Patternly — Cloudflare Pages Function v16
+// Patternly — Cloudflare Pages Function v17
 // v2 + /patterns/* : serves the Luca-S kit catalogue and pattern files from R2.
 //
 // The files are deliberately NOT on a public R2 URL. Everything goes through
@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v16";
+const MW_VERSION = "v17";
 
 const enc = new TextEncoder();
 
@@ -362,10 +362,26 @@ query OrderSkus($q: String!, $cursor: String) {
     pageInfo { hasNextPage endCursor }
     nodes {
       cancelledAt
-      lineItems(first: 100) { nodes { sku } }
+      displayFinancialStatus
+      lineItems(first: 100) {
+        nodes { sku quantity refundableQuantity }
+      }
     }
   }
 }`;
+
+// A line is void if its order was cancelled or fully refunded, or if every unit
+// of that line has been refunded individually.
+function lineIsVoid(order, li) {
+  if (order.cancelledAt) return true;
+  const fin = order.displayFinancialStatus;
+  if (fin === "REFUNDED" || fin === "VOIDED") return true;
+  if (fin === "PARTIALLY_REFUNDED") {
+    const q = li.quantity | 0, r = li.refundableQuantity | 0;
+    if (q > 0 && r === 0) return true;      // nothing left unrefunded on this line
+  }
+  return false;
+}
 
 // ── Permanent entitlement record ──────────────────────────────────────────
 // read_orders only sees the last 60 days, so a purchase would silently expire:
@@ -389,6 +405,22 @@ async function latchedSkus(customerId, env) {
   } catch (e) {
     console.warn("latched read failed:", e.message);
     return null;
+  }
+}
+// Remove entitlements that the store now says were never really bought.
+async function unlatchSkus(customerId, skus, env) {
+  if (!env.ENTITLEMENTS || !skus || !skus.size) return;
+  try {
+    const have = await latchedSkus(customerId, env);
+    if (!have || !have.size) return;
+    let changed = false;
+    for (const s of skus) if (have.delete(s)) changed = true;
+    if (changed) {
+      await env.ENTITLEMENTS.put("cust:" + customerId, JSON.stringify([...have].sort()));
+      console.log("revoked for " + customerId + ": " + [...skus].join(", "));
+    }
+  } catch (e) {
+    console.warn("unlatch failed:", e.message);
   }
 }
 async function latchSkus(customerId, skus, env) {
@@ -429,7 +461,8 @@ async function ownedSkus(customerId, env) {
   const email = who.customer && who.customer.email;
   if (!email) return latched || new Set();
 
-  const skus = new Set();
+  const skus = new Set();     // kits genuinely paid for
+  const voided = new Set();   // kits from cancelled or refunded lines
   let cursor = null;
   for (let page = 0; page < 10; page++) {       // up to 500 orders
     const data = await adminQuery(env, ORDER_SKUS_QUERY, {
@@ -438,17 +471,25 @@ async function ownedSkus(customerId, env) {
     const orders = data && data.orders;
     if (!orders) break;
     for (const o of orders.nodes) {
-      if (o.cancelledAt) continue;              // a cancelled order is not a purchase
       for (const li of o.lineItems.nodes) {
-        if (li.sku) skus.add(String(li.sku).trim().toUpperCase());
+        if (!li.sku) continue;
+        const sku = String(li.sku).trim().toUpperCase();
+        if (lineIsVoid(o, li)) voided.add(sku);
+        else skus.add(sku);
       }
     }
     if (!orders.pageInfo.hasNextPage) break;
     cursor = orders.pageInfo.endCursor;
   }
-  // Record everything found, then answer with the union.
+  // Cancelled or refunded revokes — including a kit latched earlier, so opening
+  // a pattern and then refunding does not keep it forever. Buying the same kit
+  // twice and cancelling one order is not a revocation: a live line for that
+  // SKU always wins over a void one.
+  const revoke = new Set([...voided].filter(sk => !skus.has(sk)));
+  if (revoke.size) await unlatchSkus(customerId, revoke, env);
+
   await latchSkus(customerId, skus, env);
-  if (latched) for (const s of latched) skus.add(s);
+  if (latched) for (const s of latched) if (!revoke.has(s)) skus.add(s);
   cacheSet(ck, skus, 60 * 1000);                // 1 min: a fresh purchase should appear almost at once
   return skus;
 }
