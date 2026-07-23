@@ -1,4 +1,4 @@
-// Patternly — Cloudflare Pages Function v5
+// Patternly — Cloudflare Pages Function v6
 // v2 + /patterns/* : serves the Luca-S kit catalogue and pattern files from R2.
 //
 // The files are deliberately NOT on a public R2 URL. Everything goes through
@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v5";
+const MW_VERSION = "v6";
 
 const enc = new TextEncoder();
 
@@ -114,6 +114,102 @@ const MIME = {
   webp: "image/webp"
 };
 
+// ── Live catalogue from Shopify ───────────────────────────────────────────
+// kits.json is now BUILT from the store, not stored. Products in the
+// Needlecraft Kits collection that carry the patternly.pattern metafield are
+// the catalogue; the metafield value is the SKU, which is also the R2 folder
+// name. Releasing a pattern becomes: upload the folder, set the metafield.
+//
+// Needs two env vars:
+//   SHOPIFY_STORE            luca-s-quality-for-everyone.myshopify.com
+//   SHOPIFY_STOREFRONT_TOKEN the Headless public access token
+// Optional:
+//   KITS_COLLECTION_HANDLE   defaults to "needlecraft-kits"
+//   SHOPIFY_API_VERSION      defaults to "2026-07"
+//
+// Falls back to a stored kits.json in R2 if the store can't be reached, so a
+// Shopify hiccup degrades to the last manual manifest rather than an empty
+// catalogue.
+const KITS_QUERY = `
+query Kits($handle: String!, $cursor: String) {
+  collection(handle: $handle) {
+    products(first: 100, after: $cursor) {
+      pageInfo { hasNextPage endCursor }
+      nodes {
+        title
+        featuredImage { url }
+        pattern: metafield(namespace: "patternly", key: "pattern") { value }
+      }
+    }
+  }
+}`;
+
+async function buildCatalogue(env) {
+  const store = env.SHOPIFY_STORE;
+  const token = env.SHOPIFY_STOREFRONT_TOKEN;
+  if (!store || !token) return null;                 // not configured — use R2
+  const handle = env.KITS_COLLECTION_HANDLE || "needlecraft-kits";
+  const version = env.SHOPIFY_API_VERSION || "2026-07";
+  const endpoint = `https://${store}/api/${version}/graphql.json`;
+
+  const kits = [];
+  let cursor = null;
+  for (let page = 0; page < 20; page++) {            // hard stop at 2000 products
+    const resp = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "X-Shopify-Storefront-Access-Token": token
+      },
+      body: JSON.stringify({ query: KITS_QUERY, variables: { handle, cursor } })
+    });
+    if (!resp.ok) throw new Error("storefront API " + resp.status);
+    const json = await resp.json();
+    const coll = json.data && json.data.collection;
+    if (!coll) return kits;                          // no such collection
+    for (const p of coll.products.nodes) {
+      const sku = p.pattern && p.pattern.value && p.pattern.value.trim();
+      if (!sku) continue;                            // no metafield → not a kit
+      const kit = { sku };
+      if (p.title) kit.title = p.title;
+      if (p.featuredImage && p.featuredImage.url) kit.image = p.featuredImage.url;
+      kits.push(kit);
+    }
+    if (!coll.products.pageInfo.hasNextPage) break;
+    cursor = coll.products.pageInfo.endCursor;
+  }
+  return kits;
+}
+
+async function serveCatalogue(auth, request, url, env) {
+  // The catalogue listing is open; only the pattern files are gated.
+  let kits = null;
+  try {
+    kits = await buildCatalogue(env);
+  } catch (e) {
+    console.warn("catalogue build failed, falling back to stored kits.json:", e.message);
+  }
+  if (kits) {
+    return new Response(JSON.stringify({ kits }), {
+      headers: { "content-type": "application/json", "cache-control": "no-store" }
+    });
+  }
+  // Fallback: whatever kits.json is still in the bucket.
+  if (env.PATTERNS) {
+    const obj = await env.PATTERNS.get("kits.json");
+    if (obj) {
+      const headers = new Headers();
+      obj.writeHttpMetadata(headers);
+      headers.set("content-type", "application/json");
+      headers.set("cache-control", "no-store");
+      return new Response(obj.body, { headers });
+    }
+  }
+  return new Response(JSON.stringify({ kits: [] }), {
+    headers: { "content-type": "application/json", "cache-control": "no-store" }
+  });
+}
+
 async function servePattern(key, auth, request, url, env) {
   if (!env.PATTERNS) {
     return new Response("pattern storage not bound", { status: 500 });
@@ -182,6 +278,7 @@ export async function onRequest(context) {
       patternsBound: !!env.PATTERNS,
       accessCodeSet: !!env.PATTERN_ACCESS_CODE,
       perKitCodes: !!env.PATTERN_CODES,
+      catalogueLive: !!(env.SHOPIFY_STORE && env.SHOPIFY_STOREFRONT_TOKEN),
       enforceProxy: ENFORCE_PROXY
     };
     return new Response(JSON.stringify(body), {
@@ -196,6 +293,7 @@ export async function onRequest(context) {
   const at = url.pathname.indexOf(MARK);
   if (at !== -1) {
     const key = decodeURIComponent(url.pathname.slice(at + MARK.length));
+    if (key === "kits.json") return serveCatalogue(auth, request, url, env);
     return servePattern(key, auth, request, url, env);
   }
 
