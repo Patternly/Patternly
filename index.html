@@ -2764,6 +2764,10 @@ body.tracker-mode{overflow:auto}
 #tracker-page{display:none;min-height:100vh;background:var(--lp-bg,#fdf9f5)}
 #tracker-page .calc-container{max-width:1560px}
 #tracker-page .calc-title,#tracker-page .calc-sub,#tracker-page .trk-cards,#tracker-page #trk-verify{max-width:760px;margin-left:auto;margin-right:auto}
+/* The catalogue is a grid of covers, so it gets the full container width and
+   bigger cards; the upload flow stays a narrow reading column. */
+#tracker-page #trk-kits{max-width:1180px;margin-left:auto;margin-right:auto}
+#tracker-page #trk-kits-grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:1.1rem}
 #tracker-page .trk-cards{display:flex}
 #tracker-page #trk-verify{margin-bottom:1rem}
 .trk-cards{display:flex;gap:1.4rem;flex-wrap:wrap;margin:1.6rem 0}
@@ -4735,18 +4739,18 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <div id="trk-source" class="trk-cards">
       <div class="trk-card" id="trk-src-lucas" role="button" tabindex="0">
         <div class="trk-card-icon">🧶</div>
-        <h3>Luca-S kit</h3>
-        <p style="color:#6a626f;font-size:.86rem;line-height:1.5;margin:.35rem 0 0">Pick your kit from our catalogue — the chart and colour key are already loaded. Nothing to upload.</p>
+        <h3>Luca-S Patterns</h3>
+        <p style="color:#6a626f;font-size:.86rem;line-height:1.5;margin:.35rem 0 0">Pick your pattern from our catalogue — the chart and colour key are already loaded. Nothing to upload.</p>
       </div>
       <div class="trk-card" id="trk-src-other" role="button" tabindex="0">
         <div class="trk-card-icon">📄</div>
-        <h3>Other brand kit</h3>
-        <p style="color:#6a626f;font-size:.86rem;line-height:1.5;margin:.35rem 0 0">Upload the chart and legend from any kit — PDF, OXS, .pat or .Ptly.</p>
+        <h3>Upload Your Pattern</h3>
+        <p style="color:#6a626f;font-size:.86rem;line-height:1.5;margin:.35rem 0 0">Upload the chart and legend from any brand — PDF, OXS, .pat or .Ptly.</p>
       </div>
     </div>
     <!-- Luca-S catalogue -->
     <div id="trk-kits" style="display:none">
-      <a href="#" id="trk-kits-back" style="display:inline-block;margin-bottom:.7rem;font-size:.78rem;color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">← Choose a different kit type</a>
+      <a href="#" id="trk-kits-back" style="display:inline-block;margin-bottom:.7rem;font-size:.78rem;color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">← Choose a different pattern source</a>
       <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.9rem">
         <input id="trk-kits-search" type="search" placeholder="Search by name or code (e.g. BU5102)"
                style="flex:1;height:38px;border:1.5px solid #e6d9dd;border-radius:10px;padding:0 .8rem;font-size:.86rem;font-family:inherit">
@@ -4755,6 +4759,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <div id="trk-kits-status" style="font-size:.86rem;color:#6a626f;padding:.6rem 0"></div>
       <div id="trk-kits-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.8rem"></div>
     </div>
+    <a href="#" id="trk-upload-back" style="display:none;margin-bottom:.7rem;font-size:.78rem;color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">&larr; Choose a different pattern source</a>
     <div class="trk-cards">
       <div class="trk-card" id="trk-chart-card" onclick="document.getElementById('trk-chart-input').click()">
         <div class="trk-card-icon">🧵</div>
@@ -4769,7 +4774,8 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
           </select>
         </div>
         <p id="trk-chart-desc">The stitch chart pages from your kit.</p>
-        <p style="font-size:.72rem;color:var(--muted);margin:.35rem 0 0;line-height:1.5">Got a different format (.pat, .xsm, .xsp&hellip;)? <a href="#" onclick="event.stopPropagation();pjGuardedLeave(()=>openFileConverter());return false" style="color:var(--accent);font-weight:600">Convert it to .Ptly first &rarr;</a></p>
+        <p style="font-size:.72rem;color:var(--muted);margin:.35rem 0 .1rem;line-height:1.5">Got a different format (.pat, .xsm, .xsp&hellip;)?</p>
+        <button id="trk-convert-btn" onclick="event.stopPropagation();pjGuardedLeave(()=>openFileConverter())">&#8646; Convert it to .Ptly first</button>
         <div class="trk-status" id="trk-chart-status"></div>
         <button class="trk-clear" id="trk-chart-clear" onclick="event.stopPropagation();trkClearChart()">✕ Clear file</button>
       </div>
@@ -4777,6 +4783,14 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
         <div class="trk-card-icon">🎨</div>
         <h3>2 · Legend PDF</h3>
         <p>The colour key — symbols, thread codes and stitch counts.</p>
+        <div style="font-size:.72rem;color:var(--muted);margin:.15rem 0 .35rem" onclick="event.stopPropagation()">
+          Thread brand:
+          <select id="trk-legend-brand" style="font-family:inherit;font-size:.72rem;padding:.15rem .3rem;border:1px solid #e6d9dd;border-radius:6px;background:#fff">
+            <option value="lucas">Luca-S</option>
+            <option value="dmc">DMC</option>
+            <option value="anchor">Anchor</option>
+          </select>
+        </div>
         <div class="trk-status" id="trk-legend-status"></div>
         <button class="trk-clear" id="trk-legend-clear" onclick="event.stopPropagation();trkClearLegend()">✕ Clear file</button>
         <button id="trk-exact-continue" onclick="event.stopPropagation();trkExactContinue()" style="display:none">➡ Continue with generic symbols</button>
@@ -16601,6 +16615,7 @@ function trkShowUpload(){
     if(kits) kits.style.display='none';
     if(src) src.style.display='';
     soon.style.display='none';
+    const ub=document.getElementById('trk-upload-back'); if(ub) ub.style.display='none';
   }
 }
 // Reveal either the upload cards or the Luca-S catalogue.
@@ -16608,13 +16623,16 @@ function trkChooseSource(kind){
   const cards=document.querySelector('#trk-upload .trk-cards:not(#trk-source)');
   const src=document.getElementById('trk-source'), kits=document.getElementById('trk-kits');
   if(src) src.style.display='none';
+  const ub=document.getElementById('trk-upload-back');
   if(kind==='lucas'){
     if(cards) cards.style.display='none';
+    if(ub) ub.style.display='none';
     if(kits) kits.style.display='';
     trkKitsLoad();
   }else{
     if(kits) kits.style.display='none';
     if(cards) cards.style.display='';
+    if(ub) ub.style.display='inline-block';
   }
 }
 
@@ -16770,6 +16788,7 @@ async function trkOpenKit(kit){
   };
   try{
     trkPendingName = kit.title || kit.sku;
+    const bsel=document.getElementById('trk-legend-brand'); if(bsel) bsel.value='lucas';
     if(kit.ptly || (kit.files && kit.files.ptly)){
       await trkHandleChart(await grab('ptly', kit.sku+'.Ptly'));   // exact data, no legend needed
     }else{
@@ -16797,10 +16816,20 @@ async function trkOpenKit(kit){
   const l=document.getElementById('trk-src-lucas'), o=document.getElementById('trk-src-other');
   if(l) l.addEventListener('click', ()=>trkChooseSource('lucas'));
   if(o) o.addEventListener('click', ()=>trkChooseSource('other'));
+  const backToSource = e => {
+    e.preventDefault();
+    const k=document.getElementById('trk-kits'), s=document.getElementById('trk-source'),
+          c=document.querySelector('#trk-upload .trk-cards:not(#trk-source)'),
+          u=document.getElementById('trk-upload-back');
+    if(k) k.style.display='none';
+    if(c) c.style.display='none';
+    if(u) u.style.display='none';
+    if(s) s.style.display='';
+  };
   const b=document.getElementById('trk-kits-back');
-  if(b) b.addEventListener('click', e=>{ e.preventDefault();
-    const k=document.getElementById('trk-kits'), s=document.getElementById('trk-source');
-    if(k) k.style.display='none'; if(s) s.style.display=''; });
+  if(b) b.addEventListener('click', backToSource);
+  const ub2=document.getElementById('trk-upload-back');
+  if(ub2) ub2.addEventListener('click', backToSource);
   const s=document.getElementById('trk-kits-search');
   if(s) s.addEventListener('input', ()=>trkKitsRender());
 })();
@@ -18258,29 +18287,42 @@ function trkFindBrandCode(brand, code){
   const f=trkFindLucas(code);
   return f?{r:f.r,g:f.g,b:f.b,label:f.label}:null;
 }
+// Which brand's numbers the legend uses. A Luca-S kit is the common case and
+// stays the default, but the codes in a DMC or Anchor legend are a different
+// numbering entirely — looking those up against the Luca-S table resolves
+// every colour to grey "not found". The selector on the legend card is
+// therefore load-bearing for other-brand kits, not a convenience.
+function trkLegendBrand(){
+  const el = document.getElementById('trk-legend-brand');
+  const v = el && el.value;
+  return (v==='dmc'||v==='anchor') ? v : 'lucas';
+}
 function resolveTrackerColours(legend){
   const map = {}, missing = [];
+  const brand = (legend && legend.brand) || trkLegendBrand();
+  const name = TRK_BRAND_NAMES[brand] || 'Luca-S';
+  const find = code => trkFindBrandCode(brand, code);
   for(const sym in legend.bySymbol){
     const entry = legend.bySymbol[sym];
     const code = entry.code;
     if(entry.blend){
       // Blend "a+b": show the average of the two component threads
-      const [a,b] = code.split('+').map(trkFindLucas);
+      const [a,b] = code.split('+').map(find);
       if(a && b){
         map[sym] = {r:Math.round((a.r+b.r)/2), g:Math.round((a.g+b.g)/2), b:Math.round((a.b+b.b)/2),
-                    code, stitches:entry.stitches, label:'Luca-S '+code+' (blend)'};
+                    code, stitches:entry.stitches, label:name+' '+code+' (blend)'};
       } else {
         missing.push(code);
-        map[sym] = {r:160,g:160,b:160, code, stitches:entry.stitches, label:'Luca-S '+code+' (blend, not found)'};
+        map[sym] = {r:160,g:160,b:160, code, stitches:entry.stitches, label:name+' '+code+' (blend, not found)'};
       }
       continue;
     }
-    const found = trkFindLucas(code);
+    const found = find(code);
     if(found){
-      map[sym] = {r:found.r, g:found.g, b:found.b, code, stitches:entry.stitches, label:'Luca-S '+code, strands:entry.strands||null};
+      map[sym] = {r:found.r, g:found.g, b:found.b, code, stitches:entry.stitches, label:name+' '+code, strands:entry.strands||null};
     } else {
       missing.push(code);
-      map[sym] = {r:160, g:160, b:160, code, stitches:entry.stitches, label:'Luca-S '+code+' (not found)', strands:entry.strands||null};
+      map[sym] = {r:160, g:160, b:160, code, stitches:entry.stitches, label:name+' '+code+' (not found)', strands:entry.strands||null};
     }
   }
   return {map, missing};
@@ -22868,5 +22910,85 @@ document.querySelectorAll('#lp-nav a[href^="#"]').forEach(a=>{
   setTimeout(animateNext, 800);
 })();
 </script>
+<script>
+// ── Browser history ───────────────────────────────────────────────────────
+// The app swaps pages by toggling a class on <body>, which never touched the
+// URL — so Back left the site entirely and a page could not be linked or
+// reloaded. This wraps the existing openers in history entries instead of
+// rewriting navigation: each one still does exactly what it did, and now also
+// records where it went. Back and Forward then replay those states.
+(function(){
+  if(window.__ptlyRouter) return;
+  window.__ptlyRouter = true;
+
+  // name -> [function to call, does it need a guard against unsaved work]
+  const ROUTES = {
+    home:      () => (typeof goHome === 'function') && goHome(),
+    editor:    () => (typeof openApp === 'function') && openApp(),
+    tracker:   () => (typeof openTracker === 'function') && openTracker(),
+    threads:   () => (typeof openThreads === 'function') && openThreads(),
+    convert:   () => (typeof openFileConverter === 'function') && openFileConverter(),
+    account:   () => (typeof openAccountPage === 'function') && openAccountPage(),
+    calc:      (arg) => (typeof openCalculators === 'function') && openCalculators(arg)
+  };
+
+  let replaying = false;
+
+  function record(name, arg){
+    if(replaying) return;
+    const hash = '#' + name + (arg ? '/' + encodeURIComponent(arg) : '');
+    if(location.hash === hash) return;
+    try{ history.pushState({ptly:name, arg:arg||null}, '', hash); }catch(e){}
+  }
+
+  // Wrap an opener so calling it anywhere — nav link, inline onclick, our own
+  // code — leaves a history entry. The original stays untouched underneath.
+  function wrap(fnName, routeName, takesArg){
+    const orig = window[fnName];
+    if(typeof orig !== 'function') return;
+    window[fnName] = function(){
+      const r = orig.apply(this, arguments);
+      record(routeName, takesArg ? arguments[0] : null);
+      return r;
+    };
+  }
+
+  wrap('goHome','home');
+  wrap('openApp','editor');
+  wrap('openTracker','tracker');
+  wrap('openThreads','threads');
+  wrap('openFileConverter','convert');
+  wrap('openAccountPage','account');
+  wrap('openCalculators','calc', true);
+
+  function apply(name, arg){
+    const fn = ROUTES[name] || ROUTES.home;
+    replaying = true;
+    try{ fn(arg); }catch(e){ console.warn('[router]', e); }
+    replaying = false;
+  }
+
+  window.addEventListener('popstate', function(e){
+    const st = e.state;
+    if(st && st.ptly){ apply(st.ptly, st.arg); return; }
+    // No state (or an entry from before this shipped): fall back to the hash.
+    const h = (location.hash||'').replace(/^#/,'');
+    if(!h){ apply('home'); return; }
+    const [name, arg] = h.split('/');
+    apply(ROUTES[name] ? name : 'home', arg && decodeURIComponent(arg));
+  });
+
+  // Deep link on first load: honour the hash so a shared or reloaded URL lands
+  // on the right page instead of silently showing the landing page.
+  window.addEventListener('DOMContentLoaded', function(){
+    const h = (location.hash||'').replace(/^#/,'');
+    if(!h) return;
+    const [name, arg] = h.split('/');
+    if(!ROUTES[name]) return;
+    setTimeout(()=>apply(name, arg && decodeURIComponent(arg)), 0);
+  });
+})();
+</script>
+
 </body>
 </html>
