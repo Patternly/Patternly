@@ -4788,11 +4788,6 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     </div>
     <div id="trk-upload">
     <a href="#" id="trk-back-home" style="display:none;font-size:.78rem;color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none" onclick="trkShowHome();return false">← My tracked patterns</a>
-    <div id="trk-saved" style="display:none">
-      <h3 id="trk-saved-title" style="font-family:var(--lp-serif,Georgia,serif);font-size:1.15rem;margin:2.1rem 0 .3rem;text-align:center">My Tracked Patterns</h3>
-      <p id="trk-saved-sub" style="font-size:.78rem;color:#6a626f;text-align:center;margin:0 0 1rem"></p>
-      <div id="trk-saved-grid"></div>
-    </div>
     <!-- Step 0 · where is this pattern coming from -->
     <div id="trk-source" class="trk-cards">
       <div class="trk-card" id="trk-src-lucas" role="button" tabindex="0">
@@ -4816,6 +4811,14 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       </div>
       <div id="trk-kits-status" style="font-size:.86rem;color:#6a626f;padding:.6rem 0"></div>
       <div id="trk-kits-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.8rem"></div>
+    </div>
+    <!-- Saved patterns sit BELOW the two source cards: starting something is the
+         primary action on this page, carrying on is secondary. -->
+    <div id="trk-saved" style="display:none">
+      <hr style="border:none;border-top:1px solid var(--lp-border);max-width:760px;margin:2.4rem auto 0">
+      <h3 id="trk-saved-title" style="font-family:var(--lp-serif,Georgia,serif);font-size:1.15rem;margin:1.8rem 0 .3rem;text-align:center">My Tracked Patterns</h3>
+      <p id="trk-saved-sub" style="font-size:.78rem;color:#6a626f;text-align:center;margin:0 0 1rem"></p>
+      <div id="trk-saved-grid"></div>
     </div>
     <a href="#" id="trk-upload-back" style="display:none;margin-bottom:.7rem;font-size:.78rem;color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">&larr; Choose a different pattern source</a>
     <div class="trk-cards">
@@ -5480,14 +5483,14 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <div id="acct-patterns" style="display:none;margin-top:1.6rem"></div>
     <div class="acct-row-block">
       <div class="acct-row-head">
-        <div><b>🧵 My Patterns</b><span id="acct-pat-count"></span></div>
+        <div><b>My Patterns</b><span id="acct-pat-count"></span></div>
         <button class="acct-row-open" onclick="openApp()">Open all →</button>
       </div>
       <div class="acct-row-scroll" id="acct-pat-scroll"></div>
     </div>
     <div class="acct-row-block">
       <div class="acct-row-head">
-        <div><b>📊 My Tracked Patterns</b><span id="acct-trk-count"></span></div>
+        <div><b>My Tracked Patterns</b><span id="acct-trk-count"></span></div>
         <button class="acct-row-open" onclick="openTracker()">Open all →</button>
       </div>
       <div class="acct-row-scroll" id="acct-trk-scroll"></div>
@@ -16708,18 +16711,25 @@ function trkChooseSource(kind){
     if(kits) kits.style.display='none';
     if(cards) cards.style.display='';
     if(ub) ub.style.display='inline-block';
-    // Uploaded files have no reliable title, so name it here — but only once,
-    // and never over a name the user already gave.
-    if(!trkPendingName && typeof pjShowModal==='function'){
-      pjShowModal({
-        title:'Name your project',
-        body:'Give this tracked pattern a title so you can find it later.',
-        input:{placeholder:'e.g. Winter Wolves', value:'', maxLength:40},
-        confirmLabel:'Continue',
-        onConfirm(v){ trkPendingName=(v||'').trim()||'Tracked Pattern'; }
-      });
-    }
+    // The name is asked for AFTER the files are in — being made to name a
+    // project before choosing one is a question about something that does not
+    // exist yet. trkAskProjectName() runs at the point the build starts.
   }
+}
+// Called once both files are attached, just before the tracker is built.
+// Resolves when a name exists, so the caller can await it.
+function trkAskProjectName(){
+  return new Promise(resolve=>{
+    if(trkPendingName || typeof pjShowModal!=='function'){ resolve(); return; }
+    pjShowModal({
+      title:'Name your project',
+      body:'Give this tracked pattern a title so you can find it later.',
+      input:{placeholder:'e.g. Winter Wolves', value:'', maxLength:40},
+      confirmLabel:'Continue',
+      onConfirm(v){ trkPendingName=(v||'').trim()||'Tracked Pattern'; resolve(); },
+      onCancel(){ trkPendingName='Tracked Pattern'; resolve(); }
+    });
+  });
 }
 
 // ── Luca-S kit catalogue ──────────────────────────────────────────────────
@@ -19376,6 +19386,9 @@ async function trkBuildLegendSpritesHybrid(){
 
 async function tryBuildTracker(){
   if(!trackerLegend || !trackerGrid || !trackerColourMap) return;
+  // Both files are in and parsed, so now there is something to name. Catalogue
+  // kits already carry the product title and skip this.
+  await trkAskProjectName();
   // Crops FIRST — normalization uses shapes as evidence. Pre-normalization the
   // chart pass keys sprites by RAW glyph (the mapping is still empty).
   trkRawSprites={}; trkLegendSprites={};
@@ -21736,8 +21749,8 @@ async function acctRenderPatterns(){
   const owned=a.ownedSkus;
   if(!a.loggedIn || !Array.isArray(owned)){ box.style.display='none'; return; }
   box.style.display='';
-  box.innerHTML='<h3 style="font-family:var(--lp-serif,Georgia,serif);font-size:1.05rem;margin:0 0 .2rem">Your patterns</h3>'
-    +'<p style="font-size:.78rem;color:#7d6b72;margin:0 0 .9rem">Kits you\u2019ve bought \u2014 open any of them in the Stitch Tracker, no code needed.</p>'
+  box.innerHTML='<div style="max-width:860px;margin:0 auto"><h3 style="font-family:var(--lp-serif,Georgia,serif);font-size:1.05rem;margin:0 0 .2rem">Your patterns</h3>'
+    +'<p style="font-size:.78rem;color:#7d6b72;margin:0 0 .9rem">Kits you\u2019ve bought \u2014 open any of them in the Stitch Tracker, no code needed.</p></div>'
     +'<div id="acct-patterns-grid" style="font-size:.82rem;color:#7d6b72">Checking\u2026</div>';
   const grid=document.getElementById('acct-patterns-grid');
   if(!owned.length){
@@ -21755,15 +21768,15 @@ async function acctRenderPatterns(){
   // say so rather than silently dropping it, or the count looks wrong.
   const unpublished=owned.filter(sk=>!kits.some(k=>String(k.sku).toUpperCase()===String(sk).toUpperCase()));
   const esc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-  grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.9rem';
+  grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.8rem;max-width:860px;margin:0 auto';
   grid.innerHTML = mine.length ? '' : '<div style="grid-column:1/-1;font-size:.82rem;color:#7d6b72">No patterns published for your kits yet.</div>';
   for(const kit of mine){
     const card=document.createElement('div');
     card.style.cssText='background:#fff;border:1.5px solid #e6d9dd;border-radius:12px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column';
     card.innerHTML=(kit.image?`<img src="${esc(trkKitImageUrl(kit))}" alt="" loading="lazy" style="width:100%;aspect-ratio:1;object-fit:cover;background:#f6f1f2">`
                              :`<div style="width:100%;aspect-ratio:1;background:#f6f1f2"></div>`)
-      +`<div style="padding:.6rem .7rem"><div style="font-weight:700;font-size:.84rem;line-height:1.3">${esc(kit.title||kit.sku)}</div>`
-      +`<div style="font-size:.72rem;color:#6a626f;margin-top:.2rem">${esc(kit.sku)}</div></div>`;
+      +`<div style="padding:.5rem .6rem"><div style="font-weight:700;font-size:.78rem;line-height:1.3">${esc(kit.title||kit.sku)}</div>`
+      +`<div style="font-size:.7rem;color:#6a626f;margin-top:.15rem">${esc(kit.sku)}</div></div>`;
     card.onclick=()=>{ openTracker(); setTimeout(()=>trkOpenKit(kit), 60); };
     grid.appendChild(card);
   }
@@ -22547,8 +22560,12 @@ function pjShowModal(o){
     secondaryBtn.onclick=null;
   }
   confirmBtn.onclick=()=>{ const v=o.input?(document.getElementById('pjm-input').value||'').trim():undefined; pjHideModal(); if(o.onConfirm) o.onConfirm(v); };
-  cancelBtn.onclick=pjHideModal;
-  ov.onclick=e=>{ if(e.target===ov) pjHideModal(); };
+  // Cancel/dismiss can now be observed. Without this a caller awaiting the
+  // modal hangs forever when the user backs out — which would stall the
+  // tracker build behind an unresolved promise.
+  const bail=()=>{ pjHideModal(); if(o.onCancel) o.onCancel(); };
+  cancelBtn.onclick=bail;
+  ov.onclick=e=>{ if(e.target===ov) bail(); };
   ov.classList.add('show');
 }
 function pjHideModal(){ document.getElementById('pjm-overlay').classList.remove('show'); }
