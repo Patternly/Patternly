@@ -16488,7 +16488,48 @@ function trkUpdateIndexProgress(done){
     trkIndexWrite(list);
   }
 }
-function trkOpenProject(id){
+// ── Revoking a cached kit ────────────────────────────────────────────────
+// Opening a saved catalogue project needs no download, so the R2 gate never
+// sees it — a refunded kit would otherwise stay usable forever on the device
+// that opened it once. This re-checks ownership on open and clears the local
+// copy when the account says the kit is no longer theirs.
+//
+// It acts only on POSITIVE information: signed in, entitlements known, and
+// this SKU absent from them. Offline, signed out, or any error leaves the
+// project alone — absence of proof is not proof of absence, and a stitcher on
+// a train must not lose their work to a dropped connection.
+async function trkCheckStillOwned(id){
+  const entry=(trkIndex().find(p=>p.id===id))||{};
+  const sku=entry.sku;
+  if(!sku) return true;                                  // uploaded pattern — not ours to police
+  let auth=null;
+  try{
+    const base=TRK_KITS_BASE.replace(/\/patterns$/,'');
+    const r=await fetch(base+'/whoami',{credentials:'include',cache:'no-store'});
+    if(!r.ok) return true;
+    auth=await r.json();
+  }catch(e){ return true; }                              // offline — fail open
+  if(!auth || !auth.loggedIn || !Array.isArray(auth.ownedSkus)) return true;
+  const owned=new Set(auth.ownedSkus.map(x=>String(x).toUpperCase()));
+  if(owned.has(String(sku).toUpperCase())) return true;
+  // Positively not owned: remove the cached pattern and its progress.
+  try{
+    localStorage.removeItem('patternly_trk_proj_'+id);
+    localStorage.removeItem('patternly_tracker_'+id);
+    trkIndexWrite(trkIndex().filter(p=>p.id!==id));
+  }catch(e){}
+  pjShowModal({
+    title:'This pattern is no longer on your account',
+    body:'<b>'+String(entry.name||sku).replace(/</g,'&lt;')+'</b> was removed because the order for this kit was cancelled or refunded. '
+        +'If you think that\u2019s wrong, get in touch and we\u2019ll sort it out.',
+    confirmLabel:'OK'
+  });
+  trkShowHome();
+  return false;
+}
+async function trkOpenProject(id){
+  // Ownership first: a cached kit that has been refunded should not open.
+  if(!(await trkCheckStillOwned(id))) return;
   try{
     const raw=localStorage.getItem('patternly_trk_proj_'+id);
     if(!raw){ toast('Saved pattern not found'); return; }
@@ -21876,6 +21917,19 @@ async function acctRenderPatterns(){
     kits=trkKitList||[];
   }catch(e){}
   const ownedSet=new Set(owned.map(x=>String(x).toUpperCase()));
+  // Sweep cached kits the account no longer includes, so a refunded pattern
+  // stops sitting in the tracked list as though it were still available.
+  try{
+    const stale=trkIndex().filter(p=>p.sku && !ownedSet.has(String(p.sku).toUpperCase()));
+    if(stale.length){
+      for(const p of stale){
+        localStorage.removeItem('patternly_trk_proj_'+p.id);
+        localStorage.removeItem('patternly_tracker_'+p.id);
+      }
+      trkIndexWrite(trkIndex().filter(p=>!stale.some(x=>x.id===p.id)));
+      console.log('[tracker] removed '+stale.length+' kit(s) no longer on this account');
+    }
+  }catch(e){}
   const mine=kits.filter(k=>ownedSet.has(String(k.sku).toUpperCase()));
   // A SKU with no pattern in the catalogue is a kit we haven't published yet —
   // say so rather than silently dropping it, or the count looks wrong.
