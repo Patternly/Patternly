@@ -6,7 +6,6 @@
 // edit here rather than a migration. Until that check exists, the only gate is
 // the App Proxy signature (optional — see ENFORCE_PROXY below).
 
-
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
 const MW_VERSION = "v10";
