@@ -16769,14 +16769,34 @@ function trkRenderSaved(show){
   const wrap=document.getElementById('trk-saved');
   if(!wrap) return;
   const list = (typeof trkIndex==='function') ? trkIndex() : [];
-  if(show===false || !list.length){ wrap.style.display='none'; return; }
+  if(show===false){ wrap.style.display='none'; return; }
+  if(!list.length){
+    // Nothing local — but the account may still have kits in progress.
+    trkCloudProjects().then(c=>{
+      if(!c.length){ wrap.style.display='none'; return; }
+      const sub=document.getElementById('trk-saved-sub');
+      if(sub) sub.textContent='Carrying on from your account.';
+      const sg=document.getElementById('trk-saved-grid');
+      sg.innerHTML='';
+      wrap.style.display='';
+      trkAppendCloudCards(sg, []);
+    });
+    wrap.style.display='none';
+    return;
+  }
   const sub=document.getElementById('trk-saved-sub');
   if(sub) sub.innerHTML=`Saved in this browser on this device — <b>${list.length} of 8</b> slots used. · <a href="#" onclick="trkImportPick();return false" style="color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">\u2b06 Restore a backup</a>`;
-  trkRenderProjectCards(document.getElementById('trk-saved-grid'), list, false);
+  const sg=document.getElementById('trk-saved-grid');
+  trkRenderProjectCards(sg, list, false);
   wrap.style.display='';
+  trkAppendCloudCards(sg, list);
 }
 // Reveal either the upload cards or the Luca-S catalogue.
 function trkChooseSource(kind){
+  // Only an upload starts a project with no SKU. Clearing it inside the legend
+  // handler wiped the value trkOpenKit had just set, so catalogue kits never
+  // synced at all.
+  if(kind!=='lucas') trkCloudSku=null;
   const cards=document.querySelector('#trk-upload .trk-cards:not(#trk-source)');
   const src=document.getElementById('trk-source'), kits=document.getElementById('trk-kits');
   if(src) src.style.display='none';
@@ -17139,6 +17159,44 @@ function trkPdfSoonPanel(){
 // Fills a grid with the saved-project cards. `withAdd` draws the "Track New
 // Pattern" tile, which only makes sense on the standalone page — inline under
 // the source chooser, starting a new one is what the page is already for.
+// Kits this account has progress for, but which aren't saved on this device.
+// Without these, "My Tracked Patterns" is empty on a new phone even though the
+// account plainly has work in progress.
+async function trkCloudProjects(){
+  try{
+    const base=TRK_KITS_BASE.replace(/\/patterns$/,'');
+    const r=await fetch(base+'/progress',{credentials:'include',cache:'no-cache'});
+    if(!r.ok) return [];
+    const j=await r.json();
+    return Array.isArray(j.kits)?j.kits:[];
+  }catch(e){ return []; }
+}
+async function trkAppendCloudCards(grid, localList){
+  const cloud=await trkCloudProjects();
+  if(!cloud.length) return;
+  const haveSku=new Set(localList.filter(p=>p.sku).map(p=>String(p.sku).toUpperCase()));
+  const missing=cloud.filter(k=>!haveSku.has(String(k.sku).toUpperCase()));
+  if(!missing.length) return;
+  if(!trkKitList){ try{ await trkKitsLoad(true); }catch(e){} }
+  const cat=trkKitList||[];
+  const esc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  for(const c of missing){
+    const kit=cat.find(k=>String(k.sku).toUpperCase()===String(c.sku).toUpperCase());
+    if(!kit) continue;                       // not in the catalogue any more
+    const card=document.createElement('div');
+    card.className='trk-pcard';
+    const pct=c.cols&&c.rows ? Math.round(c.done/(c.cols*c.rows)*100) : 0;
+    card.innerHTML=(kit.image?`<div class="thumb" style="background-image:url('${esc(trkKitImageUrl(kit))}')"></div>`
+                             :`<div class="thumb"></div>`)
+      +`<div class="body"><div class="nm">${esc(kit.title||kit.sku)}</div>`
+      +`<div class="meta">${c.cols}\u00d7${c.rows} \u00b7 on your account</div>`
+      +`<div class="bar"><i style="width:${pct}%"></i></div>`
+      +`<div class="stats">\u2713 ${c.done.toLocaleString()} stitched \u00b7 not on this device yet</div>`
+      +`<div class="acts"><button class="open">Open \u00b7 ${pct}%</button></div></div>`;
+    card.querySelector('.open').onclick=()=>trkOpenKit(kit);
+    grid.appendChild(card);
+  }
+}
 function trkRenderProjectCards(grid, list, withAdd){
   grid.innerHTML='';
   const rel=ts=>{ const m=Math.floor((Date.now()-ts)/60000); if(m<60) return m<=1?'just now':m+'m ago'; const h=Math.floor(m/60); if(h<24) return h+'h ago'; return Math.floor(h/24)+'d ago'; };
@@ -17188,7 +17246,9 @@ function trkShowHome(){
   const t=document.querySelector('#tracker-page .calc-title'), s=document.querySelector('#tracker-page .calc-sub');
   if(t) t.textContent='My Tracked Patterns';
   if(s) s.innerHTML=`Saved in this browser on this device — <b>${list.length} of 8</b> slots used. · <a href="#" onclick="trkImportPick();return false" style="color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">⬆ Restore a backup</a>`;
-  trkRenderProjectCards(document.getElementById('trk-proj-grid'), list, true);
+  const g=document.getElementById('trk-proj-grid');
+  trkRenderProjectCards(g, list, true);
+  trkAppendCloudCards(g, list);
 }
 function trkTitleReset(){
   const t=document.querySelector('#tracker-page .calc-title'), s=document.querySelector('#tracker-page .calc-sub');
@@ -20586,7 +20646,7 @@ async function trkHandleLegend(file){
   st.textContent='Reading legend…'; st.style.color='';
   window.trkExactGrid=false; window.trkPdfLegendParsed=false; window.trkPdfLegend=null;
   const _ec=document.getElementById('trk-exact-continue'); if(_ec) _ec.style.display='none';
-  trackerGrid=null; trackerColourMap=null; trackerStitched=null; trackerManual=false; trkManualWidth=null; trackerSymbolsOnly=false; trackerBwOnly=false; trkCloudSku=null; trkApplyViewAvail();
+  trackerGrid=null; trackerColourMap=null; trackerStitched=null; trackerManual=false; trkManualWidth=null; trackerSymbolsOnly=false; trackerBwOnly=false; trkApplyViewAvail();
   document.getElementById('trk-manual').style.display='none';
   document.getElementById('trk-manual-btn').disabled=true;
   trackerActiveProjectKey=file.name.replace(/[^a-zA-Z0-9]/g,'_');
