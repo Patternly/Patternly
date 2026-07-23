@@ -1,4 +1,4 @@
-// Patternly — Cloudflare Pages Function v20
+// Patternly — Cloudflare Pages Function v22
 // v2 + /patterns/* : serves the Luca-S kit catalogue and pattern files from R2.
 //
 // The files are deliberately NOT on a public R2 URL. Everything goes through
@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v20";
+const MW_VERSION = "v22";
 
 const enc = new TextEncoder();
 
@@ -52,9 +52,14 @@ async function readAuth(url, env) {
   return auth;
 }
 
-// Set to true once you're happy that every real request arrives signed.
-// Leave false while testing straight against <project>.pages.dev.
-const ENFORCE_PROXY = false;
+// Every pattern request must arrive through the Shopify App Proxy, signed.
+// With this off, patternly.pages.dev/patterns/<SKU>/chart.pdf served the file
+// to anyone who guessed the URL — no sign-in, no purchase, no code — which
+// walks straight around the entitlement system.
+//
+// Set it back to false only to debug directly against <project>.pages.dev,
+// and remember that while it is false the patterns are effectively public.
+const ENFORCE_PROXY = true;
 
 // Temporary shared access code for the kit catalogue, read from the
 // PATTERN_ACCESS_CODE environment variable. Leave the variable unset and the
@@ -494,6 +499,67 @@ async function ownedSkus(customerId, env) {
   return skus;
 }
 
+// ── Plus subscription ─────────────────────────────────────────────────────
+// Whether this customer may use the Stitch Tracker. Three ways in:
+//   • an active Shopify subscription contract
+//   • an unexpired free trial, started from the pricing page
+//   • an override list, so testing does not require a live subscription
+//
+// Subscription contracts are the same Admin API objects whichever app created
+// them — native Shopify Subscriptions, Appstle, Recharge — because they all
+// build on Shopify's Subscription APIs. So this does not care which is used.
+const SUBS_QUERY = `
+query Subs($id: ID!) {
+  customer(id: $id) {
+    subscriptionContracts(first: 20) {
+      nodes { id status }
+    }
+  }
+}`;
+
+const TRIAL_DAYS = 14;
+
+async function plusState(auth, env) {
+  const out = { plus: false, source: null, trialEndsAt: null, trialUsed: false };
+  if (!auth.loggedIn || !auth.customerId) return out;
+
+  // Manual override, for testing and for comping individual customers.
+  const allow = (env.PLUS_CUSTOMERS || "").split(",").map(x => x.trim()).filter(Boolean);
+  if (allow.includes(String(auth.customerId))) {
+    out.plus = true; out.source = "override";
+    return out;
+  }
+
+  // Trial record, held alongside entitlements.
+  if (env.ENTITLEMENTS) {
+    try {
+      const raw = await env.ENTITLEMENTS.get("trial:" + auth.customerId);
+      if (raw) {
+        const t = JSON.parse(raw);
+        out.trialUsed = true;
+        out.trialEndsAt = t.endsAt || 0;
+        if (t.endsAt && t.endsAt > Date.now()) { out.plus = true; out.source = "trial"; }
+      }
+    } catch (e) { console.warn("trial read failed:", e.message); }
+  }
+
+  // An active contract always wins, even mid-trial.
+  try {
+    const d = await adminQuery(env, SUBS_QUERY, {
+      id: "gid://shopify/Customer/" + auth.customerId
+    });
+    const nodes = d && d.customer && d.customer.subscriptionContracts
+                ? d.customer.subscriptionContracts.nodes : [];
+    if (nodes.some(n => n.status === "ACTIVE")) { out.plus = true; out.source = "subscription"; }
+  } catch (e) {
+    // Reading contracts may need a scope the app does not have yet. Log it and
+    // fall back on trial/override rather than locking paying customers out.
+    console.warn("subscription lookup failed:", e.message);
+    out.subsError = e.message;
+  }
+  return out;
+}
+
 // null  → entitlement not configured, fall through to the access code
 // true  → owns it
 // false → signed in, does not own it
@@ -641,6 +707,7 @@ export async function onRequest(context) {
           id: "gid://shopify/Customer/" + auth.customerId
         });
         if (who && who.customer && who.customer.email) body.email = who.customer.email;
+        Object.assign(body, await plusState(auth, env));
         const owned = await ownedSkus(auth.customerId, env);
         if (owned) body.ownedSkus = [...owned].sort();
       } catch (e) {
@@ -692,6 +759,34 @@ export async function onRequest(context) {
       body.entitlementCheck = d;
     }
     return new Response(JSON.stringify(body), {
+      headers: { "content-type": "application/json", "cache-control": "no-store" }
+    });
+  }
+
+  // ── /plus: start the free trial ──────────────────────────────────────────
+  // One trial per customer, recorded server-side so clearing the browser or
+  // switching device cannot restart it.
+  if (url.pathname === "/plus/trial" || url.pathname.endsWith("/plus/trial")) {
+    if (!auth.loggedIn || !auth.customerId) {
+      return new Response(JSON.stringify({ error: "signin" }), {
+        status: 401, headers: { "content-type": "application/json", "cache-control": "no-store" }
+      });
+    }
+    if (!env.ENTITLEMENTS) {
+      return new Response(JSON.stringify({ error: "storage" }), {
+        status: 500, headers: { "content-type": "application/json" }
+      });
+    }
+    const key = "trial:" + auth.customerId;
+    const existing = await env.ENTITLEMENTS.get(key);
+    if (existing) {
+      return new Response(existing, {
+        status: 409, headers: { "content-type": "application/json", "cache-control": "no-store" }
+      });
+    }
+    const rec = { startedAt: Date.now(), endsAt: Date.now() + TRIAL_DAYS * 86400000 };
+    await env.ENTITLEMENTS.put(key, JSON.stringify(rec));
+    return new Response(JSON.stringify(rec), {
       headers: { "content-type": "application/json", "cache-control": "no-store" }
     });
   }
