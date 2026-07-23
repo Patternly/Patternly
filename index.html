@@ -3800,15 +3800,17 @@ body.dark .fabric-item.sel{background:rgba(255,255,255,.08);color:#f0b8c2}
   .btn{padding:.35rem .5rem;font-size:.7rem}
   .tbh-btn{padding:.3rem .4rem}
   /* equal 34px squares, black & white (grayscale neutralises the emoji tints) */
-  #save-btn,#download-btn{
+  #download-btn{
     font-size:0;width:34px;height:34px;padding:0 !important;
     display:inline-flex;align-items:center;justify-content:center;
     background:#fff !important;border:1.5px solid #d8ccce !important;
     color:#2b2226 !important;border-radius:9px;box-shadow:none !important;
     filter:grayscale(1);
   }
-  #save-btn::before{content:"💾";font-size:1.05rem}
   #download-btn::before{content:"⬇";font-size:1.05rem}
+  /* On a phone the toolbar is tight, so the autosave note shrinks to a tick. */
+  #save-state{font-size:0 !important;padding:0 .25rem !important}
+  #save-state:not(:empty)::before{content:"✓";font-size:.95rem}
   #clear-btn{display:none !important}
   #tb-menu-btn{margin-left:.25rem}
 
@@ -4297,16 +4299,19 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 <input type="file" id="lp-photo-input" accept="image/*" style="display:none">
 <nav id="lp-nav">
   <div class="lp-nav-inner">
-    <a href="#" class="lp-logo" onclick="if(document.body.classList.contains('projects-mode')||document.body.classList.contains('calc-mode')||document.body.classList.contains('tracker-mode')||document.body.classList.contains('threads-mode')){goHome();}else{window.scrollTo({top:0,behavior:'smooth'});}return false" title="Patternly home">
+    <a href="#" class="lp-logo" onclick="lpLogoHome();return false" title="Patternly home">
       <img id="lp-logo-img" alt="Patternly by Luca-S" style="height:140px;display:block"/>
     </a>
     <div class="lp-nav-links">
+      <a href="#" onclick="lpLogoHome();return false">Home</a>
       <div class="lp-nav-dd">
         <a href="#features">Features ▾</a>
         <div class="lp-nav-dd-menu">
+          <a href="#" onclick="trackerNav();return false"><b>Stitch Tracker</b><span>Track progress on a Luca-S kit</span></a>
           <a href="#" onclick="startWithPhoto();return false"><b>Upload Image</b><span>Turn a photo into a pattern</span></a>
           <a href="#" onclick="pjNewPattern();return false"><b>Start from Scratch</b><span>Blank canvas in the editor</span></a>
-          <a href="#" onclick="trackerNav();return false"><b>Stitch Tracker</b><span>Track progress on a Luca-S kit</span></a>
+          <a href="#" onclick="lpMmAction('import');return false"><b>Upload a Pattern</b><span>Open a .Ptly, OXS or PCStitch file</span></a>
+          <a href="#" onclick="lpMmAction('qr');return false"><b>QR Code to Pattern</b><span>Encode a link as a stitchable QR code</span></a>
         </div>
       </div>
       <a href="#" onclick="openThreads();return false">Thread Colours</a>
@@ -4337,11 +4342,14 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
   <div style="padding:.1rem 1.4rem .7rem">
     <button class="lp-btn-primary" style="width:100%;justify-content:center" onclick="lpCloseMenu();openApp()">Open Editor &rarr;</button>
   </div>
+  <a href="#" onclick="lpCloseMenu();lpLogoHome();return false">Home</a>
   <button class="lp-mm-acc" type="button">Features <span class="lp-mm-chev">▾</span></button>
   <div class="lp-mm-panel">
-    <a href="#" onclick="lpCloseMenu();lpMmAction('photo');return false" class="lp-mm-sub">🖼 Upload Image</a>
-    <a href="#" onclick="lpCloseMenu();lpMmAction('scratch');return false" class="lp-mm-sub">✏️ Start from Scratch</a>
-    <a href="#" onclick="lpCloseMenu();lpMmAction('tracker');return false" class="lp-mm-sub">🧭 Stitch Tracker</a>
+    <a href="#" onclick="lpCloseMenu();lpMmAction('tracker');return false" class="lp-mm-sub">Stitch Tracker</a>
+    <a href="#" onclick="lpCloseMenu();lpMmAction('photo');return false" class="lp-mm-sub">Upload Image</a>
+    <a href="#" onclick="lpCloseMenu();lpMmAction('scratch');return false" class="lp-mm-sub">Start from Scratch</a>
+    <a href="#" onclick="lpCloseMenu();lpMmAction('import');return false" class="lp-mm-sub">Upload a Pattern</a>
+    <a href="#" onclick="lpCloseMenu();lpMmAction('qr');return false" class="lp-mm-sub">QR Code to Pattern</a>
     </div>
   <a href="#" onclick="lpCloseMenu();lpMmAction('threads');return false">Thread Colours</a>
   <a href="#" onclick="lpCloseMenu();lpMmAction('fileconv');return false">File Converter</a>
@@ -4669,7 +4677,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
   <div class="lp-container">
     <div class="lp-footer-inner">
       <div class="lp-footer-brand">
-        <a href="#" class="lp-logo" onclick="return false" style="color:#fff;text-decoration:none">
+        <a href="#" class="lp-logo" onclick="lpLogoHome();return false" style="color:#fff;text-decoration:none">
           <svg width="22" height="22" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="13" fill="#8B1A2B"/><path d="M8 14l4 4 8-8" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span style="color:#fff">Patternly</span><sup style="color:rgba(255,255,255,.6)">by Luca-S</sup>
         </a>
@@ -4717,26 +4725,21 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <p class="pj-make-sub">Choose how you want to begin.</p>
       <div class="pj-make-grid">
         <div class="pj-dropzone" id="pj-dropzone" onclick="startWithPhoto()">
-          <div class="pj-dz-icon">🖼️</div>
           <b>Upload an image</b>
           <span>Turn a photo into a stitchable chart with matched Luca-S threads</span>
           <em>Drag &amp; drop or click to browse</em>
         </div>
         <div class="pj-options">
           <div class="pj-opt" onclick="pjOptScratch()">
-            <div class="pj-opt-icon">✏️</div>
             <div><b>Start from scratch</b><span>A blank canvas at your chosen size</span></div>
           </div>
           <div class="pj-opt" onclick="pjOptImport()">
-            <div class="pj-opt-icon">📥</div>
             <div><b>Upload a pattern</b><span>Open a Patternly (.Ptly), OXS or PCStitch (.pat) file</span></div>
           </div>
           <div class="pj-opt" onclick="pjOptQr()">
-            <div class="pj-opt-icon">🔳</div>
             <div><b>QR code to pattern</b><span>Encode a link as a stitchable QR code</span></div>
           </div>
           <div class="pj-opt" onclick="openTracker()">
-            <div class="pj-opt-icon">🧵</div>
             <div><b>Track a kit</b><span>Upload chart &amp; legend and mark stitches as you go</span></div>
           </div>
         </div>
@@ -4746,7 +4749,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <div class="pj-head">
       <div class="pj-head-text">
         <h1 class="pj-title">My Patterns</h1>
-        <p class="pj-sub">Saved in this browser on this device — <b><span id="pj-count">0</span> of 10</b> slots used. Use <b>💾 Save</b> in the editor to keep your work here.</p>
+        <p class="pj-sub">Saved in this browser on this device — <b><span id="pj-count">0</span> of 10</b> slots used. Your work saves by itself as you go.</p>
       </div>
       <div class="pj-tools">
         <button id="pj-select-btn" class="pj-tool-btn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span class="pj-sel-label">Select</span></button>
@@ -4864,6 +4867,10 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <input type="file" id="trk-chart-input" accept="application/pdf,.oxs,.xml,.pat,.Ptly,.ptly,.patternly" style="display:none">
     </div><!-- /trk-upload -->
     <div id="trk-workspace" style="display:none">
+      <!-- Once a pattern is open the workspace fills the page; without this
+           there is no way back to the tracker's own front page. -->
+      <a href="#" id="trk-ws-back" onclick="trkWorkspaceBack();return false"
+         style="display:inline-block;margin-bottom:.8rem;font-size:.8rem;color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">&larr; All my patterns</a>
       <div id="trk-verify" style="font-size:.8rem;line-height:1.55;background:#fff;border:1.5px solid #e6d9dd;border-radius:12px;padding:1rem 1.2rem;margin-bottom:1rem"></div>
       <div id="trk-main">
         <div id="trk-side">
@@ -5815,7 +5822,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <button class="zoom-btn" id="zoom-in" title="Zoom in">+</button>
     </div>
     <button class="btn btn-ghost" id="clear-btn">Clear</button>
-    <button class="btn btn-save" id="save-btn" title="Saves to browser storage — reopen this tab to restore">💾 Save</button>
+    <span id="save-state" title="Your work saves by itself" style="font-size:.72rem;color:var(--muted);padding:0 .5rem;white-space:nowrap;align-self:center"></span>
     <button class="btn btn-download" id="download-btn">⬇ Download</button>
   </div>
   <button id="tb-menu-btn" onclick="lpToggleMenu()" title="Menu">☰</button>
@@ -11703,12 +11710,7 @@ function saveToBrowser(){
       } else { throw qe; }
     }
     pjMarkClean();
-    // Visual feedback — briefly change button text
-    const btn=document.getElementById('save-btn');
-    const orig=btn.innerHTML;
-    btn.innerHTML='✅ Saved!';
-    btn.style.background='#2E7D32';
-    setTimeout(()=>{btn.innerHTML=orig;btn.style.background='';},2000);
+    trkSaveState('saved');
     return true;
   }catch(e){
     const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
@@ -11717,7 +11719,42 @@ function saveToBrowser(){
     return false;
   }
 }
-document.getElementById('save-btn').addEventListener('click',saveToBrowser);
+// ── Autosave ──────────────────────────────────────────────────────────────
+// The Save button is gone, so saving has to be something the app does rather
+// than something the person remembers. pjIsDirty() compares a snapshot, so
+// this can poll instead of hooking every mutation — no risk of a new tool
+// forgetting to mark the document dirty.
+function trkSaveState(kind){
+  const el=document.getElementById('save-state');
+  if(!el) return;
+  if(kind==='saving'){ el.textContent='Saving…'; el.style.color='var(--muted)'; }
+  else if(kind==='saved'){
+    el.textContent='✓ Saved';
+    el.style.color='#2E7D32';
+    clearTimeout(trkSaveState._t);
+    trkSaveState._t=setTimeout(()=>{ if(el.textContent==='✓ Saved') el.textContent=''; }, 2500);
+  } else if(kind==='error'){ el.textContent='⚠ Not saved'; el.style.color='#b23b3b'; }
+  else el.textContent='';
+}
+let _autosaveRunning=false;
+function autosaveTick(force){
+  if(_autosaveRunning) return;
+  if(!document.body.classList.contains('app-mode')) return;
+  if(typeof pjIsDirty!=='function' || (!force && !pjIsDirty())) return;
+  // No currentProjectId guard: saveToBrowser mints one on first save, and the
+  // first save is precisely the one worth not losing.
+  _autosaveRunning=true;
+  trkSaveState('saving');
+  try{ if(saveToBrowser()===false) trkSaveState('error'); }
+  catch(e){ console.warn('[autosave]', e); trkSaveState('error'); }
+  finally{ _autosaveRunning=false; }
+}
+setInterval(()=>autosaveTick(false), 4000);
+// Leaving the tab is the moment work is most likely to be lost, and on mobile
+// it is often the only signal before the page is discarded.
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) autosaveTick(false); });
+window.addEventListener('pagehide', ()=>autosaveTick(false));
+window.addEventListener('blur', ()=>autosaveTick(false));
 
 // Warn before the tab is closed/refreshed with unsaved editor changes
 window.addEventListener('beforeunload',e=>{
@@ -22424,6 +22461,23 @@ function lpMmRenderAccount(){
     };
   }
 }
+// One rule, applied everywhere: the logo goes home from any page, and only
+// scrolls to the top when you are already on the landing page. The previous
+// version enumerated modes, so each new page had to remember to add itself —
+// and the account page never did.
+// Leaving the workspace: save first, so backing out never costs progress.
+function trkWorkspaceBack(){
+  try{ if(typeof trkSaveProject==='function') trkSaveProject(); }catch(e){}
+  if(typeof trkShowHome==='function' && typeof trkIndex==='function' && trkIndex().length) trkShowHome();
+  else if(typeof trkShowUpload==='function') trkShowUpload();
+}
+function lpLogoHome(){
+  const b=document.body;
+  const away=['projects-mode','calc-mode','tracker-mode','threads-mode',
+              'convert-mode','account-mode','app-mode'].some(c=>b.classList.contains(c));
+  if(away && typeof goHome==='function') goHome();
+  else window.scrollTo({top:0,behavior:'smooth'});
+}
 function lpToggleMenu(){
   const mm=document.getElementById('lp-mobile-menu');
   if(mm.classList.contains('open')){ lpCloseMenu(); return; }
@@ -22461,6 +22515,8 @@ function lpMmAction(what){
   else if(what==='fabric'||what==='time'||what==='thread'){ inApp ? edNav(what) : openCalculators(what); }
   else if(what==='threads'){ inApp ? pjGuardedLeave(()=>openThreads()) : openThreads(); }
   else if(what==='fileconv'){ inApp ? pjGuardedLeave(()=>openFileConverter()) : openFileConverter(); }
+  else if(what==='import'){ inApp ? pjGuardedLeave(()=>pjOptImport()) : pjOptImport(); }
+  else if(what==='qr'){ inApp ? pjGuardedLeave(()=>pjOptQr()) : pjOptQr(); }
 }
 function lpMmNav(hash){
   lpCloseMenu();
