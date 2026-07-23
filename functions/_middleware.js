@@ -1,4 +1,4 @@
-// Patternly — Cloudflare Pages Function v12
+// Patternly — Cloudflare Pages Function v14
 // v2 + /patterns/* : serves the Luca-S kit catalogue and pattern files from R2.
 //
 // The files are deliberately NOT on a public R2 URL. Everything goes through
@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v12";
+const MW_VERSION = "v14";
 
 const enc = new TextEncoder();
 
@@ -367,18 +367,67 @@ query OrderSkus($q: String!, $cursor: String) {
   }
 }`;
 
-// Every SKU this customer has ever bought, upper-cased for comparison.
+// ── Permanent entitlement record ──────────────────────────────────────────
+// read_orders only sees the last 60 days, so a purchase would silently expire:
+// buy a kit in January, start stitching in April, and the pattern you own asks
+// for a code. A 43,000-stitch project outlives that window by months, and so
+// does changing phone.
+//
+// So entitlements LATCH. Every time the lookup runs it merges what it found
+// into a permanent record, and the record is checked alongside the API. One
+// visit while an order is still visible fixes that purchase forever — and
+// because the whole SKU set is latched, not just the pattern being opened,
+// loading Patternly once covers every kit on the account.
+//
+// Needs a KV namespace bound as ENTITLEMENTS. Without it everything still
+// works, just without the permanence.
+async function latchedSkus(customerId, env) {
+  if (!env.ENTITLEMENTS) return null;
+  try {
+    const raw = await env.ENTITLEMENTS.get("cust:" + customerId);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch (e) {
+    console.warn("latched read failed:", e.message);
+    return null;
+  }
+}
+async function latchSkus(customerId, skus, env) {
+  if (!env.ENTITLEMENTS || !skus || !skus.size) return;
+  try {
+    const have = (await latchedSkus(customerId, env)) || new Set();
+    let added = false;
+    for (const s of skus) if (!have.has(s)) { have.add(s); added = true; }
+    if (added) {
+      await env.ENTITLEMENTS.put("cust:" + customerId, JSON.stringify([...have].sort()));
+    }
+  } catch (e) {
+    console.warn("latch write failed:", e.message);
+  }
+}
+
+// Every SKU this customer has bought, upper-cased. The union of what the API
+// can still see and what we have already recorded permanently.
 async function ownedSkus(customerId, env) {
   const ck = "owned:" + customerId;
   const cached = cacheGet(ck);
   if (cached) return cached;
 
-  const who = await adminQuery(env, CUSTOMER_EMAIL_QUERY, {
-    id: "gid://shopify/Customer/" + customerId
-  });
-  if (!who) return null;                        // not configured
+  const latched = await latchedSkus(customerId, env);
+
+  let who = null;
+  try {
+    who = await adminQuery(env, CUSTOMER_EMAIL_QUERY, {
+      id: "gid://shopify/Customer/" + customerId
+    });
+  } catch (e) {
+    // Shopify unreachable: the permanent record still stands on its own.
+    console.warn("customer lookup failed, using latched only:", e.message);
+    if (latched) { cacheSet(ck, latched, 5 * 60 * 1000); return latched; }
+    throw e;
+  }
+  if (!who) return latched;                     // not configured
   const email = who.customer && who.customer.email;
-  if (!email) return new Set();
+  if (!email) return latched || new Set();
 
   const skus = new Set();
   let cursor = null;
@@ -397,6 +446,9 @@ async function ownedSkus(customerId, env) {
     if (!orders.pageInfo.hasNextPage) break;
     cursor = orders.pageInfo.endCursor;
   }
+  // Record everything found, then answer with the union.
+  await latchSkus(customerId, skus, env);
+  if (latched) for (const s of latched) skus.add(s);
   cacheSet(ck, skus, 10 * 60 * 1000);           // 10 min: new orders appear soon enough
   return skus;
 }
@@ -533,9 +585,28 @@ export async function onRequest(context) {
       perKitCodes: !!env.PATTERN_CODES,
       entitlement: !!(env.SHOPIFY_ADMIN_TOKEN || (env.SHOPIFY_CLIENT_ID && env.SHOPIFY_CLIENT_SECRET)),
       adminTokenDirect: !!env.SHOPIFY_ADMIN_TOKEN,
+      entitlementsPersist: !!env.ENTITLEMENTS,
       catalogueLive: !!(env.SHOPIFY_STORE && env.SHOPIFY_STOREFRONT_TOKEN),
       enforceProxy: ENFORCE_PROXY
     };
+
+    // A signed-in customer gets their own email and the SKUs they own, so the
+    // account page can show "your patterns" without a second round trip. This
+    // is the customer's own data and nobody else's — the id comes from
+    // Shopify's signature, so it cannot be asked for on another's behalf.
+    if (auth.loggedIn && auth.customerId) {
+      try {
+        const who = await adminQuery(env, CUSTOMER_EMAIL_QUERY, {
+          id: "gid://shopify/Customer/" + auth.customerId
+        });
+        if (who && who.customer && who.customer.email) body.email = who.customer.email;
+        const owned = await ownedSkus(auth.customerId, env);
+        if (owned) body.ownedSkus = [...owned].sort();
+      } catch (e) {
+        // Never fail /whoami over this — sign-in state still matters.
+        console.warn("whoami entitlement summary failed:", e.message);
+      }
+    }
 
     // ?debug=1 runs the entitlement lookup live and reports where it stops.
     // A customer only ever sees their OWN purchases here, and every step is
