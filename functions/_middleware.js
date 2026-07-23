@@ -1,4 +1,4 @@
-// Patternly — Cloudflare Pages Function v18
+// Patternly — Cloudflare Pages Function v19
 // v2 + /patterns/* : serves the Luca-S kit catalogue and pattern files from R2.
 //
 // The files are deliberately NOT on a public R2 URL. Everything goes through
@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v18";
+const MW_VERSION = "v19";
 
 const enc = new TextEncoder();
 
@@ -729,7 +729,10 @@ export async function onRequest(context) {
             const rec = JSON.parse(raw);
             out.push({
               sku: k.name.split(":").pop(),
-              done: rec.done | 0, cols: rec.cols | 0, rows: rec.rows | 0, ts: rec.ts || 0
+              done: rec.done | 0, cols: rec.cols | 0, rows: rec.rows | 0,
+              total: rec.total | 0, threads: rec.threads | 0,
+              timeMs: rec.timeMs | 0, sessions: rec.sessions | 0,
+              ts: rec.ts || 0
             });
           } catch (e) {}
         }
@@ -767,6 +770,12 @@ export async function onRequest(context) {
         cols: body.cols | 0,
         rows: body.rows | 0,
         done: body.done | 0,
+        // Carried so a device that has never opened the kit can still draw a
+        // full project card rather than a stub.
+        total: body.total | 0,
+        threads: body.threads | 0,
+        timeMs: body.timeMs | 0,
+        sessions: body.sessions | 0,
         ts: Date.now()
       };
       await env.ENTITLEMENTS.put(key, JSON.stringify(rec));
