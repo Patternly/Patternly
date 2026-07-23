@@ -1,4 +1,4 @@
-// Patternly — Cloudflare Pages Function v19
+// Patternly — Cloudflare Pages Function v20
 // v2 + /patterns/* : serves the Luca-S kit catalogue and pattern files from R2.
 //
 // The files are deliberately NOT on a public R2 URL. Everything goes through
@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v19";
+const MW_VERSION = "v20";
 
 const enc = new TextEncoder();
 
@@ -780,6 +780,14 @@ export async function onRequest(context) {
       };
       await env.ENTITLEMENTS.put(key, JSON.stringify(rec));
       return new Response(JSON.stringify({ ok: true, ts: rec.ts }), {
+        headers: { "content-type": "application/json", "cache-control": "no-store" }
+      });
+    }
+    if (request.method === "DELETE") {
+      // Clears the account copy of a kit's progress. Entitlement is untouched —
+      // the kit is still owned, it just has no stitching recorded any more.
+      await env.ENTITLEMENTS.delete(key);
+      return new Response(JSON.stringify({ ok: true }), {
         headers: { "content-type": "application/json", "cache-control": "no-store" }
       });
     }
