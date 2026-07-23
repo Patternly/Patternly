@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v22";
+const MW_VERSION = "v23";
 
 const enc = new TextEncoder();
 
@@ -366,6 +366,7 @@ query OrderSkus($q: String!, $cursor: String) {
   orders(first: 50, query: $q, after: $cursor) {
     pageInfo { hasNextPage endCursor }
     nodes {
+      createdAt
       cancelledAt
       displayFinancialStatus
       lineItems(first: 100) {
@@ -479,6 +480,12 @@ async function ownedSkus(customerId, env) {
       for (const li of o.lineItems.nodes) {
         if (!li.sku) continue;
         const sku = String(li.sku).trim().toUpperCase();
+        // The Plus subscription is NOT a kit and must never be latched. Kits
+        // latch because ownership is permanent; a membership is the opposite —
+        // it has to be able to lapse. Latching it would make one payment grant
+        // the Tracker forever and make cancellation unenforceable. Plus is
+        // judged fresh, on a rolling window, in plusFromOrders().
+        if (sku === plusSku(env)) continue;
         if (lineIsVoid(o, li)) voided.add(sku);
         else skus.add(sku);
       }
@@ -505,19 +512,76 @@ async function ownedSkus(customerId, env) {
 //   • an unexpired free trial, started from the pricing page
 //   • an override list, so testing does not require a live subscription
 //
-// Subscription contracts are the same Admin API objects whichever app created
-// them — native Shopify Subscriptions, Appstle, Recharge — because they all
-// build on Shopify's Subscription APIs. So this does not care which is used.
-const SUBS_QUERY = `
-query Subs($id: ID!) {
-  customer(id: $id) {
-    subscriptionContracts(first: 20) {
-      nodes { id status }
-    }
-  }
-}`;
-
+// Membership is read from ORDERS, not from subscription contracts.
+//
+// The obvious route — customer.subscriptionContracts — is closed to us, and it
+// is worth writing down why so nobody spends another afternoon on it:
+//
+//   • The scope that opens that field is read_own_subscription_contracts, and
+//     "own" is literal: it covers contracts the querying app created. Ours are
+//     created by the Shopify Subscriptions app, so even with the scope granted
+//     the list would come back empty — a silent failure, worse than a loud one.
+//     Reading another app's contracts needs all_subscription_contracts, which
+//     is Shopify-approval gated.
+//   • Every Admin call here runs on the legacy custom app token, and that app
+//     offers no subscription scope at all: searching "subscription" in its
+//     Admin API scope list returns nothing.
+//
+// So we use the side effect instead of the cause. Every renewal bills an order
+// containing the Plus SKU, and read_orders — which we already have, and which
+// already powers kit ownership — can see it. A live line inside a rolling
+// window means the membership is being paid for.
+//
+// This also happens to be app-agnostic in the way the contract query was meant
+// to be: swap Shopify Subscriptions for Recharge or Appstle and the orders
+// still appear, so nothing here changes.
+const PLUS_WINDOW_DAYS = 35;      // 30-day cycle + grace for a card retry
 const TRIAL_DAYS = 14;
+
+function plusSku(env) {
+  return String(env.PLUS_SKU || "PatternlyPlus").trim().toUpperCase();
+}
+
+// Newest non-void order line for the Plus SKU, as a timestamp, or 0.
+// Only orders inside the window are asked for, so this is a cheap query even
+// for a customer with a long history.
+async function plusFromOrders(auth, env) {
+  const out = { paidAt: 0, until: 0 };
+  const want = plusSku(env);
+
+  const who = await adminQuery(env, CUSTOMER_EMAIL_QUERY, {
+    id: "gid://shopify/Customer/" + auth.customerId
+  });
+  const email = who && who.customer && who.customer.email;
+  if (!email) return out;
+
+  // Matched by email, like kit ownership, so a subscription taken out as a
+  // guest under the same address still counts.
+  const since = new Date(Date.now() - PLUS_WINDOW_DAYS * 86400000)
+                  .toISOString().slice(0, 10);
+  const q = `email:${JSON.stringify(email)} AND created_at:>=${since}`;
+
+  let cursor = null;
+  for (let page = 0; page < 4; page++) {
+    const data = await adminQuery(env, ORDER_SKUS_QUERY, { q, cursor });
+    const orders = data && data.orders;
+    if (!orders) break;
+    for (const o of orders.nodes) {
+      for (const li of o.lineItems.nodes) {
+        if (!li.sku) continue;
+        if (String(li.sku).trim().toUpperCase() !== want) continue;
+        if (lineIsVoid(o, li)) continue;        // cancelled or refunded: does not count
+        const t = Date.parse(o.createdAt) || 0;
+        if (t > out.paidAt) out.paidAt = t;
+      }
+    }
+    if (!orders.pageInfo.hasNextPage) break;
+    cursor = orders.pageInfo.endCursor;
+  }
+
+  if (out.paidAt) out.until = out.paidAt + PLUS_WINDOW_DAYS * 86400000;
+  return out;
+}
 
 async function plusState(auth, env) {
   const out = { plus: false, source: null, trialEndsAt: null, trialUsed: false };
@@ -543,17 +607,18 @@ async function plusState(auth, env) {
     } catch (e) { console.warn("trial read failed:", e.message); }
   }
 
-  // An active contract always wins, even mid-trial.
+  // A paid subscription always wins, even mid-trial.
   try {
-    const d = await adminQuery(env, SUBS_QUERY, {
-      id: "gid://shopify/Customer/" + auth.customerId
-    });
-    const nodes = d && d.customer && d.customer.subscriptionContracts
-                ? d.customer.subscriptionContracts.nodes : [];
-    if (nodes.some(n => n.status === "ACTIVE")) { out.plus = true; out.source = "subscription"; }
+    const sub = await plusFromOrders(auth, env);
+    if (sub.until > Date.now()) {
+      out.plus = true;
+      out.source = "subscription";
+      out.plusUntil = sub.until;              // ~when access lapses without a renewal
+      out.paidAt = sub.paidAt;                // last payment seen
+    }
   } catch (e) {
-    // Reading contracts may need a scope the app does not have yet. Log it and
-    // fall back on trial/override rather than locking paying customers out.
+    // Shopify unreachable or the query rejected: fall back on trial/override
+    // rather than locking a paying customer out of their own project.
     console.warn("subscription lookup failed:", e.message);
     out.subsError = e.message;
   }
