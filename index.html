@@ -3018,7 +3018,7 @@ body.dark #lp-menu-btn{border-color:#37303f;color:#efe9f3}
 @media(max-width:860px){
   /* Three-slot header: menu | logo | account. The logo centres because the two
      side slots are given equal width, so it stays centred whatever they hold. */
-  #lp-logo-img{height:56px!important}
+  #lp-logo-img{height:74px!important}
   .lp-nav-inner{gap:.4rem;padding:.4rem .75rem;display:flex;align-items:center}
   .lp-nav-links{display:none}
   #lp-theme-btn{display:none !important}   /* theme toggle lives inside the menu */
@@ -3133,6 +3133,24 @@ body.dark #lpc-handle{background:#2a2138;color:#eee}
 .lp-step p{font-size:.85rem;color:var(--lp-muted);line-height:1.6}
 .lp-step-arrow{font-size:1.5rem;color:var(--lp-border);padding-top:1rem;align-self:flex-start;flex-shrink:0}
 @media(max-width:760px){.lp-step-arrow{display:none}.lp-steps{gap:2.2rem}.lp-step{max-width:340px}}
+/* Phone: the three steps stack into a very tall column, so they become a
+   swipeable carousel — one card per screen, snap points, dots. Native
+   scroll-snap does the gesture; script only tracks the indicator.
+   Placed after the rules above deliberately: equal specificity, so source
+   order is what makes flex-wrap:nowrap and the zero gap actually apply. */
+.lp-steps-dots{display:none;justify-content:center;gap:.45rem;margin-top:1.2rem}
+.lp-steps-dots span{width:7px;height:7px;border-radius:50%;background:#d9c8ce;transition:background .2s,transform .2s}
+.lp-steps-dots span.on{background:var(--lp-red,#8B1A2B);transform:scale(1.25)}
+@media(max-width:860px){
+  .lp-steps{display:flex;flex-wrap:nowrap;overflow-x:auto;scroll-snap-type:x mandatory;
+            -webkit-overflow-scrolling:touch;gap:0;scrollbar-width:none;
+            justify-content:flex-start;margin-top:2rem}
+  .lp-steps::-webkit-scrollbar{display:none}
+  .lp-steps > .lp-step{flex:0 0 100%;width:100%;max-width:none;scroll-snap-align:center;
+                       box-sizing:border-box;padding:0 .5rem}
+  .lp-step-arrow{display:none}
+  .lp-steps-dots{display:flex}
+}
 
 /* COMING SOON */
 .lp-coming-banner{background:linear-gradient(135deg,#fffdf0,#fff8e1);border:1.5px solid #e8d8a0;border-radius:18px;padding:3rem;display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center}
@@ -4287,7 +4305,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
         <div class="lp-nav-dd-menu">
           <a href="#" onclick="startWithPhoto();return false"><b>Upload Image</b><span>Turn a photo into a pattern</span></a>
           <a href="#" onclick="pjNewPattern();return false"><b>Start from Scratch</b><span>Blank canvas in the editor</span></a>
-          <a href="#" onclick="trackerNav();return false"><b>Stitch Tracker</b><span>Track progress on a Luca·S kit</span></a>
+          <a href="#" onclick="trackerNav();return false"><b>Stitch Tracker</b><span>Track progress on a Luca-S kit</span></a>
         </div>
       </div>
       <a href="#" onclick="openThreads();return false">Thread Colours</a>
@@ -4300,7 +4318,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
           <a href="#" onclick="openCalculators('thread');return false"><b>Thread Calculator</b><span>Skeins per colour, with safety margin</span></a>
         </div>
       </div>
-      <a href="https://luca-s.com/" target="_blank" rel="noopener" style="color:var(--lp-red);font-weight:600">Luca·S Shop ↗</a>
+      <a href="https://luca-s.com/" target="_blank" rel="noopener" style="color:var(--lp-red);font-weight:600">Luca-S Shop ↗</a>
     </div>
     <button id="lp-menu-btn" onclick="lpToggleMenu()" title="Menu" style="display:none;background:none;border:1.5px solid var(--lp-border);border-radius:9px;width:36px;height:36px;cursor:pointer;font-size:1.05rem;line-height:1;flex-shrink:0;color:var(--lp-ink)">☰</button>
     <span class="acct-wrap"><button class="acct-btn" id="acct-btn-nav" title="Your account" onclick="acctToggle(this)"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="8.2" r="3.6"/><path d="M4.8 19.4c1.5-3.1 4.2-4.6 7.2-4.6s5.7 1.5 7.2 4.6"/></svg></button><span class="acct-dd" id="acct-dd-nav"></span></span>
@@ -4324,15 +4342,15 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <a href="#" onclick="lpCloseMenu();lpMmAction('scratch');return false" class="lp-mm-sub">✏️ Start from Scratch</a>
     <a href="#" onclick="lpCloseMenu();lpMmAction('tracker');return false" class="lp-mm-sub">🧭 Stitch Tracker</a>
     </div>
-  <a href="#" onclick="lpCloseMenu();lpMmAction('threads');return false">🎨 Thread Colours</a>
-  <a href="#" onclick="lpCloseMenu();lpMmAction('fileconv');return false">🔄 File Converter</a>
+  <a href="#" onclick="lpCloseMenu();lpMmAction('threads');return false">Thread Colours</a>
+  <a href="#" onclick="lpCloseMenu();lpMmAction('fileconv');return false">File Converter</a>
   <button class="lp-mm-acc" type="button">Calculators <span class="lp-mm-chev">▾</span></button>
   <div class="lp-mm-panel">
     <a href="#" onclick="lpCloseMenu();lpMmAction('fabric');return false" class="lp-mm-sub">📐 Fabric Calculator</a>
     <a href="#" onclick="lpCloseMenu();lpMmAction('time');return false" class="lp-mm-sub">⏱ Time Calculator</a>
     <a href="#" onclick="lpCloseMenu();lpMmAction('thread');return false" class="lp-mm-sub">🧵 Thread Calculator</a>
   </div>
-  <a href="https://luca-s.com/" target="_blank" rel="noopener" onclick="lpCloseMenu()" style="color:var(--lp-red);font-weight:600">Luca·S Shop ↗</a>
+  <a href="https://luca-s.com/" target="_blank" rel="noopener" onclick="lpCloseMenu()" style="color:var(--lp-red);font-weight:600">Luca-S Shop ↗</a>
   <div id="mm-editor-extras">
     <a href="#" onclick="lpCloseMenu();document.getElementById('clear-btn').click();return false">🗑 Clear canvas</a>
   </div>
@@ -4340,6 +4358,10 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <span>🌙 Dark mode</span>
     <button class="theme-switch" id="lp-mm-theme-btn" onclick="toggleTheme()" title="Toggle light/dark theme" aria-label="Toggle dark mode"><span class="ts-knob"></span></button>
   </div>
+  <!-- Account at the foot of the drawer: signed out it is a sign-in button,
+       signed in it opens My Account / Sign out. The header icon is small and
+       easy to miss on a phone, so the menu carries it too. -->
+  <div id="lp-mm-account" style="padding:.9rem 1.4rem 0;border-top:1px solid var(--lp-border);margin-top:.6rem"></div>
 </div>
 
 <div id="landing-page">
@@ -4350,7 +4372,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 <!-- ── HERO ── -->
 <section id="lp-hero">
   <div class="lp-container">
-    <div class="lp-hero-badge">✦ By Luca·S — a cross stitch brand you trust</div>
+    <div class="lp-hero-badge">✦ By Luca-S — a cross stitch brand you trust</div>
     <h1 class="lp-h1">Create beautiful<br><span class="lp-accent">cross stitch patterns</span><br>from scratch or from a photo</h1>
     <p class="lp-hero-sub">Patternly is a free, browser-based pattern studio built by stitchers, for stitchers. Design stitch by stitch with layers and selections, convert any photo, match colours across five thread brands, and track your stitching on real kit charts — all in one place.</p>
     <div class="lp-hero-btns">
@@ -4358,7 +4380,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <a href="#features" class="lp-btn-ghost">See what's inside ↓</a>
     </div>
     <div class="lp-hero-stats">
-      <div class="lp-stat"><span>5 thread brands</span><small>Luca·S · DMC · Anchor · Cosmo · Madeira</small></div>
+      <div class="lp-stat"><span>5 thread brands</span><small>Luca-S · DMC · Anchor · Cosmo · Madeira</small></div>
       <div class="lp-stat-div"></div>
       <div class="lp-stat"><span>No install needed</span><small>Works in your browser</small></div>
       <div class="lp-stat-div"></div>
@@ -4468,7 +4490,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
           <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         </div>
         <h3>Convert Images</h3>
-        <p>Turn any photo into a stitchable pattern in seconds. Upload an image, choose your thread brand and colour count, and Patternly generates a clean, stitch-ready chart matched to Luca·S, DMC, Anchor, Cosmo or Madeira threads.</p>
+        <p>Turn any photo into a stitchable pattern in seconds. Upload an image, choose your thread brand and colour count, and Patternly generates a clean, stitch-ready chart matched to Luca-S, DMC, Anchor, Cosmo or Madeira threads.</p>
         <ul class="lp-feat-list">
           <li>Any photo or image</li>
           <li>5 thread brands matched</li>
@@ -4522,6 +4544,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
         <p>Save your pattern, export a print-ready PDF chart with symbols and a thread key, and get stitching. Your pattern, your threads, your way.</p>
       </div>
     </div>
+    <div class="lp-steps-dots" aria-hidden="true"><span></span><span></span><span></span></div>
 
     <div style="text-align:center;margin-top:2.5rem">
       <button class="lp-btn-primary" onclick="openApp()">Open the editor — it's free</button>
@@ -4572,7 +4595,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <div class="lp-tracker-preview">
         <div class="lp-tracker-card">
           <div class="lp-tracker-row"><span><span style="display:inline-block;width:13px;height:13px;border-radius:4px;background:#5B8EC9;vertical-align:-2px;margin-right:.3rem"></span>Your colour</span><b>#5B8EC9</b></div>
-          <div class="lp-tracker-row"><span>Luca·S</span><b>508 · ✓ Excellent</b></div>
+          <div class="lp-tracker-row"><span>Luca-S</span><b>508 · ✓ Excellent</b></div>
           <div class="lp-tracker-row"><span>DMC</span><b>322 · ≈ Fair</b></div>
           <div class="lp-tracker-row"><span>Anchor</span><b>145 · ✓ Good</b></div>
           <div class="lp-tracker-row"><span>Cosmo</span><b>413 · ✓ Good</b></div>
@@ -4590,14 +4613,14 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <div class="lp-about-logo">
         <svg width="64" height="64" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="31" fill="#8B1A2B"/><path d="M18 32l10 10 18-18" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <div>
-          <div class="lp-about-brand">Luca·S</div>
+          <div class="lp-about-brand">Luca-S</div>
           <div class="lp-about-sub">A trusted name in cross stitch</div>
         </div>
       </div>
       <div class="lp-about-text">
         <h2 class="lp-h2">Built by people who stitch</h2>
-        <p>Patternly is made by <strong>Luca·S</strong> — a cross stitch brand with decades of experience designing kits, threads, and tools that stitchers love. We built Patternly because we wanted a pattern editor that actually understands how cross stitching works, not just how pixels look on a screen.</p>
-        <p style="margin-top:.75rem">When Luca·S puts their name on something, it means it's been made with care, tested by stitchers, and designed to last.</p>
+        <p>Patternly is made by <strong>Luca-S</strong> — a cross stitch brand with decades of experience designing kits, threads, and tools that stitchers love. We built Patternly because we wanted a pattern editor that actually understands how cross stitching works, not just how pixels look on a screen.</p>
+        <p style="margin-top:.75rem">When Luca-S puts their name on something, it means it's been made with care, tested by stitchers, and designed to last.</p>
         <div class="lp-trust-badges">
           <div class="lp-trust-badge">✓ Made by stitchers</div>
           <div class="lp-trust-badge">✓ Free to use</div>
@@ -4631,9 +4654,9 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <div style="flex:1;min-width:250px">
         <div style="font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#f0a8b6;margin-bottom:.55rem">From the makers of Patternly</div>
         <h2 style="font-family:'DM Serif Display',serif;font-size:1.75rem;margin:0 0 .55rem">Everything you need to stitch it</h2>
-        <p style="color:#f3d3da;font-size:.94rem;line-height:1.6;margin:0 0 1.3rem">Complete cross stitch kits, premium stranded cotton, Aida and evenweave fabrics — straight from Luca·S, the brand behind this editor.</p>
+        <p style="color:#f3d3da;font-size:.94rem;line-height:1.6;margin:0 0 1.3rem">Complete cross stitch kits, premium stranded cotton, Aida and evenweave fabrics — straight from Luca-S, the brand behind this editor.</p>
         <div style="display:flex;gap:.7rem;flex-wrap:wrap">
-          <a href="https://luca-s.com/" target="_blank" rel="noopener" class="lp-lucas-btn" style="background:#fff;color:#8B1A2B;text-decoration:none;padding:.68rem 1.5rem;border-radius:9px;font-weight:700;font-size:.9rem;transition:transform .15s,box-shadow .15s">Explore Luca·S kits →</a>
+          <a href="https://luca-s.com/" target="_blank" rel="noopener" class="lp-lucas-btn" style="background:#fff;color:#8B1A2B;text-decoration:none;padding:.68rem 1.5rem;border-radius:9px;font-weight:700;font-size:.9rem;transition:transform .15s,box-shadow .15s">Explore Luca-S kits →</a>
           <a href="https://luca-s.com/collections/luca-s-stranded-cotton" target="_blank" rel="noopener" class="lp-lucas-btn" style="background:transparent;color:#fff;text-decoration:none;padding:.68rem 1.5rem;border-radius:9px;font-weight:700;font-size:.9rem;border:1.5px solid rgba(255,255,255,.5);transition:transform .15s,background .15s">Shop threads &amp; fabric</a>
         </div>
       </div>
@@ -4647,9 +4670,9 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <div class="lp-footer-brand">
         <a href="#" class="lp-logo" onclick="return false" style="color:#fff;text-decoration:none">
           <svg width="22" height="22" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="13" fill="#8B1A2B"/><path d="M8 14l4 4 8-8" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span style="color:#fff">Patternly</span><sup style="color:rgba(255,255,255,.6)">by Luca·S</sup>
+          <span style="color:#fff">Patternly</span><sup style="color:rgba(255,255,255,.6)">by Luca-S</sup>
         </a>
-        <p style="color:rgba(255,255,255,.5);font-size:.75rem;margin-top:.5rem;line-height:1.5">A free cross stitch pattern editor<br>made with ❤️ by Luca·S</p>
+        <p style="color:rgba(255,255,255,.5);font-size:.75rem;margin-top:.5rem;line-height:1.5">A free cross stitch pattern editor<br>made with ❤️ by Luca-S</p>
       </div>
       <div class="lp-footer-links">
         <div class="lp-footer-col">
@@ -4664,12 +4687,12 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
         <div class="lp-footer-col">
           <div class="lp-footer-col-title">Learn</div>
           <a href="#how-it-works">How it works</a>
-          <a href="#about">About Luca·S</a>
+          <a href="#about">About Luca-S</a>
         </div>
       </div>
     </div>
     <div class="lp-footer-bottom">
-      <span>© 2026 Luca·S. All rights reserved.</span>
+      <span>© 2026 Luca-S. All rights reserved.</span>
       <span>Patternly is free to use. No account required.</span>
     </div>
   </div>
@@ -4758,7 +4781,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 <div id="tracker-page">
   <div class="calc-container">
     <h1 class="calc-title">Stitch Tracker</h1>
-    <p class="calc-sub">Upload the legend and chart PDFs from your Luca·S kit, then mark stitches as you go — your progress is saved in this browser.</p>
+    <p class="calc-sub">Upload the legend and chart PDFs from your Luca-S kit, then mark stitches as you go — your progress is saved in this browser.</p>
     <div id="trk-projects" style="display:none">
       <div id="trk-proj-grid"></div>
     </div>
@@ -5177,7 +5200,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
   <div class="calc-container">
     <div id="th-hub">
     <h1 class="calc-title">Thread Colour Hub</h1>
-    <p class="calc-sub">Match colours to threads, convert between brands, and browse every colour chart — Luca·S, DMC, Anchor, Cosmo and Madeira.</p>
+    <p class="calc-sub">Match colours to threads, convert between brands, and browse every colour chart — Luca-S, DMC, Anchor, Cosmo and Madeira.</p>
 
     <div class="th-grid2">
       <!-- Stage 2: colour → thread matcher -->
@@ -5209,7 +5232,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
           <input type="file" id="th-photo-input" accept="image/*" style="display:none">
           <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.7rem;flex-wrap:wrap">
             <select id="th-photo-brand" style="flex:1;min-width:100px;padding:.4rem .5rem;border:1.5px solid #eadde1;border-radius:8px;font-family:inherit;font-size:.78rem;background:#fafafa;cursor:pointer">
-              <option value="lucas">Luca·S</option><option value="dmc">DMC</option><option value="anchor">Anchor</option><option value="cosmo">Cosmo</option><option value="madeira">Madeira</option>
+              <option value="lucas">Luca-S</option><option value="dmc">DMC</option><option value="anchor">Anchor</option><option value="cosmo">Cosmo</option><option value="madeira">Madeira</option>
             </select>
             <select id="th-photo-count" style="padding:.4rem .5rem;border:1.5px solid #eadde1;border-radius:8px;font-family:inherit;font-size:.78rem;background:#fafafa;cursor:pointer">
               <option>3</option><option>4</option><option selected>5</option><option>6</option><option>7</option><option>8</option>
@@ -5226,21 +5249,21 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <h2 class="th-h2">Conversion Charts</h2>
     <p class="th-muted" style="margin:-.3rem 0 .8rem">Full cross-reference tables between thread brands, with match quality ratings for every colour.</p>
     <div id="th-charts" class="th-grid3">
-      <div class="th-ccard" onclick="thOpenChart('lucas','dmc')"><b>Luca·S &amp; DMC</b><span>Full conversion chart, both directions, with match quality</span><em>View chart →</em></div>
-      <div class="th-ccard" onclick="thOpenChart('lucas','anchor')"><b>Luca·S &amp; Anchor</b><span>Full conversion chart, both directions, with match quality</span><em>View chart →</em></div>
+      <div class="th-ccard" onclick="thOpenChart('lucas','dmc')"><b>Luca-S &amp; DMC</b><span>Full conversion chart, both directions, with match quality</span><em>View chart →</em></div>
+      <div class="th-ccard" onclick="thOpenChart('lucas','anchor')"><b>Luca-S &amp; Anchor</b><span>Full conversion chart, both directions, with match quality</span><em>View chart →</em></div>
       <div class="th-ccard" onclick="thOpenChart('dmc','anchor')"><b>DMC &amp; Anchor</b><span>Full conversion chart, both directions, with match quality</span><em>View chart →</em></div>
-      <div class="th-ccard" onclick="thOpenChart('lucas','cosmo')"><b>Luca·S &amp; Cosmo</b><span>Full conversion chart, both directions, with match quality</span><em>View chart →</em></div>
-      <div class="th-ccard" onclick="thOpenChart('lucas','madeira')"><b>Luca·S &amp; Madeira</b><span>Full conversion chart, both directions, with match quality</span><em>View chart →</em></div>
+      <div class="th-ccard" onclick="thOpenChart('lucas','cosmo')"><b>Luca-S &amp; Cosmo</b><span>Full conversion chart, both directions, with match quality</span><em>View chart →</em></div>
+      <div class="th-ccard" onclick="thOpenChart('lucas','madeira')"><b>Luca-S &amp; Madeira</b><span>Full conversion chart, both directions, with match quality</span><em>View chart →</em></div>
     </div>
     <div class="calc-card" style="margin-bottom:1.4rem;padding:.7rem .85rem">
       <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
         <span class="thc-filter-label" style="margin:0">Or compare any two brands</span>
         <select id="thx-a" style="padding:.4rem .5rem;border:1.5px solid #eadde1;border-radius:8px;font-family:inherit;font-size:.78rem;background:#fafafa;cursor:pointer">
-          <option value="dmc">DMC</option><option value="lucas">Luca·S</option><option value="anchor">Anchor</option><option value="cosmo">Cosmo</option><option value="madeira">Madeira</option>
+          <option value="dmc">DMC</option><option value="lucas">Luca-S</option><option value="anchor">Anchor</option><option value="cosmo">Cosmo</option><option value="madeira">Madeira</option>
         </select>
         <span style="color:#c4aeb6;font-weight:700">↔</span>
         <select id="thx-b" style="padding:.4rem .5rem;border:1.5px solid #eadde1;border-radius:8px;font-family:inherit;font-size:.78rem;background:#fafafa;cursor:pointer">
-          <option value="dmc">DMC</option><option value="lucas">Luca·S</option><option value="anchor">Anchor</option><option value="cosmo" selected>Cosmo</option><option value="madeira">Madeira</option>
+          <option value="dmc">DMC</option><option value="lucas">Luca-S</option><option value="anchor">Anchor</option><option value="cosmo" selected>Cosmo</option><option value="madeira">Madeira</option>
         </select>
         <button onclick="thxOpen()" style="padding:.42rem .8rem;border-radius:8px;border:none;background:var(--accent,#8B1A2B);color:#fff;font-size:.76rem;font-weight:700;cursor:pointer;font-family:inherit">View chart →</button>
       </div>
@@ -5249,7 +5272,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <!-- Stage 5: browse + about -->
     <h2 class="th-h2">Browse by Brand</h2>
     <div id="th-browse" class="th-grid3">
-      <div class="th-ccard" onclick="thOpenBrowse('lucas')"><b>Luca·S Colours</b><span id="th-bc-lucas">— colours</span><em>Browse →</em></div>
+      <div class="th-ccard" onclick="thOpenBrowse('lucas')"><b>Luca-S Colours</b><span id="th-bc-lucas">— colours</span><em>Browse →</em></div>
       <div class="th-ccard" onclick="thOpenBrowse('dmc')"><b>DMC Colours</b><span id="th-bc-dmc">— colours</span><em>Browse →</em></div>
       <div class="th-ccard" onclick="thOpenBrowse('anchor')"><b>Anchor Colours</b><span id="th-bc-anchor">— colours</span><em>Browse →</em></div>
       <div class="th-ccard" onclick="thOpenBrowse('cosmo')"><b>Cosmo Colours</b><span id="th-bc-cosmo">— colours</span><em>Browse →</em></div>
@@ -5258,7 +5281,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 
     <div class="calc-card" id="th-about" style="margin-top:1.2rem">
       <h3>About Thread Colour Conversion</h3>
-      <p class="th-muted">Cross stitch kits and patterns usually name one brand's colours, but you might prefer or only have access to another. This hub finds the perceptually closest match between Luca·S, DMC and Anchor using Delta E colour distance (CIE76) in the CIELAB colour space.</p>
+      <p class="th-muted">Cross stitch kits and patterns usually name one brand's colours, but you might prefer or only have access to another. This hub finds the perceptually closest match between Luca-S, DMC and Anchor using Delta E colour distance (CIE76) in the CIELAB colour space.</p>
       <p class="th-muted">Match quality is rated <b>Excellent</b> (ΔE under 3 — barely perceptible), <b>Good</b> (3–6 — noticeable but similar), <b>Fair</b> (6–10 — obviously different but related) or <b>Approximate</b> (over 10 — use with caution).</p>
     </div>
     </div><!-- /th-hub -->
@@ -5439,7 +5462,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
   <div class="acct-m-box">
     <div class="acct-spin" id="acct-m-spin"></div>
     <b id="acct-m-title" style="font-size:.98rem;display:block;margin-bottom:.35rem">Signing you in…</b>
-    <p id="acct-m-text" style="font-size:.8rem;color:#7d6b72;line-height:1.55;margin:0 0 1rem">A secure Luca·S sign-in window has opened. Enter your email there — you'll get a code, and new customers get an account automatically. This page will notice by itself.</p>
+    <p id="acct-m-text" style="font-size:.8rem;color:#7d6b72;line-height:1.55;margin:0 0 1rem">A secure Luca-S sign-in window has opened. Enter your email there — you'll get a code, and new customers get an account automatically. This page will notice by itself.</p>
     <div style="display:flex;gap:.5rem;justify-content:center">
       <button class="acct-m-btn" id="acct-m-reopen" onclick="acctReopen()">Reopen window</button>
       <button class="acct-m-btn" onclick="acctModalClose(true)">Cancel</button>
@@ -5451,7 +5474,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 <div id="account-page">
   <div class="calc-container">
     <h1 class="calc-title">My Account</h1>
-    <p class="calc-sub">Your Luca·S account, your patterns and your stitching — in one place.</p>
+    <p class="calc-sub">Your Luca-S account, your patterns and your stitching — in one place.</p>
     <div class="acct-status" id="acct-status"><!-- filled by acctRenderPage() --></div>
     <div class="acct-row-block">
       <div class="acct-row-head">
@@ -5467,7 +5490,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       </div>
       <div class="acct-row-scroll" id="acct-trk-scroll"></div>
     </div>
-    <p style="max-width:860px;margin:1.4rem auto 0;text-align:center;font-size:.74rem;color:#7d6b72">Your orders &amp; addresses live in the <a href="https://luca-s.com/account" target="_blank" rel="noopener" style="color:var(--lp-red,#8B1A2B);font-weight:600">Luca·S shop account ↗</a> · patterns and tracking currently save in this browser, cloud sync is coming.</p>
+    <p style="max-width:860px;margin:1.4rem auto 0;text-align:center;font-size:.74rem;color:#7d6b72">Your orders &amp; addresses live in the <a href="https://luca-s.com/account" target="_blank" rel="noopener" style="color:var(--lp-red,#8B1A2B);font-weight:600">Luca-S shop account ↗</a> · patterns and tracking currently save in this browser, cloud sync is coming.</p>
   </div>
 </div><!-- /account-page -->
 
@@ -5756,13 +5779,13 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <div class="lp-nav-dd-menu">
         <a href="#" onclick="startWithPhoto();return false"><b>Upload Image</b><span>Turn a photo into a pattern</span></a>
         <a href="#" onclick="pjGuardedLeave(()=>pjNewPattern());return false"><b>Start from Scratch</b><span>Blank canvas in the editor</span></a>
-        <a href="#" onclick="trackerNav(true);return false"><b>Stitch Tracker</b><span>Track progress on a Luca·S kit</span></a>
+        <a href="#" onclick="trackerNav(true);return false"><b>Stitch Tracker</b><span>Track progress on a Luca-S kit</span></a>
         <a href="#" onclick="ptlyOpenConverter();return false"><b>Convert to .Ptly</b><span>Turn .pat / .oxs into Patternly&rsquo;s format</span></a>
       </div>
     </div>
     <a href="#" onclick="pjGuardedLeave(()=>openThreads());return false">Thread Colours</a>
     <a href="#" onclick="pjGuardedLeave(()=>openFileConverter());return false">File Converter</a>
-    <a href="https://luca-s.com/" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700">Luca·S Shop ↗</a>
+    <a href="https://luca-s.com/" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700">Luca-S Shop ↗</a>
     <span class="acct-wrap"><button class="acct-btn" id="acct-btn-tb" title="Your account" onclick="acctToggle(this)"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="8.2" r="3.6"/><path d="M4.8 19.4c1.5-3.1 4.2-4.6 7.2-4.6s5.7 1.5 7.2 4.6"/></svg></button><span class="acct-dd" id="acct-dd-tb"></span></span>
     <button id="tb-theme-btn" class="theme-switch" onclick="toggleTheme()" title="Toggle light/dark theme" aria-label="Toggle dark mode"><span class="ts-knob"></span></button>
   </div>
@@ -17005,7 +17028,7 @@ function trkShowHome(){
 function trkTitleReset(){
   const t=document.querySelector('#tracker-page .calc-title'), s=document.querySelector('#tracker-page .calc-sub');
   if(t) t.textContent='Stitch Tracker';
-  if(s) s.textContent='Upload the legend and chart PDFs from your Luca·S kit, then mark stitches as you go — your progress is saved in this browser.';
+  if(s) s.textContent='Upload the legend and chart PDFs from your Luca-S kit, then mark stitches as you go — your progress is saved in this browser.';
 }
 
 let trackerProjectName='', trkPendingName='';
@@ -21169,7 +21192,7 @@ function thQuality(dE){
   return {cls:'b-appr', icon:'~', name:'Approx'};
 }
 function thPal(brand){ return PALETTES[brand]; }
-const TH_BRANDS=[['lucas','Luca·S'],['dmc','DMC'],['anchor','Anchor'],['cosmo','Cosmo'],['madeira','Madeira']];
+const TH_BRANDS=[['lucas','Luca-S'],['dmc','DMC'],['anchor','Anchor'],['cosmo','Cosmo'],['madeira','Madeira']];
 function thBrandCode(brand,c){ // display code from a palette entry
   if(c.sku){ const m=c.sku.match(/^(?:Luca-S|DMC|Anchor|Cosmo|Madeira)[ -](.+)$/i); if(m) return m[1]; }
   return c.label||'?';
@@ -21625,13 +21648,13 @@ function acctRenderPage(){
   const a=lucasAuth();
   if(a.loggedIn){
     el.innerHTML=`<div style="width:46px;height:46px;border-radius:50%;background:#fbe3e7;display:flex;align-items:center;justify-content:center;color:var(--lp-red,#8B1A2B);flex-shrink:0"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="8.2" r="3.6"/><path d="M4.8 19.4c1.5-3.1 4.2-4.6 7.2-4.6s5.7 1.5 7.2 4.6"/></svg></div>
-      <div style="flex:1;min-width:180px"><b style="font-size:.95rem">✓ Signed in with your Luca·S account</b><p style="font-size:.76rem;color:#7d6b72;margin:.2rem 0 0">The same account you use in the Luca·S shop.</p></div>
+      <div style="flex:1;min-width:180px"><b style="font-size:.95rem">✓ Signed in with your Luca-S account</b><p style="font-size:.76rem;color:#7d6b72;margin:.2rem 0 0">The same account you use in the Luca-S shop.</p></div>
       <a href="#" onclick="acctSignOut();return false" style="padding:.5rem .9rem;border:1.5px solid #eadde1;border-radius:9px;font-size:.8rem;font-weight:700;color:#5a4a51;text-decoration:none">Sign out</a>`;
   } else if(a.proxied){
     el.innerHTML=`<div style="flex:1;min-width:200px"><b style="font-size:.95rem">You're not signed in</b><p style="font-size:.78rem;color:#7d6b72;margin:.25rem 0 0;line-height:1.5">Sign in with your email — you'll get a code, and new customers get an account automatically. A small sign-in window opens; the moment you're done, Patternly notices by itself.</p></div>
       <a href="#" onclick="acctOpenLogin();return false" style="padding:.55rem 1rem;border-radius:9px;background:var(--lp-red,#8B1A2B);color:#fff;font-size:.82rem;font-weight:700;text-decoration:none">Sign in / Create account</a>`;
   } else {
-    el.innerHTML=`<div style="flex:1"><b style="font-size:.95rem">Accounts work on the Luca·S site</b><p style="font-size:.78rem;color:#7d6b72;margin:.25rem 0 0">Open Patternly there to sign in with your shop account.</p></div>
+    el.innerHTML=`<div style="flex:1"><b style="font-size:.95rem">Accounts work on the Luca-S site</b><p style="font-size:.78rem;color:#7d6b72;margin:.25rem 0 0">Open Patternly there to sign in with your shop account.</p></div>
       <a href="https://luca-s.com/apps/patternly" style="padding:.55rem 1rem;border-radius:9px;background:var(--lp-red,#8B1A2B);color:#fff;font-size:.82rem;font-weight:700;text-decoration:none">Open on luca-s.com →</a>`;
   }
 }
@@ -21680,7 +21703,7 @@ function acctModalShow(){
   const m=document.getElementById('acct-modal');
   document.getElementById('acct-m-spin').style.display='';
   document.getElementById('acct-m-title').textContent='Signing you in…';
-  document.getElementById('acct-m-text').textContent='A secure Luca·S sign-in window has opened. Enter your email there — you\u2019ll get a code, and new customers get an account automatically. This page will notice by itself.';
+  document.getElementById('acct-m-text').textContent='A secure Luca-S sign-in window has opened. Enter your email there — you\u2019ll get a code, and new customers get an account automatically. This page will notice by itself.';
   document.getElementById('acct-m-reopen').style.display='';
   m.classList.add('open');
 }
@@ -21689,7 +21712,7 @@ function acctModalSuccess(){
   if(!m.classList.contains('open')) return;
   document.getElementById('acct-m-spin').style.display='none';
   document.getElementById('acct-m-title').textContent='✓ Signed in!';
-  document.getElementById('acct-m-text').textContent='Welcome back — your Luca·S account is connected.';
+  document.getElementById('acct-m-text').textContent='Welcome back — your Luca-S account is connected.';
   document.getElementById('acct-m-reopen').style.display='none';
   setTimeout(()=>acctModalClose(false), 1400);
 }
@@ -21711,7 +21734,7 @@ async function acctOpenLogin(){
   // BEFORE opening anything — no popup, just the green dot and a toast.
   await acctRefresh();
   if(lucasAuth().loggedIn){
-    if(typeof toast==='function') toast('✓ You\u2019re signed in with your Luca·S account');
+    if(typeof toast==='function') toast('✓ You\u2019re signed in with your Luca-S account');
     return;
   }
   acctModalShow();
@@ -21729,7 +21752,7 @@ async function acctOpenLogin(){
       clearInterval(_acctPollTimer);
       try{ _acctLoginWin && _acctLoginWin.close(); }catch(e){}
       acctModalSuccess();
-      if(typeof toast==='function') toast('✓ Signed in with your Luca·S account');
+      if(typeof toast==='function') toast('✓ Signed in with your Luca-S account');
       return;
     }
     if(_acctLoginWin && _acctLoginWin.closed){
@@ -21744,7 +21767,7 @@ async function acctOpenLogin(){
 function acctBuildMenu(){
   const a=lucasAuth();
   if(a.loggedIn){
-    return `<div class="acct-note">✓ Signed in with your Luca·S account</div>
+    return `<div class="acct-note">✓ Signed in with your Luca-S account</div>
       <a href="#" onclick="acctGo(openAccountPage);return false">My Account</a>
       <a href="#" onclick="acctSignOut();return false">Sign out</a>`;
   }
@@ -21752,7 +21775,7 @@ function acctBuildMenu(){
     return `<div class="acct-note">Sign in with your email — a code is sent to you, and new customers get an account automatically.</div>
       <a href="#" onclick="acctOpenLogin();return false">Sign in / Create account</a>`;
   }
-  return `<div class="acct-note">Accounts work on the Luca·S site — open Patternly there to sign in with your shop account.</div>
+  return `<div class="acct-note">Accounts work on the Luca-S site — open Patternly there to sign in with your shop account.</div>
     <a href="https://luca-s.com/apps/patternly">Open on luca-s.com →</a>`;
 }
 function acctCloseAll(){ document.querySelectorAll('.acct-dd.open').forEach(d=>d.classList.remove('open')); }
@@ -21764,7 +21787,7 @@ function acctToggle(btn){
 }
 document.addEventListener('click',e=>{ if(!e.target.closest('.acct-wrap')) acctCloseAll(); });
 (function(){
-  if(lucasAuth().loggedIn) document.querySelectorAll('.acct-btn').forEach(b=>{ b.classList.add('acct-in'); b.title='Your Luca·S account — signed in'; });
+  if(lucasAuth().loggedIn) document.querySelectorAll('.acct-btn').forEach(b=>{ b.classList.add('acct-in'); b.title='Your Luca-S account — signed in'; });
 })();
 function openFileConverter(){
   document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','account-mode');
@@ -22240,9 +22263,36 @@ function lpMmScrim(){
   }
   return sc;
 }
+// Drawn fresh each time the drawer opens, because sign-in can happen in
+// another tab while the page sits here.
+function lpMmRenderAccount(){
+  const el=document.getElementById('lp-mm-account');
+  if(!el) return;
+  const a=(typeof lucasAuth==='function') ? lucasAuth() : {loggedIn:false,proxied:false};
+  const icon='<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" style="vertical-align:-3px;margin-right:.4rem"><circle cx="12" cy="8.2" r="3.6"/><path d="M4.8 19.4c1.5-3.1 4.2-4.6 7.2-4.6s5.7 1.5 7.2 4.6"/></svg>';
+  if(a.loggedIn){
+    el.innerHTML=
+      '<div style="font-size:.74rem;color:var(--lp-muted);margin-bottom:.45rem">'+icon+'Signed in</div>'
+      +'<button type="button" id="lp-mm-acct-page" style="width:100%;margin-bottom:.45rem;padding:.6rem;border:1.5px solid #eadde1;border-radius:10px;background:none;font-family:inherit;font-size:.86rem;font-weight:700;color:#5a4a51;cursor:pointer">My Account</button>'
+      +'<button type="button" id="lp-mm-acct-out" style="width:100%;padding:.6rem;border:none;border-radius:10px;background:none;font-family:inherit;font-size:.82rem;font-weight:700;color:#b23b3b;cursor:pointer">Sign out</button>';
+    const pg=document.getElementById('lp-mm-acct-page');
+    if(pg) pg.onclick=()=>{ lpCloseMenu(); if(typeof openAccountPage==='function') openAccountPage(); };
+    const so=document.getElementById('lp-mm-acct-out');
+    if(so) so.onclick=()=>{ lpCloseMenu(); if(typeof acctSignOut==='function') acctSignOut(); };
+  } else {
+    el.innerHTML='<button type="button" id="lp-mm-acct-in" style="width:100%;padding:.7rem;border:none;border-radius:10px;background:#1c1a1d;color:#fff;font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer">'+icon+'Log in</button>';
+    const li=document.getElementById('lp-mm-acct-in');
+    if(li) li.onclick=()=>{
+      lpCloseMenu();
+      if(a.proxied && typeof acctOpenLogin==='function') acctOpenLogin();
+      else if(typeof openAccountPage==='function') openAccountPage();
+    };
+  }
+}
 function lpToggleMenu(){
   const mm=document.getElementById('lp-mobile-menu');
   if(mm.classList.contains('open')){ lpCloseMenu(); return; }
+  lpMmRenderAccount();
   lpMmScrim().classList.add('open');
   mm.classList.add('open');
   document.body.classList.add('mm-open');
@@ -23026,6 +23076,31 @@ document.querySelectorAll('#lp-nav a[href^="#"]').forEach(a=>{
     setTimeout(animateNext, 500);
   }
   setTimeout(animateNext, 800);
+})();
+</script>
+<script>
+// Dots for the steps carousel: they track the scroller and are tappable.
+// Only the indicator is scripted — the swipe itself is native scroll-snap.
+(function(){
+  const box=document.querySelector('.lp-steps');
+  const dots=document.querySelector('.lp-steps-dots');
+  if(!box||!dots) return;
+  const spans=[...dots.children];
+  const cards=()=>[...box.querySelectorAll('.lp-step')];
+  function sync(){
+    const c=cards(); if(!c.length) return;
+    const mid=box.scrollLeft+box.clientWidth/2;
+    let best=0, bd=Infinity;
+    c.forEach((el,i)=>{ const d=Math.abs(el.offsetLeft+el.offsetWidth/2-mid); if(d<bd){bd=d;best=i;} });
+    spans.forEach((s,i)=>s.classList.toggle('on', i===best));
+  }
+  let t=null;
+  box.addEventListener('scroll', ()=>{ if(t) cancelAnimationFrame(t); t=requestAnimationFrame(sync); }, {passive:true});
+  spans.forEach((sp,i)=>{ sp.style.cursor='pointer'; sp.addEventListener('click', ()=>{
+    const el=cards()[i]; if(el) box.scrollTo({left:el.offsetLeft-(box.clientWidth-el.offsetWidth)/2, behavior:'smooth'});
+  }); });
+  window.addEventListener('resize', sync);
+  sync();
 })();
 </script>
 <script>
