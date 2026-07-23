@@ -5502,7 +5502,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       </div>
       <div class="acct-row-scroll" id="acct-trk-scroll"></div>
     </div>
-    <p style="max-width:860px;margin:1.4rem auto 0;text-align:center;font-size:.74rem;color:#7d6b72">Your orders &amp; addresses live in the <a href="https://luca-s.com/account" target="_blank" rel="noopener" style="color:var(--lp-red,#8B1A2B);font-weight:600">Luca-S shop account ↗</a> · patterns and tracking currently save in this browser, cloud sync is coming.</p>
+    <p style="max-width:860px;margin:1.4rem auto 0;text-align:center;font-size:.74rem;color:#7d6b72">Your orders &amp; addresses live in the <a href="https://luca-s.com/account" target="_blank" rel="noopener" style="color:var(--lp-red,#8B1A2B);font-weight:600">Luca-S shop account ↗</a> · your kits and their stitch progress follow your account across devices · patterns you upload yourself save in this browser.</p>
   </div>
 </div><!-- /account-page -->
 
@@ -16464,7 +16464,7 @@ function trkSaveProject(){
     const list=trkIndex().filter(p=>p.id!==id);
     let total=0; for(const row of trackerGrid.cells) for(const ch of row) if(ch!==' ') total++;
     list.unshift({id, name:trackerProjectName||id, cols:trackerGrid.cols, rows:trackerGrid.rows, total,
-      done:prev?prev.done:0, ts:Date.now(), thumb:trkMakeThumb(),
+      done:prev?prev.done:0, ts:Date.now(), thumb:trkMakeThumb(), sku:trkCloudSku||(prev&&prev.sku)||null,
       threads:(trackerLegend.rowCount||Object.keys(trackerColourMap).length),
       sessions:(prev&&prev.sessions)||{}});
     trkPendingName='';
@@ -16532,6 +16532,10 @@ function trkOpenProject(id){
     if(idxEntry && !idxEntry.thumb){ idxEntry.thumb=trkMakeThumb(); trkIndexWrite(idxList); }
     trackerStitched=Array.from({length:s.rows},()=>Array(s.cols).fill(false));
     loadTrackerProgress();
+    // A catalogue kit knows its SKU, so its progress can be reconciled with the
+    // account copy — this is what lets a project continue on another device.
+    trkCloudSku = (trkIndex().find(p=>p.id===id)||{}).sku || null;
+    if(trkCloudSku) setTimeout(trkCloudPull, 400);
     trkSelClear();
     trackerSymbolsOnly=!!s.symbolsOnly; trackerBwOnly=!!s.bwOnly;
     if(trackerBwOnly) trackerViewMode='bw';
@@ -17001,6 +17005,7 @@ async function trkOpenKit(kit){
   };
   try{
     trkPendingName = kit.title || kit.sku;
+    trkCloudSku = kit.sku;                       // enables account-side progress
     const bsel=document.getElementById('trk-legend-brand'); if(bsel) bsel.value='lucas';
     if(kit.ptly || (kit.files && kit.files.ptly)){
       await trkHandleChart(await grab('ptly', kit.sku+'.Ptly'));   // exact data, no legend needed
@@ -17018,6 +17023,8 @@ async function trkOpenKit(kit){
     trkKitBusy(true, 'Drawing the chart\u2026');
     await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
     st.textContent='';
+    // Reconcile with whatever this account already has for the kit.
+    trkCloudPull();
   }catch(err){
     if(err && err.gate === 'signin'){
       trkKitsSignIn(err.gateMessage, kit);
@@ -20109,16 +20116,80 @@ document.getElementById('trk-reset').addEventListener('click',()=>{
 
 // ── Persistence: localStorage, keyed per pattern (from the legend filename) ──
 let _trkSaveT=null;
+// ── Progress that follows the account ─────────────────────────────────────
+// Local storage stays the source of truth for responsiveness; the cloud copy
+// is a mirror so a kit can be picked up on another device. Only catalogue kits
+// sync: the chart re-downloads from R2 by SKU, so only the stitched bits
+// travel. An uploaded pattern has no such anchor and stays local.
+let trkCloudSku=null;          // set when a catalogue kit is opened
+let _trkCloudT=null, _trkCloudBusy=false;
+
+function trkProgressUrl(sku){
+  return TRK_KITS_BASE.replace(/\/patterns$/,'') + '/progress?sku=' + encodeURIComponent(sku);
+}
+function trkPackProgress(){
+  return trackerStitched.map(r=>r.map(v=>v?'1':'0').join('')).join('|');
+}
+function trkCountDone(){
+  let n=0; for(const row of trackerStitched) for(const v of row) if(v) n++;
+  return n;
+}
+async function trkCloudPush(){
+  if(!trkCloudSku || _trkCloudBusy) return;
+  _trkCloudBusy=true;
+  try{
+    await fetch(trkProgressUrl(trkCloudSku), {
+      method:'PUT', credentials:'include',
+      headers:{'content-type':'application/json'},
+      body: JSON.stringify({data:trkPackProgress(), cols:trackerGrid.cols,
+                            rows:trackerGrid.rows, done:trkCountDone()})
+    });
+  }catch(e){ console.warn('[tracker] cloud push failed', e); }
+  finally{ _trkCloudBusy=false; }
+}
+// Merge by UNION: a stitched cell stays stitched. Stitching is not usually
+// undone, so this matches the craft — and unlike last-write-wins it can never
+// discard an evening's work done on another device.
+async function trkCloudPull(){
+  if(!trkCloudSku) return;
+  try{
+    const r=await fetch(trkProgressUrl(trkCloudSku), {credentials:'include', cache:'no-cache'});
+    if(!r.ok) return;
+    const rec=await r.json();
+    if(!rec || !rec.data) return;
+    if(rec.cols && (rec.cols!==trackerGrid.cols || rec.rows!==trackerGrid.rows)) return;
+    const lines=rec.data.split('|');
+    let added=0;
+    for(let y=0;y<trackerGrid.rows && y<lines.length;y++){
+      const ln=lines[y];
+      for(let x=0;x<trackerGrid.cols && x<ln.length;x++){
+        if(ln[x]==='1' && !trackerStitched[y][x]){ trackerStitched[y][x]=true; added++; }
+      }
+    }
+    if(added){
+      renderTracker(); updateTrackerProgressUI();
+      toast(added.toLocaleString()+' stitches synced from your account');
+      trkCloudPush();          // local had extras too — put the union back
+    }
+  }catch(e){ console.warn('[tracker] cloud pull failed', e); }
+}
 function saveTrackerProgress(){
   clearTimeout(_trkSaveT);
   _trkSaveT=setTimeout(()=>{
     try{
-      const rows=trackerStitched.map(r=>r.map(v=>v?'1':'0').join('')).join('|');
+      const rows=trkPackProgress();
       localStorage.setItem('patternly_tracker_'+trackerActiveProjectKey,
         JSON.stringify({cols:trackerGrid.cols, rows:trackerGrid.rows, data:rows}));
     }catch(e){ console.warn('[tracker] save failed', e); }
   },300);
+  // The cloud copy lags further behind on purpose — marking is rapid and each
+  // push is a network write.
+  clearTimeout(_trkCloudT);
+  _trkCloudT=setTimeout(trkCloudPush, 4000);
 }
+// Leaving the tab is the last chance to get the final marks up.
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) trkCloudPush(); });
+window.addEventListener('pagehide', trkCloudPush);
 function loadTrackerProgress(){
   try{
     const raw=localStorage.getItem('patternly_tracker_'+trackerActiveProjectKey);
@@ -20474,7 +20545,7 @@ async function trkHandleLegend(file){
   st.textContent='Reading legend…'; st.style.color='';
   window.trkExactGrid=false; window.trkPdfLegendParsed=false; window.trkPdfLegend=null;
   const _ec=document.getElementById('trk-exact-continue'); if(_ec) _ec.style.display='none';
-  trackerGrid=null; trackerColourMap=null; trackerStitched=null; trackerManual=false; trkManualWidth=null; trackerSymbolsOnly=false; trackerBwOnly=false; trkApplyViewAvail();
+  trackerGrid=null; trackerColourMap=null; trackerStitched=null; trackerManual=false; trkManualWidth=null; trackerSymbolsOnly=false; trackerBwOnly=false; trkCloudSku=null; trkApplyViewAvail();
   document.getElementById('trk-manual').style.display='none';
   document.getElementById('trk-manual-btn').disabled=true;
   trackerActiveProjectKey=file.name.replace(/[^a-zA-Z0-9]/g,'_');
