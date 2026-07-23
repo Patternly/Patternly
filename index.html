@@ -16775,7 +16775,7 @@ function trkRenderSaved(show){
     trkCloudProjects().then(c=>{
       if(!c.length){ wrap.style.display='none'; return; }
       const sub=document.getElementById('trk-saved-sub');
-      if(sub) sub.textContent='Carrying on from your account.';
+      if(sub) sub.textContent='Your patterns, wherever you sign in.';
       const sg=document.getElementById('trk-saved-grid');
       sg.innerHTML='';
       wrap.style.display='';
@@ -17202,13 +17202,22 @@ async function trkAppendCloudCards(grid, localList){
     if(!kit) continue;                       // not in the catalogue any more
     const card=document.createElement('div');
     card.className='trk-pcard';
-    const pct=c.cols&&c.rows ? Math.round(c.done/(c.cols*c.rows)*100) : 0;
+    const pct=c.total ? Math.round(c.done/c.total*100) : 0;
+    const nSess=c.sessions|0;
+    const fmtT=ms=>{ if(!ms||ms<60000) return nSess? '<1m' : '\u2014'; const m=Math.round(ms/60000); return m<60? m+'m' : Math.floor(m/60)+'h '+(m%60)+'m'; };
+    const rel2=ts=>{ const m=Math.floor((Date.now()-ts)/60000); if(m<60) return m<=1?'just now':m+'m ago'; const h=Math.floor(m/60); if(h<24) return h+'h ago'; return Math.floor(h/24)+'d ago'; };
     card.innerHTML=(kit.image?`<img class="thumb" src="${esc(trkKitImageUrl(kit))}" alt="">`:'')
-      +`<div class="body"><h4>${esc(kit.title||kit.sku)}</h4>`
-      +`<div class="meta">${c.cols}\u00d7${c.rows} \u00b7 on your account</div>`
-      +`<div class="bar"><i style="width:${pct}%"></i></div>`
-      +`<div class="stats">\u2713 ${c.done.toLocaleString()} stitched \u00b7 not on this device yet</div>`
-      +`<div class="acts"><button class="open">Open \u00b7 ${pct}%</button></div></div>`;
+      +`<div class="body"><h4></h4>
+      <div class="meta">${c.cols}\u00d7${c.rows} \u00b7 Luca-S \u00b7 ${rel2(c.ts||Date.now())}</div>
+      <div class="trk-pbar"><div style="width:${pct}%"></div></div>
+      <div class="meta" style="margin:.4rem 0 .55rem;display:flex;flex-wrap:wrap;gap:.15rem .7rem">
+        <span title="Progress">\u2714 ${(c.done||0).toLocaleString()} / ${(c.total||0).toLocaleString()}</span>
+        <span title="Colours used">\ud83c\udfa8 ${c.threads||'?'} colours</span>
+        <span title="Stitching sessions">\ud83d\udcc5 ${nSess} session${nSess===1?'':'s'}</span>
+        <span title="Active stitching time">\u23f1 ${fmtT(c.timeMs)}</span>
+      </div>
+      <div class="row"><button class="open">Open \u00b7 ${pct}%</button></div></div>`;
+    card.querySelector('h4').textContent=kit.title||kit.sku;
     card.querySelector('.open').onclick=()=>trkOpenKit(kit);
     grid.appendChild(card);
   }
@@ -20258,8 +20267,14 @@ async function trkCloudPush(){
     const r=await fetch(trkProgressUrl(trkCloudSku), {
       method:'PUT', credentials:'include',
       headers:{'content-type':'application/json'},
-      body: JSON.stringify({data:trkPackProgress(), cols:trackerGrid.cols,
-                            rows:trackerGrid.rows, done:trkCountDone()})
+      body: JSON.stringify((()=>{
+        const idx=(typeof trkIndex==='function'?trkIndex():[]).find(p=>p.id===trackerActiveProjectKey)||{};
+        let total=0; for(const row of trackerGrid.cells) for(const ch of row) if(ch!==' ') total++;
+        return {data:trkPackProgress(), cols:trackerGrid.cols, rows:trackerGrid.rows,
+                done:trkCountDone(), total,
+                threads:(trackerLegend&&trackerLegend.rowCount)||Object.keys(trackerColourMap||{}).length,
+                timeMs:idx.timeMs|0, sessions:Object.keys(idx.sessions||{}).length};
+      })())
     });
     if(!r.ok) console.warn('[tracker] progress push refused', r.status);
   }catch(e){ console.warn('[tracker] cloud push failed', e); }
