@@ -3138,6 +3138,7 @@ body.dark #lpc-handle{background:#2a2138;color:#eee}
    scroll-snap does the gesture; script only tracks the indicator.
    Placed after the rules above deliberately: equal specificity, so source
    order is what makes flex-wrap:nowrap and the zero gap actually apply. */
+@keyframes trkspin{to{transform:rotate(360deg)}}
 .lp-steps-dots{display:none;justify-content:center;gap:.45rem;margin-top:1.2rem}
 .lp-steps-dots span{width:7px;height:7px;border-radius:50%;background:#d9c8ce;transition:background .2s,transform .2s}
 .lp-steps-dots span.on{background:var(--lp-red,#8B1A2B);transform:scale(1.25)}
@@ -5476,6 +5477,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <h1 class="calc-title">My Account</h1>
     <p class="calc-sub">Your Luca-S account, your patterns and your stitching — in one place.</p>
     <div class="acct-status" id="acct-status"><!-- filled by acctRenderPage() --></div>
+    <div id="acct-patterns" style="display:none;margin-top:1.6rem"></div>
     <div class="acct-row-block">
       <div class="acct-row-head">
         <div><b>🧵 My Patterns</b><span id="acct-pat-count"></span></div>
@@ -16785,37 +16787,73 @@ async function trkKitFetch(url, sku){
 // Not signed in: asking for a code here would be answering a question they
 // didn't ask. Point them at their account first, with the code as a fallback.
 function trkKitsSignIn(msg, kit){
-  const st=document.getElementById('trk-kits-status');
-  st.style.color='';
-  st.innerHTML='<div style="max-width:380px">'
-    +'<div style="margin-bottom:.6rem">'+String(msg||'Sign in to open the patterns you\u2019ve bought.').replace(/</g,'&lt;')+'</div>'
-    +'<a href="https://luca-s.com/account/login" style="display:inline-block;background:var(--lp-red,#8B1A2B);color:#fff;'
-    +'font-weight:700;font-size:.82rem;padding:.45rem .9rem;border-radius:9px;text-decoration:none">Sign in to Luca-S</a>'
-    +' <a href="#" id="trk-kit-usecode" style="font-size:.78rem;color:var(--lp-red,#8B1A2B);font-weight:700;margin-left:.5rem">Use an access code</a>'
-    +'</div>';
-  const uc=document.getElementById('trk-kit-usecode');
-  if(uc) uc.onclick=e=>{ e.preventDefault(); trkKitsAskCode('Enter the access code for '+(kit.title||kit.sku)+'.', kit); };
+  trkGateModal({
+    title:'Sign in to open this pattern',
+    body: msg || 'Sign in with your Luca-S account to open the patterns that came with your kits.',
+    primary:{label:'Sign in to Luca-S', href:'https://luca-s.com/account/login'},
+    secondary:{label:'I have an access code', onClick:()=>trkKitsAskCode('Enter the access code for '+(kit.title||kit.sku)+'.', kit)}
+  });
 }
 function trkKitsAskCode(msg, kit){
-  const st=document.getElementById('trk-kits-status');
-  st.style.color='';
-  st.innerHTML='<div style="max-width:340px">'
-    +'<div style="margin-bottom:.55rem">'+String(msg||'This catalogue needs an access code.').replace(/</g,'&lt;')+'</div>'
-    +'<div style="display:flex;gap:.45rem">'
-    +'<input id="trk-kit-code" type="password" autocomplete="off" placeholder="Access code" '
-    +'style="flex:1;height:36px;border:1.5px solid #e6d9dd;border-radius:9px;padding:0 .7rem;font-size:.86rem;font-family:inherit">'
-    +'<button id="trk-kit-code-go" style="height:36px;border:none;border-radius:9px;padding:0 .9rem;'
-    +'background:var(--lp-red,#8B1A2B);color:#fff;font-weight:700;font-size:.82rem;cursor:pointer;font-family:inherit">Unlock</button>'
-    +'</div></div>';
-  const go=()=>{
-    const v=(document.getElementById('trk-kit-code').value||'').trim();
-    if(!v) return;
-    trkKitCodeSet(kit?kit.sku:null, v);
-    if(kit) trkOpenKit(kit); else trkKitsLoad(true);
-  };
-  document.getElementById('trk-kit-code-go').onclick=go;
-  document.getElementById('trk-kit-code').addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
-  document.getElementById('trk-kit-code').focus();
+  trkGateModal({
+    title: kit ? (kit.title||kit.sku) : 'Access code',
+    body: msg || 'Enter the access code for this pattern.',
+    input: true,
+    primary:{label:'Unlock', onClick:(v)=>{
+      if(!v) return false;
+      trkKitCodeSet(kit?kit.sku:null, v);
+      if(kit) trkOpenKit(kit); else trkKitsLoad(true);
+      return true;
+    }}
+  });
+}
+// Shared gate dialog. Centred and modal, because a message printed above the
+// catalogue is off-screen on a phone — the kit is tapped, nothing appears to
+// happen, and the tap gets repeated.
+function trkGateModal(o){
+  const old=document.getElementById('trk-gate'); if(old) old.remove();
+  const wrap=document.createElement('div');
+  wrap.id='trk-gate';
+  wrap.style.cssText='position:fixed;inset:0;z-index:9600;background:rgba(30,22,28,.45);display:flex;'
+    +'align-items:center;justify-content:center;padding:1.2rem;font-family:inherit';
+  const esc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  wrap.innerHTML='<div style="background:#fff;border-radius:16px;max-width:380px;width:100%;padding:1.4rem 1.4rem 1.2rem;'
+    +'box-shadow:0 24px 60px rgba(43,34,38,.3)">'
+    +'<h3 style="font-family:var(--lp-serif,Georgia,serif);font-size:1.15rem;margin:0 0 .5rem">'+esc(o.title)+'</h3>'
+    +'<p style="font-size:.85rem;color:#5a4a51;line-height:1.55;margin:0 0 1rem">'+esc(o.body)+'</p>'
+    +(o.input?'<input id="trk-gate-input" type="password" autocomplete="off" placeholder="Access code" '
+      +'style="width:100%;box-sizing:border-box;height:42px;border:1.5px solid #e6d9dd;border-radius:10px;'
+      +'padding:0 .8rem;font-size:.9rem;font-family:inherit;margin-bottom:.9rem">':'')
+    +'<div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">'
+    +(o.primary?(o.primary.href
+        ?'<a id="trk-gate-go" href="'+esc(o.primary.href)+'" style="flex:1;text-align:center;background:var(--lp-red,#8B1A2B);color:#fff;'
+          +'font-weight:700;font-size:.86rem;padding:.6rem .9rem;border-radius:10px;text-decoration:none">'+esc(o.primary.label)+'</a>'
+        :'<button id="trk-gate-go" style="flex:1;background:var(--lp-red,#8B1A2B);color:#fff;border:none;'
+          +'font-family:inherit;font-weight:700;font-size:.86rem;padding:.65rem .9rem;border-radius:10px;cursor:pointer">'+esc(o.primary.label)+'</button>'):'')
+    +'<button id="trk-gate-cancel" style="background:none;border:none;font-family:inherit;font-size:.82rem;'
+      +'font-weight:700;color:#7d6b72;cursor:pointer;padding:.5rem .6rem">Cancel</button>'
+    +'</div>'
+    +(o.secondary?'<div style="margin-top:.7rem;text-align:center"><a href="#" id="trk-gate-sec" '
+      +'style="font-size:.78rem;color:var(--lp-red,#8B1A2B);font-weight:700">'+esc(o.secondary.label)+'</a></div>':'')
+    +'</div>';
+  document.body.appendChild(wrap);
+  const close=()=>wrap.remove();
+  wrap.addEventListener('click', e=>{ if(e.target===wrap) close(); });
+  const cancel=document.getElementById('trk-gate-cancel'); if(cancel) cancel.onclick=close;
+  const sec=document.getElementById('trk-gate-sec');
+  if(sec) sec.onclick=e=>{ e.preventDefault(); close(); o.secondary.onClick&&o.secondary.onClick(); };
+  const input=document.getElementById('trk-gate-input');
+  const go=document.getElementById('trk-gate-go');
+  if(go && o.primary && !o.primary.href){
+    go.onclick=()=>{
+      const v=input?(input.value||'').trim():null;
+      if(o.primary.onClick(v)!==false) close();
+    };
+  }
+  if(input){
+    input.addEventListener('keydown', e=>{ if(e.key==='Enter' && go) go.click(); });
+    setTimeout(()=>input.focus(), 30);
+  }
 }
 
 async function trkKitsLoad(force){
@@ -16874,9 +16912,31 @@ function trkKitsRender(){
 
 // Pull a kit's files and hand them to the ordinary import path, so a catalogue
 // kit and an uploaded one become the same kind of tracker project.
+// Opening a kit fetches two PDFs and parses them, which takes a few seconds on
+// a phone. Without a visible sign of work the page just sits there and people
+// tap again, so this covers the wait with something unambiguous.
+function trkKitBusy(show, label){
+  let el=document.getElementById('trk-kit-busy');
+  if(!show){ if(el) el.remove(); return; }
+  if(!el){
+    el=document.createElement('div');
+    el.id='trk-kit-busy';
+    el.style.cssText='position:fixed;inset:0;z-index:9500;background:rgba(255,251,248,.86);'
+      +'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;'
+      +'backdrop-filter:blur(2px);font-family:inherit';
+    el.innerHTML='<div style="width:44px;height:44px;border:3px solid #eadde1;border-top-color:var(--lp-red,#8B1A2B);'
+      +'border-radius:50%;animation:trkspin .8s linear infinite"></div>'
+      +'<div id="trk-kit-busy-t" style="font-size:.9rem;font-weight:700;color:var(--lp-red,#8B1A2B);text-align:center;padding:0 1.5rem"></div>'
+      +'<div style="font-size:.76rem;color:#7d6b72">This can take a few seconds</div>';
+    document.body.appendChild(el);
+  }
+  const t=document.getElementById('trk-kit-busy-t');
+  if(t) t.textContent=label||'Opening\u2026';
+}
 async function trkOpenKit(kit){
   const st=document.getElementById('trk-kits-status');
-  st.style.color=''; st.textContent='Opening '+(kit.title||kit.sku)+'\u2026';
+  st.style.color=''; st.textContent='';
+  trkKitBusy(true, 'Opening '+(kit.title||kit.sku)+'\u2026');
   const grab=async (which, name)=>{
     const r=await trkKitFetch(trkKitFileUrl(kit, which), kit.sku);
     if(r.status===401 || r.status===403){
@@ -16898,9 +16958,11 @@ async function trkOpenKit(kit){
     if(kit.ptly || (kit.files && kit.files.ptly)){
       await trkHandleChart(await grab('ptly', kit.sku+'.Ptly'));   // exact data, no legend needed
     }else{
+      trkKitBusy(true, 'Loading the colour key\u2026');
       // The legend goes first: the chart parser uses its declared width, and
       // trkHandleLegend re-runs the chart itself once one is attached.
       await trkHandleLegend(await grab('legend', kit.sku+'-legend.pdf'));
+      trkKitBusy(true, 'Reading the chart\u2026');
       await trkHandleChart(await grab('chart', kit.sku+'-chart.pdf'));
     }
     st.textContent='';
@@ -16909,6 +16971,7 @@ async function trkOpenKit(kit){
       trkKitsSignIn(err.gateMessage, kit);
       return;
     }
+    
     if(err && err.gate){
       const had = trkKitCode(kit.sku);
       trkKitCodeSet(kit.sku, '');
@@ -16923,6 +16986,8 @@ async function trkOpenKit(kit){
     console.error('[tracker] kit open failed', err);
     st.style.color='#b25f10';
     st.textContent=String(err.message||err);
+  }finally{
+    trkKitBusy(false);
   }
 }
 
@@ -21648,7 +21713,7 @@ function acctRenderPage(){
   const a=lucasAuth();
   if(a.loggedIn){
     el.innerHTML=`<div style="width:46px;height:46px;border-radius:50%;background:#fbe3e7;display:flex;align-items:center;justify-content:center;color:var(--lp-red,#8B1A2B);flex-shrink:0"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="8.2" r="3.6"/><path d="M4.8 19.4c1.5-3.1 4.2-4.6 7.2-4.6s5.7 1.5 7.2 4.6"/></svg></div>
-      <div style="flex:1;min-width:180px"><b style="font-size:.95rem">✓ Signed in with your Luca-S account</b><p style="font-size:.76rem;color:#7d6b72;margin:.2rem 0 0">The same account you use in the Luca-S shop.</p></div>
+      <div style="flex:1;min-width:180px"><b style="font-size:.95rem">✓ Signed in with your Luca-S account</b><p style="font-size:.76rem;color:#7d6b72;margin:.2rem 0 0">${a.email ? 'Signed in as <b>'+String(a.email).replace(/</g,'&lt;')+'</b>' : 'The same account you use in the Luca-S shop.'}</p></div>
       <a href="#" onclick="acctSignOut();return false" style="padding:.5rem .9rem;border:1.5px solid #eadde1;border-radius:9px;font-size:.8rem;font-weight:700;color:#5a4a51;text-decoration:none">Sign out</a>`;
   } else if(a.proxied){
     el.innerHTML=`<div style="flex:1;min-width:200px"><b style="font-size:.95rem">You're not signed in</b><p style="font-size:.78rem;color:#7d6b72;margin:.25rem 0 0;line-height:1.5">Sign in with your email — you'll get a code, and new customers get an account automatically. A small sign-in window opens; the moment you're done, Patternly notices by itself.</p></div>
@@ -21656,6 +21721,58 @@ function acctRenderPage(){
   } else {
     el.innerHTML=`<div style="flex:1"><b style="font-size:.95rem">Accounts work on the Luca-S site</b><p style="font-size:.78rem;color:#7d6b72;margin:.25rem 0 0">Open Patternly there to sign in with your shop account.</p></div>
       <a href="https://luca-s.com/apps/patternly" style="padding:.55rem 1rem;border-radius:9px;background:var(--lp-red,#8B1A2B);color:#fff;font-size:.82rem;font-weight:700;text-decoration:none">Open on luca-s.com →</a>`;
+  }
+  acctRenderPatterns();
+}
+
+// "Your patterns": the kits this account has bought, cross-referenced against
+// the catalogue so each one is openable from here rather than hunted for in
+// the tracker. Owned SKUs come from /whoami, which resolves them server-side
+// from the customer's orders.
+async function acctRenderPatterns(){
+  const box=document.getElementById('acct-patterns');
+  if(!box) return;
+  const a=lucasAuth();
+  const owned=a.ownedSkus;
+  if(!a.loggedIn || !Array.isArray(owned)){ box.style.display='none'; return; }
+  box.style.display='';
+  box.innerHTML='<h3 style="font-family:var(--lp-serif,Georgia,serif);font-size:1.05rem;margin:0 0 .2rem">Your patterns</h3>'
+    +'<p style="font-size:.78rem;color:#7d6b72;margin:0 0 .9rem">Kits you\u2019ve bought \u2014 open any of them in the Stitch Tracker, no code needed.</p>'
+    +'<div id="acct-patterns-grid" style="font-size:.82rem;color:#7d6b72">Checking\u2026</div>';
+  const grid=document.getElementById('acct-patterns-grid');
+  if(!owned.length){
+    grid.innerHTML='<span style="color:#7d6b72">No kits found on this account yet. Patterns appear here once you\u2019ve bought the kit.</span>';
+    return;
+  }
+  let kits=[];
+  try{
+    if(!trkKitList) await trkKitsLoad(true);
+    kits=trkKitList||[];
+  }catch(e){}
+  const ownedSet=new Set(owned.map(x=>String(x).toUpperCase()));
+  const mine=kits.filter(k=>ownedSet.has(String(k.sku).toUpperCase()));
+  // A SKU with no pattern in the catalogue is a kit we haven't published yet —
+  // say so rather than silently dropping it, or the count looks wrong.
+  const unpublished=owned.filter(sk=>!kits.some(k=>String(k.sku).toUpperCase()===String(sk).toUpperCase()));
+  const esc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.9rem';
+  grid.innerHTML = mine.length ? '' : '<div style="grid-column:1/-1;font-size:.82rem;color:#7d6b72">No patterns published for your kits yet.</div>';
+  for(const kit of mine){
+    const card=document.createElement('div');
+    card.style.cssText='background:#fff;border:1.5px solid #e6d9dd;border-radius:12px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column';
+    card.innerHTML=(kit.image?`<img src="${esc(trkKitImageUrl(kit))}" alt="" loading="lazy" style="width:100%;aspect-ratio:1;object-fit:cover;background:#f6f1f2">`
+                             :`<div style="width:100%;aspect-ratio:1;background:#f6f1f2"></div>`)
+      +`<div style="padding:.6rem .7rem"><div style="font-weight:700;font-size:.84rem;line-height:1.3">${esc(kit.title||kit.sku)}</div>`
+      +`<div style="font-size:.72rem;color:#6a626f;margin-top:.2rem">${esc(kit.sku)}</div></div>`;
+    card.onclick=()=>{ openTracker(); setTimeout(()=>trkOpenKit(kit), 60); };
+    grid.appendChild(card);
+  }
+  if(unpublished.length){
+    const note=document.createElement('div');
+    note.style.cssText='grid-column:1/-1;font-size:.75rem;color:#7d6b72;margin-top:.2rem';
+    note.textContent='Also on this account: '+unpublished.join(', ')
+      +(unpublished.length===1?' — no Patternly chart for that kit yet.':' — no Patternly charts for those kits yet.');
+    grid.appendChild(note);
   }
 }
 // Live sign-in status: /whoami travels through the App Proxy, so Shopify signs
