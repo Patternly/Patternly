@@ -17216,11 +17216,42 @@ async function trkAppendCloudCards(grid, localList){
         <span title="Stitching sessions">\ud83d\udcc5 ${nSess} session${nSess===1?'':'s'}</span>
         <span title="Active stitching time">\u23f1 ${fmtT(c.timeMs)}</span>
       </div>
-      <div class="row"><button class="open">Open \u00b7 ${pct}%</button></div></div>`;
+      <div class="row"><button class="open">Open \u00b7 ${pct}%</button><button class="del" title="Delete" aria-label="Delete"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7"/><path d="M6 7l1 12.2A1.8 1.8 0 0 0 8.8 21h6.4a1.8 1.8 0 0 0 1.8-1.8L18 7"/><path d="M10 11v6M14 11v6"/></svg></button></div></div>`;
     card.querySelector('h4').textContent=kit.title||kit.sku;
     card.querySelector('.open').onclick=()=>trkOpenKit(kit);
+    card.querySelector('.del').onclick=e=>{ e.stopPropagation(); trkDeleteCloudProject(kit, c); };
     grid.appendChild(card);
   }
+}
+// Deleting a kit that lives on the account removes the stitching record from
+// every device, so the warning has to say that rather than "from this browser".
+// The kit itself stays owned and can be started again.
+function trkDeleteCloudProject(kit, c){
+  pjShowModal({
+    title:'Delete stitching progress?',
+    body:`<b>${String(kit.title||kit.sku).replace(/</g,'&lt;')}</b> \u2014 ${(c.done||0).toLocaleString()} stitches recorded on your account will be removed, on every device. `
+        +`The kit stays yours; you can start it again at any time.`,
+    requireCheck:'Yes, delete this progress everywhere',
+    confirmLabel:'Delete', danger:true,
+    async onConfirm(){
+      try{
+        const base=TRK_KITS_BASE.replace(/\/patterns$/,'');
+        await fetch(base+'/progress?sku='+encodeURIComponent(kit.sku),
+                    {method:'DELETE', credentials:'include'});
+      }catch(e){ console.warn('[tracker] cloud delete failed', e); }
+      // and any local copy of the same kit
+      try{
+        for(const p of trkIndex()){
+          if(p.sku && String(p.sku).toUpperCase()===String(kit.sku).toUpperCase()){
+            localStorage.removeItem('patternly_trk_proj_'+p.id);
+            localStorage.removeItem('patternly_tracker_'+p.id);
+          }
+        }
+        trkIndexWrite(trkIndex().filter(p=>!(p.sku && String(p.sku).toUpperCase()===String(kit.sku).toUpperCase())));
+      }catch(e){}
+      trkShowHome();
+    }
+  });
 }
 function trkRenderProjectCards(grid, list, withAdd){
   grid.innerHTML='';
@@ -17248,7 +17279,11 @@ function trkRenderProjectCards(grid, list, withAdd){
       <div class="row"><button class="open">Open · ${pct}%</button><button class="ren" title="Rename" aria-label="Rename"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L18 10a2 2 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg></button><button class="del" title="Delete" aria-label="Delete"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7"/><path d="M6 7l1 12.2A1.8 1.8 0 0 0 8.8 21h6.4a1.8 1.8 0 0 0 1.8-1.8L18 7"/><path d="M10 11v6M14 11v6"/></svg></button></div></div>`;
     card.querySelector('h4').textContent=p.name;
     card.querySelector('.open').onclick=()=>trkOpenProject(p.id);
-    card.querySelector('.ren').onclick=e=>{ e.stopPropagation(); trkRenameProject(p.id, p.name); };
+    // A Luca-S kit takes its name from the product, so renaming it would only
+    // make the card disagree with the shop. Uploaded patterns keep the option.
+    const ren=card.querySelector('.ren');
+    if(p.sku) ren.remove();
+    else ren.onclick=e=>{ e.stopPropagation(); trkRenameProject(p.id, p.name); };
     card.querySelector('.del').onclick=e=>{ e.stopPropagation(); trkDeleteProject(p.id, p.name); };
     grid.appendChild(card);
   }
