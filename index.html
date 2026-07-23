@@ -17174,11 +17174,28 @@ async function trkCloudProjects(){
 async function trkAppendCloudCards(grid, localList){
   const cloud=await trkCloudProjects();
   if(!cloud.length) return;
-  const haveSku=new Set(localList.filter(p=>p.sku).map(p=>String(p.sku).toUpperCase()));
-  const missing=cloud.filter(k=>!haveSku.has(String(k.sku).toUpperCase()));
-  if(!missing.length) return;
   if(!trkKitList){ try{ await trkKitsLoad(true); }catch(e){} }
   const cat=trkKitList||[];
+  // Backfill: a project created before kits carried a SKU can still be matched
+  // by its catalogue title, and once tagged it syncs like any other.
+  try{
+    const idx=trkIndex(); let changed=false;
+    for(const proj of idx){
+      if(proj.sku) continue;
+      const hit=cat.find(k=>(k.title||'')===proj.name);
+      if(hit){ proj.sku=hit.sku; changed=true; }
+    }
+    if(changed){ trkIndexWrite(idx); localList=idx; }
+  }catch(e){}
+  const haveSku=new Set(localList.filter(p=>p.sku).map(p=>String(p.sku).toUpperCase()));
+  const haveName=new Set(localList.map(p=>String(p.name||'').trim()));
+  const missing=cloud.filter(k=>{
+    if(haveSku.has(String(k.sku).toUpperCase())) return false;
+    const kit=cat.find(x=>String(x.sku).toUpperCase()===String(k.sku).toUpperCase());
+    if(kit && haveName.has(String(kit.title||'').trim())) return false;   // same kit, untagged copy
+    return true;
+  });
+  if(!missing.length) return;
   const esc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
   for(const c of missing){
     const kit=cat.find(k=>String(k.sku).toUpperCase()===String(c.sku).toUpperCase());
@@ -17186,9 +17203,8 @@ async function trkAppendCloudCards(grid, localList){
     const card=document.createElement('div');
     card.className='trk-pcard';
     const pct=c.cols&&c.rows ? Math.round(c.done/(c.cols*c.rows)*100) : 0;
-    card.innerHTML=(kit.image?`<div class="thumb" style="background-image:url('${esc(trkKitImageUrl(kit))}')"></div>`
-                             :`<div class="thumb"></div>`)
-      +`<div class="body"><div class="nm">${esc(kit.title||kit.sku)}</div>`
+    card.innerHTML=(kit.image?`<img class="thumb" src="${esc(trkKitImageUrl(kit))}" alt="">`:'')
+      +`<div class="body"><h4>${esc(kit.title||kit.sku)}</h4>`
       +`<div class="meta">${c.cols}\u00d7${c.rows} \u00b7 on your account</div>`
       +`<div class="bar"><i style="width:${pct}%"></i></div>`
       +`<div class="stats">\u2713 ${c.done.toLocaleString()} stitched \u00b7 not on this device yet</div>`
@@ -20239,12 +20255,13 @@ async function trkCloudPush(){
   if(!trkCloudSku || _trkCloudBusy) return;
   _trkCloudBusy=true;
   try{
-    await fetch(trkProgressUrl(trkCloudSku), {
+    const r=await fetch(trkProgressUrl(trkCloudSku), {
       method:'PUT', credentials:'include',
       headers:{'content-type':'application/json'},
       body: JSON.stringify({data:trkPackProgress(), cols:trackerGrid.cols,
                             rows:trackerGrid.rows, done:trkCountDone()})
     });
+    if(!r.ok) console.warn('[tracker] progress push refused', r.status);
   }catch(e){ console.warn('[tracker] cloud push failed', e); }
   finally{ _trkCloudBusy=false; }
 }
@@ -20255,7 +20272,16 @@ async function trkCloudPull(){
   if(!trkCloudSku) return;
   try{
     const r=await fetch(trkProgressUrl(trkCloudSku), {credentials:'include', cache:'no-cache'});
-    if(!r.ok) return;
+    if(r.status===401){
+      // Signed out on THIS device. Sync is silent by design, but silence here
+      // looks identical to "sync is broken", so say it once.
+      if(!trkCloudPull._warned){
+        trkCloudPull._warned=true;
+        toast('Sign in on this device to sync your stitching progress');
+      }
+      return;
+    }
+    if(!r.ok){ console.warn('[tracker] progress fetch', r.status); return; }
     const rec=await r.json();
     if(!rec || !rec.data) return;
     if(rec.cols && (rec.cols!==trackerGrid.cols || rec.rows!==trackerGrid.rows)) return;
