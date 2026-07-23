@@ -1,4 +1,4 @@
-// Patternly — Cloudflare Pages Function v11
+// Patternly — Cloudflare Pages Function v12
 // v2 + /patterns/* : serves the Luca-S kit catalogue and pattern files from R2.
 //
 // The files are deliberately NOT on a public R2 URL. Everything goes through
@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v11";
+const MW_VERSION = "v12";
 
 const enc = new TextEncoder();
 
@@ -441,17 +441,6 @@ async function servePattern(key, auth, request, url, env) {
     return new Response("forbidden", { status: 403 });
   }
 
-  // 401 means "you need a code / that code is wrong" and the app prompts for
-  // one. 403 is reserved for "you are known, and you don't own this kit", so
-  // the two cases stay distinguishable once entitlement lands.
-  const code = checkAccessCode(request, url, env, key);
-  if (!code.ok) {
-    return new Response("access code required", {
-      status: 401,
-      headers: { "x-code-seen": code.seen ? "1" : "0", "cache-control": "no-store" }
-    });
-  }
-
   // ── Entitlement ───────────────────────────────────────────────────────
   // Owning the kit is the primary key. The access code stays as a fallback so
   // that a buyer the lookup misses — an old order while read_all_orders is
@@ -468,6 +457,20 @@ async function servePattern(key, auth, request, url, env) {
     }
     if (owns === true) {
       return deliver(key, env);                 // bought it — no code needed
+    }
+    // Ownership is the FIRST question, always. An access-code check placed
+    // ahead of this returns 401 to a genuine buyer before anyone asks whether
+    // they bought the kit — which is exactly what it did until v12.
+    if (owns === null) {
+      // Entitlement not configured, or the lookup failed: the code is the gate.
+      const c = checkAccessCode(request, url, env, key);
+      if (!c.ok) {
+        return new Response("access code required", {
+          status: 401,
+          headers: { "x-code-seen": c.seen ? "1" : "0", "cache-control": "no-store" }
+        });
+      }
+      return deliver(key, env);
     }
     if (owns === false || owns === "anon") {
       // Not a buyer (or not signed in): the access code is the remaining route.
