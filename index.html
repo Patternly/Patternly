@@ -5351,13 +5351,13 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       </div>
 
       <div class="pr-card feat">
-        <span class="pr-badge">2 weeks free</span>
+        <span class="pr-badge" id="pr-badge">2 weeks free</span>
         <h3 class="pr-name">Plus</h3>
         <p class="pr-tag">For stitchers with several projects on the go.</p>
         <div class="pr-price"><span class="pr-was" id="pr-was" style="display:none"></span><span class="pr-amount" id="pr-amount">&pound;2.98</span><span class="pr-per" id="pr-per">/ month</span></div>
         <p class="pr-note" id="pr-note">Free for 14 days, then <span id="pr-note-price">&pound;2.98</span> a month. Cancel any time.</p>
         <p class="pr-note pr-fx" id="pr-fx">You&rsquo;ll be charged in your local currency at checkout.</p>
-        <button class="pr-cta primary" onclick="prStartTrial()">Start your free trial</button>
+        <button class="pr-cta primary" id="pr-cta" onclick="prStartTrial()">Start your free trial</button>
         <ul class="pr-feats">
           <li>Everything in Free</li>
           <li>Unlimited saved patterns</li>
@@ -5668,8 +5668,8 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <h1 class="calc-title">My Account</h1>
     <p class="calc-sub">Your Luca-S account, your patterns and your stitching — in one place.</p>
     <div class="acct-status" id="acct-status"><!-- filled by acctRenderPage() --></div>
-    <div id="acct-plus" style="display:none;margin-top:1.6rem"></div>
     <div id="acct-patterns" style="display:none;margin-top:1.6rem"></div>
+    <div id="acct-plus" style="display:none;margin-top:1.6rem"></div>
     <div class="acct-row-block">
       <div class="acct-row-head">
         <div><b>My Patterns</b><span id="acct-pat-count"></span></div>
@@ -22520,8 +22520,8 @@ function acctRenderPage(){
     el.innerHTML=`<div style="flex:1"><b style="font-size:.95rem">Accounts work on the Luca-S site</b><p style="font-size:.78rem;color:#7d6b72;margin:.25rem 0 0">Open Patternly there to sign in with your shop account.</p></div>
       <a href="https://luca-s.com/apps/patternly" style="padding:.55rem 1rem;border-radius:9px;background:var(--lp-red,#8B1A2B);color:#fff;font-size:.82rem;font-weight:700;text-decoration:none">Open on luca-s.com →</a>`;
   }
-  acctRenderPlus();
   acctRenderPatterns();
+  acctRenderPlus();
 }
 
 // ── Membership: plan, next charge, and every invoice ──────────────────────
@@ -22610,12 +22610,19 @@ async function acctRenderPlus(){
   body.innerHTML=card(rows
       +'<div style="margin-top:1rem"><b style="font-size:.86rem;color:#2b2226">Billing history</b>'+invoices+'</div>'
       +'<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem">'
+      // Appstle's Classic Customer Portal, on the app proxy. The custom domain
+      // matters: the myshopify.com address would drop the customer's session
+      // and land them on a sign-in wall.
+      +'<a href="https://luca-s.com/apps/subscriptions" target="_blank" rel="noopener" '
+      +'style="padding:.5rem .9rem;border-radius:9px;background:var(--lp-red,#8B1A2B);color:#fff;'
+      +'font-size:.8rem;font-weight:700;text-decoration:none">Manage or cancel</a>'
       +'<a href="https://luca-s.com/account" target="_blank" rel="noopener" '
-      +'style="padding:.5rem .9rem;border:1.5px solid #eadde1;border-radius:9px;font-size:.8rem;font-weight:700;'
-      +'color:#7d6b72;text-decoration:none">Manage or cancel</a>'
+      +'style="padding:.5rem .9rem;border:1.5px solid #eadde1;border-radius:9px;font-size:.8rem;'
+      +'font-weight:700;color:#7d6b72;text-decoration:none">Order history</a>'
       +'</div>'
-      +'<p style="font-size:.72rem;color:#a2949a;margin:.7rem 0 0">Cancelling stops future charges. '
-      +'You keep Plus until the end of the period you\u2019ve paid for.</p>');
+      +'<p style="font-size:.72rem;color:#a2949a;margin:.7rem 0 0">Change your plan, update your card or cancel '
+      +'in the subscription portal. Cancelling stops future charges \u2014 you keep Plus until the end of the '
+      +'period you\u2019ve paid for.</p>');
 }
 
 // Invoices are generated here rather than fetched: Shopify\u2019s order status
@@ -22751,6 +22758,7 @@ async function acctRefresh(){
       const a=await r.json();
       window.__LUCAS_AUTH__=a;
       document.querySelectorAll('.acct-btn').forEach(b=>b.classList.toggle('acct-in', !!a.loggedIn));
+      if(typeof prRenderCta==='function') prRenderCta();
       const open=document.querySelector('.acct-dd.open');
       if(open) open.innerHTML=acctBuildMenu();
       if(document.body.classList.contains('account-mode')) acctRenderPage();
@@ -23499,6 +23507,51 @@ function prRender(cur, per){
 
   try{ localStorage.setItem('patternly_currency', prCur); }catch(e){}
   try{ localStorage.setItem('patternly_period', prPeriod); }catch(e){}
+  prRenderCta();
+}
+
+// An existing subscriber must not be able to buy a second subscription. Pressing
+// Subscribe again would create another contract and charge them twice, and
+// nothing downstream would notice — plusFromOrders takes the furthest expiry, so
+// the duplicate would be invisible until the bank statement arrived.
+//
+// So for anyone already on Plus the button is inert, on both periods: matching
+// their plan it reads as their current one, and on the other it points them at
+// their account rather than offering a purchase.
+function prRenderCta(){
+  const btn=document.getElementById('pr-cta');
+  if(!btn) return;
+  const a=(typeof lucasAuth==='function')?lucasAuth():{};
+  const badge=document.getElementById('pr-badge');
+  const note=document.getElementById('pr-note');
+
+  if(!a || !a.plus){
+    btn.disabled=false;
+    btn.style.opacity='';
+    btn.style.cursor='';
+    btn.textContent='Start your free trial';
+    btn.title='';
+    if(badge) badge.style.display='';
+    return;
+  }
+
+  const theirs = a.plan==='annual' ? 'year' : (a.plan==='monthly' ? 'month' : null);
+  btn.disabled=true;
+  btn.style.opacity='.55';
+  btn.style.cursor='default';
+  if(badge) badge.style.display='none';           // the trial is behind them
+
+  if(theirs===null || theirs===prPeriod){
+    btn.textContent='\u2713 Your current plan';
+    btn.title='You are already subscribed';
+  }else{
+    btn.textContent = theirs==='year' ? 'You\u2019re on the yearly plan' : 'You\u2019re on the monthly plan';
+    btn.title='Change your plan from your account page';
+  }
+  if(note){
+    note.innerHTML='You\u2019re subscribed \u2014 change or cancel your plan in the '
+      +'<a href="https://luca-s.com/apps/subscriptions" target="_blank" rel="noopener" style="color:var(--lp-red,#8B1A2B)">subscription portal</a>.';
+  }
 }
 // Which display currency to show. Three only: GBP for the UK, USD for the US,
 // EUR for everyone else — EUR being the catalogue currency for the rest of the
@@ -23713,6 +23766,7 @@ async function plusCheckNow(){
     const was = !!(window.__LUCAS_AUTH__ && window.__LUCAS_AUTH__.plus);
     window.__LUCAS_AUTH__ = a;
     if(typeof acctRenderPage==='function' && document.body.classList.contains('account-mode')) acctRenderPage();
+    if(typeof prRenderCta==='function') prRenderCta();
     if(a.plus){
       plusWaitPanel(false);
       if(!was){
