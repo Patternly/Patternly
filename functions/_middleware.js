@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v26";
+const MW_VERSION = "v27";
 
 const enc = new TextEncoder();
 
@@ -362,6 +362,26 @@ async function adminQuery(env, query, variables) {
 // round trip, so the subscription tag costs us nothing extra.
 const CUSTOMER_EMAIL_QUERY = `
 query CustomerEmail($id: ID!) { customer(id: $id) { email tags } }`;
+
+// Billing history needs more per order than entitlement does: what it cost,
+// and where the customer can read the invoice.
+const ORDER_INVOICES_QUERY = `
+query OrderInvoices($q: String!, $cursor: String) {
+  orders(first: 50, query: $q, after: $cursor) {
+    pageInfo { hasNextPage endCursor }
+    nodes {
+      name
+      createdAt
+      cancelledAt
+      statusPageUrl
+      displayFinancialStatus
+      totalPriceSet { shopMoney { amount currencyCode } }
+      lineItems(first: 100) {
+        nodes { sku quantity refundableQuantity }
+      }
+    }
+  }
+}`;
 
 const ORDER_SKUS_QUERY = `
 query OrderSkus($q: String!, $cursor: String) {
@@ -912,6 +932,89 @@ export async function onRequest(context) {
     const rec = { startedAt: Date.now(), endsAt: Date.now() + TRIAL_DAYS * 86400000 };
     await env.ENTITLEMENTS.put(key, JSON.stringify(rec));
     return new Response(JSON.stringify(rec), {
+      headers: { "content-type": "application/json", "cache-control": "no-store" }
+    });
+  }
+
+  // ── /plus/billing: what the account page shows ───────────────────────────
+  //
+  // Plan, what was last paid, when the next charge is due, and every Plus
+  // invoice. Assembled from orders, because subscription contracts are closed
+  // to this token (see the note above plusFromOrders).
+  //
+  // One honest limitation: nextBilling is DERIVED — last payment plus the plan
+  // interval — not read from the contract. It is correct for an untouched
+  // subscription and wrong if the customer paused or rescheduled, so the app
+  // labels it as expected rather than certain.
+  if (url.pathname === "/plus/billing" || url.pathname.endsWith("/plus/billing")) {
+    if (!auth.loggedIn || !auth.customerId) {
+      return new Response(JSON.stringify({ error: "signin" }), {
+        status: 401, headers: { "content-type": "application/json", "cache-control": "no-store" }
+      });
+    }
+
+    const out = { plus: false, plan: null, invoices: [] };
+    try {
+      const st = await plusState(auth, env);
+      out.plus = st.plus;
+      out.plan = st.plan || null;
+      out.source = st.source || null;
+      out.plusUntil = st.plusUntil || null;
+      out.paidAt = st.paidAt || null;
+      out.trialEndsAt = st.trialEndsAt || null;
+
+      const who = await adminQuery(env, CUSTOMER_EMAIL_QUERY, {
+        id: "gid://shopify/Customer/" + auth.customerId
+      });
+      const email = who && who.customer && who.customer.email;
+
+      if (email) {
+        const plans = plusPlans(env);
+        const since = new Date(Date.now() - 800 * 86400000).toISOString().slice(0, 10);
+        const q = `email:${JSON.stringify(email)} AND created_at:>=${since}`;
+        let cursor = null;
+        for (let page = 0; page < 8; page++) {
+          const data = await adminQuery(env, ORDER_INVOICES_QUERY, { q, cursor });
+          const orders = data && data.orders;
+          if (!orders) break;
+          for (const o of orders.nodes) {
+            const line = o.lineItems.nodes.find(li =>
+              li.sku && plans.has(String(li.sku).trim().toUpperCase()));
+            if (!line) continue;                       // not a membership order
+            const money = (o.totalPriceSet && o.totalPriceSet.shopMoney) || {};
+            out.invoices.push({
+              name: o.name,
+              at: Date.parse(o.createdAt) || 0,
+              amount: money.amount || null,
+              currency: money.currencyCode || null,
+              url: o.statusPageUrl || null,
+              status: o.cancelledAt ? "CANCELLED" : (o.displayFinancialStatus || null),
+              voided: lineIsVoid(o, line),
+              plan: plans.get(String(line.sku).trim().toUpperCase()) >= PLUS_YEAR_WINDOW_DAYS
+                    ? "annual" : "monthly"
+            });
+          }
+          if (!orders.pageInfo.hasNextPage) break;
+          cursor = orders.pageInfo.endCursor;
+        }
+        out.invoices.sort((a, b) => b.at - a.at);
+      }
+
+      // Derived, not authoritative — see the note above.
+      const live = out.invoices.find(i => !i.voided);
+      if (live) {
+        const interval = out.plan === "annual" ? 365 : 30;
+        out.nextBilling = live.at + interval * 86400000;
+        out.nextBillingEstimated = true;
+        out.lastAmount = live.amount;
+        out.lastCurrency = live.currency;
+      }
+    } catch (e) {
+      console.warn("billing lookup failed:", e.message);
+      out.error = e.message;
+    }
+
+    return new Response(JSON.stringify(out), {
       headers: { "content-type": "application/json", "cache-control": "no-store" }
     });
   }
