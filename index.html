@@ -2665,17 +2665,27 @@ body.pricing-mode #convert-page,body.pricing-mode #account-page{display:none!imp
 .pr-head p{font-size:.95rem;color:#6a626f;margin:0 auto;max-width:520px;line-height:1.6}
 /* Currency follows the shop the customer buys in, so the control is a plain
    picker rather than a guess we cannot undo. */
-.pr-cur{display:flex;justify-content:center;gap:.3rem;margin:1.3rem 0 .55rem}
-.pr-bill{display:flex;justify-content:center;gap:.3rem;margin:0 0 1.9rem}
-.pr-bill button{border:1.5px solid #e6d9dd;background:#fff;font-family:inherit;font-size:.8rem;font-weight:700;
-  color:#6a626f;padding:.42rem .95rem;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:.4rem}
-.pr-bill button.on{background:var(--lp-red,#8B1A2B);border-color:var(--lp-red,#8B1A2B);color:#fff}
+.pr-fx{font-size:.68rem;color:#9a8f96;margin-top:-.35rem}
+.pr-bill{display:flex;justify-content:center;margin:1.3rem 0 1.9rem}
+/* A segmented switch rather than two loose buttons: the sliding thumb makes it
+   read as one control with two states, which is what a billing period is. */
+.pr-switch-in{position:relative;display:inline-flex;background:#f4ecee;border:1.5px solid #e6d9dd;
+  border-radius:999px;padding:.24rem}
+.pr-switch-thumb{position:absolute;top:.24rem;bottom:.24rem;left:.24rem;
+  width:calc(50% - .24rem);background:var(--lp-red,#8B1A2B);border-radius:999px;
+  transition:transform .22s cubic-bezier(.4,.1,.2,1);pointer-events:none}
+.pr-bill.year .pr-switch-thumb{transform:translateX(100%)}
+.pr-bill button{position:relative;z-index:1;flex:0 0 auto;min-width:8.6rem;justify-content:center;
+  border:0;background:none;font-family:inherit;font-size:.8rem;font-weight:700;color:#6a626f;
+  padding:.42rem .8rem;border-radius:999px;cursor:pointer;white-space:nowrap;
+  display:inline-flex;align-items:center;gap:.4rem;transition:color .18s ease}
+.pr-bill button.on{color:#fff}
 .pr-save{font-size:.66rem;font-weight:800;letter-spacing:.02em;background:#f2e4c9;color:#7a5a12;
-  padding:.1rem .38rem;border-radius:999px}
+  padding:.1rem .38rem;border-radius:999px;transition:background .18s ease,color .18s ease}
 .pr-bill button.on .pr-save{background:rgba(255,255,255,.22);color:#fff}
-.pr-cur button{border:1.5px solid #e6d9dd;background:#fff;font-family:inherit;font-size:.8rem;font-weight:700;
-  padding:.4rem .9rem;border-radius:9px;cursor:pointer;color:#5a4a51}
-.pr-cur button.on{background:var(--lp-red,#8B1A2B);border-color:var(--lp-red,#8B1A2B);color:#fff}
+/* The struck-through figure is what twelve monthly payments would cost. */
+.pr-was{font-size:1.05rem;font-weight:700;color:#a99ba1;text-decoration:line-through;margin-right:.45rem}
+@media (max-width:400px){ .pr-bill button{min-width:7.6rem;font-size:.75rem} }
 .pr-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.2rem;align-items:start}
 .pr-card{background:#fff;border:1.5px solid #e6d9dd;border-radius:18px;padding:1.6rem 1.4rem;position:relative}
 .pr-card.feat{border-color:var(--lp-red,#8B1A2B);box-shadow:0 10px 34px rgba(139,26,43,.13)}
@@ -5308,15 +5318,12 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <p>Everything you need to design and stitch is free. Plus adds the things that help with bigger projects.</p>
     </div>
 
-    <div class="pr-cur" id="pr-cur">
-      <button data-cur="GBP" class="on">&pound; GBP</button>
-      <button data-cur="EUR">&euro; EUR</button>
-      <button data-cur="USD">$ USD</button>
-    </div>
-
     <div class="pr-bill" id="pr-bill">
-      <button data-per="month" class="on">Monthly</button>
-      <button data-per="year">Yearly <span class="pr-save">Save 33%</span></button>
+      <div class="pr-switch-in">
+        <span class="pr-switch-thumb" aria-hidden="true"></span>
+        <button data-per="month" class="on" aria-pressed="true">Monthly</button>
+        <button data-per="year" aria-pressed="false">Yearly <span class="pr-save">Save 33%</span></button>
+      </div>
     </div>
 
     <div class="pr-cards">
@@ -5341,8 +5348,9 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
         <span class="pr-badge">2 weeks free</span>
         <h3 class="pr-name">Plus</h3>
         <p class="pr-tag">For stitchers with several projects on the go.</p>
-        <div class="pr-price"><span class="pr-amount" id="pr-amount">&pound;2.98</span><span class="pr-per" id="pr-per">/ month</span></div>
+        <div class="pr-price"><span class="pr-was" id="pr-was" style="display:none"></span><span class="pr-amount" id="pr-amount">&pound;2.98</span><span class="pr-per" id="pr-per">/ month</span></div>
         <p class="pr-note" id="pr-note">Free for 14 days, then <span id="pr-note-price">&pound;2.98</span> a month. Cancel any time.</p>
+        <p class="pr-note pr-fx" id="pr-fx">You&rsquo;ll be charged in your local currency at checkout.</p>
         <button class="pr-cta primary" onclick="prStartTrial()">Start your free trial</button>
         <ul class="pr-feats">
           <li>Everything in Free</li>
@@ -12451,13 +12459,117 @@ function expBuildPdf(){
   return {pdf, name, pages: (EXP.instr?1:0)+pageNo+keyPages};
 }
 
-function expBlobDownload(blob, filename){
+// ── Export quota ──────────────────────────────────────────────────────────
+// Free accounts get a handful of exports a month; Plus is unlimited. Saving a
+// pattern is never counted — only a file actually leaving the app.
+//
+// Signed-in customers are counted server-side, so the tally survives a cleared
+// browser. Anonymous visitors are counted here, in localStorage, which anyone
+// can reset. That is a deliberate trade rather than an oversight: the honest
+// place to enforce this is behind a sign-in, and the limit exists to nudge
+// people towards an account, not to fight incognito windows.
+//
+// Every failure path allows the download. Losing a couple of counted exports
+// to a network blip costs nothing; blocking someone's finished chart because
+// Shopify was briefly unreachable would be unforgivable.
+const FREE_EXPORTS_PER_MONTH = 5;
+const XQ_KEY = 'patternly_exports';
+
+function xqMonth(){ return new Date().toISOString().slice(0,7); }
+
+function xqLocal(){
+  try{
+    const r = JSON.parse(localStorage.getItem(XQ_KEY) || '{}');
+    if(r && r.month === xqMonth()) return { month:r.month, used:Number(r.used)||0 };
+  }catch(e){}
+  return { month: xqMonth(), used: 0 };
+}
+function xqLocalBump(){
+  const r = xqLocal();
+  try{ localStorage.setItem(XQ_KEY, JSON.stringify({ month:r.month, used:r.used+1 })); }catch(e){}
+  return r.used + 1;
+}
+
+function xqAuth(){ return window.__LUCAS_AUTH__ || null; }
+function xqBase(){ return TRK_KITS_BASE.replace(/\/patterns$/,''); }
+
+// Claims one export. Resolves {allowed, used, limit, signedIn, plus}.
+async function xqClaim(){
+  const a = xqAuth();
+  const limit = FREE_EXPORTS_PER_MONTH;
+
+  if(a && a.plus) return { allowed:true, plus:true, signedIn:true, used:0, limit };
+
+  if(a && a.loggedIn){
+    try{
+      const r = await fetch(xqBase()+'/exports', { method:'POST', credentials:'include', cache:'no-store' });
+      if(r.status === 402){
+        const j = await r.json().catch(()=>({}));
+        return { allowed:false, plus:false, signedIn:true, used:j.used||limit, limit:j.limit||limit };
+      }
+      if(r.ok){
+        const j = await r.json().catch(()=>({}));
+        return { allowed:true, plus:!!j.plus, signedIn:true, used:j.used||0, limit:j.limit||limit };
+      }
+    }catch(e){ console.warn('[exports] quota check failed', e); }
+    return { allowed:true, plus:false, signedIn:true, used:0, limit };   // fail open
+  }
+
+  // Not signed in: local tally.
+  const used = xqLocal().used;
+  if(used >= limit) return { allowed:false, plus:false, signedIn:false, used, limit };
+  return { allowed:true, plus:false, signedIn:false, used:xqLocalBump(), limit };
+}
+
+function xqLimitModal(st){
+  // One at a time: a second export attempt while the notice is open should
+  // surface the existing one, not pile another on top of it.
+  if(document.getElementById('xq-gate')) return;
+  const ov=document.createElement('div');
+  ov.id='xq-gate';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(30,20,24,.55);z-index:100000;'
+    +'display:flex;align-items:center;justify-content:center;padding:1.2rem';
+  const signIn = !st.signedIn
+    ? '<button id="xq-signin" class="pr-cta ghost" style="margin-bottom:.5rem">Sign in to your Luca-S account</button>'
+    : '';
+  ov.innerHTML='<div style="background:#fff;border-radius:18px;max-width:380px;width:100%;padding:1.5rem 1.3rem;'
+    +'font-family:Inter,system-ui,sans-serif;box-shadow:0 18px 50px rgba(0,0,0,.25)">'
+    +'<h3 style="margin:0 0 .5rem;font-size:1.12rem;color:#2b2226">That\u2019s your '+st.limit+' free exports this month</h3>'
+    +'<p style="font-size:.86rem;color:#6a626f;line-height:1.55;margin:0 0 1.1rem">'
+    +'Your allowance resets at the start of next month. Plus removes the limit \u2014 '
+    +'and your work stays saved here in the meantime.</p>'
+    + signIn
+    +'<button id="xq-plus" class="pr-cta primary" style="margin-bottom:.5rem">See Plus</button>'
+    +'<button id="xq-close" style="display:block;width:100%;background:none;border:none;font-family:inherit;'
+    +'font-size:.8rem;font-weight:700;color:#7d6b72;cursor:pointer;padding:.5rem">Not now</button>'
+    +'</div>';
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.addEventListener('click', e=>{ if(e.target===ov) close(); });
+  document.getElementById('xq-close').onclick=close;
+  document.getElementById('xq-plus').onclick=()=>{ close(); openPricing(); };
+  const si=document.getElementById('xq-signin');
+  if(si) si.onclick=()=>{
+    try{ window.open('https://luca-s.com/account/login','_blank','noopener'); }catch(e){}
+  };
+}
+
+// The one place a file leaves the app. Returns true if the download happened.
+async function dlFile(blob, filename){
+  const st = await xqClaim();
+  if(!st.allowed){ xqLimitModal(st); return false; }
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url; a.download=filename;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(()=>URL.revokeObjectURL(url), 1500);
+  if(!st.plus && st.limit - st.used === 1 && typeof toast==='function'){
+    toast('1 free export left this month');
+  }
+  return true;
 }
+
+function expBlobDownload(blob, filename){ return dlFile(blob, filename); }
 
 // ── OXS (Open Cross Stitch XML) ──
 function expBuildOxs(){
@@ -12945,12 +13057,9 @@ document.getElementById('download-all-btn').addEventListener('click',()=>{
       pdf.addImage(item.canvas.toDataURL('image/png'), 'PNG', (pageW-w)/2, margin+headerH, w, h);
     });
     const blob=pdf.output('blob');
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');
-    a.href=url; a.download=`${_lastModalName}-charts`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(()=>URL.revokeObjectURL(url), 1500);
-    toast(`PDF with ${_lastModalItems.length} chart${_lastModalItems.length!==1?'s':''} saved`);
+    dlFile(blob, `${_lastModalName}-charts`).then(done=>{
+      if(done) toast(`PDF with ${_lastModalItems.length} chart${_lastModalItems.length!==1?'s':''} saved`);
+    });
   }catch(err){
     console.error(err);
     toast('Could not generate the combined PDF — try the individual buttons');
@@ -12990,16 +13099,7 @@ function downloadCanvasAsPdf(canvas, filename){
     // Use a blob + in-page <a download> instead of pdf.save(), which triggers
     // a navigation that gets intercepted as an "external link" in sandboxed iframes.
     const blob = pdf.output('blob');
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(()=>URL.revokeObjectURL(url), 1000);
-
-    toast('PDF saved');
+    dlFile(blob, filename).then(done=>{ if(done) toast('PDF saved'); });
   }catch(err){
     console.error(err);
     toast('Could not generate PDF — try again');
@@ -22787,9 +22887,9 @@ async function fconvHandle(fileList){
       const btns=document.createElement('div');
       btns.style.cssText='display:flex;gap:.35rem;flex-wrap:wrap';
       const mk=(txt,fn)=>{ const b=document.createElement('button'); b.className='sel-act-btn'; b.textContent=txt; b.addEventListener('click',fn); btns.appendChild(b); };
-      mk('⬇ Download',()=>{
+      mk('\u2b07 Download',()=>{
         const blob=new Blob([bytes],{type:'application/octet-stream'});
-        const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=ptlyName; a.click();
+        dlFile(blob, ptlyName);
       });
       mk('✏️ Editor',()=>{
         pjGuardedLeave(()=>pjImportPtlyFile(new File([bytes], ptlyName)));
@@ -23182,9 +23282,9 @@ function trkFsSyncMode(){
 // £2.98 gives €3.43 and $3.77 — numbers nobody would choose to print — so each
 // market gets a figure picked to read well there.
 const PR_PRICES = {
-  GBP:{sym:'\u00a3', month:'2.98', year:'23.98'},
-  EUR:{sym:'\u20ac', month:'3.98', year:'31.98'},
-  USD:{sym:'$',       month:'4.98', year:'39.98'}
+  GBP:{sym:'\u00a3', month:'2.98', year:'23.98', was:'35.76'},
+  EUR:{sym:'\u20ac', month:'3.98', year:'31.98', was:'47.76'},
+  USD:{sym:'$',       month:'4.98', year:'39.98', was:'59.76'}
 };
 // Annual is priced at eight months in every currency, so "save a third" is true
 // everywhere and the badge does not need to change per market.
@@ -23202,6 +23302,13 @@ function prRender(cur, per){
   const yearly = prPeriod === 'year';
 
   const a=document.getElementById('pr-amount'); if(a) a.textContent=txt;
+  const was=document.getElementById('pr-was');
+  if(was){
+    // Twelve monthly payments, shown struck through so the saving is visible
+    // at the moment of choosing rather than asserted in a badge alone.
+    was.textContent = yearly ? (p.sym + p.was) : '';
+    was.style.display = yearly ? '' : 'none';
+  }
   const per_=document.getElementById('pr-per'); if(per_) per_.textContent = yearly ? '/ year' : '/ month';
   const n=document.getElementById('pr-note-price'); if(n) n.textContent=txt;
   const note=document.getElementById('pr-note');
@@ -23210,26 +23317,54 @@ function prRender(cur, per){
     note.innerHTML = 'Free for 14 days, then <span id="pr-note-price">'+txt+'</span> a '
                    + (yearly ? 'year' : 'month') + '. Cancel any time.';
   }
-  const box=document.getElementById('pr-cur');
-  if(box) [...box.querySelectorAll('button')].forEach(b=>b.classList.toggle('on', b.dataset.cur===prCur));
   const bill=document.getElementById('pr-bill');
-  if(bill) [...bill.querySelectorAll('button')].forEach(b=>b.classList.toggle('on', b.dataset.per===prPeriod));
+  if(bill){
+    bill.classList.toggle('year', yearly);
+    [...bill.querySelectorAll('button')].forEach(b=>{
+      const on = b.dataset.per===prPeriod;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
 
   try{ localStorage.setItem('patternly_currency', prCur); }catch(e){}
   try{ localStorage.setItem('patternly_period', prPeriod); }catch(e){}
 }
+// Which display currency to show. Three only: GBP for the UK, USD for the US,
+// EUR for everyone else — EUR being the catalogue currency for the rest of the
+// world. Shopify still charges each customer in their own currency at checkout
+// (roubles, hryvnia, Australian dollars), which is why the card carries a note
+// saying so. The page is a guide; checkout is authoritative.
+//
+// Detection is by timezone rather than locale or IP. Locale is wrong often —
+// a British stitcher whose phone is set to US English reads as American — and
+// IP is unavailable to us: /whoami arrives through the Shopify App Proxy, so
+// the address Cloudflare sees belongs to Shopify's servers, not the customer.
+// The device timezone is set by the person, travels with them, and is more than
+// precise enough to pick between three currencies.
+// Browsers canonicalise some of these: Chrome reports America/Indiana/Indianapolis
+// as America/Indianapolis and America/Kentucky/Louisville as America/Louisville,
+// so both the modern names and the legacy aliases are listed.
+const PR_US_ZONES = /^(America\/(New_York|Detroit|Chicago|Denver|Los_Angeles|Phoenix|Anchorage|Adak|Boise|Juneau|Nome|Sitka|Yakutat|Menominee|Metlakatla|Shiprock|Fort_Wayne|Indianapolis|Louisville|Monticello|Knox_IN|Puerto_Rico|St_Thomas|Indiana\/|Kentucky\/|North_Dakota\/)|Pacific\/(Honolulu|Guam|Pago_Pago|Wake|Midway|Saipan))/;
+
 function prGuessCurrency(){
+  // Deliberately not read from localStorage. There is no picker any more, so
+  // the only value ever stored is a previous detection — reading it back would
+  // freeze the first guess forever, and someone the guess got wrong, or who
+  // has since travelled, would never see it corrected.
   try{
-    const saved=localStorage.getItem('patternly_currency');
-    if(saved && PR_PRICES[saved]) return saved;
-    // A reasonable first guess from the browser's locale, which the picker
-    // overrides — this is a default, not a decision.
-    const loc=(navigator.language||'en-GB');
-    if(/GB|UK/i.test(loc)) return 'GBP';
-    if(/US|CA/i.test(loc)) return 'USD';
-    if(/DE|FR|ES|IT|NL|IE|PT|AT|BE|FI|GR|SK|SI|LV|LT|EE|CY|MT|LU/i.test(loc)) return 'EUR';
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+    if(tz === 'Europe/London' || tz === 'Europe/Belfast') return 'GBP';
+    if(PR_US_ZONES.test(tz)) return 'USD';
+    if(tz) return 'EUR';
   }catch(e){}
-  return 'GBP';
+  // No timezone available: fall back on locale, then on EUR.
+  try{
+    const loc = navigator.language || '';
+    if(/-GB$/i.test(loc)) return 'GBP';
+    if(/-US$/i.test(loc)) return 'USD';
+  }catch(e){}
+  return 'EUR';
 }
 // ── Plus gate on the Stitch Tracker ──────────────────────────────────────
 // Every route into the tracker passes through openTracker(), so the check sits
@@ -23304,13 +23439,32 @@ function openPricing(){
 //
 // Two products, two handles. If either handle changes in Shopify, change it
 // here and nothing else needs touching.
-const PLUS_URL       = 'https://luca-s.com/products/patternly-plus';
-const PLUS_URL_YEAR  = 'https://luca-s.com/products/patternlyplusyear';
+// Subscribing goes straight to checkout, not to the product page.
+//
+// A Shopify cart permalink of the form /cart/{variant}:{qty} adds the item and
+// lands on the cart; ?selling_plan= attaches the subscription (without it the
+// line is a one-off with no contract behind it, which renews nothing), and
+// return_to=/checkout skips the cart page entirely. Net effect: one tap from
+// the pricing card to payment.
+//
+// These four IDs come from Shopify. If a plan is edited or a product rebuilt,
+// they change — get them by selecting the subscription option on the product
+// page and reading ?variant= and ?selling_plan= out of the URL.
+const PLUS_PLANS = {
+  month: { variant:'58326203859318', plan:'712875475318' },
+  year:  { variant:'58332475425142', plan:'712875770230' }
+};
+function plusCheckoutUrl(period){
+  const p = PLUS_PLANS[period==='year' ? 'year' : 'month'];
+  return 'https://luca-s.com/cart/' + p.variant + ':1'
+       + '?selling_plan=' + p.plan
+       + '&return_to=/checkout';
+}
 
 // Opened in a new tab: the editor may hold unsaved work, and navigating the
 // whole page away to a checkout would lose it.
 function prStartTrial(){
-  const url = (prPeriod === 'year') ? PLUS_URL_YEAR : PLUS_URL;
+  const url = plusCheckoutUrl(prPeriod);
   try{ window.open(url, '_blank', 'noopener'); }
   catch(e){ location.href = url; }
   plusWatchForReturn();
@@ -23350,11 +23504,6 @@ function plusWatchForReturn(){
   window.addEventListener('focus', check);
 }
 (function(){
-  const box=document.getElementById('pr-cur');
-  if(box) box.addEventListener('click', e=>{
-    const b=e.target.closest('button[data-cur]');
-    if(b) prSetCurrency(b.dataset.cur);
-  });
   const bill=document.getElementById('pr-bill');
   if(bill) bill.addEventListener('click', e=>{
     const b=e.target.closest('button[data-per]');
