@@ -2665,7 +2665,14 @@ body.pricing-mode #convert-page,body.pricing-mode #account-page{display:none!imp
 .pr-head p{font-size:.95rem;color:#6a626f;margin:0 auto;max-width:520px;line-height:1.6}
 /* Currency follows the shop the customer buys in, so the control is a plain
    picker rather than a guess we cannot undo. */
-.pr-cur{display:flex;justify-content:center;gap:.3rem;margin:1.3rem 0 1.9rem}
+.pr-cur{display:flex;justify-content:center;gap:.3rem;margin:1.3rem 0 .55rem}
+.pr-bill{display:flex;justify-content:center;gap:.3rem;margin:0 0 1.9rem}
+.pr-bill button{border:1.5px solid #e6d9dd;background:#fff;font-family:inherit;font-size:.8rem;font-weight:700;
+  color:#6a626f;padding:.42rem .95rem;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:.4rem}
+.pr-bill button.on{background:var(--lp-red,#8B1A2B);border-color:var(--lp-red,#8B1A2B);color:#fff}
+.pr-save{font-size:.66rem;font-weight:800;letter-spacing:.02em;background:#f2e4c9;color:#7a5a12;
+  padding:.1rem .38rem;border-radius:999px}
+.pr-bill button.on .pr-save{background:rgba(255,255,255,.22);color:#fff}
 .pr-cur button{border:1.5px solid #e6d9dd;background:#fff;font-family:inherit;font-size:.8rem;font-weight:700;
   padding:.4rem .9rem;border-radius:9px;cursor:pointer;color:#5a4a51}
 .pr-cur button.on{background:var(--lp-red,#8B1A2B);border-color:var(--lp-red,#8B1A2B);color:#fff}
@@ -5307,6 +5314,11 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <button data-cur="USD">$ USD</button>
     </div>
 
+    <div class="pr-bill" id="pr-bill">
+      <button data-per="month" class="on">Monthly</button>
+      <button data-per="year">Yearly <span class="pr-save">Save 33%</span></button>
+    </div>
+
     <div class="pr-cards">
       <div class="pr-card">
         <h3 class="pr-name">Free</h3>
@@ -5329,7 +5341,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
         <span class="pr-badge">2 weeks free</span>
         <h3 class="pr-name">Plus</h3>
         <p class="pr-tag">For stitchers with several projects on the go.</p>
-        <div class="pr-price"><span class="pr-amount" id="pr-amount">&pound;2.98</span><span class="pr-per">/ month</span></div>
+        <div class="pr-price"><span class="pr-amount" id="pr-amount">&pound;2.98</span><span class="pr-per" id="pr-per">/ month</span></div>
         <p class="pr-note" id="pr-note">Free for 14 days, then <span id="pr-note-price">&pound;2.98</span> a month. Cancel any time.</p>
         <button class="pr-cta primary" onclick="prStartTrial()">Start your free trial</button>
         <ul class="pr-feats">
@@ -23170,18 +23182,41 @@ function trkFsSyncMode(){
 // £2.98 gives €3.43 and $3.77 — numbers nobody would choose to print — so each
 // market gets a figure picked to read well there.
 const PR_PRICES = {
-  GBP:{sym:'\u00a3', amount:'2.98'},
-  EUR:{sym:'\u20ac', amount:'3.98'},
-  USD:{sym:'$',       amount:'4.98'}
+  GBP:{sym:'\u00a3', month:'2.98', year:'23.98'},
+  EUR:{sym:'\u20ac', month:'3.98', year:'31.98'},
+  USD:{sym:'$',       month:'4.98', year:'39.98'}
 };
-function prSetCurrency(cur){
-  const p=PR_PRICES[cur]||PR_PRICES.GBP;
-  const txt=p.sym+p.amount;
+// Annual is priced at eight months in every currency, so "save a third" is true
+// everywhere and the badge does not need to change per market.
+let prPeriod = 'month';
+let prCur = 'GBP';
+
+function prSetCurrency(cur){ prRender(cur, prPeriod); }
+function prSetPeriod(per){ prRender(null, per); }
+
+function prRender(cur, per){
+  if(cur) prCur = PR_PRICES[cur] ? cur : 'GBP';
+  if(per) prPeriod = (per==='year') ? 'year' : 'month';
+  const p = PR_PRICES[prCur] || PR_PRICES.GBP;
+  const txt = p.sym + p[prPeriod];
+  const yearly = prPeriod === 'year';
+
   const a=document.getElementById('pr-amount'); if(a) a.textContent=txt;
+  const per_=document.getElementById('pr-per'); if(per_) per_.textContent = yearly ? '/ year' : '/ month';
   const n=document.getElementById('pr-note-price'); if(n) n.textContent=txt;
+  const note=document.getElementById('pr-note');
+  if(note){
+    // Rebuilt rather than patched, so the wording stays grammatical either way.
+    note.innerHTML = 'Free for 14 days, then <span id="pr-note-price">'+txt+'</span> a '
+                   + (yearly ? 'year' : 'month') + '. Cancel any time.';
+  }
   const box=document.getElementById('pr-cur');
-  if(box) [...box.querySelectorAll('button')].forEach(b=>b.classList.toggle('on', b.dataset.cur===cur));
-  try{ localStorage.setItem('patternly_currency', cur); }catch(e){}
+  if(box) [...box.querySelectorAll('button')].forEach(b=>b.classList.toggle('on', b.dataset.cur===prCur));
+  const bill=document.getElementById('pr-bill');
+  if(bill) [...bill.querySelectorAll('button')].forEach(b=>b.classList.toggle('on', b.dataset.per===prPeriod));
+
+  try{ localStorage.setItem('patternly_currency', prCur); }catch(e){}
+  try{ localStorage.setItem('patternly_period', prPeriod); }catch(e){}
 }
 function prGuessCurrency(){
   try{
@@ -23235,7 +23270,7 @@ function trkPlusGate(){
     +(trialUsed
         ? '<button id="tpg-go" class="pr-cta primary" style="margin-bottom:.5rem">See plans</button>'
         : '<button id="tpg-trial" class="pr-cta primary" style="margin-bottom:.5rem">Start 14 days free</button>'
-          +'<p style="font-size:.72rem;color:#8a7d84;text-align:center;margin:0 0 .7rem">No card needed to start</p>'
+          +'<p style="font-size:.72rem;color:#8a7d84;text-align:center;margin:0 0 .7rem">Free for 14 days, then billed monthly. Cancel any time.</p>'
           +'<button id="tpg-go" class="pr-cta ghost" style="margin-bottom:.5rem">See plans &amp; pricing</button>')
     +'<button id="tpg-close" style="display:block;width:100%;background:none;border:none;font-family:inherit;'
     +'font-size:.8rem;font-weight:700;color:#7d6b72;cursor:pointer;padding:.5rem">Not now</button>'
@@ -23246,27 +23281,11 @@ function trkPlusGate(){
   document.getElementById('tpg-close').onclick=close;
   document.getElementById('tpg-go').onclick=()=>{ close(); openPricing(); };
   const t=document.getElementById('tpg-trial');
-  if(t) t.onclick=async ()=>{
-    t.disabled=true; t.textContent='Starting\u2026';
-    try{
-      const base=TRK_KITS_BASE.replace(/\/patterns$/,'');
-      const r=await fetch(base+'/plus/trial',{method:'POST',credentials:'include'});
-      if(r.status===401){ close(); toast('Sign in to your Luca-S account to start the trial'); return; }
-      if(!r.ok && r.status!==409){ throw new Error('trial '+r.status); }
-      // Refresh auth so the gate opens without a reload.
-      try{
-        const w=await fetch(base+'/whoami',{credentials:'include',cache:'no-store'});
-        if(w.ok) window.__LUCAS_AUTH__=await w.json();
-      }catch(e){}
-      close();
-      toast('Your 14-day trial has started \u2014 enjoy the tracker');
-      openTracker();
-    }catch(e){
-      console.warn('[plus] trial start failed', e);
-      t.disabled=false; t.textContent='Start 14 days free';
-      toast('Could not start the trial just now');
-    }
-  };
+  // The trial is Shopify's now, not ours: the customer enters a card, is charged
+  // nothing for 14 days, and converts automatically. That is why this goes to
+  // checkout rather than to /plus/trial, which granted access with no card and
+  // no way to convert.
+  if(t) t.onclick=()=>{ close(); prStartTrial(); };
 }
 function openPricing(){
   pjGuardedLeave(()=>{
@@ -23274,25 +23293,72 @@ function openPricing(){
     document.body.classList.add('pricing-mode');
     const img=document.getElementById('pricing-logo-img');
     if(img && !img.src){ const src=document.getElementById('lp-logo-img'); if(src) img.src=src.src; }
-    prSetCurrency(prGuessCurrency());
+    let savedPer='month';
+    try{ const s=localStorage.getItem('patternly_period'); if(s==='year'||s==='month') savedPer=s; }catch(e){}
+    prRender(prGuessCurrency(), savedPer);
     window.scrollTo({top:0});
   });
 }
+// Where subscribing happens. The trial lives in Shopify now (Appstle applies a
+// 100% discount across the first 14 days), so there is one route in per plan.
+//
+// Two products, two handles. If either handle changes in Shopify, change it
+// here and nothing else needs touching.
+const PLUS_URL       = 'https://luca-s.com/products/patternly-plus';
+const PLUS_URL_YEAR  = 'https://luca-s.com/products/patternly-plus-yearly';
+
+// Opened in a new tab: the editor may hold unsaved work, and navigating the
+// whole page away to a checkout would lose it.
 function prStartTrial(){
-  // Placeholder until checkout is wired up. Saying so plainly beats a button
-  // that appears to do nothing.
-  pjShowModal({
-    title:'Not connected yet',
-    body:'Checkout isn\u2019t live yet \u2014 this page is a preview of the plans. '
-        +'When it goes live, this button will start your 14-day trial with no card required up front.',
-    confirmLabel:'OK'
-  });
+  const url = (prPeriod === 'year') ? PLUS_URL_YEAR : PLUS_URL;
+  try{ window.open(url, '_blank', 'noopener'); }
+  catch(e){ location.href = url; }
+  plusWatchForReturn();
+}
+
+// After a checkout the customer comes back to this tab, and their Plus status
+// has changed server-side but not here. Re-read /whoami when the tab regains
+// focus so the gate opens without asking them to reload — but only for a few
+// minutes, and only until it succeeds, so we are not polling forever.
+let plusWatching = false;
+function plusWatchForReturn(){
+  if(plusWatching) return;
+  plusWatching = true;
+  const stopAt = Date.now() + 10*60*1000;
+  const check = async () => {
+    if(document.hidden) return;
+    if(Date.now() > stopAt){ done(); return; }
+    try{
+      const base = TRK_KITS_BASE.replace(/\/patterns$/,'');
+      const r = await fetch(base+'/whoami',{credentials:'include',cache:'no-store'});
+      if(!r.ok) return;
+      const a = await r.json();
+      const was = !!(window.__LUCAS_AUTH__ && window.__LUCAS_AUTH__.plus);
+      window.__LUCAS_AUTH__ = a;
+      if(a.plus && !was){
+        done();
+        if(typeof toast==='function') toast('Welcome to Plus \u2014 the Stitch Tracker is open');
+      }
+    }catch(e){}
+  };
+  const done = () => {
+    plusWatching = false;
+    document.removeEventListener('visibilitychange', check);
+    window.removeEventListener('focus', check);
+  };
+  document.addEventListener('visibilitychange', check);
+  window.addEventListener('focus', check);
 }
 (function(){
   const box=document.getElementById('pr-cur');
   if(box) box.addEventListener('click', e=>{
     const b=e.target.closest('button[data-cur]');
     if(b) prSetCurrency(b.dataset.cur);
+  });
+  const bill=document.getElementById('pr-bill');
+  if(bill) bill.addEventListener('click', e=>{
+    const b=e.target.closest('button[data-per]');
+    if(b) prSetPeriod(b.dataset.per);
   });
 })();
 function trkWorkspaceBack(){
