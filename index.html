@@ -23891,7 +23891,7 @@ function trkWorkspaceBack(){
 }
 function lpLogoHome(){
   const b=document.body;
-  const away=['pricing-mode','projects-mode','calc-mode','tracker-mode','threads-mode',
+  const away=['subs-mode','pricing-mode','projects-mode','calc-mode','tracker-mode','threads-mode',
               'convert-mode','account-mode','app-mode'].some(c=>b.classList.contains(c));
   if(away && typeof goHome==='function') goHome();
   else window.scrollTo({top:0,behavior:'smooth'});
