@@ -2783,6 +2783,22 @@ body.convert-mode #convert-page{display:block}
 body.convert-mode #landing-page,body.convert-mode #app-wrapper,body.convert-mode #projects-page,body.convert-mode #calc-page,body.convert-mode #threads-page,body.convert-mode #tracker-page{display:none!important}
 body.dark #convert-page{background:#171220;color:#e8e3ee}
 #account-page{display:none;min-height:100vh;background:#fdf9f5}
+#subs-page{display:none;min-height:100vh;background:#fdf9f5}
+body.subs-mode #subs-page{display:block}
+body.subs-mode #landing-page,body.subs-mode #app-wrapper,body.subs-mode #projects-page,
+body.subs-mode #calc-page,body.subs-mode #threads-page,body.subs-mode #tracker-page,
+body.subs-mode #convert-page,body.subs-mode #account-page,body.subs-mode #pricing-page{display:none!important}
+body.dark #subs-page{background:#171220;color:#e8e3ee}
+/* The strip on My Account: horizontal, so the membership summary costs one row
+   rather than a whole section. */
+.subs-strip{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-top:1.1rem;
+  background:#fff;border:1.5px solid #eadde1;border-radius:14px;padding:.85rem 1.1rem}
+.subs-strip .ss-main{flex:1;min-width:200px}
+.subs-strip .ss-title{font-size:.9rem;font-weight:700;color:#2b2226}
+.subs-strip .ss-sub{font-size:.78rem;color:#7d6b72;margin-top:.1rem}
+.subs-strip .ss-go{white-space:nowrap;padding:.5rem .95rem;border-radius:9px;background:var(--lp-red,#8B1A2B);
+  color:#fff;border:none;font-family:inherit;font-size:.8rem;font-weight:700;cursor:pointer}
+body.dark .subs-strip{background:#221c30;border-color:#3a3350}
 body.account-mode #account-page{display:block}
 body.account-mode #landing-page,body.account-mode #app-wrapper,body.account-mode #projects-page,body.account-mode #calc-page,body.account-mode #threads-page,body.account-mode #tracker-page,body.account-mode #convert-page{display:none!important}
 body.dark #account-page{background:#171220;color:#e8e3ee}
@@ -5662,6 +5678,17 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
   </div>
 </div>
 
+<!-- ═════ MY SUBSCRIPTION PAGE ═════ -->
+<div id="subs-page">
+  <div class="calc-container">
+    <h1 class="calc-title">My Subscription</h1>
+    <p class="calc-sub">Your plan, your billing history and your invoices.</p>
+    <div id="acct-plus"></div>
+    <p style="margin-top:1.4rem"><a href="#" onclick="openAccountPage();return false"
+       style="font-size:.82rem;font-weight:700;color:#7d6b72;text-decoration:none">&larr; Back to My Account</a></p>
+  </div>
+</div>
+
 <!-- ═════ MY ACCOUNT PAGE ═════ -->
 <div id="account-page">
   <div class="calc-container">
@@ -5669,7 +5696,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <p class="calc-sub">Your Luca-S account, your patterns and your stitching — in one place.</p>
     <div class="acct-status" id="acct-status"><!-- filled by acctRenderPage() --></div>
     <div id="acct-patterns" style="display:none;margin-top:1.6rem"></div>
-    <div id="acct-plus" style="display:none;margin-top:1.6rem"></div>
+    <div id="acct-plus-strip"></div>
     <div class="acct-row-block">
       <div class="acct-row-head">
         <div><b>My Patterns</b><span id="acct-pat-count"></span></div>
@@ -16453,7 +16480,7 @@ document.querySelectorAll('.ct-btn[data-tool]').forEach(btn=>{
 
 // "Open Editor" now leads to the My Patterns page first (like StitchMate)
 function openApp(){
-  document.body.classList.remove('pricing-mode','app-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode','cv-open');
+  document.body.classList.remove('subs-mode','pricing-mode','app-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode','cv-open');
   document.body.classList.add('projects-mode');
   pjSelectMode=false; pjSelected.clear();
   renderProjectsPage();
@@ -16461,7 +16488,7 @@ function openApp(){
   window.scrollTo(0,0);
 }
 function goHome(){
-  document.body.classList.remove('pricing-mode','app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode','cv-open');
+  document.body.classList.remove('subs-mode','pricing-mode','app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode','cv-open');
   window.scrollTo(0,0);
 }
 
@@ -17666,7 +17693,7 @@ async function openTracker(){
     }catch(e){ ok=true; }   // cannot reach the server: do not block a payer
     if(!ok){ trkPlusGate(); return; }
   }
-  document.body.classList.remove('pricing-mode','app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode');
+  document.body.classList.remove('subs-mode','pricing-mode','app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode');
   document.body.classList.add('tracker-mode');
   window.scrollTo(0,0);
   trkShowHome();
@@ -22468,7 +22495,7 @@ function acctGo(fn){
   else fn();
 }
 function openAccountPage(){
-  document.body.classList.remove('pricing-mode','app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode');
+  document.body.classList.remove('subs-mode','pricing-mode','app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode');
   document.body.classList.add('account-mode');
   acctRenderPage();
   window.scrollTo(0,0);
@@ -22521,7 +22548,58 @@ function acctRenderPage(){
       <a href="https://luca-s.com/apps/patternly" style="padding:.55rem 1rem;border-radius:9px;background:var(--lp-red,#8B1A2B);color:#fff;font-size:.82rem;font-weight:700;text-decoration:none">Open on luca-s.com →</a>`;
   }
   acctRenderPatterns();
+  acctRenderPlusStrip();
+}
+
+function openSubscriptionPage(){
+  document.body.classList.remove('subs-mode','pricing-mode','app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode');
+  document.body.classList.add('subs-mode');
   acctRenderPlus();
+  window.scrollTo(0,0);
+}
+
+// One row on My Account rather than a whole section: enough to know where you
+// stand, with the detail a click away.
+async function acctRenderPlusStrip(){
+  const box=document.getElementById('acct-plus-strip');
+  if(!box) return;
+  const a=lucasAuth();
+  if(!a.loggedIn){ box.innerHTML=''; return; }
+
+  const draw=(title,sub,label,fn)=>{
+    box.innerHTML='<div class="subs-strip"><div class="ss-main">'
+      +'<div class="ss-title">'+title+'</div>'
+      +'<div class="ss-sub">'+sub+'</div></div>'
+      +'<button class="ss-go" id="ss-go">'+label+'</button></div>';
+    const b=document.getElementById('ss-go');
+    if(b) b.onclick=fn;
+  };
+
+  draw('Membership','Checking\u2026','View','');
+
+  let d=null;
+  try{
+    const base=TRK_KITS_BASE.replace(/\/patterns$/,'');
+    const r=await fetch(base+'/plus/billing',{credentials:'include',cache:'no-store'});
+    if(r.ok) d=await r.json();
+  }catch(e){}
+  if(!d){ draw('Membership','Could not load this just now.','Retry',()=>acctRenderPlusStrip()); return; }
+  _acctBilling=d;
+
+  if(!d.plus){
+    draw('You\u2019re on the free plan',
+         'Plus adds the Stitch Tracker and removes the export limit.',
+         'See Plus', ()=>openPricing());
+    return;
+  }
+
+  const inTrial = d.lastAmount!=null && Number(d.lastAmount)===0 && d.nextBilling;
+  const trialLeft = inTrial ? acctDaysLeft(d.paidAt + 14*86400000) : 0;
+  const title = d.plan==='annual' ? 'Plus \u2014 yearly' : 'Plus \u2014 monthly';
+  const sub = inTrial
+    ? 'Free trial \u2014 '+trialLeft+' day'+(trialLeft===1?'':'s')+' left \u00b7 first charge '+acctDate(d.nextBilling)
+    : (d.nextBilling ? 'Next charge '+acctDate(d.nextBilling) : 'Active');
+  draw(title, sub, 'View subscription', ()=>openSubscriptionPage());
 }
 
 // ── Membership: plan, next charge, and every invoice ──────────────────────
@@ -22546,10 +22624,11 @@ async function acctRenderPlus(){
   const box=document.getElementById('acct-plus');
   if(!box) return;
   const a=lucasAuth();
-  if(!a.loggedIn){ box.style.display='none'; return; }
-  box.style.display='';
-  box.innerHTML='<div style="max-width:860px;margin:0 auto"><h3 style="font-family:var(--lp-serif,Georgia,serif);font-size:1.05rem;margin:0 0 .2rem">Your membership</h3>'
-    +'<div id="acct-plus-body" style="font-size:.82rem;color:#7d6b72">Checking\u2026</div></div>';
+  if(!a.loggedIn){
+    box.innerHTML='<p style="font-size:.85rem;color:#7d6b72">Sign in with your Luca-S account to see your subscription.</p>';
+    return;
+  }
+  box.innerHTML='<div style="max-width:860px"><div id="acct-plus-body" style="font-size:.82rem;color:#7d6b72">Checking\u2026</div></div>';
   const body=document.getElementById('acct-plus-body');
 
   let d=null;
@@ -22842,6 +22921,7 @@ function acctBuildMenu(){
   if(a.loggedIn){
     return `<div class="acct-note">✓ Signed in with your Luca-S account</div>
       <a href="#" onclick="acctGo(openAccountPage);return false">My Account</a>
+      <a href="#" onclick="acctGo(openSubscriptionPage);return false">My Subscription</a>
       <a href="#" onclick="acctSignOut();return false">Sign out</a>`;
   }
   if(a.proxied){
@@ -22863,7 +22943,7 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.acct-wrap')) acctC
   if(lucasAuth().loggedIn) document.querySelectorAll('.acct-btn').forEach(b=>{ b.classList.add('acct-in'); b.title='Your Luca-S account — signed in'; });
 })();
 function openFileConverter(){
-  document.body.classList.remove('pricing-mode','app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','account-mode');
+  document.body.classList.remove('subs-mode','pricing-mode','app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','account-mode');
   document.body.classList.add('convert-mode');
   const li=document.getElementById('conv-logo-img'), src=document.getElementById('pj-logo-img');
   if(li && src && src.src) li.src=src.src;
@@ -23086,7 +23166,7 @@ async function fconvHandle(fileList){
   }
 }
 function openThreads(){
-  document.body.classList.remove('pricing-mode','app-mode','projects-mode','calc-mode','tracker-mode','convert-mode','account-mode');
+  document.body.classList.remove('subs-mode','pricing-mode','app-mode','projects-mode','calc-mode','tracker-mode','convert-mode','account-mode');
   document.body.classList.add('threads-mode');
   const cv=document.getElementById('th-chart-view'), bv=document.getElementById('th-browse-view'), hub=document.getElementById('th-hub');
   if(cv&&hub){ cv.style.display='none'; if(bv) bv.style.display='none'; hub.style.display='block'; } // always land on the hub
@@ -23096,7 +23176,7 @@ function openThreads(){
   if(typeof thInit==='function') thInit();
 }
 function openCalculators(tab){
-  document.body.classList.remove('pricing-mode','app-mode','projects-mode','tracker-mode','threads-mode','convert-mode','account-mode');
+  document.body.classList.remove('subs-mode','pricing-mode','app-mode','projects-mode','tracker-mode','threads-mode','convert-mode','account-mode');
   document.body.classList.add('calc-mode');
   calcShowTab(tab||'fabric');
   window.scrollTo(0,0);
@@ -23647,7 +23727,7 @@ function trkPlusGate(){
 }
 function openPricing(){
   pjGuardedLeave(()=>{
-    document.body.classList.remove('pricing-mode','app-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode','projects-mode','cv-open');
+    document.body.classList.remove('subs-mode','pricing-mode','app-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode','projects-mode','cv-open');
     document.body.classList.add('pricing-mode');
     const img=document.getElementById('pricing-logo-img');
     if(img && !img.src){ const src=document.getElementById('lp-logo-img'); if(src) img.src=src.src; }
