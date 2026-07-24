@@ -23454,10 +23454,16 @@ const PLUS_PLANS = {
   month: { variant:'58326203859318', plan:'712875475318' },
   year:  { variant:'58332475425142', plan:'712875770230' }
 };
+// The /cart/{variant}:{qty} permalink form silently drops ?selling_plan=, so
+// Shopify adds the line as a one-off and a subscription-only product rejects it
+// outright ("Variant can only be purchased with a selling plan"). The
+// /cart/add form applies the plan properly, and return_to skips the cart page.
 function plusCheckoutUrl(period){
   const p = PLUS_PLANS[period==='year' ? 'year' : 'month'];
-  return 'https://luca-s.com/cart/' + p.variant + ':1'
-       + '?selling_plan=' + p.plan
+  return 'https://luca-s.com/cart/add'
+       + '?id=' + p.variant
+       + '&quantity=1'
+       + '&selling_plan=' + p.plan
        + '&return_to=/checkout';
 }
 
