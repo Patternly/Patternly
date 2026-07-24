@@ -4048,10 +4048,16 @@ body.dark .fabric-item.sel{background:rgba(255,255,255,.08);color:#f0b8c2}
 #tb-nav > a:hover, #tb-nav .lp-nav-dd > a:hover{color:var(--accent)}
 @media(max-width:1180px){#tb-nav{gap:.85rem}#tb-nav > a,#tb-nav .lp-nav-dd > a{font-size:.78rem}}
 /* Tablet band (iPads, small laptops): the editor topbar is control-dense, so
-   page links step aside — they all live on Home anyway. Account emblem and
-   theme toggle stay. */
-@media(max-width:1440px){#tb-nav > a, #tb-nav .lp-nav-dd{display:none}}
-#tb-nav{overflow:hidden}
+   page links step aside — they reach the same places from the drawer menu.
+   Raised from 1440px, which hid the nav on ordinary laptops and made the
+   editor look like a different site from every other page. */
+@media(max-width:1100px){#tb-nav > a, #tb-nav .lp-nav-dd{display:none}}
+/* Must stay visible. overflow:hidden clipped the dropdown menus — they are
+   absolutely positioned children — so Features and Calculators opened with
+   zero height and looked dead. overflow-x:hidden is no use either: when one
+   axis is hidden the other computes to auto, which still clips. The flex
+   min-width:0 above is what keeps the nav from pushing the topbar wide. */
+#tb-nav{overflow:visible}
 @media(max-width:820px){#tb-nav{display:none}}
 
 /* ── EXPORT PANEL ── */
@@ -4397,7 +4403,6 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     </a>
     <div class="lp-nav-links">
       <a href="#" onclick="lpLogoHome();return false">Home</a>
-      <a href="#" onclick="openPricing();return false">Pricing</a>
       <div class="lp-nav-dd">
         <a href="#features">Features ▾</a>
         <div class="lp-nav-dd-menu">
@@ -4418,6 +4423,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
           <a href="#" onclick="openCalculators('thread');return false"><b>Thread Calculator</b><span>Skeins per colour, with safety margin</span></a>
         </div>
       </div>
+      <a href="#" onclick="openPricing();return false">Pricing</a>
       <a href="https://luca-s.com/" target="_blank" rel="noopener" style="color:var(--lp-red);font-weight:600">Luca-S Shop ↗</a>
     </div>
     <button id="lp-menu-btn" onclick="lpToggleMenu()" title="Menu" style="display:none;background:none;border:1.5px solid var(--lp-border);border-radius:9px;width:36px;height:36px;cursor:pointer;font-size:1.05rem;line-height:1;flex-shrink:0;color:var(--lp-ink)">☰</button>
@@ -5950,9 +5956,23 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <span style="color:#ccc;font-weight:300;margin:0 .4rem">|</span>
   </div>
   <input id="pattern-name" type="text" value="My Pattern" spellcheck="false" style="display:none"/>
+  <!-- Same items, same order, same wording as #lp-nav: the nav should not
+       change shape when the editor opens. Only the handlers differ, because
+       leaving the editor has to run the unsaved-work guard first. -->
   <div id="tb-nav">
     <a href="#" onclick="edNav('home');return false">Home</a>
-    <a href="#" onclick="edNav('projects');return false">My Patterns</a>
+    <div class="lp-nav-dd">
+      <a href="#" onclick="edNav('#features');return false">Features ▾</a>
+      <div class="lp-nav-dd-menu">
+        <a href="#" onclick="trackerNav(true);return false"><b>Stitch Tracker</b><span>Track progress on a Luca-S kit</span></a>
+        <a href="#" onclick="startWithPhoto();return false"><b>Upload Image</b><span>Turn a photo into a pattern</span></a>
+        <a href="#" onclick="pjGuardedLeave(()=>pjNewPattern());return false"><b>Start from Scratch</b><span>Blank canvas in the editor</span></a>
+        <a href="#" onclick="lpMmAction('import');return false"><b>Upload a Pattern</b><span>Open a .Ptly, OXS or PCStitch file</span></a>
+        <a href="#" onclick="ptlyOpenConverter();return false"><b>Convert to .Ptly</b><span>Turn .pat / .oxs into Patternly’s format</span></a>
+      </div>
+    </div>
+    <a href="#" onclick="pjGuardedLeave(()=>openThreads());return false">Thread Colours</a>
+    <a href="#" onclick="pjGuardedLeave(()=>openFileConverter());return false">File Converter</a>
     <div class="lp-nav-dd">
       <a href="#" onclick="edNav('fabric');return false">Calculators ▾</a>
       <div class="lp-nav-dd-menu">
@@ -5961,17 +5981,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
         <a href="#" onclick="edNav('thread');return false"><b>Thread Calculator</b><span>Skeins per colour</span></a>
       </div>
     </div>
-    <div class="lp-nav-dd">
-      <a href="#" onclick="edNav('#features');return false">Features ▾</a>
-      <div class="lp-nav-dd-menu">
-        <a href="#" onclick="startWithPhoto();return false"><b>Upload Image</b><span>Turn a photo into a pattern</span></a>
-        <a href="#" onclick="pjGuardedLeave(()=>pjNewPattern());return false"><b>Start from Scratch</b><span>Blank canvas in the editor</span></a>
-        <a href="#" onclick="trackerNav(true);return false"><b>Stitch Tracker</b><span>Track progress on a Luca-S kit</span></a>
-        <a href="#" onclick="ptlyOpenConverter();return false"><b>Convert to .Ptly</b><span>Turn .pat / .oxs into Patternly&rsquo;s format</span></a>
-      </div>
-    </div>
-    <a href="#" onclick="pjGuardedLeave(()=>openThreads());return false">Thread Colours</a>
-    <a href="#" onclick="pjGuardedLeave(()=>openFileConverter());return false">File Converter</a>
+    <a href="#" onclick="pjGuardedLeave(()=>openPricing());return false">Pricing</a>
     <a href="https://luca-s.com/" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700">Luca-S Shop ↗</a>
     <span class="acct-wrap"><button class="acct-btn" id="acct-btn-tb" title="Your account" onclick="acctToggle(this)"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="8.2" r="3.6"/><path d="M4.8 19.4c1.5-3.1 4.2-4.6 7.2-4.6s5.7 1.5 7.2 4.6"/></svg></button><span class="acct-dd" id="acct-dd-tb"></span></span>
     <button id="tb-theme-btn" class="theme-switch" onclick="toggleTheme()" title="Toggle light/dark theme" aria-label="Toggle dark mode"><span class="ts-knob"></span></button>
