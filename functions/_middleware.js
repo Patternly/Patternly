@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v23";
+const MW_VERSION = "v24";
 
 const enc = new TextEncoder();
 
@@ -358,8 +358,10 @@ async function adminQuery(env, query, variables) {
   return json.data;
 }
 
+// Tags are fetched alongside the email because every caller already makes this
+// round trip, so the subscription tag costs us nothing extra.
 const CUSTOMER_EMAIL_QUERY = `
-query CustomerEmail($id: ID!) { customer(id: $id) { email } }`;
+query CustomerEmail($id: ID!) { customer(id: $id) { email tags } }`;
 
 const ORDER_SKUS_QUERY = `
 query OrderSkus($q: String!, $cursor: String) {
@@ -542,17 +544,26 @@ function plusSku(env) {
   return String(env.PLUS_SKU || "PatternlyPlus").trim().toUpperCase();
 }
 
-// Newest non-void order line for the Plus SKU, as a timestamp, or 0.
+// Does this customer carry the "active subscriber" tag?
+//
+// This is the path that makes free trials work. During a trial no money moves,
+// so Shopify creates no order and plusFromOrders() sees nothing — but the
+// subscription app tags the customer the moment they sign up, and that tag is
+// readable with read_customers, which we already have. When the trial converts,
+// orders start appearing too and either signal alone would do.
+//
+// Tags are compared case-insensitively; Shopify preserves the case you type but
+// is not consistent about it across surfaces.
+function hasPlusTag(tags, env) {
+  const want = String(env.PLUS_TAG || "patternly-plus").trim().toLowerCase();
+  if (!want || !Array.isArray(tags)) return false;
+  return tags.some(t => String(t).trim().toLowerCase() === want);
+}
 // Only orders inside the window are asked for, so this is a cheap query even
 // for a customer with a long history.
-async function plusFromOrders(auth, env) {
+async function plusFromOrders(email, env) {
   const out = { paidAt: 0, until: 0 };
   const want = plusSku(env);
-
-  const who = await adminQuery(env, CUSTOMER_EMAIL_QUERY, {
-    id: "gid://shopify/Customer/" + auth.customerId
-  });
-  const email = who && who.customer && who.customer.email;
   if (!email) return out;
 
   // Matched by email, like kit ownership, so a subscription taken out as a
@@ -607,14 +618,30 @@ async function plusState(auth, env) {
     } catch (e) { console.warn("trial read failed:", e.message); }
   }
 
-  // A paid subscription always wins, even mid-trial.
+  // One customer fetch serves both checks below.
   try {
-    const sub = await plusFromOrders(auth, env);
+    const who = await adminQuery(env, CUSTOMER_EMAIL_QUERY, {
+      id: "gid://shopify/Customer/" + auth.customerId
+    });
+    const cust = (who && who.customer) || {};
+
+    // 1. Subscription tag. Covers trials, where no order exists yet.
+    if (hasPlusTag(cust.tags, env)) {
+      out.plus = true;
+      out.source = "subscription";
+      out.via = "tag";
+    }
+
+    // 2. Orders. A backstop: if the app ever fails to tag someone, a real
+    //    payment still grants access. Also supplies the lapse date, which a
+    //    tag cannot — a tag says "is a subscriber", not "until when".
+    const sub = await plusFromOrders(cust.email, env);
     if (sub.until > Date.now()) {
       out.plus = true;
       out.source = "subscription";
-      out.plusUntil = sub.until;              // ~when access lapses without a renewal
-      out.paidAt = sub.paidAt;                // last payment seen
+      out.via = out.via ? "tag+order" : "order";
+      out.plusUntil = sub.until;             // ~when access lapses without a renewal
+      out.paidAt = sub.paidAt;               // last payment seen
     }
   } catch (e) {
     // Shopify unreachable or the query rejected: fall back on trial/override
