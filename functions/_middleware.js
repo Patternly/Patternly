@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v25";
+const MW_VERSION = "v26";
 
 const enc = new TextEncoder();
 
@@ -544,6 +544,7 @@ async function ownedSkus(customerId, env) {
 const PLUS_WINDOW_DAYS = 35;        // monthly: 30-day cycle + card-retry grace
 const PLUS_YEAR_WINDOW_DAYS = 400;  // annual: 365 + the same kind of grace
 const TRIAL_DAYS = 14;
+const FREE_EXPORTS_PER_MONTH = 5;
 
 // SKU (upper-cased) → window in days. Both are overridable so the SKUs can be
 // renamed in Shopify without a deploy.
@@ -913,6 +914,72 @@ export async function onRequest(context) {
     return new Response(JSON.stringify(rec), {
       headers: { "content-type": "application/json", "cache-control": "no-store" }
     });
+  }
+
+  // ── /exports: monthly export quota for the free tier ─────────────────────
+  //
+  // Free accounts get FREE_EXPORTS_PER_MONTH files; Plus is unlimited. The
+  // count lives server-side so it survives a cleared browser — but only for
+  // signed-in customers. Anonymous visitors are counted in the app's own
+  // storage, which is trivially reset; that is accepted. The limit is a nudge
+  // towards an account, not a lock, and the honest place to make it real is at
+  // sign-in rather than in an arms race with incognito windows.
+  //
+  // Saving a pattern does not count. Only a file actually leaving the app does.
+  //
+  // GET  /exports  -> {used, limit, plus, resetsAt}
+  // POST /exports  -> same, after incrementing; 402 when the month is spent
+  if (url.pathname === "/exports" || url.pathname.endsWith("/exports")) {
+    if (!auth.loggedIn || !auth.customerId) {
+      return new Response(JSON.stringify({ error: "signin" }), {
+        status: 401, headers: { "content-type": "application/json", "cache-control": "no-store" }
+      });
+    }
+    if (!env.ENTITLEMENTS) {
+      return new Response(JSON.stringify({ error: "storage" }), {
+        status: 500, headers: { "content-type": "application/json" }
+      });
+    }
+
+    const limit = Number(env.FREE_EXPORTS_PER_MONTH) || FREE_EXPORTS_PER_MONTH;
+    const plus  = (await plusState(auth, env)).plus;
+
+    // Month boundaries in UTC. A stitcher in Auckland rolls over a few hours
+    // early and one in Los Angeles a few late; that is not worth a timezone
+    // round trip, and erring early is the friendlier direction.
+    const now = new Date();
+    const month = now.toISOString().slice(0, 7);            // YYYY-MM
+    const resetsAt = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1);
+    const key = "exports:" + auth.customerId + ":" + month;
+
+    const read = async () => Number(await env.ENTITLEMENTS.get(key)) || 0;
+    const body = (used) => JSON.stringify({
+      used, limit, plus, resetsAt,
+      remaining: plus ? null : Math.max(0, limit - used)
+    });
+    const json = (used, status) => new Response(body(used), {
+      status: status || 200,
+      headers: { "content-type": "application/json", "cache-control": "no-store" }
+    });
+
+    if (request.method === "GET") return json(await read());
+
+    if (request.method === "POST") {
+      const used = await read();
+      // Plus is not counted at all — no write, so cancelling later starts the
+      // free allowance clean rather than mid-month with a phantom tally.
+      if (plus) return json(used);
+      if (used >= limit) return json(used, 402);
+      // Last-write-wins: two exports fired in the same instant could count as
+      // one. KV has no atomic increment, and under-counting by one occasionally
+      // is a far better failure than blocking someone's work.
+      await env.ENTITLEMENTS.put(key, String(used + 1), {
+        expirationTtl: 70 * 86400            // tidies itself well after the month
+      });
+      return json(used + 1);
+    }
+
+    return new Response("method not allowed", { status: 405 });
   }
 
   // ── /progress: stitch progress that follows the account ──────────────────
