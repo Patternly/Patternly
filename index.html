@@ -5668,6 +5668,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <h1 class="calc-title">My Account</h1>
     <p class="calc-sub">Your Luca-S account, your patterns and your stitching — in one place.</p>
     <div class="acct-status" id="acct-status"><!-- filled by acctRenderPage() --></div>
+    <div id="acct-plus" style="display:none;margin-top:1.6rem"></div>
     <div id="acct-patterns" style="display:none;margin-top:1.6rem"></div>
     <div class="acct-row-block">
       <div class="acct-row-head">
@@ -12564,15 +12565,23 @@ function xqLimitModal(st){
   };
 }
 
-// The one place a file leaves the app. Returns true if the download happened.
-async function dlFile(blob, filename){
-  const st = await xqClaim();
-  if(!st.allowed){ xqLimitModal(st); return false; }
+// The mechanics of putting a file on disk, with no quota attached. Used
+// directly for documents the customer is owed regardless of plan — an invoice
+// is a receipt, not creative output, and charging an export for it would be
+// indefensible.
+function rawDownload(blob, filename){
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url; a.download=filename;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(()=>URL.revokeObjectURL(url), 1500);
+}
+
+// The one place a pattern file leaves the app. Returns true if it happened.
+async function dlFile(blob, filename){
+  const st = await xqClaim();
+  if(!st.allowed){ xqLimitModal(st); return false; }
+  rawDownload(blob, filename);
   if(!st.plus && st.limit - st.used === 1 && typeof toast==='function'){
     toast('1 free export left this month');
   }
@@ -22511,7 +22520,144 @@ function acctRenderPage(){
     el.innerHTML=`<div style="flex:1"><b style="font-size:.95rem">Accounts work on the Luca-S site</b><p style="font-size:.78rem;color:#7d6b72;margin:.25rem 0 0">Open Patternly there to sign in with your shop account.</p></div>
       <a href="https://luca-s.com/apps/patternly" style="padding:.55rem 1rem;border-radius:9px;background:var(--lp-red,#8B1A2B);color:#fff;font-size:.82rem;font-weight:700;text-decoration:none">Open on luca-s.com →</a>`;
   }
+  acctRenderPlus();
   acctRenderPatterns();
+}
+
+// ── Membership: plan, next charge, and every invoice ──────────────────────
+// Fed by /plus/billing, which assembles this from Shopify orders. The next
+// charge is DERIVED (last payment + interval), not read from the subscription
+// contract, so it is worded as expected rather than stated as fact.
+const ACCT_CUR = { GBP:'\u00a3', EUR:'\u20ac', USD:'$' };
+function acctMoney(amount, cur){
+  if(amount==null) return '';
+  const sym = ACCT_CUR[cur] || (cur ? cur+' ' : '');
+  return sym + Number(amount).toFixed(2);
+}
+function acctDate(ms){
+  if(!ms) return '\u2014';
+  return new Date(ms).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});
+}
+function acctDaysLeft(ms){ return Math.max(0, Math.ceil((ms - Date.now())/86400000)); }
+
+let _acctBilling = null;
+
+async function acctRenderPlus(){
+  const box=document.getElementById('acct-plus');
+  if(!box) return;
+  const a=lucasAuth();
+  if(!a.loggedIn){ box.style.display='none'; return; }
+  box.style.display='';
+  box.innerHTML='<div style="max-width:860px;margin:0 auto"><h3 style="font-family:var(--lp-serif,Georgia,serif);font-size:1.05rem;margin:0 0 .2rem">Your membership</h3>'
+    +'<div id="acct-plus-body" style="font-size:.82rem;color:#7d6b72">Checking\u2026</div></div>';
+  const body=document.getElementById('acct-plus-body');
+
+  let d=null;
+  try{
+    const base=TRK_KITS_BASE.replace(/\/patterns$/,'');
+    const r=await fetch(base+'/plus/billing',{credentials:'include',cache:'no-store'});
+    if(r.ok) d=await r.json();
+  }catch(e){}
+  if(!d){ body.innerHTML='<span>Could not load your membership just now.</span>'; return; }
+  _acctBilling=d;
+
+  const card=(inner)=>'<div style="background:#fff;border:1.5px solid #eadde1;border-radius:14px;padding:1rem 1.1rem">'+inner+'</div>';
+
+  if(!d.plus){
+    body.innerHTML=card(
+      '<b style="font-size:.92rem;color:#2b2226">You\u2019re on the free plan</b>'
+      +'<p style="margin:.35rem 0 .8rem;font-size:.8rem">Plus adds the Stitch Tracker and removes the monthly export limit.</p>'
+      +'<button class="pr-cta primary" style="max-width:220px" onclick="openPricing()">See Plus</button>');
+    return;
+  }
+
+  // A £0 first payment means the trial is running: Appstle applies a 100%
+  // discount across it, so the order exists but costs nothing.
+  const inTrial = d.lastAmount!=null && Number(d.lastAmount)===0 && d.nextBilling;
+  const trialLeft = inTrial ? acctDaysLeft(d.paidAt + 14*86400000) : 0;
+
+  const rows=[
+    ['Plan', d.plan==='annual' ? 'Plus \u2014 yearly' : 'Plus \u2014 monthly'],
+    ['Status', inTrial
+        ? '<span style="color:#1e7a4d;font-weight:700">Free trial \u2014 '+trialLeft+' day'+(trialLeft===1?'':'s')+' left</span>'
+        : '<span style="color:#1e7a4d;font-weight:700">Active</span>'],
+    [inTrial ? 'First charge' : 'Next charge',
+       d.nextBilling
+         ? acctDate(d.nextBilling)+(d.nextBillingEstimated
+             ? ' <span style="color:#a2949a">(expected)</span>' : '')
+         : '\u2014'],
+    ['Amount', d.lastAmount!=null && Number(d.lastAmount)>0
+        ? acctMoney(d.lastAmount,d.lastCurrency)+' / '+(d.plan==='annual'?'year':'month')
+        : (d.plan==='annual'?'Billed yearly':'Billed monthly')]
+  ].map(([k,v])=>'<div style="display:flex;justify-content:space-between;gap:1rem;padding:.4rem 0;border-bottom:1px solid #f3eaed">'
+      +'<span>'+k+'</span><span style="color:#2b2226;font-weight:600;text-align:right">'+v+'</span></div>').join('');
+
+  const invoices = (d.invoices||[]).length
+    ? d.invoices.map((iv,i)=>{
+        const amt=acctMoney(iv.amount,iv.currency);
+        const label=iv.voided?'<span style="color:#a2949a"> \u00b7 refunded</span>':'';
+        return '<div style="display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.45rem 0;border-bottom:1px solid #f3eaed">'
+          +'<span style="min-width:0"><b style="color:#2b2226">'+acctDate(iv.at)+'</b>'
+          +'<span style="color:#7d6b72"> \u00b7 '+(iv.name||'')+label+'</span></span>'
+          +'<span style="display:flex;align-items:center;gap:.5rem;white-space:nowrap">'
+          +'<span style="color:#2b2226;font-weight:600">'+(Number(iv.amount)===0?'Free':amt)+'</span>'
+          +'<button onclick="acctInvoice('+i+')" style="background:none;border:1.5px solid #eadde1;border-radius:8px;'
+          +'font-family:inherit;font-size:.72rem;font-weight:700;color:#8B1A2B;padding:.25rem .55rem;cursor:pointer">Invoice</button>'
+          +'</span></div>';
+      }).join('')
+    : '<p style="margin:.4rem 0 0">No payments yet \u2014 your first invoice appears after the trial ends.</p>';
+
+  body.innerHTML=card(rows
+      +'<div style="margin-top:1rem"><b style="font-size:.86rem;color:#2b2226">Billing history</b>'+invoices+'</div>'
+      +'<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem">'
+      +'<a href="https://luca-s.com/account" target="_blank" rel="noopener" '
+      +'style="padding:.5rem .9rem;border:1.5px solid #eadde1;border-radius:9px;font-size:.8rem;font-weight:700;'
+      +'color:#7d6b72;text-decoration:none">Manage or cancel</a>'
+      +'</div>'
+      +'<p style="font-size:.72rem;color:#a2949a;margin:.7rem 0 0">Cancelling stops future charges. '
+      +'You keep Plus until the end of the period you\u2019ve paid for.</p>');
+}
+
+// Invoices are generated here rather than fetched: Shopify\u2019s order status
+// page is a web page, not a document, and people want something they can file.
+function acctInvoice(i){
+  const d=_acctBilling; if(!d) return;
+  const iv=(d.invoices||[])[i]; if(!iv) return;
+  const a=lucasAuth();
+  const { jsPDF } = window.jspdf || {};
+  if(!jsPDF){
+    if(iv.url) window.open(iv.url,'_blank','noopener');
+    else if(typeof toast==='function') toast('Could not build the invoice');
+    return;
+  }
+  const pdf=new jsPDF({unit:'mm',format:'a4'});
+  const L=20; let y=24;
+  pdf.setFontSize(18); pdf.setTextColor(43,34,38);
+  pdf.text('Invoice', L, y); y+=10;
+  pdf.setFontSize(10); pdf.setTextColor(120,107,114);
+  pdf.text('Patternly Plus \u2014 by Luca-S', L, y); y+=6;
+  pdf.text('luca-s.com', L, y); y+=12;
+
+  pdf.setTextColor(43,34,38); pdf.setFontSize(11);
+  const line=(k,v)=>{ pdf.setTextColor(120,107,114); pdf.text(k, L, y);
+                      pdf.setTextColor(43,34,38); pdf.text(String(v), L+55, y); y+=7; };
+  line('Invoice / order', iv.name||'\u2014');
+  line('Date', acctDate(iv.at));
+  line('Billed to', (a && a.email) || '\u2014');
+  line('Plan', iv.plan==='annual' ? 'Patternly Plus \u2014 yearly' : 'Patternly Plus \u2014 monthly');
+  line('Status', iv.voided ? 'Refunded' : (iv.status||'Paid'));
+  y+=4;
+  pdf.setDrawColor(234,221,225); pdf.line(L, y, 190, y); y+=9;
+  pdf.setFontSize(13);
+  pdf.setTextColor(120,107,114); pdf.text('Total', L, y);
+  pdf.setTextColor(43,34,38);
+  pdf.text(Number(iv.amount)===0 ? 'Free (trial)' : acctMoney(iv.amount,iv.currency), L+55, y);
+  y+=14;
+  pdf.setFontSize(8); pdf.setTextColor(150,140,146);
+  pdf.text('Tax included where applicable. This document is generated from your order record.', L, y);
+  if(iv.url){ y+=5; pdf.text('Full order details: '+iv.url, L, y); }
+
+  rawDownload(pdf.output('blob'), 'patternly-invoice-'+(iv.name||acctDate(iv.at)).replace(/[^\w-]/g,'')+'.pdf');
 }
 
 // "Your patterns": the kits this account has bought, cross-referenced against
@@ -23519,25 +23665,75 @@ function prStartTrial(){
 // focus so the gate opens without asking them to reload — but only for a few
 // minutes, and only until it succeeds, so we are not polling forever.
 let plusWatching = false;
+
+// While the customer is paying in the other tab, this one would otherwise sit
+// there looking untouched. The panel says what is happening and gives a manual
+// re-check, which matters on mobile: several browsers do not reliably fire
+// focus or visibilitychange when returning from another tab, so the automatic
+// detection can silently miss.
+function plusWaitPanel(show){
+  const id='plus-wait';
+  const old=document.getElementById(id);
+  if(!show){ if(old) old.remove(); return; }
+  if(old) return;
+  const el=document.createElement('div');
+  el.id=id;
+  el.style.cssText='position:fixed;left:50%;bottom:1.1rem;transform:translateX(-50%);z-index:99999;'
+    +'width:min(420px,calc(100vw - 1.6rem));background:#fff;border:1.5px solid #eadde1;border-radius:14px;'
+    +'box-shadow:0 14px 40px rgba(43,34,38,.18);padding:1rem 1.1rem;font-family:Inter,system-ui,sans-serif';
+  el.innerHTML='<b style="display:block;font-size:.92rem;color:#2b2226;margin-bottom:.2rem">Finishing your subscription\u2026</b>'
+    +'<p style="margin:0 0 .8rem;font-size:.8rem;color:#6a626f;line-height:1.5">'
+    +'Complete checkout in the other tab. This page unlocks on its own when you\u2019re done.</p>'
+    +'<div style="display:flex;gap:.5rem;flex-wrap:wrap">'
+    +'<button id="plus-wait-check" class="pr-cta primary" style="flex:1;min-width:150px;margin:0">I\u2019ve paid \u2014 check now</button>'
+    +'<button id="plus-wait-close" style="background:none;border:1.5px solid #eadde1;border-radius:9px;'
+    +'font-family:inherit;font-size:.8rem;font-weight:700;color:#7d6b72;padding:.5rem .9rem;cursor:pointer">Cancel</button>'
+    +'</div>';
+  document.body.appendChild(el);
+  document.getElementById('plus-wait-close').onclick=()=>plusWaitPanel(false);
+  document.getElementById('plus-wait-check').onclick=async (e)=>{
+    const b=e.currentTarget;
+    b.disabled=true; b.textContent='Checking\u2026';
+    const found=await plusCheckNow();
+    if(!found){
+      b.disabled=false; b.textContent='I\u2019ve paid \u2014 check now';
+      if(typeof toast==='function') toast('No subscription found yet \u2014 give it a moment and try again');
+    }
+  };
+}
+
+// One re-read of /whoami. Returns true if Plus is now active, and opens the
+// tracker if this is the moment it became so.
+async function plusCheckNow(){
+  try{
+    const base = TRK_KITS_BASE.replace(/\/patterns$/,'');
+    const r = await fetch(base+'/whoami',{credentials:'include',cache:'no-store'});
+    if(!r.ok) return false;
+    const a = await r.json();
+    const was = !!(window.__LUCAS_AUTH__ && window.__LUCAS_AUTH__.plus);
+    window.__LUCAS_AUTH__ = a;
+    if(typeof acctRenderPage==='function' && document.body.classList.contains('account-mode')) acctRenderPage();
+    if(a.plus){
+      plusWaitPanel(false);
+      if(!was){
+        if(typeof toast==='function') toast('Welcome to Plus \u2014 the Stitch Tracker is open');
+        if(typeof openTracker==='function') openTracker();
+      }
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+
 function plusWatchForReturn(){
+  plusWaitPanel(true);
   if(plusWatching) return;
   plusWatching = true;
   const stopAt = Date.now() + 10*60*1000;
   const check = async () => {
     if(document.hidden) return;
-    if(Date.now() > stopAt){ done(); return; }
-    try{
-      const base = TRK_KITS_BASE.replace(/\/patterns$/,'');
-      const r = await fetch(base+'/whoami',{credentials:'include',cache:'no-store'});
-      if(!r.ok) return;
-      const a = await r.json();
-      const was = !!(window.__LUCAS_AUTH__ && window.__LUCAS_AUTH__.plus);
-      window.__LUCAS_AUTH__ = a;
-      if(a.plus && !was){
-        done();
-        if(typeof toast==='function') toast('Welcome to Plus \u2014 the Stitch Tracker is open');
-      }
-    }catch(e){}
+    if(Date.now() > stopAt){ done(); plusWaitPanel(false); return; }
+    if(await plusCheckNow()) done();
   };
   const done = () => {
     plusWatching = false;
