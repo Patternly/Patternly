@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v24";
+const MW_VERSION = "v25";
 
 const enc = new TextEncoder();
 
@@ -487,7 +487,7 @@ async function ownedSkus(customerId, env) {
         // it has to be able to lapse. Latching it would make one payment grant
         // the Tracker forever and make cancellation unenforceable. Plus is
         // judged fresh, on a rolling window, in plusFromOrders().
-        if (sku === plusSku(env)) continue;
+        if (isPlusSku(sku, env)) continue;
         if (lineIsVoid(o, li)) voided.add(sku);
         else skus.add(sku);
       }
@@ -537,11 +537,29 @@ async function ownedSkus(customerId, env) {
 // This also happens to be app-agnostic in the way the contract query was meant
 // to be: swap Shopify Subscriptions for Recharge or Appstle and the orders
 // still appear, so nothing here changes.
-const PLUS_WINDOW_DAYS = 35;      // 30-day cycle + grace for a card retry
+// Two plans, two windows. An annual subscriber pays once and then produces no
+// order for twelve months, so judging them on the monthly window would revoke
+// access at day 35 from someone who has paid for a year. Each plan therefore
+// carries its own grace period, keyed on the SKU that appears on the order.
+const PLUS_WINDOW_DAYS = 35;        // monthly: 30-day cycle + card-retry grace
+const PLUS_YEAR_WINDOW_DAYS = 400;  // annual: 365 + the same kind of grace
 const TRIAL_DAYS = 14;
 
-function plusSku(env) {
-  return String(env.PLUS_SKU || "PatternlyPlus").trim().toUpperCase();
+// SKU (upper-cased) → window in days. Both are overridable so the SKUs can be
+// renamed in Shopify without a deploy.
+function plusPlans(env) {
+  const plans = new Map();
+  plans.set(String(env.PLUS_SKU || "PatternlyPlus").trim().toUpperCase(),
+            Number(env.PLUS_WINDOW_DAYS) || PLUS_WINDOW_DAYS);
+  plans.set(String(env.PLUS_SKU_YEAR || "PatternlyPlusYear").trim().toUpperCase(),
+            Number(env.PLUS_YEAR_WINDOW_DAYS) || PLUS_YEAR_WINDOW_DAYS);
+  return plans;
+}
+
+// Is this SKU one of the membership plans? Used to keep the membership out of
+// the permanent kit latch.
+function isPlusSku(sku, env) {
+  return plusPlans(env).has(String(sku).trim().toUpperCase());
 }
 
 // Does this customer carry the "active subscriber" tag?
@@ -562,35 +580,48 @@ function hasPlusTag(tags, env) {
 // Only orders inside the window are asked for, so this is a cheap query even
 // for a customer with a long history.
 async function plusFromOrders(email, env) {
-  const out = { paidAt: 0, until: 0 };
-  const want = plusSku(env);
+  const out = { paidAt: 0, until: 0, plan: null };
+  const plans = plusPlans(env);
   if (!email) return out;
+
+  // The lookback must cover the longest plan, or an annual subscriber ten
+  // months in would not be found at all.
+  const lookback = Math.max(...plans.values());
 
   // Matched by email, like kit ownership, so a subscription taken out as a
   // guest under the same address still counts.
-  const since = new Date(Date.now() - PLUS_WINDOW_DAYS * 86400000)
+  const since = new Date(Date.now() - lookback * 86400000)
                   .toISOString().slice(0, 10);
   const q = `email:${JSON.stringify(email)} AND created_at:>=${since}`;
 
   let cursor = null;
-  for (let page = 0; page < 4; page++) {
+  for (let page = 0; page < 8; page++) {
     const data = await adminQuery(env, ORDER_SKUS_QUERY, { q, cursor });
     const orders = data && data.orders;
     if (!orders) break;
     for (const o of orders.nodes) {
       for (const li of o.lineItems.nodes) {
         if (!li.sku) continue;
-        if (String(li.sku).trim().toUpperCase() !== want) continue;
+        const sku = String(li.sku).trim().toUpperCase();
+        const windowDays = plans.get(sku);
+        if (windowDays === undefined) continue;
         if (lineIsVoid(o, li)) continue;        // cancelled or refunded: does not count
         const t = Date.parse(o.createdAt) || 0;
-        if (t > out.paidAt) out.paidAt = t;
+        if (!t) continue;
+        // Furthest expiry wins, not newest order: someone who buys an annual
+        // plan and later has a stray monthly order should keep the annual.
+        const until = t + windowDays * 86400000;
+        if (until > out.until) {
+          out.until = until;
+          out.paidAt = t;
+          out.plan = windowDays >= PLUS_YEAR_WINDOW_DAYS ? "annual" : "monthly";
+        }
       }
     }
     if (!orders.pageInfo.hasNextPage) break;
     cursor = orders.pageInfo.endCursor;
   }
 
-  if (out.paidAt) out.until = out.paidAt + PLUS_WINDOW_DAYS * 86400000;
   return out;
 }
 
@@ -640,6 +671,7 @@ async function plusState(auth, env) {
       out.plus = true;
       out.source = "subscription";
       out.via = out.via ? "tag+order" : "order";
+      out.plan = sub.plan;                   // "monthly" or "annual"
       out.plusUntil = sub.until;             // ~when access lapses without a renewal
       out.paidAt = sub.paidAt;               // last payment seen
     }
