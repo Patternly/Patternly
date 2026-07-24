@@ -16434,7 +16434,7 @@ document.querySelectorAll('.ct-btn[data-tool]').forEach(btn=>{
 
 // "Open Editor" now leads to the My Patterns page first (like StitchMate)
 function openApp(){
-  document.body.classList.remove('app-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode','cv-open');
+  document.body.classList.remove('pricing-mode','app-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode','cv-open');
   document.body.classList.add('projects-mode');
   pjSelectMode=false; pjSelected.clear();
   renderProjectsPage();
@@ -16442,7 +16442,7 @@ function openApp(){
   window.scrollTo(0,0);
 }
 function goHome(){
-  document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode','cv-open');
+  document.body.classList.remove('pricing-mode','app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode','cv-open');
   window.scrollTo(0,0);
 }
 
@@ -17629,11 +17629,25 @@ function trackerNav(guarded){
   if(ov) ov.addEventListener('click', e=>{ if(e.target===ov) hideTrackerSoon(); });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') hideTrackerSoon(); });
 })();
-function openTracker(){
+async function openTracker(){
   // Plus gate. Placed here because every route into the tracker comes through
   // this function, so there is one door rather than four to keep in step.
-  if(typeof trkPlusOk==='function' && !trkPlusOk()){ trkPlusGate(); return; }
-  document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode');
+  //
+  // A cached "not Plus" is not good enough to turn someone away: __LUCAS_AUTH__
+  // is populated asynchronously, and anyone who reaches the tracker before that
+  // resolves — or who subscribed in another tab — would be blocked despite
+  // having paid. So re-ask the server before showing the gate, and only then
+  // believe the answer.
+  if(typeof trkPlusOk==='function' && !trkPlusOk()){
+    let ok=false;
+    try{
+      const base=TRK_KITS_BASE.replace(/\/patterns$/,'');
+      const r=await fetch(base+'/whoami',{credentials:'include',cache:'no-store'});
+      if(r.ok){ window.__LUCAS_AUTH__=await r.json(); ok=trkPlusOk(); }
+    }catch(e){ ok=true; }   // cannot reach the server: do not block a payer
+    if(!ok){ trkPlusGate(); return; }
+  }
+  document.body.classList.remove('pricing-mode','app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode');
   document.body.classList.add('tracker-mode');
   window.scrollTo(0,0);
   trkShowHome();
@@ -22435,7 +22449,7 @@ function acctGo(fn){
   else fn();
 }
 function openAccountPage(){
-  document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode');
+  document.body.classList.remove('pricing-mode','app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode');
   document.body.classList.add('account-mode');
   acctRenderPage();
   window.scrollTo(0,0);
@@ -22685,7 +22699,7 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.acct-wrap')) acctC
   if(lucasAuth().loggedIn) document.querySelectorAll('.acct-btn').forEach(b=>{ b.classList.add('acct-in'); b.title='Your Luca-S account — signed in'; });
 })();
 function openFileConverter(){
-  document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','account-mode');
+  document.body.classList.remove('pricing-mode','app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','account-mode');
   document.body.classList.add('convert-mode');
   const li=document.getElementById('conv-logo-img'), src=document.getElementById('pj-logo-img');
   if(li && src && src.src) li.src=src.src;
@@ -22908,7 +22922,7 @@ async function fconvHandle(fileList){
   }
 }
 function openThreads(){
-  document.body.classList.remove('app-mode','projects-mode','calc-mode','tracker-mode','convert-mode','account-mode');
+  document.body.classList.remove('pricing-mode','app-mode','projects-mode','calc-mode','tracker-mode','convert-mode','account-mode');
   document.body.classList.add('threads-mode');
   const cv=document.getElementById('th-chart-view'), bv=document.getElementById('th-browse-view'), hub=document.getElementById('th-hub');
   if(cv&&hub){ cv.style.display='none'; if(bv) bv.style.display='none'; hub.style.display='block'; } // always land on the hub
@@ -22918,7 +22932,7 @@ function openThreads(){
   if(typeof thInit==='function') thInit();
 }
 function openCalculators(tab){
-  document.body.classList.remove('app-mode','projects-mode','tracker-mode','threads-mode','convert-mode','account-mode');
+  document.body.classList.remove('pricing-mode','app-mode','projects-mode','tracker-mode','threads-mode','convert-mode','account-mode');
   document.body.classList.add('calc-mode');
   calcShowTab(tab||'fabric');
   window.scrollTo(0,0);
@@ -23424,7 +23438,7 @@ function trkPlusGate(){
 }
 function openPricing(){
   pjGuardedLeave(()=>{
-    document.body.classList.remove('app-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode','projects-mode','cv-open');
+    document.body.classList.remove('pricing-mode','app-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode','projects-mode','cv-open');
     document.body.classList.add('pricing-mode');
     const img=document.getElementById('pricing-logo-img');
     if(img && !img.src){ const src=document.getElementById('lp-logo-img'); if(src) img.src=src.src; }
@@ -23458,13 +23472,27 @@ const PLUS_PLANS = {
 // Shopify adds the line as a one-off and a subscription-only product rejects it
 // outright ("Variant can only be purchased with a selling plan"). The
 // /cart/add form applies the plan properly, and return_to skips the cart page.
+//
+// The add is chained behind /cart/clear for two reasons, both of which we hit
+// in testing: pressing Subscribe twice would otherwise put two units in the
+// cart, and switching from monthly to yearly would leave BOTH plans there with
+// neither removable from the checkout page. Clearing first makes the cart hold
+// exactly one subscription, always the one just chosen.
+//
+// The cost is that any kits already in the basket are cleared too. That is the
+// deliberate trade: a subscription-only checkout cannot carry them anyway.
+const PLUS_CLEAR_CART_FIRST = true;
+
 function plusCheckoutUrl(period){
   const p = PLUS_PLANS[period==='year' ? 'year' : 'month'];
-  return 'https://luca-s.com/cart/add'
-       + '?id=' + p.variant
-       + '&quantity=1'
-       + '&selling_plan=' + p.plan
-       + '&return_to=/checkout';
+  const add = '/cart/add'
+            + '?id=' + p.variant
+            + '&quantity=1'
+            + '&selling_plan=' + p.plan
+            + '&return_to=/checkout';
+  return PLUS_CLEAR_CART_FIRST
+    ? 'https://luca-s.com/cart/clear?return_to=' + encodeURIComponent(add)
+    : 'https://luca-s.com' + add;
 }
 
 // Opened in a new tab: the editor may hold unsaved work, and navigating the
@@ -23523,7 +23551,7 @@ function trkWorkspaceBack(){
 }
 function lpLogoHome(){
   const b=document.body;
-  const away=['projects-mode','calc-mode','tracker-mode','threads-mode',
+  const away=['pricing-mode','projects-mode','calc-mode','tracker-mode','threads-mode',
               'convert-mode','account-mode','app-mode'].some(c=>b.classList.contains(c));
   if(away && typeof goHome==='function') goHome();
   else window.scrollTo({top:0,behavior:'smooth'});
