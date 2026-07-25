@@ -21376,8 +21376,8 @@ function renderTracker(){
     if(trkCentreLines){
       const midC=trackerGrid.cols/2, midR=trackerGrid.rows/2;
       trkCtx.save();
-      trkCtx.strokeStyle='rgba(200,30,60,'+Math.min(1,op*1.8)+')';
-      trkCtx.lineWidth=Math.max(1, bw*1.4);
+      trkCtx.strokeStyle='rgba(200,30,60,'+Math.min(1,boldA*1.8)+')';
+      trkCtx.lineWidth=Math.max(1, trkGridCfg.bw*1.4);
       trkCtx.setLineDash([Math.max(4,cell*0.6), Math.max(3,cell*0.4)]);
       const cx=(midC-vp.c0)*cell+0.5;
       if(cx>=trkView.sx-1 && cx<=trkView.sx+trkView.viewW+1){ trkCtx.beginPath(); trkCtx.moveTo(cx,trkView.sy); trkCtx.lineTo(cx,trkView.sy+trkView.viewH); trkCtx.stroke(); }
