@@ -17773,6 +17773,37 @@ document.getElementById('lp-photo-input').addEventListener('change',function(){
 const TRK_INDEX='patternly_trk_index';
 function trkIndex(){ try{ return JSON.parse(localStorage.getItem(TRK_INDEX)||'[]'); }catch(e){ return []; } }
 function trkIndexWrite(list){ try{ localStorage.setItem(TRK_INDEX, JSON.stringify(list)); }catch(e){} }
+// A stable, unique id for syncing a project to the account. Local project keys
+// are derived from filenames and collide when two patterns share a legend name
+// ("legend.pdf"). This mints a random id ONCE per project, stores it on the
+// project's index entry, and returns it thereafter — so every uploaded pattern
+// is distinct on the server no matter what its files are called.
+// Ensure a newly-created project gets a key that isn't already taken by a
+// DIFFERENT saved project. Two patterns whose legend files share a name (both
+// "legend.pdf") would otherwise map to the same key and overwrite each other —
+// locally and on the account. If the base key is free, or belongs to the project
+// being reopened, it's used as-is; otherwise a short suffix makes it unique.
+
+// A stable, unique id for syncing a project to the account, derived from the
+// pattern's own content. Local project keys come from filenames and collide when
+// two patterns share a legend name ("legend.pdf"); hashing the actual project
+// blob means identical patterns collapse to one slot (a re-sync updates in place)
+// while any two DIFFERENT patterns get different ids — no filename collisions.
+function trkHashString(s){
+  let h=5381; for(let i=0;i<s.length;i++){ h=((h<<5)+h+s.charCodeAt(i))|0; }
+  // second pass for better spread
+  let h2=52711; for(let i=s.length-1;i>=0;i--){ h2=((h2<<5)+h2+s.charCodeAt(i))|0; }
+  return (h>>>0).toString(36)+(h2>>>0).toString(36);
+}
+function trkSyncIdFromBlob(blob, localId){
+  try{
+    // Hash a bounded slice — enough to distinguish patterns without hashing
+    // megabytes on every push. Include size + dims-bearing head + tail.
+    const head=blob.slice(0, 20000), tail=blob.slice(-4000);
+    return 'up_'+trkHashString(blob.length+'|'+head+'|'+tail);
+  }catch(e){ return 'up_'+String(localId||'x').replace(/[^A-Za-z0-9_-]/g,'_').slice(0,40); }
+}
+
 
 function trkMakeThumb(){
   try{
@@ -18138,14 +18169,21 @@ function trkDeleteProject(id, name){
     requireCheck:'Yes, permanently delete this pattern and its progress',
     confirmLabel:'Delete', danger:true,
     onConfirm(){
+      // Compute the same content-hash sync id used when pushing (from the stored
+      // blob) BEFORE removing it, so the account copy is found and its slot freed.
+      let syncId=null;
+      try{
+        const blob=localStorage.getItem('patternly_trk_proj_'+id);
+        if(blob && typeof trkSyncIdFromBlob==='function') syncId=trkSyncIdFromBlob(blob, id);
+      }catch(e){}
       localStorage.removeItem('patternly_trk_proj_'+id);
       localStorage.removeItem('patternly_tracker_'+id);
       trkIndexWrite(trkIndex().filter(p=>p.id!==id));
-      // If this pattern was synced to the account (an uploaded pattern), remove
-      // the account copy too so it stops counting toward the cap. Kits aren't in
-      // user-patterns storage, so this is a harmless no-op for them.
-      const safeId = String(id).replace(/[^A-Za-z0-9_-]/g,'_').slice(0,64);
-      if(typeof trkUserPatternDelete==='function') trkUserPatternDelete(safeId);
+      if(syncId && typeof trkUserPatternDelete==='function') trkUserPatternDelete(syncId);
+      // Legacy cleanup: entries synced before content-hash ids used a
+      // filename-derived id. Remove that too if present.
+      const bareId = String(id).replace(/[^A-Za-z0-9_-]/g,'_').slice(0,64);
+      if(bareId!==syncId && typeof trkUserPatternDelete==='function') trkUserPatternDelete(bareId);
       trkShowHome();
     }
   });
@@ -21998,14 +22036,13 @@ async function trkUserPatternPush(){
   if(typeof trkPlusOk==='function' && !trkPlusOk()) return;   // tracker is Plus-only anyway
   const id = trackerActiveProjectKey;
   if(!id) return;
-  // Server ids must be [A-Za-z0-9_-]{1,64}. Project keys are filename-derived so
-  // they're the right charset, but can run long — trim safely and keep it stable.
-  const safeId = String(id).replace(/[^A-Za-z0-9_-]/g,'_').slice(0,64);
-  if(!safeId) return;
-  // The full project blob is already in localStorage from trkSaveProject.
+  // Full project blob is already in localStorage from trkSaveProject.
   let blob;
   try{ blob = localStorage.getItem('patternly_trk_proj_'+id); }catch(e){}
   if(!blob) return;
+  // Unique per-pattern sync id from the content, so same-named files never collide.
+  const safeId = trkSyncIdFromBlob(blob, id);
+  if(!safeId) return;
   // Progress: fold the stitched grid into the blob-carrying payload so a new
   // device restores both the chart and how far along it is.
   let done=0, total=0;
