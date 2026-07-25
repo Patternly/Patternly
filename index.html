@@ -22040,13 +22040,19 @@ async function trkUserPatternPush(){
   let blob;
   try{ blob = localStorage.getItem('patternly_trk_proj_'+id); }catch(e){}
   if(!blob) return;
+  // Don't sync a half-loaded pattern: require a real grid with stitches. This
+  // prevents empty "total:0" entries from an immediate push that fired before
+  // the chart finished parsing.
+  let total=0;
+  try{ for(const row of trackerGrid.cells) for(const ch of row) if(ch!==' ') total++; }catch(e){}
+  if(!total) return;
   // Unique per-pattern sync id from the content, so same-named files never collide.
   const safeId = trkSyncIdFromBlob(blob, id);
   if(!safeId) return;
   // Progress: fold the stitched grid into the blob-carrying payload so a new
   // device restores both the chart and how far along it is.
-  let done=0, total=0;
-  try{ done=trkCountDone(); for(const row of trackerGrid.cells) for(const ch of row) if(ch!==' ') total++; }catch(e){}
+  let done=0;
+  try{ done=trkCountDone(); }catch(e){}
   const idxRec = (typeof trkIndex==='function'?trkIndex():[]).find(p=>p.id===id) || {};
   // Choose a name a human will recognise on another device. Filenames for PDF
   // patterns are often the legend/instruction sheet ("legend", "InstructiuneB706"),
@@ -22076,6 +22082,20 @@ async function trkUserPatternPush(){
                 : (idxRec.name && !isGeneric(idxRec.name)) ? idxRec.name
                 : 'My pattern');
   }
+  // De-duplicate the name against other synced patterns so the list never shows
+  // two identical titles: "legend", "legend (2)", "legend (3)"…  A pattern keeps
+  // its own name on re-sync (matched by id), only OTHERS force a suffix.
+  try{
+    const listInfo = await trkUserPatternList();
+    const taken = (listInfo && Array.isArray(listInfo.items))
+      ? listInfo.items.filter(it=>it.id!==safeId).map(it=>String(it.name||'').toLowerCase())
+      : [];
+    if(taken.includes(displayName.toLowerCase())){
+      let n=2, cand;
+      do{ cand=displayName+' ('+n+')'; n++; }while(taken.includes(cand.toLowerCase()) && n<999);
+      displayName=cand;
+    }
+  }catch(e){ /* offline — send the base name, the server still stores it */ }
   _trkUpBusy=true;
   try{
     const r = await fetch(trkUserPatternUrl(safeId), {
