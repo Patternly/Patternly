@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v27";
+const MW_VERSION = "v28";
 
 const enc = new TextEncoder();
 
@@ -85,7 +85,36 @@ function needsCode(key) {
 //   PATTERN_CODES = {"BU5102":"12345","BU5104":"98765"}
 //
 // Move this to a KV namespace when issuing a code should not mean a redeploy.
-function codeFor(key, env) {
+// Per-design access code, DERIVED from the SKU — no list to maintain. Every
+// buyer of a given kit gets the same code (Option 1); it only unlocks that one
+// design's chart, and only for a Plus subscriber, so a leaked code lets a payer
+// load a chart they didn't buy — a small, bounded loss for zero per-release
+// admin.
+//
+// Alphabet excludes look-alikes (0/O, 1/I/L) because the code is printed on the
+// kit insert as a type-it-yourself fallback under the QR. HMAC over the secret
+// means the code cannot be guessed or reverse-engineered from the SKU.
+const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"; // 31 chars, no 0O1IL
+const CODE_LEN = 8;
+
+async function derivedCode(sku, env) {
+  const secret = env.PATTERN_CODE_SECRET || env.SHOPIFY_APP_SECRET;
+  if (!secret) return null;
+  const hex = await hmacHex(secret, "pattern-code:" + String(sku).trim().toUpperCase());
+  // Fold the hex digest into the clean alphabet.
+  let out = "";
+  for (let i = 0; i < CODE_LEN; i++) {
+    const byte = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+    out += CODE_ALPHABET[byte % CODE_ALPHABET.length];
+  }
+  return out;
+}
+
+// Resolve the expected code for a key. Priority:
+//   1. explicit PATTERN_CODES map entry (manual override / rotation escape hatch)
+//   2. derived code from the SKU (the normal path)
+//   3. shared PATTERN_ACCESS_CODE (legacy fallback)
+async function codeFor(key, env) {
   const sku = key.split("/")[0];
   if (env.PATTERN_CODES) {
     try {
@@ -95,18 +124,25 @@ function codeFor(key, env) {
       console.warn("PATTERN_CODES is not valid JSON — ignoring it");
     }
   }
+  const derived = await derivedCode(sku, env);
+  if (derived) return derived;
   return env.PATTERN_ACCESS_CODE || null;
 }
 
-function checkAccessCode(request, url, env, key) {
+async function checkAccessCode(request, url, env, key) {
   if (!needsCode(key)) return { ok: true, seen: false };
-  const want = codeFor(key, env);
+  const want = await codeFor(key, env);
   if (!want) return { ok: true, seen: false };
   const got =
     request.headers.get("x-patternly-code") ||
     url.searchParams.get("pcode") ||
     "";
-  return { ok: timingSafeEqual(got, want), seen: got.length > 0 };
+  // Case-insensitive: the code is printed in caps but a customer may type it
+  // lower-case. The clean alphabet has no case-collision risk.
+  return {
+    ok: timingSafeEqual(got.trim().toUpperCase(), String(want).toUpperCase()),
+    seen: got.length > 0
+  };
 }
 
 const MIME = {
@@ -767,7 +803,7 @@ async function servePattern(key, auth, request, url, env) {
     // they bought the kit — which is exactly what it did until v12.
     if (owns === null) {
       // Entitlement not configured, or the lookup failed: the code is the gate.
-      const c = checkAccessCode(request, url, env, key);
+      const c = await checkAccessCode(request, url, env, key);
       if (!c.ok) {
         return new Response("access code required", {
           status: 401,
@@ -778,7 +814,7 @@ async function servePattern(key, auth, request, url, env) {
     }
     if (owns === false || owns === "anon") {
       // Not a buyer (or not signed in): the access code is the remaining route.
-      const c = checkAccessCode(request, url, env, key);
+      const c = await checkAccessCode(request, url, env, key);
       if (!c.ok) {
         return new Response(
           JSON.stringify({
@@ -826,6 +862,32 @@ export async function onRequest(context) {
   const auth = await readAuth(url, env);
 
   // ── /whoami: live auth check for the running app ──
+  // ── /code?sku=B720 : look up a design's access code ──────────────────────
+  // For populating the Shopify metafield and building QR links. Returns the
+  // derived code plus a ready-made deep link. Gated behind an admin key so the
+  // full code list can't be scraped by anyone hitting the endpoint.
+  if (url.pathname === "/code" || url.pathname.endsWith("/code")) {
+    const adminKey = env.CODE_ADMIN_KEY;
+    const given = url.searchParams.get("key") || request.headers.get("x-admin-key") || "";
+    if (!adminKey || !timingSafeEqual(given, adminKey)) {
+      return new Response(JSON.stringify({ error: "unauthorized" }), {
+        status: 401, headers: { "content-type": "application/json", "cache-control": "no-store" }
+      });
+    }
+    const sku = (url.searchParams.get("sku") || "").trim().toUpperCase();
+    if (!sku) {
+      return new Response(JSON.stringify({ error: "sku required" }), {
+        status: 400, headers: { "content-type": "application/json", "cache-control": "no-store" }
+      });
+    }
+    const code = await codeFor(sku + "/chart.pdf", env);
+    const base = env.APP_PUBLIC_URL || "https://luca-s.com/apps/patternly";
+    const link = base + "?sku=" + encodeURIComponent(sku) + "&code=" + encodeURIComponent(code) + "#tracker";
+    return new Response(JSON.stringify({ sku, code, link }), {
+      headers: { "content-type": "application/json", "cache-control": "no-store" }
+    });
+  }
+
   if (url.pathname === "/whoami" || url.pathname.endsWith("/whoami")) {
     // Config readout: presence only, never values. This is what tells you
     // whether a missing gate is a stale deploy or a missing variable.
