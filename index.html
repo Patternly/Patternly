@@ -3372,8 +3372,11 @@ body.dark #trk-modes button{background:#221b2d;border-color:#4a3d55}
 #lp-mobile-menu.open{transform:none}
 #lp-mm-scrim{display:none;position:fixed;inset:0;z-index:955;background:rgba(30,22,28,.42);opacity:0;transition:opacity .22s ease}
 #lp-mm-scrim.open{display:block;opacity:1}
-#lp-mm-close{position:sticky;top:0;display:flex;justify-content:flex-end;background:inherit;padding:.5rem .9rem .2rem}
-#lp-mm-close button{background:none;border:none;font-size:1.4rem;line-height:1;color:var(--lp-muted);cursor:pointer;padding:.2rem .35rem}
+#lp-mm-close{position:sticky;top:0;display:flex;justify-content:flex-end;background:inherit;padding:.5rem .9rem .2rem;z-index:2}
+/* Push the first menu item (Open Editor) well clear of the × so a thumb aiming
+   to close the menu doesn't land on the editor button. */
+#lp-mm-close + *{margin-top:1.6rem}
+#lp-mm-close button{background:none;border:none;font-size:1.6rem;line-height:1;color:var(--lp-muted);cursor:pointer;padding:.5rem .7rem;margin:-.2rem -.3rem}
 .lp-mm-acc{display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:none;padding:.72rem 1.4rem;font-family:inherit;font-size:.95rem;font-weight:500;color:var(--lp-ink);cursor:pointer;text-align:left}
 .lp-mm-acc:active{background:var(--lp-red-light)}
 .lp-mm-chev{font-size:.75rem;color:var(--lp-muted);transition:transform .2s}
@@ -4763,6 +4766,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
         </div>
       </div>
       <a href="#" onclick="openPricing();return false">Pricing</a>
+      <a href="/apps/patternly/patternly-app-manual.html">Guide</a>
       <a href="https://luca-s.com/" target="_blank" rel="noopener" style="color:var(--lp-red);font-weight:600">Luca-S Shop ↗</a>
     </div>
     <button id="lp-menu-btn" onclick="lpToggleMenu()" title="Menu" style="display:none;background:none;border:1.5px solid var(--lp-border);border-radius:9px;width:36px;height:36px;cursor:pointer;font-size:1.05rem;line-height:1;flex-shrink:0;color:var(--lp-ink)">☰</button>
@@ -4782,7 +4786,6 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <button class="lp-btn-primary" style="width:100%;justify-content:center" onclick="lpCloseMenu();openApp()">Open Editor &rarr;</button>
   </div>
   <a href="#" onclick="lpCloseMenu();lpLogoHome();return false">Home</a>
-  <a href="#" onclick="lpCloseMenu();openPricing();return false">Pricing</a>
   <button class="lp-mm-acc" type="button">Features <span class="lp-mm-chev">▾</span></button>
   <div class="lp-mm-panel">
     <a href="#" onclick="lpCloseMenu();lpMmAction('tracker');return false" class="lp-mm-sub">Stitch Tracker</a>
@@ -4799,6 +4802,8 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <a href="#" onclick="lpCloseMenu();lpMmAction('time');return false" class="lp-mm-sub">⏱ Time Calculator</a>
     <a href="#" onclick="lpCloseMenu();lpMmAction('thread');return false" class="lp-mm-sub">🧵 Thread Calculator</a>
   </div>
+  <a href="#" onclick="lpCloseMenu();openPricing();return false">Pricing</a>
+  <a href="/apps/patternly/patternly-app-manual.html">Guide</a>
   <a href="https://luca-s.com/" target="_blank" rel="noopener" onclick="lpCloseMenu()" style="color:var(--lp-red);font-weight:600">Luca-S Shop ↗</a>
   <div id="mm-editor-extras">
     <a href="#" onclick="lpCloseMenu();document.getElementById('clear-btn').click();return false">🗑 Clear canvas</a>
@@ -5133,6 +5138,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
           <a href="#" onclick="openFileConverter();return false">File Converter</a>
           <a href="#" onclick="openCalculators();return false">Calculators</a>
           <a href="#" onclick="openPricing();return false">Pricing</a>
+          <a href="/apps/patternly/patternly-app-manual.html">Guide</a>
         </div>
         <div class="lp-footer-col">
           <div class="lp-footer-col-title">Learn</div>
