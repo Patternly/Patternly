@@ -17745,6 +17745,68 @@ function trkGateModal(o){
   }
 }
 
+// Deep link from a kit's QR code: /apps/patternly?sku=B710&code=KW5W75SQ#tracker
+// The QR encodes the SKU and its access code so a customer scanning the insert
+// card lands straight on their pattern — no typing, no misspelling. Flow:
+//   1. stash the code under the SKU (so trkKitFetch sends it)
+//   2. if not Plus, show the gate — the tracker is Plus-only, and the code
+//      alone does not grant access; they subscribe first, then this re-runs
+//   3. load the catalogue, find the kit, open it
+// The URL params are cleared afterwards so a refresh doesn't re-trigger and the
+// code isn't left sitting in the address bar.
+let _trkPendingLink = null;
+async function trkOpenFromLink(sku, code){
+  sku = String(sku||'').trim().toUpperCase();
+  if(!sku) return;
+  if(code) trkKitCodeSet(sku, String(code).trim());
+
+  // Remember the intent so it survives a sign-in / subscribe round trip.
+  _trkPendingLink = { sku, code:code||'' };
+  try{ sessionStorage.setItem('patternly_pending_kit', JSON.stringify(_trkPendingLink)); }catch(e){}
+
+  // Plus gate: re-check the server before deciding, so a fresh subscriber is
+  // never turned away on stale state.
+  let plus = (typeof trkPlusOk==='function') ? trkPlusOk() : true;
+  if(!plus){
+    try{
+      const base=TRK_KITS_BASE.replace(/\/patterns$/,'');
+      const r=await fetch(base+'/whoami',{credentials:'include',cache:'no-store'});
+      if(r.ok){ window.__LUCAS_AUTH__=await r.json(); plus=trkPlusOk(); }
+    }catch(e){ plus=false; }
+  }
+  if(!plus){
+    // Tracker is Plus-only. Show the gate; after they subscribe and return,
+    // trkResumePendingLink() picks this up again.
+    if(typeof openTracker==='function') openTracker();  // openTracker shows the gate when not Plus
+    return;
+  }
+
+  if(typeof openTracker==='function') openTracker();
+  await trkKitsLoad(true);
+  const kit = (trkKitList||[]).find(k=>String(k.sku).toUpperCase()===sku);
+  if(!kit){
+    const st=document.getElementById('trk-kits-status');
+    if(st){ st.style.color='#b25f10';
+      st.textContent='We couldn\u2019t find pattern '+sku+' in the catalogue. It may not be available yet.'; }
+    return;
+  }
+  trkClearPendingLink();
+  trkOpenKit(kit);
+}
+function trkClearPendingLink(){
+  _trkPendingLink=null;
+  try{ sessionStorage.removeItem('patternly_pending_kit'); }catch(e){}
+}
+// Called after auth refreshes (e.g. returning from checkout): if a QR link was
+// waiting on a subscription, resume it now that they may be Plus.
+async function trkResumePendingLink(){
+  let p=_trkPendingLink;
+  if(!p){ try{ p=JSON.parse(sessionStorage.getItem('patternly_pending_kit')||'null'); }catch(e){} }
+  if(!p || !p.sku) return;
+  if(typeof trkPlusOk==='function' && !trkPlusOk()) return;  // still not Plus, keep waiting
+  await trkOpenFromLink(p.sku, p.code);
+}
+
 async function trkKitsLoad(force){
   const st=document.getElementById('trk-kits-status');
   if(trkKitsLoading) return;
@@ -24328,8 +24390,17 @@ async function plusCheckNow(){
     if(a.plus){
       plusWaitPanel(false);
       if(!was){
-        if(typeof toast==='function') toast('Welcome to Plus \u2014 the Stitch Tracker is open');
-        if(typeof openTracker==='function') openTracker();
+        // If they arrived via a QR kit link and just subscribed, open that
+        // pattern directly rather than the generic tracker landing.
+        let pending=null;
+        try{ pending=JSON.parse(sessionStorage.getItem('patternly_pending_kit')||'null'); }catch(e){}
+        if(pending && pending.sku && typeof trkResumePendingLink==='function'){
+          if(typeof toast==='function') toast('Welcome to Plus \u2014 opening your pattern');
+          trkResumePendingLink();
+        }else{
+          if(typeof toast==='function') toast('Welcome to Plus \u2014 the Stitch Tracker is open');
+          if(typeof openTracker==='function') openTracker();
+        }
       }
       return true;
     }
@@ -25269,6 +25340,21 @@ document.querySelectorAll('#lp-nav a[href^="#"]').forEach(a=>{
   // Deep link on first load: honour the hash so a shared or reloaded URL lands
   // on the right page instead of silently showing the landing page.
   window.addEventListener('DOMContentLoaded', function(){
+    // QR kit link: ?sku=B710&code=KW5W75SQ (usually with #tracker). Handle this
+    // before the plain hash routing, since it does more than switch pages.
+    try{
+      const q=new URLSearchParams(location.search);
+      const sku=q.get('sku'), code=q.get('code');
+      if(sku){
+        // Clean the address bar so a refresh doesn't replay and the code isn't
+        // left visible. Keep the #tracker hash.
+        const clean=location.pathname + (location.hash||'#tracker');
+        history.replaceState(history.state, '', clean);
+        setTimeout(()=>{ if(typeof trkOpenFromLink==='function') trkOpenFromLink(sku, code); }, 0);
+        return;
+      }
+    }catch(e){ console.warn('[qr-link]', e); }
+
     const h = (location.hash||'').replace(/^#/,'');
     if(!h) return;
     const [name, arg] = h.split('/');
