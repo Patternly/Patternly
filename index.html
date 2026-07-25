@@ -18937,7 +18937,10 @@ function trkRenderProjectCards(grid, list, withAdd){
   let add=null;
   if(withAdd){
     add=document.createElement('div'); add.className='trk-pcard new';
-    add.innerHTML='<span class="plus">+</span><span>Track New Pattern</span>';
+    const label = (withAdd==='kit') ? 'Add a Luca-S Kit'
+                : (withAdd==='upload') ? 'Upload a Pattern'
+                : 'Track New Pattern';
+    add.innerHTML='<span class="plus">+</span><span>'+label+'</span>';
     grid.appendChild(add);
   }
   for(const p of list){
@@ -18966,12 +18969,19 @@ function trkRenderProjectCards(grid, list, withAdd){
     grid.appendChild(card);
   }
   if(add) add.onclick=()=>{
-    if(window.TRACKER_PDF_COMING_SOON){ showTrackerSoon(); return; }
-    // No name prompt here any more: a Luca-S kit already has the product title,
-    // so asking first meant typing a name the app was about to overwrite. The
-    // upload branch asks for one at the point it is actually needed.
+    if(window.TRACKER_PDF_COMING_SOON && withAdd!=='kit'){ showTrackerSoon(); return; }
     trkPendingName='';
-    trkShowUpload();
+    // Go straight to the right path so each section's button is independent:
+    // kits are always reachable; uploads run their own cap gate.
+    if(withAdd==='kit'){
+      trkShowUpload();                         // show the chooser shell…
+      setTimeout(()=>trkChooseSource('lucas'), 0);   // …then jump to the catalogue
+    } else if(withAdd==='upload'){
+      trkShowUpload();
+      setTimeout(()=>trkChooseSource('other'), 0);   // cap gate lives in here
+    } else {
+      trkShowUpload();
+    }
   };
 }
 function trkShowHome(){
@@ -18995,30 +19005,26 @@ function trkShowHomeInner(list){
   wrap.style.display='';
   const t=document.querySelector('#tracker-page .calc-title'), s=document.querySelector('#tracker-page .calc-sub');
   if(t) t.textContent='My Patterns';
-  // Split saved projects: Luca-S kits (have a SKU) vs the user's own uploads.
   const kitsLocal = list.filter(p=>p.sku);
   const uploadsLocal = list.filter(p=>!p.sku);
-  if(s) s.innerHTML=`<b>${uploadsLocal.length} of 5</b> uploaded patterns synced to your account. \u00b7 <a href="#" onclick="trkImportPick();return false" style="color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">\u2b06 Restore a backup</a>`;
-  // ── Luca-S Kits section ──
+  if(s) s.innerHTML=`<b>${uploadsLocal.length} of 5</b> uploaded patterns \u00b7 Luca-S kits are unlimited \u00b7 <a href="#" onclick="trkImportPick();return false" style="color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">\u2b06 Restore a backup</a>`;
+  // ── Luca-S Kits section: ALWAYS shown, with its own always-available add tile ──
   const kitsGrid=document.getElementById('trk-kits-grid');
   const kitsSection=document.getElementById('trk-kits-section');
-  kitsGrid.innerHTML='';
-  trkRenderProjectCards(kitsGrid, kitsLocal, false);
-  // append account kit-progress not present locally
-  trkAppendCloudCards(kitsGrid, kitsLocal).then(()=>{
-    const has = kitsGrid.children.length>0;
-    kitsSection.style.display = has ? '' : 'none';
-  });
-  // ── Uploaded patterns section ──
+  kitsSection.style.display='';
+  trkRenderProjectCards(kitsGrid, kitsLocal, 'kit');   // "+ Add a Luca-S Kit" tile always present
+  trkAppendCloudCards(kitsGrid, kitsLocal);
+  // ── Uploaded patterns section: its add tile runs the cap gate ──
   const upGrid=document.getElementById('trk-proj-grid');
   const upHead=document.getElementById('trk-uploads-head');
-  upGrid.innerHTML='';
-  trkRenderProjectCards(upGrid, uploadsLocal, true);   // includes the "+ Track New Pattern" tile
-  trkAppendUserPatternCards(upGrid).then(()=>{
-    // the uploads section always shows (it has the + tile); show its heading only
-    // if there's at least one real pattern besides the add-tile
-    upHead.style.display = (upGrid.querySelectorAll('.trk-pcard').length>0) ? '' : 'none';
-  });
+  upHead.style.display='';
+  trkRenderProjectCards(upGrid, uploadsLocal, 'upload');   // "+ Upload a Pattern" tile
+  trkAppendUserPatternCards(upGrid);
+}
+function trkTitleReset(){
+  const t=document.querySelector('#tracker-page .calc-title'), s=document.querySelector('#tracker-page .calc-sub');
+  if(t) t.textContent='Stitch Tracker';
+  if(s) s.textContent='Upload the legend and chart PDFs from your Luca-S kit, then mark stitches as you go \u2014 your progress is saved in this browser.';
 }
 let trackerProjectName='', trkPendingName='';
 // ─── Coming-soon notice — now scoped to PDF upload only (toggle window.TRACKER_PDF_COMING_SOON).
