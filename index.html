@@ -5386,7 +5386,14 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <h1 class="calc-title">Stitch Tracker</h1>
     <p class="calc-sub">Upload the legend and chart PDFs from your Luca-S kit, then mark stitches as you go — your progress is saved in this browser.</p>
     <div id="trk-projects" style="display:none">
-      <div id="trk-proj-grid"></div>
+      <div id="trk-kits-section" style="display:none">
+        <h2 style="font-size:1.05rem;color:var(--lp-ink,#2b2226);margin:.2rem 0 .8rem;font-family:'DM Serif Display',Georgia,serif">My Luca-S Kits</h2>
+        <div id="trk-kits-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:1rem;max-width:1000px;margin:0 auto 1.6rem"></div>
+      </div>
+      <div id="trk-uploads-section">
+        <h2 id="trk-uploads-head" style="font-size:1.05rem;color:var(--lp-ink,#2b2226);margin:.2rem 0 .3rem;font-family:'DM Serif Display',Georgia,serif;display:none">My Tracked Patterns</h2>
+        <div id="trk-proj-grid"></div>
+      </div>
     </div>
     <div id="trk-upload">
     <a href="#" id="trk-back-home" style="display:none;font-size:.78rem;color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none" onclick="trkShowHome();return false">← My tracked patterns</a>
@@ -18284,25 +18291,15 @@ async function trkChooseSource(kind){
     // push failed) and, if full, stop here with a clear message rather than letting
     // them load and mark a pattern that then can't be saved.
     if(kind==='other'){
-      try{
-        const info = await trkUserPatternList();
-        const used = (info && info.used|0) || 0;
-        const cap  = (info && info.cap|0) || 5;
-        if(used >= cap){
-          if(src) src.style.display='';
-          const gb2=document.getElementById('trk-guide-banner'); if(gb2) gb2.style.display='flex';
-          if(cards) cards.style.display='none';
-          if(ub) ub.style.display='none';
-          pjShowModal({
-            title:'You\u2019ve reached your saved-pattern limit',
-            body:'You can sync up to <b>'+cap+'</b> of your own uploaded patterns across your devices. '
-                +'Remove one from <b>My Tracked Patterns</b> to add another.<br><br>'
-                +'Luca-S kits opened from <b>Luca-S Patterns</b> don\u2019t count toward this limit.',
-            confirmLabel:'OK'
-          });
-          return;
-        }
-      }catch(e){ /* offline/error: don't block; server still enforces on push */ }
+      const capInfo = await trkUserPatternCapCheck();
+      if(capInfo.full){
+        if(src) src.style.display='';
+        const gb2=document.getElementById('trk-guide-banner'); if(gb2) gb2.style.display='flex';
+        if(cards) cards.style.display='none';
+        if(ub) ub.style.display='none';
+        trkUserCapModal(capInfo.cap);
+        return;
+      }
     }
     if(kits) kits.style.display='none';
     if(cards) cards.style.display='';
@@ -18642,6 +18639,9 @@ async function trkOpenKit(kit){
     st.textContent='';
     // Reconcile with whatever this account already has for the kit.
     trkCloudPull();
+    // Register the kit in the local index right away so it shows under "My Luca-S
+    // Kits" even if the user opens it and leaves without marking a stitch.
+    try{ if(typeof trkSaveProject==='function') trkSaveProject(); }catch(e){}
   }catch(err){
     if(err && err.gate === 'signin'){
       trkKitsSignIn(err.gateMessage, kit);
@@ -18994,18 +18994,32 @@ function trkShowHomeInner(list){
   const wrap=document.getElementById('trk-projects');
   wrap.style.display='';
   const t=document.querySelector('#tracker-page .calc-title'), s=document.querySelector('#tracker-page .calc-sub');
-  if(t) t.textContent='My Tracked Patterns';
-  if(s) s.innerHTML=`Saved in this browser on this device \u2014 <b>${list.length} of 8</b> slots used. \u00b7 <a href="#" onclick="trkImportPick();return false" style="color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">\u2b06 Restore a backup</a>`;
-  const g=document.getElementById('trk-proj-grid');
-  trkRenderProjectCards(g, list, true);
-  trkAppendCloudCards(g, list);
-  trkAppendUserPatternCards(g);
-}function trkTitleReset(){
-  const t=document.querySelector('#tracker-page .calc-title'), s=document.querySelector('#tracker-page .calc-sub');
-  if(t) t.textContent='Stitch Tracker';
-  if(s) s.textContent='Upload the legend and chart PDFs from your Luca-S kit, then mark stitches as you go — your progress is saved in this browser.';
+  if(t) t.textContent='My Patterns';
+  // Split saved projects: Luca-S kits (have a SKU) vs the user's own uploads.
+  const kitsLocal = list.filter(p=>p.sku);
+  const uploadsLocal = list.filter(p=>!p.sku);
+  if(s) s.innerHTML=`<b>${uploadsLocal.length} of 5</b> uploaded patterns synced to your account. \u00b7 <a href="#" onclick="trkImportPick();return false" style="color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">\u2b06 Restore a backup</a>`;
+  // ── Luca-S Kits section ──
+  const kitsGrid=document.getElementById('trk-kits-grid');
+  const kitsSection=document.getElementById('trk-kits-section');
+  kitsGrid.innerHTML='';
+  trkRenderProjectCards(kitsGrid, kitsLocal, false);
+  // append account kit-progress not present locally
+  trkAppendCloudCards(kitsGrid, kitsLocal).then(()=>{
+    const has = kitsGrid.children.length>0;
+    kitsSection.style.display = has ? '' : 'none';
+  });
+  // ── Uploaded patterns section ──
+  const upGrid=document.getElementById('trk-proj-grid');
+  const upHead=document.getElementById('trk-uploads-head');
+  upGrid.innerHTML='';
+  trkRenderProjectCards(upGrid, uploadsLocal, true);   // includes the "+ Track New Pattern" tile
+  trkAppendUserPatternCards(upGrid).then(()=>{
+    // the uploads section always shows (it has the + tile); show its heading only
+    // if there's at least one real pattern besides the add-tile
+    upHead.style.display = (upGrid.querySelectorAll('.trk-pcard').length>0) ? '' : 'none';
+  });
 }
-
 let trackerProjectName='', trkPendingName='';
 // ─── Coming-soon notice — now scoped to PDF upload only (toggle window.TRACKER_PDF_COMING_SOON).
 // The Tracker itself is open: app-created patterns (editor handoff) and revisiting
@@ -22275,6 +22289,44 @@ function trkQueueUserPatternPush(){
   _trkUpT=setTimeout(trkUserPatternPush, 4000);
 }
 // List the account's synced uploaded patterns (for showing on any device).
+// Single source of truth for the cap. Returns {full, used, cap}. Uses the SERVER
+// count as authoritative, but also treats the local uploaded-pattern count as a
+// floor so a failed list-fetch can't let a 6th slip through.
+// Default display name for a freshly-uploaded pattern: "My pattern", then
+// "My pattern (2)", "(3)"… against names already used locally. The user can
+// rename it any time; this just avoids five identical "My pattern" cards.
+function trkDefaultPatternName(){
+  const base='My pattern';
+  try{
+    const used=new Set(trkIndex().map(p=>String(p.name||'').toLowerCase()));
+    if(!used.has(base.toLowerCase())) return base;
+    for(let i=2;i<999;i++){ const c=base+' ('+i+')'; if(!used.has(c.toLowerCase())) return c; }
+  }catch(e){}
+  return base;
+}
+async function trkUserPatternCapCheck(){
+  let used=0, cap=5;
+  try{
+    const info=await trkUserPatternList();
+    if(info){ used=info.used|0; cap=(info.cap|0)||5; }
+  }catch(e){}
+  // Local floor: count uploaded (non-kit) projects in this browser.
+  try{
+    const localUploads=trkIndex().filter(p=>!p.sku).length;
+    if(localUploads>used) used=localUploads;
+  }catch(e){}
+  return { full: used>=cap, used, cap };
+}
+function trkUserCapModal(cap){
+  cap = cap || 5;
+  pjShowModal({
+    title:'You\u2019ve reached your saved-pattern limit',
+    body:'You can save up to <b>'+cap+'</b> of your own uploaded patterns. '
+        +'Remove one from <b>My Tracked Patterns</b> to add another.<br><br>'
+        +'Luca-S kits opened from <b>Luca-S Patterns</b> don\u2019t count toward this limit \u2014 you can track as many of those as you like.',
+    confirmLabel:'OK'
+  });
+}
 async function trkUserPatternList(){
   try{
     const r=await fetch(trkUserPatternUrl(''), {credentials:'include', cache:'no-cache'});
@@ -22746,6 +22798,18 @@ function trkApplyLegendSymbols(legend){
 
 async function trkHandleLegend(file){
   const st=document.getElementById('trk-legend-status'), card=document.getElementById('trk-legend-card');
+  // Hard cap gate: if this is a NEW uploaded pattern (not a Luca-S kit) and the
+  // account is already at the limit, stop before doing any work. This is the
+  // definitive block — it catches the 6th pattern no matter how the upload began
+  // (fresh chooser, a still-open upload panel, drag-drop, etc.).
+  if(!trkCloudSku && !window.trkExactGrid && !(trackerGrid && trackerLegend)){
+    const capInfo = await trkUserPatternCapCheck();
+    if(capInfo && capInfo.full){
+      trkUserCapModal(capInfo.cap);
+      try{ trkShowHome(); }catch(e){ trkShowUpload(); }
+      return;
+    }
+  }
   // Hybrid: an exact data import (.pat/OXS) is already loaded — the legend PDF
   // is then used ONLY to swap our placeholder symbols for the kit's printed
   // ones, matched by thread code. Stitch data stays untouched.
@@ -22759,7 +22823,7 @@ async function trkHandleLegend(file){
   document.getElementById('trk-manual').style.display='none';
   document.getElementById('trk-manual-btn').disabled=true;
   trackerActiveProjectKey=trkUniqueLocalKey(file.name.replace(/[^a-zA-Z0-9]/g,'_'));
-  trackerProjectName=trkPendingName || file.name.replace(/\.[^.]+$/,'');
+  trackerProjectName=trkPendingName || trkDefaultPatternName();
   document.getElementById('trk-workspace').style.display='none';
   document.getElementById('trk-chart-card').classList.remove('done');
   document.getElementById('trk-chart-status').textContent='';
