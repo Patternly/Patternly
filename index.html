@@ -21981,12 +21981,22 @@ async function trkUserPatternPush(){
   let done=0, total=0;
   try{ done=trkCountDone(); for(const row of trackerGrid.cells) for(const ch of row) if(ch!==' ') total++; }catch(e){}
   const idxRec = (typeof trkIndex==='function'?trkIndex():[]).find(p=>p.id===id) || {};
+  // Choose a name a human will recognise on another device. A PDF pattern is
+  // keyed off its legend file, which is often just "legend" — useless in a list.
+  // Prefer, in order: an explicit project name that isn't the legend default,
+  // the chart file's name, then the stored index name, then a generic label.
+  const chartName = (trackerLastChartFile && trackerLastChartFile.name)
+    ? trackerLastChartFile.name.replace(/\.[^.]+$/,'') : '';
+  const looksLikeLegend = (n)=> !n || /^legend$/i.test(n) || /legend/i.test(n);
+  let displayName = trackerProjectName;
+  if(looksLikeLegend(displayName)) displayName = chartName || idxRec.name || '';
+  if(looksLikeLegend(displayName)) displayName = 'My pattern';
   _trkUpBusy=true;
   try{
     const r = await fetch(trkUserPatternUrl(safeId), {
       method:'PUT', credentials:'include', headers:{'content-type':'application/json'},
       body: JSON.stringify({
-        name: trackerProjectName || idxRec.name || 'My pattern',
+        name: displayName,
         blob,
         done, total,
         cols: trackerGrid.cols, rows: trackerGrid.rows,
