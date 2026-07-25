@@ -2322,11 +2322,24 @@ var qrcode = function() {
   --accent:#8B1A2B;
 }
 html,body{height:100%;font-family:'DM Sans',sans-serif;background:#f5edee;color:var(--ink)}
+/* The landing page scrolls on the document, not inside a box, so the body must
+   be free to grow past the viewport — otherwise html/body stay pinned at 100%,
+   the content overflows a fixed-height body, and the sticky nav rides up with
+   it. Other modes deliberately keep height:100% and scroll internally, so this
+   only relaxes it when the landing page is the thing on screen. */
+body:not(.app-mode):not(.projects-mode):not(.calc-mode):not(.threads-mode):not(.tracker-mode):not(.convert-mode):not(.account-mode):not(.subs-mode):not(.pricing-mode){height:auto;min-height:100%;overflow-x:clip}
+html:has(body:not(.app-mode):not(.projects-mode):not(.calc-mode):not(.threads-mode):not(.tracker-mode):not(.convert-mode):not(.account-mode):not(.subs-mode):not(.pricing-mode)){height:auto;min-height:100%;overflow-x:clip}
 /* When app is shown, lock scroll */
 body.app-mode{overflow:hidden}
 
 /* ── LANDING PAGE ── */
-#landing-page{overflow-y:auto;overflow-x:hidden}
+/* Not overflow-y:auto. That made #landing-page its own scroll container, so the
+   sticky nav inside it stuck to this element rather than the viewport — and
+   since the page actually scrolls on the body, the nav scrolled away. Clipping
+   the x-axis is enough to contain wide hero art; the y-axis scrolls on the body
+   where the sticky nav expects it. overflow-x:clip, not hidden — hidden forces
+   the y-axis to auto and rebuilds the very scroll container we are removing. */
+#landing-page{overflow-x:clip}
 #app-wrapper{display:none}
 #projects-page{display:none}
 body.app-mode #landing-page{display:none}
@@ -2493,6 +2506,8 @@ body.dark .pj-opt span{color:#a596ab}
 .acct-btn:hover{border-color:var(--lp-red,#8B1A2B);color:var(--lp-red,#8B1A2B)}
 .acct-btn.acct-in{border-color:var(--lp-red,#8B1A2B)}
 .acct-btn.acct-in::after{content:'';position:absolute;right:-1px;top:-1px;width:10px;height:10px;border-radius:50%;background:#2E7D32;border:2px solid var(--lp-bg,#fff)}
+body.dark .acct-btn.acct-in::after{border-color:#171220}
+body.dark .acct-btn{color:#e8e3ee}
 .acct-dd{position:absolute;top:calc(100% + 10px);right:0;min-width:230px;background:#fff;border:1.5px solid #eadde1;border-radius:12px;box-shadow:0 10px 30px rgba(43,34,38,.14);padding:.45rem;display:none;z-index:9999;text-align:left}
 .acct-dd.open{display:block}
 .acct-dd .acct-note{font-size:.7rem;color:#7d6b72;padding:.35rem .55rem .5rem;line-height:1.45;border-bottom:1px solid #f6edf0;margin-bottom:.3rem}
@@ -2597,6 +2612,22 @@ body.dark .pjm-box{background:#221c30}
 body.dark .pjm-box h3{color:#efe9f3}
 body.dark .pjm-box p{color:#b6abc2}
 body.dark .pjm-box p b{color:#efe9f3}
+/* Replace-colour picker: it sits outside the editor's inverted layer, so its
+   inline-light search box, sort menu and swatch labels showed as white on white
+   / invisible. */
+body.dark #wprep-search{ background:#2a2138 !important; color:#e8e3ee !important; border-color:#4a3f56 !important; }
+body.dark #wprep-search::placeholder{ color:#9a8fa6; }
+body.dark #wprep-sort{ background:#2a2138 !important; color:#e8e3ee !important; border-color:#4a3f56 !important; }
+body.dark #wprep-sort option{ background:#221c30; color:#e8e3ee; }
+body.dark #wprep-grid > *{ color:#e8e3ee; }
+.wprep-tab{flex:1;padding:.45rem .5rem;border:1.5px solid #eadde1;background:#fff;border-radius:9px;
+  font-family:inherit;font-size:.8rem;font-weight:700;color:#7d6b72;cursor:pointer;transition:all .12s}
+.wprep-tab.on{background:var(--lp-red,#8B1A2B);border-color:var(--lp-red,#8B1A2B);color:#fff}
+body.dark .wprep-tab{background:#2a2138;border-color:#4a3f56;color:#b6abc2}
+body.dark .wprep-tab.on{background:var(--lp-red,#8B1A2B);border-color:var(--lp-red,#8B1A2B);color:#fff}
+body.dark #wprep-thr-results > div{border-color:#4a3f56 !important}
+body.dark #wprep-thr-results b{color:#f2ecf4}
+body.dark #wprep-grid [style*="color:#"]{ color:#cfc3d8 !important; }
 body.dark #pjm-check-row{background:#3a2028;border-color:#57303a;color:#e0a9b4}
 body.dark #pjm-cancel,body.dark #pjm-secondary{background:#1a1424;border-color:#37303f;color:#b6abc2}
 body.dark #pjm-secondary{color:#f0a8b6}
@@ -2620,15 +2651,20 @@ body.dark.app-mode #lp-mobile-menu{filter:none} /* menu sits outside the inverte
    so dark mode inverts the whole UI layer and counter-inverts every element that
    must show TRUE thread/pattern colours. invert∘invert is exact, so colour
    fidelity on the canvas and swatches is pixel-perfect. */
-body.dark.app-mode{background:#0d0a12}
+body.dark.app-mode{background:#171220}
 /* Contrast pass: pre-invert tweaks that land brighter after inversion */
 body.dark.app-mode #app-wrapper{--ink:#15121c;--muted:#4a4552}
-/* Warm blush surfaces invert into muddy brown — neutralize the big ones so the
-   dark theme lands on clean charcoal instead. (Pre-invert colours.) */
-body.dark.app-mode #canvas-area{background:#f2f1f4 !important}
-body.dark.app-mode #app{background:#f2f1f4 !important}
+/* The editor renders through an invert(1) hue-rotate(180) filter, so every
+   surface colour here is PRE-invert: it is what the pixel is *before* the
+   filter, and the filter turns it into what you see. The old values were near
+   white, which inverted to near-black — hence the editor looked black while the
+   rest of the dark theme is purple. These replacements are the pre-invert
+   colours that land on the site's purples (#171220 page, #221c30 panels) after
+   the filter, so the editor now matches. */
+body.dark.app-mode #canvas-area{background:#e9e4f3 !important}   /* lands ~#1c1526, a soft purple-charcoal */
+body.dark.app-mode #app{background:#e9e4f3 !important}
 body.dark.app-mode #topbar,body.dark.app-mode #sidebar,body.dark.app-mode #right-panel,
-body.dark.app-mode #adjust-drawer,body.dark.app-mode #tools-drawer,body.dark.app-mode #view-drawer{background:#fafafb !important}
+body.dark.app-mode #adjust-drawer,body.dark.app-mode #tools-drawer,body.dark.app-mode #view-drawer{background:#e4def2 !important}  /* lands ~#221c30 */
 body.dark.app-mode #grid-canvas{border-color:#8f8a96 !important;box-shadow:0 4px 24px rgba(0,0,0,.28)}
 body.dark.app-mode #topbar{border-bottom-color:#a98f98 !important}
 body.dark.app-mode #sidebar{border-right-color:#a98f98 !important}
@@ -2711,6 +2747,191 @@ body.pricing-mode #convert-page,body.pricing-mode #account-page{display:none!imp
 .pr-faq details{background:#fff;border:1.5px solid #e6d9dd;border-radius:12px;padding:.75rem 1rem;margin-bottom:.6rem}
 .pr-faq summary{font-size:.87rem;font-weight:700;cursor:pointer;color:var(--lp-ink,#2b2226)}
 .pr-faq p{font-size:.83rem;color:#5a4a51;line-height:1.6;margin:.55rem 0 0}
+
+/* Dark mode for the pricing page. There was none before — the page kept its
+   light colours over the dark background, so headings and body text sat nearly
+   invisible until hover. Everything that hardcoded a light value is restated
+   here; the pieces already on var(--lp-ink) inherit the dark value and are left
+   alone. */
+body.dark #pricing-page{background:#171220;color:var(--lp-ink)}
+body.dark .pr-head p{color:#b6abc2}
+body.dark .pr-card{background:#221c30;border-color:#37303f}
+body.dark .pr-card.feat{border-color:var(--lp-red,#8B1A2B);box-shadow:0 10px 34px rgba(0,0,0,.4)}
+body.dark .pr-tag{color:#b6abc2}
+body.dark .pr-per{color:#b6abc2}
+body.dark .pr-note{color:#a596ab}
+body.dark .pr-was{color:#7d7288}
+body.dark .pr-feats li{color:#d6ccdf}
+body.dark .pr-feats li b{color:#f2ecf4}
+body.dark .pr-feats li.no{color:#8d8098}
+body.dark .pr-feats li.no::before{color:#6a5f76}
+body.dark .pr-cur button,body.dark .pr-switch-in{background:#2a2138;border-color:#4a3f56;color:#d6ccdf}
+body.dark .pr-cur button.on{background:var(--lp-red,#8B1A2B);border-color:var(--lp-red,#8B1A2B);color:#fff}
+body.dark .pr-switch-in{background:#1e1830}
+body.dark .pr-bill button{color:#b6abc2}
+body.dark .pr-bill button.on{color:#fff}
+body.dark .pr-save{background:#4a3a1a;color:#f0d9a0}
+body.dark .pr-bill button.on .pr-save{background:rgba(255,255,255,.22);color:#fff}
+body.dark .pr-cta.ghost{background:#2a2138;color:#e0a9b4;border-color:#4a3f56}
+body.dark .pr-cta.ghost:hover{background:#31202b}
+body.dark .pr-faq h2{color:#f2ecf4}
+body.dark .pr-faq details{background:#221c30;border-color:#37303f}
+body.dark .pr-faq summary{color:#f2ecf4}
+body.dark .pr-faq p{color:#c4b8cd}
+body.dark .pr-faq a,body.dark .pr-note a{color:#e0a9b4}
+
+/* ── Dark-mode corrections (contrast) ──────────────────────────────────────
+   The brand red (#8B1A2B) reads fine on white but only ~1.8:1 on the dark
+   background, so every place it is used as *text* needs a lighter red in dark
+   mode. And several recent sections set their colour inline, which no ordinary
+   rule can beat — those carry !important here. */
+body.dark{ --lp-red-text:#e0a9b4; }         /* red for text on dark, not the fill red */
+
+/* red text links / buttons across the tool pages */
+body.dark .pj-home-link,
+body.dark .acct-row-open,
+body.dark .th-ccard em,
+body.dark .calc-table th{ color:#e8b4bf !important; }
+body.dark .calc-table th{ color:#f2ecf4 !important; }   /* header cells: white reads better on the tinted th bg */
+
+/* the membership strip on My Account (inline-styled) */
+body.dark .subs-strip .ss-title{ color:#f2ecf4 !important; }
+body.dark .subs-strip .ss-sub{ color:#b6abc2 !important; }
+
+/* My Subscription page + invoice rows: the card and its rows are built with
+   inline colours, so restate the text tones with !important. */
+body.dark #acct-plus [style*="color:#2b2226"],
+body.dark #acct-plus-strip [style*="color:#2b2226"]{ color:#f2ecf4 !important; }
+body.dark #acct-plus [style*="color:#6a626f"],
+body.dark #acct-plus [style*="color:#7d6b72"],
+body.dark #acct-plus-strip [style*="color:#7d6b72"]{ color:#b6abc2 !important; }
+body.dark #acct-plus [style*="color:#8a7d84"],
+body.dark #acct-plus [style*="color:#a2949a"]{ color:#9a8fa6 !important; }
+body.dark #acct-plus [style*="background:#fff"]{ background:#221c30 !important; border-color:#37303f !important; }
+body.dark #acct-plus [style*="border-bottom:1px solid #f3eaed"]{ border-bottom-color:#37303f !important; }
+body.dark #acct-plus a[style],body.dark #acct-plus button[style*="color:#8B1A2B"]{ color:#e0a9b4 !important; }
+
+/* thread-hub dropdowns and the file-converter blurb */
+body.dark select option{ color:#e8e3ee; background:#221c30; }
+body.dark .th-muted,body.dark .th-ccard span{ color:#b6abc2; }
+body.dark .th-h2,body.dark .th-ccard b{ color:#f2ecf4; }
+body.dark .th-soon{ color:#8d8098; }
+
+/* calculator result values (red) and inline-styled section headings */
+body.dark .calc-val{ color:#e8b4bf; }
+body.dark #calc-page h4[style]{ color:#efe9f3 !important; }
+body.dark #calc-page [style*="color:#2b2226"]{ color:#efe9f3 !important; }
+/* convert page inline body text */
+body.dark #convert-page [style*="color:#5a4a51"],
+body.dark #convert-page [style*="color:#6a626f"]{ color:#b6abc2 !important; }
+body.dark #convert-page [style*="color:#2b2226"]{ color:#f2ecf4 !important; }
+/* any remaining brand-red anchors on the tool pages */
+body.dark #calc-page a[style*="8B1A2B"],
+body.dark #threads-page a[style*="8B1A2B"],
+body.dark #account-page a[style*="8B1A2B"],
+body.dark #convert-page a[style*="8B1A2B"]{ color:#e0a9b4 !important; }
+/* calculator result numbers and active segment buttons (red on dark) */
+body.dark .calc-big{ color:#e8b4bf; }
+body.dark .calc-seg button.active{ color:#e8b4bf; background:#3a2028; border-color:#8B1A2B; }
+/* pricing FAQ / cancel-note links set inline */
+body.dark #pricing-page a[style*="8B1A2B"]{ color:#e0a9b4 !important; }
+/* account status block: sign-in line and its muted sub-text set inline */
+body.dark #account-page [style*="color:#5a4a51"]{ color:#b6abc2 !important; }
+body.dark #account-page [style*="color:#7d6b72"]{ color:#b6abc2 !important; }
+body.dark #account-page [style*="color:#2b2226"]{ color:#f2ecf4 !important; }
+
+/* ── Comprehensive inline-colour sweep ─────────────────────────────────────
+   The app was authored light, with colours set inline all over (~160 dark-text
+   and ~215 light-background inline styles). Dark mode could not reach any of
+   them, so each stayed invisible until someone opened that exact panel. Rather
+   than chase them one screenshot at a time, these attribute selectors catch
+   every inline instance by value.
+
+   Scope: NOT inside #app-wrapper. The editor renders through an invert filter
+   that already handles its surfaces; darkening them again here would double up.
+   Everything else — landing page, tool pages, modals, overlays — is fair game.
+   Broad and !important because inline styles otherwise win; the specific rules
+   below still override where a particular tone was wanted. */
+body.dark [style*="color:#2b2226"]:not(#app-wrapper *),
+body.dark [style*="color:#2b2338"]:not(#app-wrapper *),
+body.dark [style*="color:#1a1520"]:not(#app-wrapper *),
+body.dark [style*="color:#333"]:not(#app-wrapper *){ color:#f2ecf4 !important; }
+body.dark [style*="color:#5a4a51"]:not(#app-wrapper *),
+body.dark [style*="color:#6a626f"]:not(#app-wrapper *),
+body.dark [style*="color:#7d6b72"]:not(#app-wrapper *){ color:#b6abc2 !important; }
+body.dark [style*="color:#8a7d84"]:not(#app-wrapper *),
+body.dark [style*="color:#9a8a90"]:not(#app-wrapper *),
+body.dark [style*="color:#a08a92"]:not(#app-wrapper *),
+body.dark [style*="color:#a2949a"]:not(#app-wrapper *){ color:#9a8fa6 !important; }
+body.dark [style*="background:#fff"]:not(#app-wrapper *):not([class*="swatch"]):not([id*="-sw"]),
+body.dark [style*="background:#ffffff"]:not(#app-wrapper *):not([class*="swatch"]),
+body.dark [style*="background:#fdfafb"]:not(#app-wrapper *),
+body.dark [style*="background:#fef8f9"]:not(#app-wrapper *),
+body.dark [style*="background:#fffafb"]:not(#app-wrapper *),
+body.dark [style*="background:#fffdf5"]:not(#app-wrapper *){ background:#221c30 !important; }
+body.dark [style*="background:#fafafa"]:not(#app-wrapper *):not([class*="swatch"]){ background:#2a2138 !important; }
+body.dark [style*="color:#8B1A2B"]:not(#app-wrapper *),
+body.dark [style*="color:#8b1a2b"]:not(#app-wrapper *){ color:#e0a9b4 !important; }
+/* class-based brand-red text that sits directly on the dark page (not on a
+   light hero card): lift to the readable red. Buttons with a red border keep
+   their own treatment. */
+body.dark #landing-page .lp-accent,
+body.dark #tracker-page .lp-accent,
+body.dark #tracker-page a[style*="8B1A2B"],
+body.dark #tracker-page .trk-convert-link,
+body.dark .lp-about-brand{ color:#e0a9b4 !important; }
+body.dark .lp-btn-ghost{ color:#e0a9b4; border-color:#e0a9b4; }
+/* tracker "My Tracked Patterns" heading and the dashed convert button */
+body.dark #trk-saved-title{ color:#f2ecf4 !important; }
+body.dark #trk-convert-btn{ color:#e0a9b4; border-color:#5a4550; }
+body.dark #trk-convert-btn:hover{ background:#2f2030; }
+body.dark #trk-manual-btn{ color:#e0a9b4; border-color:#5a4550; }
+body.dark #trk-manual-btn:hover{ background:#2f2030; }
+/* the "still finishing PDF" verify box: inline white background */
+body.dark #trk-verify{ background:#221c30 !important; border-color:#37303f !important; }
+body.dark #trk-verify p{ color:#b6abc2 !important; }
+body.dark #trk-verify b{ color:#f2ecf4 !important; }
+/* "PDF upload coming soon" modal has its own CSS block */
+body.dark #soon-card{ background:#221c30 !important; }
+body.dark #soon-card h3{ color:#f2ecf4 !important; }
+body.dark #soon-card p{ color:#b6abc2 !important; }
+body.dark #soon-card p b{ color:#f2ecf4 !important; }
+
+/* ── More dark-mode contrast fixes (found by opening each control, not just
+   sampling the first element on a page) ─────────────────────────────────── */
+
+/* Nav Features/Calculators dropdowns: the dark rule recoloured the panel but
+   left the item text near-black. */
+body.dark .lp-nav-dd-menu a b{ color:#f2ecf4; }
+body.dark .lp-nav-dd-menu a span{ color:#a99fb5; }
+
+/* Stitch Tracker entrance page rode on --lp-bg, which was never defined for
+   dark — so the page stayed cream while its title/text turned light and
+   vanished. Give the page a real dark background; the cards already have one. */
+body.dark #tracker-page{ background:#171220; }
+body.dark #tracker-page .calc-title{ color:#f2ecf4; }
+body.dark #tracker-page .calc-sub{ color:#b6abc2; }
+body.dark .trk-card h3{ color:#f2ecf4; }
+body.dark .trk-card p{ color:#b6abc2; }
+
+/* "Compare any two brands": inline-styled selects were white boxes with light
+   text — invisible. Restyle for dark. */
+body.dark #thx-a,body.dark #thx-b{
+  background:#221c30 !important; border-color:#4a3f56 !important; color:#e8e3ee !important; }
+body.dark #thx-a option,body.dark #thx-b option{ background:#221c30; color:#e8e3ee; }
+
+/* Match-a-colour hex input and photo-shade input on the Thread Hub. */
+body.dark #thc-hex,body.dark #thc-photo-count,body.dark .thc-hex-input{
+  background:#221c30; border-color:#4a3f56; color:#e8e3ee; }
+
+/* Account status card: the inner content is built inline with a white
+   background and dark text. Force the card dark and its text light. */
+body.dark #account-page .acct-status [style*="background:#fff"],
+body.dark #account-page .acct-status [style*="background:#ffffff"]{
+  background:#221b2e !important; }
+body.dark #account-page .acct-status [style*="color:#2b2226"]{ color:#f2ecf4 !important; }
+body.dark #account-page .acct-status [style*="color:#7d6b72"],
+body.dark #account-page .acct-status [style*="color:#5a4a51"]{ color:#b6abc2 !important; }
 @media(max-width:700px){ .pr-head h1{font-size:1.7rem} .pr-wrap{padding-top:1.6rem} }
 #threads-page{display:none;min-height:100vh;background:#faf6f7;font-family:'Inter',system-ui,sans-serif}
 .th-grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.4rem}
@@ -2838,6 +3059,17 @@ body.tracker-mode #tracker-page{display:block}
 body.tracker-mode{overflow:auto}
 #tracker-page{display:none;min-height:100vh;background:var(--lp-bg,#fdf9f5)}
 #tracker-page .calc-container{max-width:1560px}
+/* Thread Colour Hub is a grid of cards and a wide match panel; the default
+   760px column wasted most of the screen. Let it use the page. Calculators keep
+   a narrower column since each one is a single-column form that reads better
+   not stretched edge to edge. */
+#threads-page .calc-container{max-width:1240px}
+#th-hub{max-width:none}
+#calc-page .calc-container{max-width:1080px}
+#convert-page .calc-container{max-width:1180px}
+/* Tracker entrance: the two big choice cards were capped at 760 and floated in
+   the middle of a wide dark page. Let them breathe. */
+#tracker-page .calc-title,#tracker-page .calc-sub,#tracker-page .trk-cards,#tracker-page #trk-verify{max-width:1100px !important}
 #tracker-page .calc-title,#tracker-page .calc-sub,#tracker-page .trk-cards,#tracker-page #trk-verify{max-width:760px;margin-left:auto;margin-right:auto}
 /* The catalogue is a grid of covers, so it gets the full container width and
    bigger cards; the upload flow stays a narrow reading column. */
@@ -3236,6 +3468,40 @@ body.dark #lp-menu-btn{border-color:#37303f;color:#efe9f3}
 .lpc-toggle.on{background:var(--lp-red,#8B1A2B);border-color:var(--lp-red,#8B1A2B);color:#fff}
 body.dark .lpc-tag{background:rgba(30,24,40,.92);color:#eee}
 body.dark #lpc-handle{background:#2a2138;color:#eee}
+
+/* Landing-page light-surface panels that had no dark treatment: their cards
+   stayed white/cream while the text switched to the light --lp-ink, so it
+   vanished. Give the cards a dark surface and let the light ink read. */
+body.dark .lpc-stat{ background:#221c30; border-color:#37303f; }
+body.dark .lpc-pct{ color:#f2ecf4; }
+body.dark .lpc-stat span{ color:#b6abc2; }
+body.dark .lpc-stat-win{ border-color:var(--lp-red,#8B1A2B); }
+body.dark .lpc-less{ color:#e8b4bf !important; }
+/* the thread-hub promo preview card (image 2) */
+body.dark .lp-tracker-preview{ background:#221c30; border-color:#37303f; box-shadow:0 4px 20px rgba(0,0,0,.35); }
+body.dark .lp-tracker-row{ border-bottom-color:#37303f; color:#b6abc2; }
+body.dark .lp-tracker-row b{ color:#f2ecf4; }
+/* trust badges (image 3): brand red on light-red pill → both need lifting */
+body.dark .lp-trust-badge{ background:#2f1a22; color:#e8b4bf; border-color:#5a3540; }
+/* photo-upload prompt on the Thread Hub (image 4) */
+body.dark #threads-page span[style*="color:#5a4a51"]{ color:#e8e3ee !important; }
+body.dark #threads-page span[style*="color:#a08a92"]{ color:#a99fb5 !important; }
+/* the upload dropzone box itself (not just its text) was a light card */
+body.dark #th-photo-drop{ background:#221c30 !important; border-color:#4a3f56 !important; }
+body.dark #th-photo-count{ background:#2a2138 !important; color:#e8e3ee !important; border-color:#4a3f56 !important; }
+
+/* Native selects on the tool pages (Format, Thread brand, sort menus): they
+   kept a white field with light text in dark mode. The closed field is styled
+   here; the option popup is drawn by the OS/browser and picks up these colours
+   on most engines. */
+body.dark #trk-chart-fmt,body.dark #trk-legend-brand,
+body.dark #cth-count,body.dark #cth-strands,
+body.dark #convert-page select,body.dark #tracker-page select,body.dark #threads-page select{
+  background:#221c30 !important; color:#e8e3ee !important; border-color:#4a3f56 !important; }
+body.dark #trk-chart-fmt option,body.dark #trk-legend-brand option,
+body.dark #cth-count option,body.dark #convert-page select option,
+body.dark #tracker-page select option,body.dark #threads-page select option{
+  background:#221c30; color:#e8e3ee; }
 .lp-step{flex:1;min-width:200px;max-width:280px;text-align:center}
 .lp-step-num{width:48px;height:48px;border-radius:50%;background:var(--lp-red);color:#fff;font-family:'DM Serif Display',serif;font-size:1.4rem;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem}
 .lp-step h3{font-family:'DM Serif Display',serif;font-size:1.15rem;color:var(--lp-ink);margin-bottom:.5rem}
@@ -3265,6 +3531,13 @@ body.dark #lpc-handle{background:#2a2138;color:#eee}
 /* COMING SOON */
 .lp-coming-banner{background:linear-gradient(135deg,#fffdf0,#fff8e1);border:1.5px solid #e8d8a0;border-radius:18px;padding:3rem;display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center}
 @media(max-width:700px){.lp-coming-banner{grid-template-columns:1fr}}
+/* This banner is an intentional bright cream accent. In dark mode its heading
+   and copy inherited the light --lp-ink/--lp-muted, so they vanished. Keep the
+   cream and pin the text dark. The inner colour-match card has its own dark
+   treatment and is excluded. */
+body.dark .lp-coming-banner .lp-h2{ color:#2b2226 !important; }
+body.dark .lp-coming-banner > div > p{ color:#5a4a51 !important; }
+body.dark .lp-coming-banner .lp-section-label{ color:#8B1A2B !important; }
 .lp-tracker-preview{background:#fff;border-radius:12px;padding:1.5rem;box-shadow:0 4px 20px rgba(0,0,0,.07);border:1px solid #f0e8c8}
 .lp-tracker-row{display:flex;justify-content:space-between;align-items:center;font-size:.82rem;padding:.35rem 0;border-bottom:1px solid #f5f0e8;color:var(--lp-muted)}
 .lp-tracker-row b{color:var(--lp-ink);font-weight:600}
@@ -3286,6 +3559,15 @@ body.dark #lpc-handle{background:#2a2138;color:#eee}
 .lp-cta-section{background:linear-gradient(135deg,var(--lp-red),#5a0d18);padding:5rem 0}
 
 /* FOOTER */
+.ptly-foot{margin-top:3rem;border-top:1px solid #eadde1;background:#fbf6f2}
+.ptly-foot-inner{max-width:1000px;margin:0 auto;padding:1.6rem 1.4rem 2rem;text-align:center}
+.ptly-foot-links{display:flex;flex-wrap:wrap;justify-content:center;gap:.4rem 1.6rem;margin-bottom:.9rem}
+.ptly-foot-links a{text-decoration:none;font-size:.82rem;font-weight:600;color:#7d6b72;transition:color .15s;white-space:nowrap}
+.ptly-foot-links a:hover{color:var(--lp-red,#8B1A2B)}
+.ptly-foot-bottom{font-size:.72rem;color:#a2949a}
+body.dark .ptly-foot{background:#171220;border-color:#3a3350}
+body.dark .ptly-foot-links a{color:#b9adc4}
+body.dark .ptly-foot-bottom{color:#7d7288}
 .lp-footer{background:#0f0a14;padding:3rem 0 1.5rem}
 .lp-footer-inner{display:flex;gap:4rem;margin-bottom:2.5rem;flex-wrap:wrap}
 .lp-footer-brand{flex:1;min-width:180px}
@@ -4688,7 +4970,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <canvas id="lpc-left"></canvas>
       <div id="lpc-rwrap"><canvas id="lpc-right"></canvas></div>
       <div id="lpc-divider"><div id="lpc-handle">↔</div></div>
-      <span class="lpc-tag lpc-tag-l">Basic conversion</span>
+      <span class="lpc-tag lpc-tag-l">Others</span>
       <span class="lpc-tag lpc-tag-r">Patternly</span>
     </div>
     <div style="text-align:center;margin-top:.85rem">
@@ -4696,7 +4978,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     </div>
     <div class="lpc-caption" id="lpc-caption">Sample image · computing…</div>
     <div class="lpc-stats">
-      <div class="lpc-stat" id="lpc-stat-l"><b>Basic conversion</b><span class="lpc-pct" id="lpc-pct-l">…</span><span class="lpc-cf" id="lpc-cf-l">&nbsp;</span></div>
+      <div class="lpc-stat" id="lpc-stat-l"><b>Others</b><span class="lpc-pct" id="lpc-pct-l">…</span><span class="lpc-cf" id="lpc-cf-l">&nbsp;</span></div>
       <div class="lpc-stat lpc-stat-win" id="lpc-stat-r"><b>Patternly</b><span class="lpc-pct" id="lpc-pct-r">…</span><span class="lpc-cf" id="lpc-cf-r">&nbsp;</span><span class="lpc-less" id="lpc-less"></span></div>
     </div>
     <p class="lpc-note">Confetti — isolated single stitches — means constant thread changes and counting fatigue. Fewer is faster.</p>
@@ -4809,6 +5091,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
           <a href="#" onclick="openThreads();return false">Thread Colours</a>
           <a href="#" onclick="openFileConverter();return false">File Converter</a>
           <a href="#" onclick="openCalculators();return false">Calculators</a>
+          <a href="#" onclick="openPricing();return false">Pricing</a>
         </div>
         <div class="lp-footer-col">
           <div class="lp-footer-col-title">Learn</div>
@@ -4866,7 +5149,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <div class="pj-head">
       <div class="pj-head-text">
         <h1 class="pj-title">My Patterns</h1>
-        <p class="pj-sub">Saved in this browser on this device — <b><span id="pj-count">0</span> of 10</b> slots used. Your work saves by itself as you go.</p>
+        <p class="pj-sub">Saved in this browser on this device &mdash; <b><span id="pj-count">0</span> of <span id="pj-cap">10</span></b> slots used. Your work saves by itself as you go.</p>
       </div>
       <div class="pj-tools">
         <button id="pj-select-btn" class="pj-tool-btn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span class="pj-sel-label">Select</span></button>
@@ -5358,11 +5641,11 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
         <ul class="pr-feats">
           <li>Full pattern editor</li>
           <li>Photo to pattern conversion</li>
-          <li>Stitch tracker for your Luca-S kits</li>
           <li>Thread colour tools &amp; calculators</li>
           <li>PDF export with symbol key</li>
-          <li class="no">3 saved patterns</li>
-          <li class="no">Patterns saved in this browser only</li>
+          <li>Save up to 10 patterns</li>
+          <li class="no">5 downloads per month</li>
+          <li class="no">No Stitch Tracker</li>
         </ul>
       </div>
 
@@ -5376,10 +5659,10 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
         <button class="pr-cta primary" id="pr-cta" onclick="prStartTrial()">Start your free trial</button>
         <ul class="pr-feats">
           <li>Everything in Free</li>
-          <li>Unlimited saved patterns</li>
-          <li>Patterns &amp; progress synced to your account</li>
-          <li>Pick up any project on any device</li>
-          <li>Backup &amp; restore your whole library</li>
+          <li><b>Stitch Tracker</b> &mdash; track any pattern on screen</li>
+          <li><b>Unlimited downloads</b> &mdash; no monthly cap</li>
+          <li>Save up to 20 patterns</li>
+          <li>Progress synced across your devices</li>
           <li>Priority support</li>
         </ul>
       </div>
@@ -5387,14 +5670,14 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 
     <div class="pr-faq">
       <h2>Questions</h2>
-      <details><summary>Do I need Plus to use my Luca-S kit patterns?</summary>
-        <p>No. Every kit you buy from Luca-S includes its pattern in the Stitch Tracker, on the free plan, for as long as you own it.</p></details>
+      <details><summary>Do I need Plus to use the Stitch Tracker?</summary>
+        <p>Yes. The Stitch Tracker is part of Plus, and it lets you track any pattern &mdash; the paper chart from a Luca-S kit, a photo you&rsquo;ve converted, or your own design &mdash; right on your screen. Every Luca-S kit comes with an access code, so once you&rsquo;re on Plus you can load your kit&rsquo;s chart straight into the tracker.</p></details>
       <details><summary>What happens after the free trial?</summary>
-        <p>You'll be asked whether to continue. Nothing is charged during the 14 days, and if you stop, your patterns stay — you just go back to the free plan's limits.</p></details>
+        <p>Your subscription simply continues &mdash; the first payment is taken automatically when the 14 days end. Nothing is charged during the trial, and you can cancel any time before it finishes if you&rsquo;d rather not go on.</p></details>
       <details><summary>Can I cancel any time?</summary>
-        <p>Yes, from your account page. You keep Plus until the end of the period you've paid for.</p></details>
-      <details><summary>What happens to my patterns if I cancel?</summary>
-        <p>Nothing is deleted. You keep access to everything you've made; new saves go back to the free plan's limit.</p></details>
+        <p>Yes. Cancel from your <a href="#" onclick="openSubscriptionPage();return false">My Subscription</a> page whenever you like. You keep Plus until the end of the period you&rsquo;ve paid for.</p></details>
+      <details><summary>What happens if I cancel?</summary>
+        <p>Your saved progress stays on your account, but access to the Stitch Tracker is locked once your paid period ends. Resubscribe and everything is exactly where you left it.</p></details>
     </div>
   </div>
 </div>
@@ -5695,8 +5978,8 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <h1 class="calc-title">My Account</h1>
     <p class="calc-sub">Your Luca-S account, your patterns and your stitching — in one place.</p>
     <div class="acct-status" id="acct-status"><!-- filled by acctRenderPage() --></div>
-    <div id="acct-patterns" style="display:none;margin-top:1.6rem"></div>
     <div id="acct-plus-strip"></div>
+    <div id="acct-patterns" style="display:none;margin-top:1.6rem"></div>
     <div class="acct-row-block">
       <div class="acct-row-head">
         <div><b>My Patterns</b><span id="acct-pat-count"></span></div>
@@ -5939,6 +6222,11 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <span id="wprep-old" style="display:inline-flex;align-items:center;gap:.35rem;font-size:.8rem;font-weight:600"></span>
     </h3>
     <p style="margin:.1rem 0 .6rem;font-size:.85rem;opacity:.85">Every stitch, backstitch and knot in this colour will switch to the one you pick.</p>
+    <div style="display:flex;gap:.4rem;margin-bottom:.6rem">
+      <button type="button" id="wprep-tab-pal" class="wprep-tab on" onclick="wpRepSetMode('palette')">From palette</button>
+      <button type="button" id="wprep-tab-thr" class="wprep-tab" onclick="wpRepSetMode('thread')">Match to thread</button>
+    </div>
+    <div id="wprep-pal-pane">
     <div style="display:flex;gap:.45rem;margin-bottom:.55rem">
       <input type="text" id="wprep-search" placeholder="Search code or name…" spellcheck="false"
         style="flex:1;min-width:0;padding:.5rem .65rem;border:1.5px solid #eadde1;border-radius:9px;font-family:inherit;font-size:.88rem;box-sizing:border-box">
@@ -5951,6 +6239,11 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       </select>
     </div>
     <div id="wprep-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:7px;max-height:300px;overflow-y:auto;padding:2px"></div>
+    </div>
+    <div id="wprep-thr-pane" style="display:none">
+      <p style="margin:0 0 .55rem;font-size:.78rem;opacity:.8">The closest real thread to this colour in each brand. Pick one to replace with it.</p>
+      <div id="wprep-thr-results" style="display:flex;flex-direction:column;gap:.4rem;max-height:320px;overflow-y:auto"></div>
+    </div>
     <div class="pjm-actions" style="margin-top:.85rem">
       <button id="wprep-cancel">Cancel</button>
     </div>
@@ -6119,7 +6412,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <div style="display:flex;gap:.4rem;margin-bottom:.2rem;padding:0 16px">
       <button id="view-btn" style="flex:1;padding:.45rem;border-radius:7px;background:var(--accent);border:none;cursor:pointer;font-size:.78rem;font-weight:700;color:#fff;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:.4rem;transition:background .15s">
         <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="8" cy="8" rx="7" ry="4.5"/><circle cx="8" cy="8" r="2"/></svg>
-        View
+        Grid View
       </button>
     </div>
 
@@ -11904,8 +12197,14 @@ function saveToBrowser(){
       if(idx>=0){ list[idx]={...payload,id:currentProjectId}; }
       else { list.push({...payload,id:currentProjectId}); } // slot was deleted from another tab — recreate
     }else{
-      if(list.length>=10){
-        toast('All 10 slots are full — delete a pattern from My Patterns first');
+      const cap=pjSlotCap();
+      if(list.length>=cap){
+        const a=(typeof lucasAuth==='function')?lucasAuth():null;
+        if(a && a.plus){
+          toast('All '+cap+' pattern slots are full \u2014 delete one from My Patterns first');
+        }else{
+          toast('Free plan holds '+cap+' patterns. Delete one, or upgrade to Plus for '+PJ_CAP_PLUS+'.');
+        }
         return false;
       }
       currentProjectId='pj_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -13825,6 +14124,7 @@ function removeFromWorkingPalette(ci){
 let wpRepOldCi=null;
 function wpOpenReplace(oldCi){
   wpRepOldCi=oldCi;
+  wpRepSetMode('palette');
   const badge=document.getElementById('wprep-old');
   badge.innerHTML=`<span style="width:16px;height:16px;border-radius:4px;border:1px solid rgba(0,0,0,.15);background:${colourHex(oldCi)}"></span>${colourShortCode(oldCi)}`;
   const search=document.getElementById('wprep-search');
@@ -13877,6 +14177,59 @@ function wpRepBuildGrid(filter){
   if(!gridEl.children.length) gridEl.innerHTML='<div style="grid-column:1/-1;font-size:.82rem;opacity:.7;padding:.4rem 0">No colours match.</div>';
 }
 function wpCloseReplace(){ document.getElementById('wprep-overlay').style.display='none'; wpRepOldCi=null; }
+
+// "Match to thread": show the closest real thread to the colour being replaced,
+// in each brand, for reference. The current pattern is locked to one brand, so
+// only that brand's nearest thread can actually be swapped in — the others are
+// there so the stitcher can see the cross-brand equivalents at a glance.
+let wpRepMode='palette';
+function wpRepSetMode(mode){
+  wpRepMode=mode;
+  const palPane=document.getElementById('wprep-pal-pane');
+  const thrPane=document.getElementById('wprep-thr-pane');
+  document.getElementById('wprep-tab-pal').classList.toggle('on', mode==='palette');
+  document.getElementById('wprep-tab-thr').classList.toggle('on', mode==='thread');
+  palPane.style.display = mode==='palette' ? '' : 'none';
+  thrPane.style.display = mode==='thread' ? '' : 'none';
+  if(mode==='thread') wpRepBuildThreadMatches();
+}
+
+function wpRepBuildThreadMatches(){
+  const out=document.getElementById('wprep-thr-results');
+  out.innerHTML='';
+  if(wpRepOldCi===null) return;
+  const pal=activePalette();
+  const src=pal[wpRepOldCi];
+  const lab=thRgbToLab(src.r,src.g,src.b);
+  const curBrand=(typeof currentBrand!=='undefined')?currentBrand:'lucas';
+
+  TH_BRANDS.forEach(([brand,name])=>{
+    const {c,dE}=thNearest(brand, lab);
+    if(!c) return;
+    const q=thQuality(dE);
+    const isCur = brand===curBrand;
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:.6rem;padding:.5rem .6rem;border:1.5px solid '
+      +(isCur?'var(--lp-red,#8B1A2B)':'#eadde1')+';border-radius:10px;'
+      +(isCur?'cursor:pointer;':'opacity:.75;');
+    row.innerHTML='<span style="flex:0 0 auto;width:30px;height:30px;border-radius:7px;border:1px solid rgba(0,0,0,.15);background:rgb('+c.r+','+c.g+','+c.b+')"></span>'
+      +'<span style="flex:1;min-width:0">'
+      +'<b style="display:block;font-size:.82rem">'+name+' '+thBrandCode(brand,c)+'</b>'
+      +'<span style="font-size:.7rem;opacity:.8">'+q.icon+' '+q.name+' \u00b7 \u0394E '+dE.toFixed(1)
+      + (isCur?'':' \u00b7 other brand')+'</span></span>'
+      + (isCur?'<span style="flex:0 0 auto;font-size:.72rem;font-weight:700;color:var(--lp-red,#8B1A2B)">Use \u2192</span>':'');
+    if(isCur){
+      // Find this thread's index in the current palette and replace with it.
+      row.addEventListener('click',()=>{
+        let ci=-1;
+        for(let i=0;i<pal.length;i++){ if(pal[i].r===c.r&&pal[i].g===c.g&&pal[i].b===c.b){ ci=i; break; } }
+        if(ci<0){ if(typeof toast==='function') toast('That thread isn\u2019t in this pattern\u2019s palette'); return; }
+        wpDoReplace(wpRepOldCi, ci);
+      });
+    }
+    out.appendChild(row);
+  });
+}
 function wpDoReplace(oldCi, newCi){
   if(oldCi===null||newCi===undefined) return;
   if(newCi===oldCi){ wpCloseReplace(); return; }
@@ -14035,6 +14388,17 @@ function statsBump(key){
 }
 function pjLoadAll(){ try{ const v=JSON.parse(localStorage.getItem(PJ_KEY)); return Array.isArray(v)?v:[]; }catch(e){ return []; } }
 function pjSaveAll(list){ localStorage.setItem(PJ_KEY,JSON.stringify(list)); }
+
+// Saved-pattern cap: 10 on the free plan, 20 on Plus. This is the number the
+// pricing page promises, so it lives in one place and both must agree. Plus is
+// read from the same auth object the tracker gate uses; if we cannot tell (not
+// signed in through the shop), the free cap applies — the safe default, and a
+// signed-in Plus member is re-checked the moment their status resolves.
+const PJ_CAP_FREE = 10, PJ_CAP_PLUS = 20;
+function pjSlotCap(){
+  const a=(typeof lucasAuth==='function')?lucasAuth():null;
+  return (a && a.plus) ? PJ_CAP_PLUS : PJ_CAP_FREE;
+}
 
 // One-time migration: fold the old single-slot 'patternly_save' into the project list
 (function(){
@@ -15954,16 +16318,46 @@ document.addEventListener('click', e=>{
     badgeTimer=setTimeout(()=>badge.classList.remove('show'), 750);
   }
   const dist=e=>Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-  let pinchBase=null;
-  area.addEventListener('touchstart', e=>{ if(e.touches.length===2) pinchBase=dist(e); }, {passive:true});
+  // Continuous pinch. The +/- buttons still step through zoomLevels, but a pinch
+  // scales CELL smoothly with the fingers instead of waiting for an 18% spread
+  // to jump a whole level — which is what made it feel like it lurched by 10%.
+  let pinchBase=null, pinchCellBase=null;
+  const CELL_MIN=1.5, CELL_MAX=64;
+  area.addEventListener('touchstart', e=>{
+    if(e.touches.length===2){ pinchBase=dist(e); pinchCellBase=CELL; }
+  }, {passive:true});
   area.addEventListener('touchmove', e=>{
     if(e.touches.length!==2 || !pinchBase) return;
     e.preventDefault(); // two fingers = zoom, not scroll
-    const d=dist(e), ratio=d/pinchBase;
-    if(ratio>1.18 && zoomIdx<zoomLevels.length-1){ zoomIdx++; applyZoom(); showBadge(); pinchBase=d; }
-    else if(ratio<0.85 && zoomIdx>0){ zoomIdx--; applyZoom(); showBadge(); pinchBase=d; }
+    const ratio=dist(e)/pinchBase;
+    // Fractional CELL, clamped. render() draws at whatever CELL is, so this is
+    // genuinely continuous rather than snapped.
+    const target=Math.max(CELL_MIN, Math.min(CELL_MAX, pinchCellBase*ratio));
+    if(Math.abs(target-CELL)<0.01) return;
+    CELL=target;
+    canvas.style.width=''; canvas.style.height='';
+    canvas.width=Math.round(COLS*CELL)+1;
+    canvas.height=Math.round(ROWS*CELL)+1;
+    render();
+    const pct=Math.round(CELL/18*100)+'%';
+    const zl=document.getElementById('zoom-label'); if(zl) zl.textContent=pct;
+    const fl=document.getElementById('zoom-label-float'); if(fl) fl.textContent=pct;
+    showBadge();
   }, {passive:false});
-  area.addEventListener('touchend', e=>{ if(e.touches.length<2) pinchBase=null; });
+  area.addEventListener('touchend', e=>{
+    if(e.touches.length<2){
+      pinchBase=null;
+      // Re-sync zoomIdx to the nearest level so the +/- buttons carry on
+      // sensibly from wherever the pinch left off.
+      if(pinchCellBase!==null){
+        let best=0;
+        for(let i=0;i<zoomLevels.length;i++)
+          if(Math.abs(zoomLevels[i]-CELL)<Math.abs(zoomLevels[best]-CELL)) best=i;
+        zoomIdx=best;
+        pinchCellBase=null;
+      }
+    }
+  });
 })();
 
 // Tap outside (backdrop) closes the sidebar drawer
@@ -16482,6 +16876,7 @@ document.querySelectorAll('.ct-btn[data-tool]').forEach(btn=>{
 function openApp(){
   document.body.classList.remove('subs-mode','pricing-mode','app-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode','cv-open');
   document.body.classList.add('projects-mode');
+  ptlyEnsureFooter('projects-page');
   pjSelectMode=false; pjSelected.clear();
   renderProjectsPage();
   if(typeof pjSyncSelectUI==='function') pjSyncSelectUI();
@@ -22551,6 +22946,39 @@ function acctRenderPage(){
   acctRenderPlusStrip();
 }
 
+// A slim footer for the full-page tools — Projects (the editor entrance),
+// Thread Colours, File Converter, Calculators, Pricing. Deliberately NOT on the
+// stitching canvas itself (app-mode / tracker-mode): those are workspaces where
+// a footer is only clutter and a mis-tap loses your place. One definition,
+// injected into whichever page is on screen, so the links never drift apart.
+function ptlyFooterHTML(){
+  const link=(fn,label)=>'<a href="#" onclick="'+fn+';return false">'+label+'</a>';
+  return '<div class="ptly-foot-inner">'
+    + '<div class="ptly-foot-links">'
+    +   link('openThreads()','Thread Colours')
+    +   link('openFileConverter()','File Converter')
+    +   link('openCalculators()','Calculators')
+    +   link('openTracker()','Stitch Tracker')
+    +   link('openPricing()','Pricing')
+    + '</div>'
+    + '<div class="ptly-foot-bottom">\u00a9 ' + new Date().getFullYear()
+    +   ' Luca-S \u00b7 Patternly is free to use, no account required.</div>'
+    + '</div>';
+}
+
+// Ensure the given page element ends with the shared footer, exactly once.
+function ptlyEnsureFooter(pageId){
+  const page=document.getElementById(pageId);
+  if(!page) return;
+  let f=page.querySelector(':scope > .ptly-foot');
+  if(!f){
+    f=document.createElement('footer');
+    f.className='ptly-foot';
+    page.appendChild(f);
+  }
+  f.innerHTML=ptlyFooterHTML();
+}
+
 function openSubscriptionPage(){
   document.body.classList.remove('subs-mode','pricing-mode','app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode');
   document.body.classList.add('subs-mode');
@@ -22838,6 +23266,7 @@ async function acctRefresh(){
       window.__LUCAS_AUTH__=a;
       document.querySelectorAll('.acct-btn').forEach(b=>b.classList.toggle('acct-in', !!a.loggedIn));
       if(typeof prRenderCta==='function') prRenderCta();
+      if(document.body.classList.contains('projects-mode') && typeof renderProjectsPage==='function') renderProjectsPage();
       const open=document.querySelector('.acct-dd.open');
       if(open) open.innerHTML=acctBuildMenu();
       if(document.body.classList.contains('account-mode')) acctRenderPage();
@@ -22945,6 +23374,7 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.acct-wrap')) acctC
 function openFileConverter(){
   document.body.classList.remove('subs-mode','pricing-mode','app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','account-mode');
   document.body.classList.add('convert-mode');
+  ptlyEnsureFooter('convert-page');
   const li=document.getElementById('conv-logo-img'), src=document.getElementById('pj-logo-img');
   if(li && src && src.src) li.src=src.src;
   window.scrollTo(0,0);
@@ -23168,6 +23598,7 @@ async function fconvHandle(fileList){
 function openThreads(){
   document.body.classList.remove('subs-mode','pricing-mode','app-mode','projects-mode','calc-mode','tracker-mode','convert-mode','account-mode');
   document.body.classList.add('threads-mode');
+  ptlyEnsureFooter('threads-page');
   const cv=document.getElementById('th-chart-view'), bv=document.getElementById('th-browse-view'), hub=document.getElementById('th-hub');
   if(cv&&hub){ cv.style.display='none'; if(bv) bv.style.display='none'; hub.style.display='block'; } // always land on the hub
   window.scrollTo(0,0);
@@ -23178,6 +23609,7 @@ function openThreads(){
 function openCalculators(tab){
   document.body.classList.remove('subs-mode','pricing-mode','app-mode','projects-mode','tracker-mode','threads-mode','convert-mode','account-mode');
   document.body.classList.add('calc-mode');
+  ptlyEnsureFooter('calc-page');
   calcShowTab(tab||'fabric');
   window.scrollTo(0,0);
   const img=document.getElementById('calc-logo-img'), src=document.getElementById('lp-logo-img');
@@ -23729,6 +24161,7 @@ function openPricing(){
   pjGuardedLeave(()=>{
     document.body.classList.remove('subs-mode','pricing-mode','app-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode','projects-mode','cv-open');
     document.body.classList.add('pricing-mode');
+    ptlyEnsureFooter('pricing-page');
     const img=document.getElementById('pricing-logo-img');
     if(img && !img.src){ const src=document.getElementById('lp-logo-img'); if(src) img.src=src.src; }
     let savedPer='month';
@@ -24543,12 +24976,14 @@ function pjBulkDelete(){
 function renderProjectsPage(){
   const wrap=document.getElementById('pj-grid');
   const list=pjLoadAll().slice().sort((a,b)=>(b.savedAt||0)-(a.savedAt||0));
+  const cap=pjSlotCap();
   document.getElementById('pj-count').textContent=list.length;
+  const capEl=document.getElementById('pj-cap'); if(capEl) capEl.textContent=cap;
   wrap.className='pj-grid'+(pjView==='list'?' list':'');
   wrap.innerHTML='';
 
-  // "New pattern" card (hidden when all 10 slots are used or while selecting)
-  if(!pjSelectMode && list.length<10){
+  // "New pattern" card (hidden when all slots are used or while selecting)
+  if(!pjSelectMode && list.length<cap){
     const nw=document.createElement('div');
     nw.className='pj-new';
     nw.innerHTML='<div class="pj-plus">+</div><span>New pattern</span>';
