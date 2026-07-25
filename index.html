@@ -17789,6 +17789,20 @@ function trkIndexWrite(list){ try{ localStorage.setItem(TRK_INDEX, JSON.stringif
 // two patterns share a legend name ("legend.pdf"); hashing the actual project
 // blob means identical patterns collapse to one slot (a re-sync updates in place)
 // while any two DIFFERENT patterns get different ids — no filename collisions.
+// Give a fresh upload a local key that isn't already used by a DIFFERENT saved
+// project. Two patterns whose legend files share a name ("legend.pdf") would
+// otherwise map to the same key and overwrite each other in this browser's list —
+// which is why they'd vanish locally while still syncing to the account. A short
+// numeric suffix keeps each one distinct.
+function trkUniqueLocalKey(baseKey){
+  try{
+    const base=String(baseKey||'pattern').replace(/[^A-Za-z0-9_]/g,'_')||'pattern';
+    const ids=new Set((typeof trkIndex==='function'?trkIndex():[]).map(p=>p.id));
+    if(!ids.has(base)) return base;
+    for(let i=2;i<9999;i++){ const k=base+'_'+i; if(!ids.has(k)) return k; }
+    return base+'_'+Date.now().toString(36);
+  }catch(e){ return baseKey; }
+}
 function trkHashString(s){
   let h=5381; for(let i=0;i<s.length;i++){ h=((h<<5)+h+s.charCodeAt(i))|0; }
   // second pass for better spread
@@ -22610,7 +22624,7 @@ async function trkHandleLegend(file){
   trackerGrid=null; trackerColourMap=null; trackerStitched=null; trackerManual=false; trkManualWidth=null; trackerSymbolsOnly=false; trackerBwOnly=false; trkApplyViewAvail();
   document.getElementById('trk-manual').style.display='none';
   document.getElementById('trk-manual-btn').disabled=true;
-  trackerActiveProjectKey=file.name.replace(/[^a-zA-Z0-9]/g,'_');
+  trackerActiveProjectKey=trkUniqueLocalKey(file.name.replace(/[^a-zA-Z0-9]/g,'_'));
   trackerProjectName=trkPendingName || file.name.replace(/\.[^.]+$/,'');
   document.getElementById('trk-workspace').style.display='none';
   document.getElementById('trk-chart-card').classList.remove('done');
@@ -22715,7 +22729,7 @@ async function trkHandleChartOxs(file, preText){
       fabricCount:+props.getAttribute('stitchesperinch')||null,
       stitchesSize:{w:W,h:H}, finishedSize:null, rowCount:Object.keys(bySymbol).length};
     trackerColourMap=map; trackerManual=false; trackerSymbolsOnly=false; trackerBwOnly=false;
-    trackerActiveProjectKey=file.name.replace(/[^a-zA-Z0-9]/g,'_');
+    trackerActiveProjectKey=trkUniqueLocalKey(file.name.replace(/[^a-zA-Z0-9]/g,'_'));
     trackerProjectName=trkPendingName || (props.getAttribute('charttitle')||'').trim() || file.name.replace(/\.[^.]+$/,'');
     card.classList.add('done');
     window.trackerExactFormat=preText?'Patternly':'OXS'; window.trkExactGrid=true;
@@ -22991,7 +23005,7 @@ async function trkHandleChartPat(file, preBuf){
       return {x1:l.x1,y1:l.y1,x2:l.x2,y2:l.y2,r:pe.r||0,g:pe.g||0,b:pe.b||0,code:pe.code||''}; });
     trackerGrid.knotsList=(d.knots||[]).map(k=>{ const pe=d.palette[k.pi]||{};
       return {x:k.x,y:k.y,r:pe.r||0,g:pe.g||0,b:pe.b||0,code:pe.code||''}; });
-    trackerActiveProjectKey=file.name.replace(/[^a-zA-Z0-9]/g,'_');
+    trackerActiveProjectKey=trkUniqueLocalKey(file.name.replace(/[^a-zA-Z0-9]/g,'_'));
     trackerProjectName=trkPendingName || d.title || file.name.replace(/\.[^.]+$/,'');
     card.classList.add('done');
     window.trackerExactFormat=preBuf?'Patternly':'PCStitch'; window.trkExactGrid=true;
