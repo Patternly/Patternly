@@ -2669,6 +2669,17 @@ body.dark.app-mode #grid-canvas{border-color:#8f8a96 !important;box-shadow:0 4px
 body.dark.app-mode #topbar{border-bottom-color:#a98f98 !important}
 body.dark.app-mode #sidebar{border-right-color:#a98f98 !important}
 body.dark.app-mode #right-panel{border-left-color:#a98f98 !important}
+/* Inner editor panels that kept a white/tinted background and so inverted to
+   black. Set their PRE-invert colour to the value that lands on the site's
+   panel purple (#221c30) after invert+hue-rotate — same target as the topbar
+   and sidebar above. */
+body.dark.app-mode .rp-pane{ background:#e4def2 !important; border-color:#cbb9d6 !important; }
+body.dark.app-mode .cart-section{ background:#e7e0f0 !important; }
+body.dark.app-mode #export-panel,body.dark.app-mode .wp-swatch-row,
+body.dark.app-mode .tools-section,body.dark.app-mode .sidebar-section{ background:transparent !important; }
+/* Inline #fcf2f4 tool-button clusters, strand/wraps/brush selectors: pre-invert
+   value that lands on the raised purple surface (#2a2138). */
+body.dark.app-mode [style*="background:#fcf2f4"]{ background:#e0d7ee !important; }
 body.dark.app-mode #adjust-drawer,body.dark.app-mode #tools-drawer,body.dark.app-mode #view-drawer{border-right-color:#a98f98 !important}
 body.dark.app-mode .sidebar-section{border-bottom-color:#c3aab2 !important}
 body.dark.app-mode #export-panel .xp-sec{border-top-color:#e0ccd3}
@@ -2868,7 +2879,10 @@ body.dark [style*="background:#ffffff"]:not(#app-wrapper *):not([class*="swatch"
 body.dark [style*="background:#fdfafb"]:not(#app-wrapper *),
 body.dark [style*="background:#fef8f9"]:not(#app-wrapper *),
 body.dark [style*="background:#fffafb"]:not(#app-wrapper *),
-body.dark [style*="background:#fffdf5"]:not(#app-wrapper *){ background:#221c30 !important; }
+body.dark [style*="background:#fffdf5"]:not(#app-wrapper *),
+body.dark [style*="background:#f6f1f2"]:not(#app-wrapper *):not([class*="swatch"]),
+body.dark [style*="background:#faf6f7"]:not(#app-wrapper *),
+body.dark [style*="background:#f5edee"]:not(#app-wrapper *){ background:#221c30 !important; }
 body.dark [style*="background:#fafafa"]:not(#app-wrapper *):not([class*="swatch"]){ background:#2a2138 !important; }
 body.dark [style*="color:#8B1A2B"]:not(#app-wrapper *),
 body.dark [style*="color:#8b1a2b"]:not(#app-wrapper *){ color:#e0a9b4 !important; }
@@ -3221,8 +3235,24 @@ body.dark #trk-minimap span{background:#221b2d}
    The chart takes the whole viewport and the controls float over it, so the
    stitcher sees as much of the pattern as the screen allows. */
 body.trk-fs #trk-workspace{position:fixed;inset:0;z-index:9400;background:#fff;margin:0;padding:0;overflow:hidden}
-body.trk-fs #trk-canvas-wrap{height:100dvh;border:none;border-radius:0}
-body.trk-fs #trk-side,body.trk-fs #trk-verify,body.trk-fs #trk-zoombar,body.trk-fs #trk-ws-back{display:none!important}
+body.trk-fs #trk-canvas-wrap{height:100dvh;border:none;border-radius:0;box-sizing:border-box}
+/* A visible frame around the design so the edge of the chart is obvious against
+   the fullscreen background. ~2mm ≈ 7.5px; using an inset outline on the canvas
+   area so it sits on top of the content rather than being scrolled away. */
+body.trk-fs #trk-canvas-wrap::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9410;
+  border:7px solid var(--lp-red,#8B1A2B)}
+/* Hide the normal-mode side rail and zoombar in fullscreen — but NOT when their
+   contents have been moved into the fullscreen panel. The panel borrows the live
+   #trk-side / #trk-grid-pop nodes; without this exemption the display:none rule
+   kept matching them by id and the Colours/Settings panels opened empty. */
+body.trk-fs #trk-side:not(#trk-fspanel *),
+body.trk-fs #trk-verify,
+body.trk-fs #trk-zoombar:not(#trk-fspanel *),
+body.trk-fs #trk-ws-back{display:none!important}
+body.trk-fs #trk-fspanel #trk-side,
+body.trk-fs #trk-fspanel #trk-grid-pop,
+body.trk-fs #trk-fspanel #trk-zoomgroup{display:block!important}
 body.trk-fs #trk-main{display:block;height:100dvh}
 body.trk-fs #trk-fsbar{display:flex}
 body.trk-fs{overflow:hidden}
@@ -3241,6 +3271,17 @@ body.trk-fs{overflow:hidden}
   padding:.8rem .9rem .5rem;border-bottom:1px solid #f0e4e8;font-size:.9rem}
 #trk-fspanel-head button{border:none;background:none;font-size:1.1rem;cursor:pointer;color:#7d6b72}
 #trk-fspanel-body{padding:.7rem .9rem}
+/* The Colours and Settings panels borrow live nodes from the normal layout.
+   Those nodes were authored to size inside their original flex/rail parents, so
+   dropped into the panel they could collapse to zero height and look empty.
+   Force them back to a natural block flow with real width. */
+#trk-fspanel.open{display:flex;flex-direction:column}
+#trk-fspanel-body{flex:1;min-height:0;overflow-y:auto}
+#trk-fspanel-body > #trk-side,
+#trk-fspanel-body > #trk-grid-pop{display:block!important;width:100%!important;max-width:none!important;height:auto!important;min-height:0!important}
+#trk-fspanel-body #trk-colors{display:flex!important;flex-wrap:wrap;gap:.4rem}
+#trk-fspanel-body #trk-grid-pop .tg-row,
+#trk-fspanel-body #trk-grid-pop label{display:flex!important;min-height:2rem}
 #trk-scroll-sizer > #trk-canvas{position:sticky;top:0;left:0;margin:0}
 /* The scroll container must not let the browser claim pinch either, or the
    gesture is intercepted before the canvas ever sees it. */
@@ -23023,9 +23064,10 @@ async function acctRenderPlusStrip(){
 
   const inTrial = d.lastAmount!=null && Number(d.lastAmount)===0 && d.nextBilling;
   const trialLeft = inTrial ? acctDaysLeft(d.paidAt + 14*86400000) : 0;
+  const chargeDate = inTrial ? (d.paidAt + 14*86400000) : d.nextBilling;
   const title = d.plan==='annual' ? 'Plus \u2014 yearly' : 'Plus \u2014 monthly';
   const sub = inTrial
-    ? 'Free trial \u2014 '+trialLeft+' day'+(trialLeft===1?'':'s')+' left \u00b7 first charge '+acctDate(d.nextBilling)
+    ? 'Free trial \u2014 '+trialLeft+' day'+(trialLeft===1?'':'s')+' left \u00b7 first charge '+acctDate(chargeDate)
     : (d.nextBilling ? 'Next charge '+acctDate(d.nextBilling) : 'Active');
   draw(title, sub, 'View subscription', ()=>openSubscriptionPage());
 }
@@ -23082,6 +23124,9 @@ async function acctRenderPlus(){
   // discount across it, so the order exists but costs nothing.
   const inTrial = d.lastAmount!=null && Number(d.lastAmount)===0 && d.nextBilling;
   const trialLeft = inTrial ? acctDaysLeft(d.paidAt + 14*86400000) : 0;
+  // During a trial the first charge is the trial-end date (paid + 14 days), NOT
+  // the access-window end that the billing endpoint derives for nextBilling.
+  const chargeDate = inTrial ? (d.paidAt + 14*86400000) : d.nextBilling;
 
   const rows=[
     ['Plan', d.plan==='annual' ? 'Plus \u2014 yearly' : 'Plus \u2014 monthly'],
@@ -23089,8 +23134,8 @@ async function acctRenderPlus(){
         ? '<span style="color:#1e7a4d;font-weight:700">Free trial \u2014 '+trialLeft+' day'+(trialLeft===1?'':'s')+' left</span>'
         : '<span style="color:#1e7a4d;font-weight:700">Active</span>'],
     [inTrial ? 'First charge' : 'Next charge',
-       d.nextBilling
-         ? acctDate(d.nextBilling)+(d.nextBillingEstimated
+       chargeDate
+         ? acctDate(chargeDate)+(d.nextBillingEstimated
              ? ' <span style="color:#a2949a">(expected)</span>' : '')
          : '\u2014'],
     ['Amount', d.lastAmount!=null && Number(d.lastAmount)>0
