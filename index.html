@@ -25411,18 +25411,46 @@ function prRenderCta(){
 // so both the modern names and the legacy aliases are listed.
 const PR_US_ZONES = /^(America\/(New_York|Detroit|Chicago|Denver|Los_Angeles|Phoenix|Anchorage|Adak|Boise|Juneau|Nome|Sitka|Yakutat|Menominee|Metlakatla|Shiprock|Fort_Wayne|Indianapolis|Louisville|Monticello|Knox_IN|Puerto_Rico|St_Thomas|Indiana\/|Kentucky\/|North_Dakota\/)|Pacific\/(Honolulu|Guam|Pago_Pago|Wake|Midway|Saipan))/;
 
+// Poll briefly for /whoami to deliver the real country, then re-render the price
+// in the right currency. Runs only when Pricing opened before auth had loaded.
+let _prAwaiting=false;
+function prAwaitCountry(per){
+  if(_prAwaiting) return; _prAwaiting=true;
+  let tries=0;
+  const iv=setInterval(()=>{
+    tries++;
+    let cc='';
+    try{ const a=(typeof lucasAuth==='function')?lucasAuth():(window.__LUCAS_AUTH__||null); cc=a&&a.country?a.country:''; }catch(e){}
+    // Stop once we have a country, once we've left the pricing page, or after ~5s.
+    if(cc || !document.body.classList.contains('pricing-mode') || tries>25){
+      clearInterval(iv); _prAwaiting=false;
+      if(cc && document.body.classList.contains('pricing-mode')) prRender(prGuessCurrency(), per||prPeriod);
+    }
+  }, 200);
+}
 function prGuessCurrency(){
-  // Deliberately not read from localStorage. There is no picker any more, so
-  // the only value ever stored is a previous detection — reading it back would
-  // freeze the first guess forever, and someone the guess got wrong, or who
-  // has since travelled, would never see it corrected.
+  // Primary signal: the customer's real country, geolocated by Cloudflare from the
+  // IP Shopify forwards, delivered in /whoami. This matches what luca-s.com shows,
+  // so the pricing page agrees with the shop regardless of the device clock. Only
+  // three display currencies: GBP (UK), USD (US), EUR (everyone else).
+  try{
+    const a = (typeof lucasAuth==='function') ? lucasAuth() : (window.__LUCAS_AUTH__||null);
+    const cc = a && a.country ? String(a.country).toUpperCase() : '';
+    if(cc){
+      if(cc==='GB') return 'GBP';
+      if(cc==='US') return 'USD';
+      return 'EUR';
+    }
+  }catch(e){}
+  // Fallback when country is unavailable (not proxied, or old middleware): guess
+  // from the device timezone. Less reliable — a VPN or a travelling device can be
+  // wrong — but better than nothing.
   try{
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
     if(tz === 'Europe/London' || tz === 'Europe/Belfast') return 'GBP';
     if(PR_US_ZONES.test(tz)) return 'USD';
     if(tz) return 'EUR';
   }catch(e){}
-  // No timezone available: fall back on locale, then on EUR.
   try{
     const loc = navigator.language || '';
     if(/-GB$/i.test(loc)) return 'GBP';
@@ -25496,6 +25524,13 @@ function openPricing(){
     let savedPer='month';
     try{ const s=localStorage.getItem('patternly_period'); if(s==='year'||s==='month') savedPer=s; }catch(e){}
     prRender(prGuessCurrency(), savedPer);
+    // /whoami may not have resolved yet when Pricing opens. If the real country
+    // isn't in hand, wait for auth to land and re-render so the currency matches
+    // the shop rather than the device clock.
+    try{
+      const a=(typeof lucasAuth==='function')?lucasAuth():(window.__LUCAS_AUTH__||null);
+      if(!(a && a.country)) prAwaitCountry(savedPer);
+    }catch(e){}
     window.scrollTo({top:0});
   });
 }
