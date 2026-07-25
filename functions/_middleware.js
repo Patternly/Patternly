@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v30";
+const MW_VERSION = "v31";
 
 const enc = new TextEncoder();
 
@@ -904,19 +904,14 @@ export async function onRequest(context) {
       enforceProxy: ENFORCE_PROXY
     };
 
-    // Geo diagnostics: which signal (if any) carries the customer's real country
-    // through the Shopify App Proxy? Reported so we can pick a reliable source
-    // for the pricing page's currency. Values only, no lookups yet.
+    // The visitor's country, as Cloudflare geolocates the real client IP that
+    // Shopify's App Proxy forwards. This matches what luca-s.com uses for its
+    // own currency display, so the pricing page can agree with the shop instead
+    // of guessing from the device clock.
     try {
-      body.geo = {
-        cfCountry: (request.cf && request.cf.country) || null,
-        xff: request.headers.get("x-forwarded-for") || null,
-        xRealIp: request.headers.get("x-real-ip") || null,
-        cfConnectingIp: request.headers.get("cf-connecting-ip") || null,
-        cfIpCountry: request.headers.get("cf-ipcountry") || null,
-        acceptLang: request.headers.get("accept-language") || null,
-        proxyCountry: url.searchParams.get("country") || null
-      };
+      const cc = (request.cf && request.cf.country)
+              || request.headers.get("cf-ipcountry") || null;
+      if (cc && cc !== "XX" && cc !== "T1") body.country = String(cc).toUpperCase();
     } catch (e) {}
 
     // A signed-in customer gets their own email and the SKUs they own, so the
