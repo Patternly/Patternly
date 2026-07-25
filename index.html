@@ -6174,14 +6174,14 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <h3>Just log in</h3>
       <p>Your patterns are already linked to your order. Sign in with the same
         email you ordered with and they appear automatically — no code to type.</p>
-      <a class="jump" href="#website">See how →</a>
+      <a class="jump" href="#" onclick="document.querySelector('#trackerguide-page #website').scrollIntoView({behavior:'smooth'});return false">See how →</a>
     </div>
     <div class="path-card alt">
       <div class="path-tag">Kit from a shop or gift</div>
       <h3>Scan or type your code</h3>
       <p>Every kit has a QR code and an access code on the insert card. Scan it,
         or type the code once, and your pattern opens.</p>
-      <a class="jump" href="#code">See how →</a>
+      <a class="jump" href="#" onclick="document.querySelector('#trackerguide-page #code').scrollIntoView({behavior:'smooth'});return false">See how →</a>
     </div>
   </div>
 
@@ -17898,7 +17898,16 @@ async function trkCheckStillOwned(id){
   if(!auth || !auth.loggedIn || !Array.isArray(auth.ownedSkus)) return true;
   const owned=new Set(auth.ownedSkus.map(x=>String(x).toUpperCase()));
   if(owned.has(String(sku).toUpperCase())) return true;
-  // Positively not owned: remove the cached pattern and its progress.
+  // Not owned on the account — but the pattern may have been opened with a valid
+  // access code from a kit insert (scanned QR or typed code), which is a
+  // legitimate route that does NOT put the SKU in ownedSkus. If a code is stored
+  // for this SKU, treat access as valid: the R2 gate re-validates the code on
+  // every chart fetch anyway, so a revoked/wrong code still can't load the file.
+  try{
+    const code = (typeof trkKitCode==='function') ? trkKitCode(sku) : '';
+    if(code) return true;
+  }catch(e){ return true; }
+  // Positively not owned AND no code: remove the cached pattern and its progress.
   try{
     localStorage.removeItem('patternly_trk_proj_'+id);
     localStorage.removeItem('patternly_tracker_'+id);
@@ -21941,6 +21950,96 @@ function trkCountDone(){
   let n=0; for(const row of trackerStitched) for(const v of row) if(v) n++;
   return n;
 }
+
+// ── Sync a user's OWN uploaded pattern to their account ──────────────────────
+// Kits sync progress only (the chart re-downloads from R2 by SKU). An uploaded
+// pattern has no SKU, so we sync the whole local project blob — the same JSON
+// trkSaveProject writes to localStorage — plus its progress. Capped at 5 by the
+// server; a 6th new pattern comes back 409 and we tell the user.
+function trkUserPatternUrl(id){
+  return TRK_KITS_BASE.replace(/\/patterns$/,'') + '/user-patterns' + (id ? '/'+encodeURIComponent(id) : '');
+}
+let _trkUpBusy=false, _trkUpT=null;
+async function trkUserPatternPush(){
+  // Only for uploaded patterns (kits go through trkCloudPush). Needs a signed-in
+  // account and a loaded project.
+  if(trkCloudSku || _trkUpBusy) return;
+  if(!trackerLegend || !trackerGrid || !trackerColourMap) return;
+  if(typeof trkPlusOk==='function' && !trkPlusOk()) return;   // tracker is Plus-only anyway
+  const id = trackerActiveProjectKey;
+  if(!id) return;
+  // Server ids must be [A-Za-z0-9_-]{1,64}. Project keys are filename-derived so
+  // they're the right charset, but can run long — trim safely and keep it stable.
+  const safeId = String(id).replace(/[^A-Za-z0-9_-]/g,'_').slice(0,64);
+  if(!safeId) return;
+  // The full project blob is already in localStorage from trkSaveProject.
+  let blob;
+  try{ blob = localStorage.getItem('patternly_trk_proj_'+id); }catch(e){}
+  if(!blob) return;
+  // Progress: fold the stitched grid into the blob-carrying payload so a new
+  // device restores both the chart and how far along it is.
+  let done=0, total=0;
+  try{ done=trkCountDone(); for(const row of trackerGrid.cells) for(const ch of row) if(ch!==' ') total++; }catch(e){}
+  const idxRec = (typeof trkIndex==='function'?trkIndex():[]).find(p=>p.id===id) || {};
+  _trkUpBusy=true;
+  try{
+    const r = await fetch(trkUserPatternUrl(safeId), {
+      method:'PUT', credentials:'include', headers:{'content-type':'application/json'},
+      body: JSON.stringify({
+        name: trackerProjectName || idxRec.name || 'My pattern',
+        blob,
+        done, total,
+        cols: trackerGrid.cols, rows: trackerGrid.rows,
+        threads: Object.keys(trackerColourMap||{}).length,
+        // include the packed stitched state so progress restores exactly
+        progress: (trackerStitched ? trackerStitched.map(r=>r.map(v=>v?'1':'0').join('')).join('|') : null),
+        timeMs: idxRec.timeMs|0, sessions: Object.keys(idxRec.sessions||{}).length
+      })
+    });
+    if(r.status===409){
+      // Cap reached — this is a NEW pattern that won't fit. Tell the user once.
+      let info={}; try{ info=await r.json(); }catch(e){}
+      trkUserCapNotice(info);
+    } else if(!r.ok){
+      console.warn('[tracker] user-pattern push refused', r.status);
+    }
+  }catch(e){ console.warn('[tracker] user-pattern push failed', e); }
+  finally{ _trkUpBusy=false; }
+}
+function trkQueueUserPatternPush(){
+  if(trkCloudSku) return;                 // kits use trkCloudPush
+  clearTimeout(_trkUpT);
+  _trkUpT=setTimeout(trkUserPatternPush, 4000);
+}
+// List the account's synced uploaded patterns (for showing on any device).
+async function trkUserPatternList(){
+  try{
+    const r=await fetch(trkUserPatternUrl(''), {credentials:'include', cache:'no-cache'});
+    if(!r.ok) return {items:[], cap:5, used:0};
+    return await r.json();
+  }catch(e){ return {items:[], cap:5, used:0}; }
+}
+// Fetch one synced pattern's blob back (to open it on a new device).
+async function trkUserPatternFetch(id){
+  try{
+    const r=await fetch(trkUserPatternUrl(id), {credentials:'include', cache:'no-cache'});
+    if(!r.ok) return null;
+    return await r.text();   // the stored project blob (JSON string)
+  }catch(e){ return null; }
+}
+async function trkUserPatternDelete(id){
+  try{ await fetch(trkUserPatternUrl(id), {method:'DELETE', credentials:'include'}); }catch(e){}
+}
+let _trkCapNoticeShown=false;
+function trkUserCapNotice(info){
+  if(_trkCapNoticeShown) return; _trkCapNoticeShown=true;
+  const cap=(info&&info.cap)||5;
+  const msg=(info&&info.message) || ('You can sync up to '+cap+' of your own patterns across devices. Remove one to sync another.');
+  if(typeof toast==='function') toast(msg, 6000);
+  else alert(msg);
+  setTimeout(()=>{ _trkCapNoticeShown=false; }, 30000);
+}
+
 async function trkCloudPush(){
   if(!trkCloudSku || _trkCloudBusy) return;
   _trkCloudBusy=true;
@@ -22009,10 +22108,11 @@ function saveTrackerProgress(){
   // push is a network write.
   clearTimeout(_trkCloudT);
   _trkCloudT=setTimeout(trkCloudPush, 4000);
+  trkQueueUserPatternPush();   // uploaded patterns sync to the account too
 }
 // Leaving the tab is the last chance to get the final marks up.
-document.addEventListener('visibilitychange', ()=>{ if(document.hidden) trkCloudPush(); });
-window.addEventListener('pagehide', trkCloudPush);
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden){ trkCloudPush(); trkUserPatternPush(); } });
+window.addEventListener('pagehide', ()=>{ trkCloudPush(); trkUserPatternPush(); });
 function loadTrackerProgress(){
   try{
     const raw=localStorage.getItem('patternly_tracker_'+trackerActiveProjectKey);
@@ -22273,7 +22373,20 @@ function trkApplyViewAvail(){
   const cbtn=document.getElementById('trk-view-color'), bbtn=document.getElementById('trk-view-bw');
   cbtn.disabled=trackerBwOnly;
   cbtn.title=trackerBwOnly?'This chart is black & white — no colours to show':'';
-  if(trackerBwOnly){ trackerViewMode='bw'; bbtn.classList.add('active'); cbtn.classList.remove('active'); }
+  if(trackerBwOnly){ trackerViewMode='bw'; bbtn.classList.add('active'); cbtn.classList.remove('active'); }  trkApplyKitProtection();
+}
+
+// Luca-S catalogue patterns are paid content: trackable on screen but not
+// exportable to a file (the backup JSON holds the full chart). Their progress
+// already syncs to the customer account, so no local backup is needed. User
+// uploads keep Back up  it is their own file.
+function trkApplyKitProtection(){
+  const isKit = !!trkCloudSku;
+  const exp=document.getElementById('trk-export-btn');
+  if(exp) exp.style.display = isKit ? 'none' : '';
+  // An uploaded pattern that's now loaded should sync to the account (once),
+  // so it appears on the user's other devices even before they mark anything.
+  if(!isKit) trkQueueUserPatternPush();
 }
 
 // ── Hybrid symbol merge: exact data grid (.pat/OXS) + kit legend PDF ──
