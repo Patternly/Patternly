@@ -18208,7 +18208,7 @@ function trkRenderSaved(show){
   trkAppendCloudCards(sg, list);
 }
 // Reveal either the upload cards or the Luca-S catalogue.
-function trkChooseSource(kind){
+async function trkChooseSource(kind){
   // Only an upload starts a project with no SKU. Clearing it inside the legend
   // handler wiped the value trkOpenKit had just set, so catalogue kits never
   // synced at all.
@@ -18227,6 +18227,31 @@ function trkChooseSource(kind){
     if(kits) kits.style.display='';
     trkKitsLoad();
   }else{
+    // Cap gate BEFORE opening the uploader: an uploaded pattern counts toward the
+    // account's synced-pattern cap. Check the SERVER's count (local can drift if a
+    // push failed) and, if full, stop here with a clear message rather than letting
+    // them load and mark a pattern that then can't be saved.
+    if(kind==='other'){
+      try{
+        const info = await trkUserPatternList();
+        const used = (info && info.used|0) || 0;
+        const cap  = (info && info.cap|0) || 5;
+        if(used >= cap){
+          if(src) src.style.display='';
+          const gb2=document.getElementById('trk-guide-banner'); if(gb2) gb2.style.display='flex';
+          if(cards) cards.style.display='none';
+          if(ub) ub.style.display='none';
+          pjShowModal({
+            title:'You\u2019ve reached your saved-pattern limit',
+            body:'You can sync up to <b>'+cap+'</b> of your own uploaded patterns across your devices. '
+                +'Remove one from <b>My Tracked Patterns</b> to add another.<br><br>'
+                +'Luca-S kits opened from <b>Luca-S Patterns</b> don\u2019t count toward this limit.',
+            confirmLabel:'OK'
+          });
+          return;
+        }
+      }catch(e){ /* offline/error: don't block; server still enforces on push */ }
+    }
     if(kits) kits.style.display='none';
     if(cards) cards.style.display='';
     if(ub) ub.style.display='inline-block';
@@ -21964,7 +21989,7 @@ function trkCountDone(){
 function trkUserPatternUrl(id){
   return TRK_KITS_BASE.replace(/\/patterns$/,'') + '/user-patterns' + (id ? '/'+encodeURIComponent(id) : '');
 }
-let _trkUpBusy=false, _trkUpT=null;
+let _trkUpBusy=false, _trkUpT=null, _trkLastSyncedKey=null;
 async function trkUserPatternPush(){
   // Only for uploaded patterns (kits go through trkCloudPush). Needs a signed-in
   // account and a loaded project.
@@ -22419,7 +22444,18 @@ function trkApplyKitProtection(){
   if(exp) exp.style.display = isKit ? 'none' : '';
   // An uploaded pattern that's now loaded should sync to the account (once),
   // so it appears on the user's other devices even before they mark anything.
-  if(!isKit) trkQueueUserPatternPush();
+  // An uploaded pattern that's now loaded should sync to the account so it
+  // appears on the user's other devices. Do an IMMEDIATE first push (not just the
+  // debounced one) so a pattern that's opened and closed quickly still saves.
+  if(!isKit){
+    const k = trackerActiveProjectKey;
+    if(k && _trkLastSyncedKey !== k){
+      _trkLastSyncedKey = k;
+      trkUserPatternPush();            // immediate
+    } else {
+      trkQueueUserPatternPush();       // subsequent updates: debounced
+    }
+  }
 }
 
 // ── Hybrid symbol merge: exact data grid (.pat/OXS) + kit legend PDF ──
