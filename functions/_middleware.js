@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v28";
+const MW_VERSION = "v29";
 
 const enc = new TextEncoder();
 
@@ -1245,7 +1245,134 @@ export async function onRequest(context) {
     return bad("method", 405);
   }
 
-  // ── /patterns/*: kit catalogue + files from R2 ──
+  // ── /user-patterns: sync a user's OWN uploaded patterns to their account ──
+  // Unlike /progress (kits, where the chart re-downloads from R2 by SKU), an
+  // uploaded pattern has no SKU and the server has never seen it — so to make it
+  // appear on another device we must store the pattern itself, not just progress.
+  // The chart blob goes in a dedicated R2 bucket (USER_PATTERNS); the metadata +
+  // progress live in KV alongside kit progress. Capped per account so this can't
+  // become unbounded free storage.
+  //
+  //   GET    /user-patterns            -> {items:[{id,name,done,total,...,ts}], cap, used}
+  //   GET    /user-patterns/:id        -> the stored pattern blob (JSON) for one
+  //   PUT    /user-patterns/:id        <- {name, blob, done, total, cols, rows, threads, timeMs, sessions}
+  //   DELETE /user-patterns/:id        -> removes it, freeing a slot
+  {
+    const MARKUP = "/user-patterns";
+    const upAt = url.pathname.indexOf(MARKUP);
+    if (upAt !== -1) {
+      const bad = (msg, code) => new Response(JSON.stringify({ error: msg }), {
+        status: code, headers: { "content-type": "application/json", "cache-control": "no-store" }
+      });
+      if (!auth.loggedIn || !auth.customerId) return bad("signin", 401);
+      if (!env.ENTITLEMENTS) return bad("storage not configured", 500);
+      if (!env.USER_PATTERNS) return bad("pattern storage not configured", 500);
+
+      // How many uploaded patterns an account may sync. Kept as a named value so
+      // it can later vary by plan without a code change.
+      const USER_PATTERN_CAP = (env.USER_PATTERN_CAP | 0) || 5;
+
+      // The bit after /user-patterns/ is the pattern id (if any).
+      const tail = url.pathname.slice(upAt + MARKUP.length).replace(/^\/+/, "");
+      const id = decodeURIComponent(tail).trim();
+      const metaPrefix = "upat:" + auth.customerId + ":";
+
+      // ── list every synced pattern for this account ──
+      if (!id && request.method === "GET") {
+        const items = [];
+        let cursor;
+        for (let page = 0; page < 5; page++) {
+          const listed = await env.ENTITLEMENTS.list({ prefix: metaPrefix, limit: 1000, cursor });
+          for (const k of listed.keys) {
+            const raw = await env.ENTITLEMENTS.get(k.name);
+            if (!raw) continue;
+            try {
+              const rec = JSON.parse(raw);
+              items.push({
+                id: k.name.slice(metaPrefix.length),
+                name: rec.name || "Untitled pattern",
+                done: rec.done | 0, total: rec.total | 0,
+                cols: rec.cols | 0, rows: rec.rows | 0, threads: rec.threads | 0,
+                timeMs: rec.timeMs | 0, sessions: rec.sessions | 0, ts: rec.ts || 0
+              });
+            } catch (e) {}
+          }
+          if (!listed.list_complete) cursor = listed.cursor; else break;
+        }
+        items.sort((a, b) => b.ts - a.ts);
+        return new Response(JSON.stringify({ items, cap: USER_PATTERN_CAP, used: items.length }), {
+          headers: { "content-type": "application/json", "cache-control": "no-store" }
+        });
+      }
+
+      if (!id || !/^[A-Za-z0-9_-]{1,64}$/.test(id)) return bad("bad id", 400);
+      const metaKey = metaPrefix + id;
+      const blobKey = auth.customerId + "/" + id + ".json";
+
+      // ── fetch one pattern's blob back (for a new device) ──
+      if (request.method === "GET") {
+        const obj = await env.USER_PATTERNS.get(blobKey);
+        if (!obj) return bad("notfound", 404);
+        const text = await obj.text();
+        return new Response(text, {
+          headers: { "content-type": "application/json", "cache-control": "no-store" }
+        });
+      }
+
+      // ── create or update a synced pattern ──
+      if (request.method === "PUT" || request.method === "POST") {
+        let body;
+        try { body = await request.json(); } catch (e) { return bad("bad body", 400); }
+        if (typeof body.blob !== "string" || !body.blob) return bad("bad blob", 400);
+        // Guard the blob size — an uploaded chart is a few hundred KB at most.
+        if (body.blob.length > 3_000_000) return bad("too large", 413);
+
+        // Cap check: only when this id is NEW. Updating an existing synced
+        // pattern is always allowed (it doesn't consume a new slot).
+        const existing = await env.ENTITLEMENTS.get(metaKey);
+        if (!existing) {
+          let count = 0; let cursor;
+          for (let page = 0; page < 5; page++) {
+            const listed = await env.ENTITLEMENTS.list({ prefix: metaPrefix, limit: 1000, cursor });
+            count += listed.keys.length;
+            if (!listed.list_complete) cursor = listed.cursor; else break;
+          }
+          if (count >= USER_PATTERN_CAP) {
+            return new Response(JSON.stringify({
+              error: "cap", cap: USER_PATTERN_CAP, used: count,
+              message: "You can sync up to " + USER_PATTERN_CAP +
+                " of your own patterns. Remove one to add another."
+            }), { status: 409, headers: { "content-type": "application/json", "cache-control": "no-store" } });
+          }
+        }
+
+        // Store the chart blob in R2, the summary in KV.
+        await env.USER_PATTERNS.put(blobKey, body.blob, {
+          httpMetadata: { contentType: "application/json" }
+        });
+        const rec = {
+          name: (typeof body.name === "string" ? body.name : "Untitled pattern").slice(0, 120),
+          done: body.done | 0, total: body.total | 0,
+          cols: body.cols | 0, rows: body.rows | 0, threads: body.threads | 0,
+          timeMs: body.timeMs | 0, sessions: body.sessions | 0, ts: Date.now()
+        };
+        await env.ENTITLEMENTS.put(metaKey, JSON.stringify(rec));
+        return new Response(JSON.stringify({ ok: true, id, ts: rec.ts }), {
+          headers: { "content-type": "application/json", "cache-control": "no-store" }
+        });
+      }
+
+      // ── delete a synced pattern, freeing a slot ──
+      if (request.method === "DELETE") {
+        await env.USER_PATTERNS.delete(blobKey);
+        await env.ENTITLEMENTS.delete(metaKey);
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { "content-type": "application/json", "cache-control": "no-store" }
+        });
+      }
+      return bad("method", 405);
+    }
+  }
   // Matched by index rather than prefix so it works both on the bare Pages
   // domain and under the Shopify App Proxy path, same as /whoami above.
   const MARK = "/patterns/";
