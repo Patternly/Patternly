@@ -5387,11 +5387,11 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <p class="calc-sub">Upload the legend and chart PDFs from your Luca-S kit, then mark stitches as you go — your progress is saved in this browser.</p>
     <div id="trk-projects" style="display:none">
       <div id="trk-kits-section" style="display:none">
-        <h2 style="font-size:1.05rem;color:var(--lp-ink,#2b2226);margin:.2rem 0 .8rem;font-family:'DM Serif Display',Georgia,serif">My Luca-S Kits</h2>
-        <div id="trk-kits-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:1rem;max-width:1000px;margin:0 auto 1.6rem"></div>
+        <h2 style="display:block;width:100%;max-width:1000px;margin:.2rem auto .8rem;font-size:1.15rem;color:var(--lp-ink,#2b2226);font-family:'DM Serif Display',Georgia,serif">My Luca-S Kits</h2>
+        <div id="trk-mykits-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:1rem;max-width:1000px;margin:0 auto 1.6rem"></div>
       </div>
       <div id="trk-uploads-section">
-        <h2 id="trk-uploads-head" style="font-size:1.05rem;color:var(--lp-ink,#2b2226);margin:.2rem 0 .3rem;font-family:'DM Serif Display',Georgia,serif;display:none">My Tracked Patterns</h2>
+        <h2 id="trk-uploads-head" style="display:block;width:100%;max-width:1000px;margin:.2rem auto .3rem;font-size:1.15rem;color:var(--lp-ink,#2b2226);font-family:'DM Serif Display',Georgia,serif;display:none">My Tracked Patterns</h2>
         <div id="trk-proj-grid"></div>
       </div>
     </div>
@@ -5420,7 +5420,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     </div>
     <!-- Luca-S catalogue -->
     <div id="trk-kits" style="display:none">
-      <a href="#" id="trk-kits-back" style="display:inline-block;margin-bottom:.7rem;font-size:.78rem;color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">← Choose a different pattern source</a>
+      <a href="#" id="trk-kits-back" style="display:inline-block;margin-bottom:.7rem;font-size:.78rem;color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">← Back to Stitch Tracker</a>
       <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.9rem">
         <input id="trk-kits-search" type="search" placeholder="Search by name or code (e.g. BU5102)"
                style="flex:1;height:38px;border:1.5px solid #e6d9dd;border-radius:10px;padding:0 .8rem;font-size:.86rem;font-family:inherit">
@@ -5437,7 +5437,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <p id="trk-saved-sub" style="font-size:.78rem;color:#6a626f;text-align:center;margin:0 0 1rem"></p>
       <div id="trk-saved-grid"></div>
     </div>
-    <a href="#" id="trk-upload-back" style="display:none;margin-bottom:.7rem;font-size:.78rem;color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">&larr; Choose a different pattern source</a>
+    <a href="#" id="trk-upload-back" style="display:none;margin-bottom:.7rem;font-size:.78rem;color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">&larr; Back to Stitch Tracker</a>
     <div class="trk-cards">
       <div class="trk-card" id="trk-chart-card" onclick="document.getElementById('trk-chart-input').click()">
         <div class="trk-card-icon">🧵</div>
@@ -10698,7 +10698,8 @@ const TOOL_LABELS = {
   select:'Selection'
 };
 
-function setActiveTool(tool){
+function setActiveTool(tool, opts){
+  opts = opts || {};
   activeTool = tool;
   document.querySelectorAll('.ct-btn').forEach(b=>b.classList.toggle('active', b.dataset.tool===tool));
   document.querySelectorAll('.td-btn[data-tool]').forEach(b=>b.classList.toggle('active', b.dataset.tool===tool));
@@ -10724,8 +10725,8 @@ function setActiveTool(tool){
   const focusedMenuTools = ['draw', 'fill', 'shape', 'text', 'confetti', 'select'];
   const isFocused = focusedMenuTools.includes(tool);
   if(drawer){
-    if(needsMenu){ if(typeof closeEditorPanels==='function') closeEditorPanels('tools-drawer'); drawer.classList.add('open'); }
-    else drawer.classList.remove('open');
+    if(needsMenu && !opts.noDrawer){ if(typeof closeEditorPanels==='function') closeEditorPanels('tools-drawer'); drawer.classList.add('open'); }
+    else if(!opts.noDrawer) drawer.classList.remove('open');
   }
   if(toolList) toolList.style.display = isFocused ? 'none' : '';
   if(drawerTitle) drawerTitle.textContent = isFocused ? (TOOL_LABELS[tool]||tool) : 'Tools';
@@ -12886,20 +12887,41 @@ function saveToBrowser(){
     try{
       pjSaveAll(list);
     }catch(qe){
-      // Quota blown — most likely the embedded photo. Drop it and retry.
+      // Quota blown, most likely the embedded photo. Drop it and retry once.
       if(payload.sourceImage){
         list.forEach(p=>{ if(p.id===currentProjectId) delete p.sourceImage; });
-        pjSaveAll(list);
-        toast('Saved — but the photo was too large for browser storage and was left out');
-      } else { throw qe; }
-    }
+        try{
+          pjSaveAll(list);
+          toast('Saved \u2014 but the photo was too large for browser storage and was left out');
+        }catch(qe2){
+          // Still too big even without the photo. Don't re-throw into a download
+          // loop; just report it couldn't be saved.
+          trkSaveState('error');
+          return false;
+        }
+      } else {
+        trkSaveState('error');
+        return false;
+      }
+        }
     pjMarkClean();
     trkSaveState('saved');
     return true;
   }catch(e){
-    const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name+'.json';a.click();
-    toast('Browser storage unavailable — exported as JSON file');
+    // Storage failed even after dropping the photo. Do NOT auto-download here:
+    // this runs from the 4-second autosave, and downloading a JSON file every
+    // tick floods the browser. Only export a file when the user EXPLICITLY saved.
+    console.warn('[saveToBrowser] storage failed:', e && e.message);
+    if(window._pjExplicitSave){
+      try{
+        const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
+        const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name+'.json';a.click();
+        setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+        toast('Browser storage was full \u2014 saved to a file instead');
+      }catch(_){}
+    } else {
+      trkSaveState('error');
+    }
     return false;
   }
 }
@@ -16728,9 +16750,10 @@ function qbRender(){
     // Short press = use; long press (400ms) = edit slot. Works for mouse and touch.
     const activate = () => {
       if(t.action){ t.action(); return; }               // action buttons run directly
-      if(toolId==='shape'){ document.getElementById('shape-tool-btn').click(); }
-      else if(toolId==='text'){ document.getElementById('text-tool-btn').click(); }
-      else { setActiveTool(toolId); }
+      // Select the tool WITHOUT auto-opening its options drawer — tapping a tool
+      // in the mini quick-bar should just switch to it, not pop a panel. The
+      // options are still one tap away via the main tools drawer.
+      setActiveTool(toolId, {noDrawer:true});
       qbSyncActive(toolId);
     };
     let pressTimer = null;
@@ -18275,6 +18298,9 @@ async function trkChooseSource(kind){
   const cards=document.querySelector('#trk-upload .trk-cards:not(#trk-source)');
   const src=document.getElementById('trk-source'), kits=document.getElementById('trk-kits');
   if(src) src.style.display='none';
+  // Hide the saved-pattern sections while a sub-flow (catalogue / file pickers) is
+  // open, so the sub-view stands alone. The back-link returns to the combined home.
+  const proj=document.getElementById('trk-projects'); if(proj) proj.style.display='none';
   const gb=document.getElementById('trk-guide-banner'); if(gb) gb.style.display='none';
   const ub=document.getElementById('trk-upload-back');
   const home=document.getElementById('trk-back-home');
@@ -18673,16 +18699,8 @@ async function trkOpenKit(kit){
   if(o) o.addEventListener('click', ()=>trkChooseSource('other'));
   const backToSource = e => {
     e.preventDefault();
-    const k=document.getElementById('trk-kits'), s=document.getElementById('trk-source'),
-          c=document.querySelector('#trk-upload .trk-cards:not(#trk-source)'),
-          u=document.getElementById('trk-upload-back'),
-          h=document.getElementById('trk-back-home');
-    if(h) h.style.display='none';
-    trkRenderSaved();
-    if(k) k.style.display='none';
-    if(c) c.style.display='none';
-    if(u) u.style.display='none';
-    if(s) s.style.display='';
+    // Return to the main Stitch Tracker page (chooser on top, saved patterns below).
+    trkShowHome();
   };
   const b=document.getElementById('trk-kits-back');
   if(b) b.addEventListener('click', backToSource);
@@ -18985,41 +19003,61 @@ function trkRenderProjectCards(grid, list, withAdd){
   };
 }
 function trkShowHome(){
+  // Combined page: the source chooser (Luca-S Patterns / Upload) sits at the top,
+  // and the saved patterns — My Luca-S Kits, then My Tracked Patterns — sit below
+  // it on the same page. Starting something and carrying something on live together.
+  trkTitleReset();
+  if(!window._trkKeepFiles){ try{ trkClearChart(); trkClearLegend(); }catch(e){} }
+  document.getElementById('trk-workspace').style.display='none';
+
+  // Show the upload container but ONLY its Step-0 source cards (not the catalogue,
+  // file pickers, or coming-soon panel — those belong to the sub-flows).
+  const up=document.getElementById('trk-upload'); if(up) up.style.display='';
+  const src=document.getElementById('trk-source'); if(src) src.style.display='';
+  const kits=document.getElementById('trk-kits'); if(kits) kits.style.display='none';
+  const cards=document.querySelector('#trk-upload .trk-cards:not(#trk-source)'); if(cards) cards.style.display='none';
+  const bh=document.getElementById('trk-back-home'); if(bh) bh.style.display='none';
+  const kb=document.getElementById('trk-kits-back'); if(kb) kb.style.display='none';
+  const ub=document.getElementById('trk-upload-back'); if(ub) ub.style.display='none';
+  const saved=document.getElementById('trk-saved'); if(saved) saved.style.display='none';
+  const soon=document.getElementById('trk-pdf-soon'); if(soon) soon.style.display='none';
+  const gb=document.getElementById('trk-guide-banner'); if(gb) gb.style.display='flex';
+
+  // The saved-patterns sections render below, in #trk-projects.
   const list=trkIndex();
-  // Even with nothing saved in THIS browser, the account may have patterns synced
-  // from another device \u2014 show the home so they can be pulled down. Only fall
-  // back to the uploader when there's genuinely nothing anywhere.
-  if(!list.length){
-    trkUserPatternList().then(info=>{
-      if(info && Array.isArray(info.items) && info.items.length){ trkShowHomeInner([]); }
-      else { trkShowUpload(); }
-    }).catch(()=>trkShowUpload());
-    return;
-  }
   trkShowHomeInner(list);
 }
 function trkShowHomeInner(list){
-  document.getElementById('trk-upload').style.display='none';
-  document.getElementById('trk-workspace').style.display='none';
   const wrap=document.getElementById('trk-projects');
-  wrap.style.display='';
-  const t=document.querySelector('#tracker-page .calc-title'), s=document.querySelector('#tracker-page .calc-sub');
-  if(t) t.textContent='My Patterns';
+  if(wrap) wrap.style.display='';
   const kitsLocal = list.filter(p=>p.sku);
   const uploadsLocal = list.filter(p=>!p.sku);
-  if(s) s.innerHTML=`<b>${uploadsLocal.length} of 5</b> uploaded patterns \u00b7 Luca-S kits are unlimited \u00b7 <a href="#" onclick="trkImportPick();return false" style="color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">\u2b06 Restore a backup</a>`;
-  // ── Luca-S Kits section: ALWAYS shown, with its own always-available add tile ──
-  const kitsGrid=document.getElementById('trk-kits-grid');
+
+  // ── My Luca-S Kits ── (no add tile — the chooser above is how you add one)
+  const kitsGrid=document.getElementById('trk-mykits-grid');
   const kitsSection=document.getElementById('trk-kits-section');
-  kitsSection.style.display='';
-  trkRenderProjectCards(kitsGrid, kitsLocal, 'kit');   // "+ Add a Luca-S Kit" tile always present
-  trkAppendCloudCards(kitsGrid, kitsLocal);
-  // ── Uploaded patterns section: its add tile runs the cap gate ──
+  if(kitsGrid){
+    trkRenderProjectCards(kitsGrid, kitsLocal, false);
+    trkAppendCloudCards(kitsGrid, kitsLocal).then(()=>{
+      if(kitsSection) kitsSection.style.display = (kitsGrid.children.length>0) ? '' : 'none';
+    });
+  }
+
+  // ── My Tracked Patterns ── (no add tile; Restore-a-backup lives in this header)
   const upGrid=document.getElementById('trk-proj-grid');
+  const upSection=document.getElementById('trk-uploads-section');
   const upHead=document.getElementById('trk-uploads-head');
-  upHead.style.display='';
-  trkRenderProjectCards(upGrid, uploadsLocal, 'upload');   // "+ Upload a Pattern" tile
-  trkAppendUserPatternCards(upGrid);
+  if(upHead){
+    upHead.innerHTML='My Tracked Patterns '
+      +'<a href="#" onclick="trkImportPick();return false" style="font-family:inherit;font-size:.72rem;font-weight:700;color:var(--lp-red,#8B1A2B);text-decoration:none;margin-left:.6rem">\u2b06 Restore a backup</a>';
+  }
+  if(upGrid){
+    trkRenderProjectCards(upGrid, uploadsLocal, false);
+    trkAppendUserPatternCards(upGrid).then(()=>{
+      const hasAny = upGrid.querySelectorAll('.trk-pcard').length>0;
+      if(upSection) upSection.style.display = hasAny ? '' : 'none';
+    });
+  }
 }
 function trkTitleReset(){
   const t=document.querySelector('#tracker-page .calc-title'), s=document.querySelector('#tracker-page .calc-sub');
@@ -21616,42 +21654,6 @@ function renderTracker(){
       if(cy>=trkView.sy-1 && cy<=trkView.sy+trkView.viewH+1){ trkCtx.beginPath(); trkCtx.moveTo(trkView.sx,cy); trkCtx.lineTo(trkView.sx+trkView.viewW,cy); trkCtx.stroke(); }
       trkCtx.restore();
     }
-    // Coordinate rulers: numbers every 10 along the top and left so you can see
-    // exactly where you are on the chart. They ride the visible edge (sticky) so
-    // they stay in view as you scroll, like the numbers printed down a paper chart.
-    if(cell>=4){
-      const RB=10;                                   // number every 10 cells
-      const fs=Math.max(8, Math.min(15, Math.round(cell*0.62)));
-      trkCtx.save();
-      trkCtx.font=fs+'px "DM Sans",system-ui,sans-serif';
-      trkCtx.textBaseline='middle'; trkCtx.textAlign='center';
-      const inFs=document.body.classList.contains('trk-fs');
-      const ink = inFs ? 'rgba(255,255,255,0.92)' : 'rgba(60,50,60,0.85)';
-      const halo= inFs ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.85)';
-      const topY = trkView.sy + Math.max(8, fs*0.75);
-      const leftX = trkView.sx + Math.max(10, fs*0.9);
-      // top ruler (column numbers)
-      for(let gc=Math.ceil(vc0/RB)*RB; gc<=vc1; gc+=RB){
-        if(gc===0) continue;
-        const x=(gc-vp.c0)*cell+0.5;
-        if(x<trkView.sx+2 || x>trkView.sx+trkView.viewW-2) continue;
-        const s=String(gc);
-        trkCtx.lineWidth=3; trkCtx.strokeStyle=halo; trkCtx.strokeText(s,x,topY);
-        trkCtx.fillStyle=ink; trkCtx.fillText(s,x,topY);
-      }
-      // left ruler (row numbers)
-      for(let gr=Math.ceil(vr0/RB)*RB; gr<=vr1; gr+=RB){
-        if(gr===0) continue;
-        const y=(gr-vp.r0)*cell+0.5;
-        if(y<trkView.sy+2 || y>trkView.sy+trkView.viewH-2) continue;
-        const s=String(gr);
-        trkCtx.textAlign='left';
-        trkCtx.lineWidth=3; trkCtx.strokeStyle=halo; trkCtx.strokeText(s,leftX-trkCtx.measureText(s).width/2,y);
-        trkCtx.fillStyle=ink; trkCtx.fillText(s,leftX-trkCtx.measureText(s).width/2,y);
-        trkCtx.textAlign='center';
-      }
-      trkCtx.restore();
-    }
   }
   // ── Backstitch & French knot overlay (exact-format imports) ──
   // Drawn above the grid, exactly like a printed chart. The ⚙ popover has a
@@ -21687,6 +21689,45 @@ function renderTracker(){
     }
     trkCtx.restore();
   }
+  // Coordinate rulers (numbers in a clean margin, outside the stitches). Drawn
+  // last in SCREEN space as fixed strips along the top and left of the visible
+  // canvas, so they sit in their own gutter and stay put as you scroll.
+  (function trkDrawRulers(){
+    if(!trkGridCfg.on || cell<5) return;
+    const vpp=trkViewport();
+    const RB=10;
+    const fs=Math.max(9, Math.min(16, Math.round(cell*0.6)));
+    const gut=Math.max(18, fs+8);
+    const inFs=document.body.classList.contains('trk-fs');
+    const stripBg = inFs ? 'rgba(20,16,24,0.82)' : 'rgba(255,255,255,0.94)';
+    const ink     = inFs ? '#ffffff' : '#4a3d55';
+    const tick    = inFs ? 'rgba(255,255,255,0.5)' : 'rgba(74,61,85,0.4)';
+    trkCtx.save();
+    trkCtx.setTransform(trkView.dpr,0,0,trkView.dpr,0,0);
+    trkCtx.font='600 '+fs+'px "DM Sans",system-ui,sans-serif';
+    trkCtx.textBaseline='middle';
+    trkCtx.fillStyle=stripBg;
+    trkCtx.fillRect(0,0,trkView.viewW,gut);
+    trkCtx.fillRect(0,0,gut,trkView.viewH);
+    trkCtx.textAlign='center'; trkCtx.fillStyle=ink;
+    for(let gc=Math.ceil(vpp.c0/RB)*RB; gc<=vpp.c0+vpp.nc; gc+=RB){
+      if(gc===0) continue;
+      const x=(gc-vpp.c0)*cell - trkView.sx;
+      if(x<gut+2 || x>trkView.viewW-2) continue;
+      trkCtx.strokeStyle=tick; trkCtx.lineWidth=1;
+      trkCtx.beginPath(); trkCtx.moveTo(x, gut-4); trkCtx.lineTo(x, gut); trkCtx.stroke();
+      trkCtx.fillStyle=ink; trkCtx.fillText(String(gc), x, gut/2);
+    }
+    for(let gr=Math.ceil(vpp.r0/RB)*RB; gr<=vpp.r0+vpp.nr; gr+=RB){
+      if(gr===0) continue;
+      const y=(gr-vpp.r0)*cell - trkView.sy;
+      if(y<gut+2 || y>trkView.viewH-2) continue;
+      trkCtx.strokeStyle=tick; trkCtx.lineWidth=1;
+      trkCtx.beginPath(); trkCtx.moveTo(gut-4, y); trkCtx.lineTo(gut, y); trkCtx.stroke();
+      trkCtx.fillStyle=ink; trkCtx.fillText(String(gr), gut/2, y);
+    }
+    trkCtx.restore();
+  })();
 }
 
 // ── Marking cells (tap or drag; touch-friendly) ──
