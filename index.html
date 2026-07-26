@@ -19694,6 +19694,21 @@ function parseLegendText(text){
   }
 
   const rowCount = Object.keys(bySymbol).length;
+  // Content-based fallback for count-less legends (e.g. the native Cross Stitch
+  // Professional key "SYM  No  ColourName  Strands"): those rows carry no stitch
+  // count, so the count-based handlers above skip them AND mis-read the doubled
+  // code as a code+count "pending" row. Run the content reader BEFORE deferring
+  // to pending/throw, or the pending early-return below pre-empts it. Reached
+  // only when the Luca-S handlers found no symbol rows, so legends that already
+  // parse are never affected.
+  if(rowCount === 0){
+    const fb = parseLegendCountless(lines);
+    const fbCount = Object.keys(fb.bySymbol).length;
+    if(fbCount >= 3){
+      console.warn('[tracker] legend read via countless content-based fallback:', fbCount, 'symbols');
+      return {bySymbol:fb.bySymbol, byCode:fb.byCode, pending:[], colours, fabricCount, stitchesSize, finishedSize, rowCount:fbCount, noCounts:true};
+    }
+  }
   if(rowCount===0 && pending.length>=3){
     // rows parsed but their symbol glyphs didn't land on the same line —
     // proceed; the chart binds them by stitch count / shape later
@@ -19714,6 +19729,50 @@ function parseLegendText(text){
     throw new Error(`No colour rows found. Preview of extracted text: "${preview}". Is this the Instructions/Symbol Key PDF for a Luca-S pattern?`);
   }
   return {bySymbol, byCode, pending, colours, fabricCount, stitchesSize, finishedSize, rowCount};
+}
+
+// Content-based legend reader for layouts WITHOUT per-symbol stitch counts.
+// Runs only as a fallback (see parseLegendText) so it never touches the Luca-S
+// path. Rather than assume a fixed column order, it classifies each token by
+// what it IS and pairs a symbol glyph with the code that follows it:
+//   symbol  = a lone glyph (<=2 chars, not a number / X-anchor / header word)
+//   code    = 1-4 digits, or a named special (White/Black/Ecru/Blanc/B5200...)
+// So it reads "Sym No ColourName Strands" (native Cross Stitch Professional),
+// two column-pairs per line, and other brands' orderings alike.
+function parseLegendCountless(lines){
+  const bySymbol={}, byCode={};
+  const SPECIAL=/^(white|black|gold|silver|ecru|blanc|b5200|puregold|puresilver)$/i;
+  const isCode=t=>/^\d{1,4}$/.test(t)||SPECIAL.test(t);
+  const KEY=/^(sym|no|colou?r|name|strands?|cross|stitch|stitches|half|backstitch|back|french|knot|knots|fabric|colou?rs|size|instructions?|design|key|nr|thread|holder|chart|blend|petit|point|and|for|symbol|number|numer|page|of|the)$/i;
+  // A token can't be a chart symbol if it's multi-char, an X-anchor, dash/slash
+  // debris, or a header word. (Digits are allowed here — see the doubled-code
+  // rule below — because some CrossStitch3 glyphs decode to '2','5','8', etc.)
+  const notSym=t=> !t || [...t].length>2 || /^X\d?$/i.test(t) || /^[-–−.\/+]+$/.test(t) || KEY.test(t);
+  const add=(symbol,codeRaw,li)=>{
+    const code=String(codeRaw).toUpperCase();
+    if(!bySymbol[symbol] && !byCode[code]){
+      const nr=Object.keys(bySymbol).length+1;
+      const e={nr, symbol, code, stitches:0, li, noCount:true};
+      bySymbol[symbol]=e; byCode[code]=e;
+    }
+  };
+  for(let li=0; li<lines.length; li++){
+    const toks=(lines[li]||'').trim().split(/\s+/).filter(Boolean);
+    for(let k=0;k<toks.length;k++){
+      // Native "SYM  No  ColourName  Strands": No == ColourName, so the code
+      // prints TWICE and the symbol is the token right before it. Anchoring on
+      // the doubled code recognises a symbol even when it decodes to a digit.
+      if(k>=1 && isCode(toks[k]) && toks[k]===toks[k+1] && !notSym(toks[k-1])){
+        add(toks[k-1], toks[k], li); k++; continue;
+      }
+      // Fallback for single-code layouts: a glyph (never a bare digit here)
+      // immediately followed by one code.
+      if(!notSym(toks[k]) && !/^\d+$/.test(toks[k]) && isCode(toks[k+1])){
+        add(toks[k], toks[k+1], li); k++; continue;
+      }
+    }
+  }
+  return {bySymbol, byCode};
 }
 
 // ---- Luca-S CrossStitch3 embedded-font path -------------------------------
@@ -20763,6 +20822,31 @@ function trackerShowVerification(){
     box.style.borderColor='#3f8f5f';
     box.innerHTML=`<b style="color:#2E7D32">Manual palette.</b> ${trackerLegend.rowCount} colours assigned by you — ${trackerGrid.cols}×${trackerGrid.rows} stitches. There is no kit legend to verify against, so double-check a few symbols against your paper key.`;
     return true;
+  }
+  if(trackerLegend.noCounts){
+    // The legend carries no per-symbol stitch counts (e.g. the native Cross
+    // Stitch Professional key), so totals can't be reconciled. Verify by
+    // COVERAGE instead: every symbol the chart uses must exist in the legend.
+    const v = trackerVerifyCounts();
+    const box=document.getElementById('trk-verify');
+    const dims=trackerLegend.stitchesSize;
+    const dimOk=!dims || (trackerGrid.cols===dims.w && trackerGrid.rows===dims.h);
+    if(v.unknown===0 && dimOk){
+      box.style.borderColor='#3f8f5f';
+      box.innerHTML=`<b style="color:#2E7D32">✓ Verified by symbols.</b> ${trackerLegend.rowCount} colours on a ${trackerGrid.cols}×${trackerGrid.rows} grid. This legend has no per-symbol stitch counts, so it was checked by symbol coverage — every symbol used in the chart is present in the legend.`;
+      return true;
+    }
+    box.style.borderColor='#d9822b';
+    let msg=`<b style="color:#b25f10">⚠ Some chart symbols aren\u2019t in this legend.</b><br>Grid: ${trackerGrid.cols}×${trackerGrid.rows}`+(dims?` (legend declares ${dims.w}×${dims.h})`:'')+`.`;
+    if(v.unknown){
+      const ub=Object.entries(v.unknownBy||{}).sort((a,b)=>b[1]-a[1]);
+      msg+=`<br><b>${v.unknown.toLocaleString()} stitches use ${ub.length} symbol${ub.length===1?'':'s'} not in the legend</b>: `
+        +ub.slice(0,10).map(([ch,c])=>`\u201c${String(ch).replace(/</g,'&lt;')}\u201d (${c.toLocaleString()} st)`).join(' \u00b7 ')
+        +(ub.length>10?` \u00b7 and ${ub.length-10} more`:'')+'.';
+    }
+    msg+='<br><span style="color:var(--lp-muted,#7d6b72)">This legend has no stitch counts to cross-check, so coverage is all that can be verified. Double-check the legend and chart are the same pattern.</span>';
+    box.innerHTML=msg;
+    return false;
   }
   const v = trackerVerifyCounts();
   const box = document.getElementById('trk-verify');
@@ -23045,6 +23129,19 @@ async function trkMergeLegendIntoExact(file, st, card){
     if(r.matched<r.total) msg+=` · ${r.total-r.matched} kept placeholders`;
     if(r.countWarn){ msg+=` · ⚠ ${r.countWarn} colour(s) have different stitch counts in the legend`; st.style.color='#b25f10'; }
     st.textContent=msg;
+    // Vector symbols from the legend (not bitmap crops). The legend embeds the
+    // CrossStitch3 font, and after the remap the grid cells already hold that
+    // font's characters — so register the font from the legend PDF and draw each
+    // cell's glyph with it, pixel-exact like a chart PDF. tryBuildTracker then
+    // computes which glyphs the subset lacks and keeps legend crops for those.
+    // Fail-safe: if the font can't be registered, the crops still show symbols.
+    try{
+      if(trackerLegendBuf && await trkRegisterChartFont(trackerLegendBuf) && trackerChartFontReady){
+        trackerGrid.chartFont='CrossStitch3';
+        trackerGrid.fontCells=trackerGrid.cells.map(row=>row.slice());
+        console.log('[tracker] legend CrossStitch3 font registered — symbols render as vector, not crops');
+      }
+    }catch(e){ console.warn('[tracker] legend font registration failed — using legend crops', e); }
     await tryBuildTracker();
     renderTracker(); updateTrackerProgressUI();
   }catch(err){
