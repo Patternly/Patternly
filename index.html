@@ -24207,6 +24207,15 @@ async function acctRenderPlusStrip(){
     return;
   }
 
+  // Complimentary access (staff/VIP/comp list): granted by a Shopify tag, not a
+  // subscription, so there's no plan or renewal to show \u2014 just a friendly note.
+  const _a2=lucasAuth();
+  if((d && d.source==='comp') || (_a2 && _a2.source==='comp')){
+    draw('Plus \u2014 complimentary',
+         'You have full Plus access, on the house. Nothing to pay.',
+         'Explore Plus', ()=>openTracker());
+    return;
+  }
   const inTrial = d.lastAmount!=null && Number(d.lastAmount)===0 && d.nextBilling;
   const trialLeft = inTrial ? acctDaysLeft(d.paidAt + 14*86400000) : 0;
   const chargeDate = inTrial ? (d.paidAt + 14*86400000) : d.nextBilling;
@@ -24456,6 +24465,11 @@ async function acctRefresh(){
       window.__LUCAS_AUTH__=a;
       document.querySelectorAll('.acct-btn').forEach(b=>b.classList.toggle('acct-in', !!a.loggedIn));
       if(typeof prRenderCta==='function') prRenderCta();
+      // Auth (with the real country) has landed — if the pricing page is open,
+      // re-pick the currency so it matches the shop instead of the timezone guess.
+      if(document.body.classList.contains('pricing-mode') && typeof prGuessCurrency==='function'){
+        try{ prRender(prGuessCurrency(), prPeriod); }catch(e){}
+      }
       if(document.body.classList.contains('projects-mode') && typeof renderProjectsPage==='function') renderProjectsPage();
       const open=document.querySelector('.acct-dd.open');
       if(open) open.innerHTML=acctBuildMenu();
@@ -26597,6 +26611,9 @@ document.querySelectorAll('#lp-nav a[href^="#"]').forEach(a=>{
   // Deep link on first load: honour the hash so a shared or reloaded URL lands
   // on the right page instead of silently showing the landing page.
   window.addEventListener('DOMContentLoaded', function(){
+    // Load auth (and the visitor's country) right away, so the pricing page shows
+    // the correct currency on first paint instead of waiting for a focus/refresh.
+    try{ if(typeof acctRefresh==='function') acctRefresh(); }catch(e){}
     // QR kit link: ?sku=B710&code=KW5W75SQ (usually with #tracker). Handle this
     // before the plain hash routing, since it does more than switch pages.
     try{
