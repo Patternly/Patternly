@@ -3393,7 +3393,7 @@ body.trk-fs #trk-canvas-wrap{height:100dvh;border:none;border-radius:0;box-sizin
    area so it sits on top of the content rather than being scrolled away. */
 body.trk-fs #trk-canvas-wrap::after{
   content:'';position:fixed;inset:0;pointer-events:none;z-index:9410;
-  border:7px solid var(--lp-red,#8B1A2B)}
+  border:7px solid #ffffff}
 /* Hide the normal-mode side rail and zoombar in fullscreen — but NOT when their
    contents have been moved into the fullscreen panel. The panel borrows the live
    #trk-side / #trk-grid-pop nodes; without this exemption the display:none rule
@@ -21614,6 +21614,42 @@ function renderTracker(){
       if(cx>=trkView.sx-1 && cx<=trkView.sx+trkView.viewW+1){ trkCtx.beginPath(); trkCtx.moveTo(cx,trkView.sy); trkCtx.lineTo(cx,trkView.sy+trkView.viewH); trkCtx.stroke(); }
       const cy=(midR-vp.r0)*cell+0.5;
       if(cy>=trkView.sy-1 && cy<=trkView.sy+trkView.viewH+1){ trkCtx.beginPath(); trkCtx.moveTo(trkView.sx,cy); trkCtx.lineTo(trkView.sx+trkView.viewW,cy); trkCtx.stroke(); }
+      trkCtx.restore();
+    }
+    // Coordinate rulers: numbers every 10 along the top and left so you can see
+    // exactly where you are on the chart. They ride the visible edge (sticky) so
+    // they stay in view as you scroll, like the numbers printed down a paper chart.
+    if(cell>=4){
+      const RB=10;                                   // number every 10 cells
+      const fs=Math.max(8, Math.min(15, Math.round(cell*0.62)));
+      trkCtx.save();
+      trkCtx.font=fs+'px "DM Sans",system-ui,sans-serif';
+      trkCtx.textBaseline='middle'; trkCtx.textAlign='center';
+      const inFs=document.body.classList.contains('trk-fs');
+      const ink = inFs ? 'rgba(255,255,255,0.92)' : 'rgba(60,50,60,0.85)';
+      const halo= inFs ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.85)';
+      const topY = trkView.sy + Math.max(8, fs*0.75);
+      const leftX = trkView.sx + Math.max(10, fs*0.9);
+      // top ruler (column numbers)
+      for(let gc=Math.ceil(vc0/RB)*RB; gc<=vc1; gc+=RB){
+        if(gc===0) continue;
+        const x=(gc-vp.c0)*cell+0.5;
+        if(x<trkView.sx+2 || x>trkView.sx+trkView.viewW-2) continue;
+        const s=String(gc);
+        trkCtx.lineWidth=3; trkCtx.strokeStyle=halo; trkCtx.strokeText(s,x,topY);
+        trkCtx.fillStyle=ink; trkCtx.fillText(s,x,topY);
+      }
+      // left ruler (row numbers)
+      for(let gr=Math.ceil(vr0/RB)*RB; gr<=vr1; gr+=RB){
+        if(gr===0) continue;
+        const y=(gr-vp.r0)*cell+0.5;
+        if(y<trkView.sy+2 || y>trkView.sy+trkView.viewH-2) continue;
+        const s=String(gr);
+        trkCtx.textAlign='left';
+        trkCtx.lineWidth=3; trkCtx.strokeStyle=halo; trkCtx.strokeText(s,leftX-trkCtx.measureText(s).width/2,y);
+        trkCtx.fillStyle=ink; trkCtx.fillText(s,leftX-trkCtx.measureText(s).width/2,y);
+        trkCtx.textAlign='center';
+      }
       trkCtx.restore();
     }
   }
