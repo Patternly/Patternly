@@ -3321,7 +3321,21 @@ body.dark #trk-selcard-sym{background:#221b2d;border-color:#4a3d55}
 .trk-crow.sel{background:#fdeef2;outline:1.5px solid var(--lp-red,#8B1A2B)}
 body.dark .trk-crow:hover{background:#2b2338}
 body.dark .trk-crow.sel{background:#3a2130}
-#trk-proj-grid,#trk-saved-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:1rem;max-width:1000px;margin:0 auto 1.2rem}
+#trk-saved-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:1rem;max-width:1000px;margin:0 auto 1.2rem}
+/* Grid/list toggle for the tracker home sections. Default (no modifier) is the
+   horizontal slider; .as-list stacks compact rows. */
+.trk-cardgrid{max-width:1000px;margin:0 auto 1.4rem;display:flex;gap:1rem;overflow-x:auto;padding:.2rem .1rem 1rem;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+.trk-cardgrid > .trk-pcard{flex:0 0 215px;scroll-snap-align:start}
+.trk-cardgrid.as-list{display:flex;flex-direction:column;gap:.7rem;overflow:visible;padding:0}
+.trk-cardgrid.as-list > .trk-pcard{flex:0 0 auto;display:flex;align-items:stretch}
+.trk-cardgrid.as-list > .trk-pcard .thumb{width:92px;height:92px;flex:0 0 92px;align-self:center;margin:.5rem 0 .5rem .5rem;border-radius:8px}
+.trk-cardgrid.as-list > .trk-pcard .body{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center}
+.trk-viewtog{display:inline-flex;border:1.5px solid #eadde1;border-radius:9px;overflow:hidden;flex:0 0 auto}
+.trk-viewtog button{border:none;background:#fff;color:#8a7f86;padding:.28rem .5rem;cursor:pointer;display:flex;align-items:center;line-height:0}
+.trk-viewtog button.active{background:var(--lp-red,#8B1A2B);color:#fff}
+body.dark .trk-viewtog{border-color:#4a3d55}
+body.dark .trk-viewtog button{background:#221b2d;color:#b7a9b8}
+body.dark .trk-viewtog button.active{background:var(--lp-red,#8B1A2B);color:#fff}
 #tracker-page #trk-saved{max-width:1000px;margin-left:auto;margin-right:auto}
 .trk-pcard{background:#fff;border:1.5px solid #eadde1;border-radius:14px;overflow:hidden;box-shadow:0 2px 10px rgba(43,34,38,.05)}
 .trk-pcard .thumb{width:100%;height:150px;object-fit:contain;display:block;background:
@@ -5412,12 +5426,18 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
          then My Tracked Patterns. The guide banner drops to the bottom. -->
     <div id="trk-projects" style="display:none">
       <div id="trk-kits-section" style="display:none">
-        <h2 style="display:block;width:100%;max-width:1000px;margin:.2rem auto .8rem;font-size:1.15rem;color:var(--lp-ink,#2b2226);font-family:'DM Serif Display',Georgia,serif">My Luca-S Patterns</h2>
-        <div id="trk-mykits-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:1rem;max-width:1000px;margin:0 auto 1.6rem"></div>
+        <div class="trk-sec-head" style="max-width:1000px;margin:.2rem auto .8rem;display:flex;align-items:center;gap:.6rem">
+          <h2 style="flex:1;margin:0;font-size:1.15rem;color:var(--lp-ink,#2b2226);font-family:'DM Serif Display',Georgia,serif">My Luca-S Patterns</h2>
+          <span class="trk-viewtog" id="trk-view-kits"></span>
+        </div>
+        <div id="trk-mykits-grid" class="trk-cardgrid"></div>
       </div>
       <div id="trk-uploads-section">
-        <h2 id="trk-uploads-head" style="display:block;width:100%;max-width:1000px;margin:.2rem auto .3rem;font-size:1.15rem;color:var(--lp-ink,#2b2226);font-family:'DM Serif Display',Georgia,serif">My Tracked Patterns</h2>
-        <div id="trk-proj-grid"></div>
+        <div class="trk-sec-head" style="max-width:1000px;margin:.2rem auto .3rem;display:flex;align-items:center;gap:.6rem">
+          <h2 id="trk-uploads-head" style="flex:1;margin:0;font-size:1.15rem;color:var(--lp-ink,#2b2226);font-family:'DM Serif Display',Georgia,serif">My Tracked Patterns</h2>
+          <span class="trk-viewtog" id="trk-view-uploads"></span>
+        </div>
+        <div id="trk-proj-grid" class="trk-cardgrid"></div>
       </div>
     </div>
     <!-- Luca-S catalogue -->
@@ -19102,6 +19122,36 @@ function trkShowHomeInner(list){
       if(upSection) upSection.style.display = hasAny ? '' : 'none';
     });
   }
+  // View toggle (grid slider / list) per section, remembered across sessions.
+  trkSetupViewToggle('kits','trk-view-kits','trk-mykits-grid');
+  trkSetupViewToggle('uploads','trk-view-uploads','trk-proj-grid');
+}
+// Per-section grid/list view. Default (no modifier) is the horizontal slider;
+// 'list' stacks compact rows. The choice is remembered in localStorage.
+function trkViewMode(key){
+  try{ return localStorage.getItem('patternly_trk_view_'+key)==='list' ? 'list' : 'grid'; }catch(e){ return 'grid'; }
+}
+function trkApplyView(gridEl, mode){
+  if(!gridEl) return;
+  gridEl.classList.add('trk-cardgrid');
+  gridEl.classList.toggle('as-list', mode==='list');
+}
+function trkSetupViewToggle(key, togId, gridId){
+  const tog=document.getElementById(togId), grid=document.getElementById(gridId);
+  if(!tog || !grid) return;
+  trkApplyView(grid, trkViewMode(key));
+  const gI='<svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1"/><rect x="9" y="1.5" width="5.5" height="5.5" rx="1"/><rect x="1.5" y="9" width="5.5" height="5.5" rx="1"/><rect x="9" y="9" width="5.5" height="5.5" rx="1"/></svg>';
+  const lI='<svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor"><rect x="1.5" y="2.5" width="13" height="2.6" rx="1"/><rect x="1.5" y="6.7" width="13" height="2.6" rx="1"/><rect x="1.5" y="10.9" width="13" height="2.6" rx="1"/></svg>';
+  tog.innerHTML='<button type="button" data-m="grid" title="Slider view" aria-label="Slider view">'+gI+'</button>'
+              +'<button type="button" data-m="list" title="List view" aria-label="List view">'+lI+'</button>';
+  const mark=()=>tog.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.m===trkViewMode(key)));
+  mark();
+  tog.querySelectorAll('button').forEach(b=>{
+    b.onclick=()=>{
+      try{ localStorage.setItem('patternly_trk_view_'+key, b.dataset.m); }catch(e){}
+      trkApplyView(grid, b.dataset.m); mark();
+    };
+  });
 }
 function trkTitleReset(){
   const t=document.querySelector('#tracker-page .calc-title'), s=document.querySelector('#tracker-page .calc-sub');
