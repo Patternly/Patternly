@@ -19693,6 +19693,34 @@ function parseLegendText(text){
     }
   }
 
+  // ── Recovery pass: rescue numbered colour rows the positional handlers above
+  //    skipped — a symbol that is itself a digit ("36 5 5 275 1033"), an unusual
+  //    glyph ("15 „ „ 360 288"), or a row buried under a trailing multilingual
+  //    backstitch note ("17 Š Š 374 352  Use 1 strand of 6 …"). Anchor on the
+  //    DOUBLED symbol column: two identical ≤2-char glyphs (not an X-strand
+  //    marker) immediately followed by code+count is unambiguous structure —
+  //    strong enough to trust even a digit or punctuation symbol, and it can't
+  //    mistake a strand count "X 2" or a backstitch note for a colour row. Runs
+  //    after the main handlers and ONLY adds codes+symbols they didn't already
+  //    capture, so rows that parsed correctly are never altered.
+  for(let li=0; li<lines.length; li++){
+    const ts = lines[li].trim().split(/\s+/).filter(Boolean);
+    if(ts.length<5 || !/^\d{1,3}$/.test(ts[0])) continue; // "Nr S S code count …"
+    const nr = parseInt(ts[0]);
+    for(let i=1;i+3<ts.length;i++){
+      const s=ts[i];
+      if(s===ts[i+1] && [...s].length<=2 && !/^X\d?$/i.test(s) &&
+         isCode(ts[i+2]) && countOf(ts[i+3])!==null){
+        const code=ts[i+2];
+        if(!byCode[code] && !bySymbol[s]){
+          const entry={nr, symbol:s, code, stitches:countOf(ts[i+3]), li};
+          bySymbol[s]=entry; byCode[code]=entry;
+        }
+        break;
+      }
+    }
+  }
+
   const rowCount = Object.keys(bySymbol).length;
   // Content-based fallback for count-less legends (e.g. the native Cross Stitch
   // Professional key "SYM  No  ColourName  Strands"): those rows carry no stitch
