@@ -3,6 +3,19 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="color-scheme" content="light">
+<script>
+/* Sign-in popup returning from Shopify: we ask Shopify to send it back here with
+   ?pl_authdone=1. By the time it lands, the luca-s.com customer-session cookie is
+   set, so signal the opener (which re-checks /whoami) and close — before the app
+   renders, so there's no flash and no manual step. Only fires when this really is
+   the popup (has an opener), so a normal visit with the param is unaffected. */
+try{
+  if(location.search.indexOf('pl_authdone')>-1 && window.opener && !window.opener.closed){
+    try{ window.opener.postMessage({type:'lucas_auth_done'}, location.origin); }catch(e){}
+    window.close();
+  }
+}catch(e){}
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Patternly by Luca-S — Pattern Editor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
@@ -2901,8 +2914,8 @@ body.dark .lp-btn-ghost{ color:#e0a9b4; border-color:#e0a9b4; }
 body.dark #trk-saved-title{ color:#f2ecf4 !important; }
 body.dark #trk-convert-btn{ color:#e0a9b4; border-color:#5a4550; }
 body.dark #trk-convert-btn:hover{ background:#2f2030; }
-body.dark #trk-manual-btn{ color:#e0a9b4; border-color:#5a4550; }
-body.dark #trk-manual-btn:hover{ background:#2f2030; }
+body.dark #trk-manual-btn,body.dark #trk-skip-btn{ background:#2a2138; border-color:#5a4550; color:#e0a9b4; }
+body.dark #trk-manual-btn:hover:not(:disabled),body.dark #trk-skip-btn:hover:not(:disabled){ background:#2f2030; border-color:#e0a9b4; }
 /* the "still finishing PDF" verify box: inline white background */
 body.dark #trk-verify{ background:#221c30 !important; border-color:#37303f !important; }
 body.dark #trk-verify p{ color:#b6abc2 !important; }
@@ -3138,8 +3151,8 @@ body.trackerguide-mode #landing-page,body.trackerguide-mode #app-wrapper,body.tr
 #guide-page .cols{display:grid; grid-template-columns:1fr 1fr; gap:1rem;}
 @media (max-width:640px){#guide-page .cols{grid-template-columns:1fr;}
 }
-#guide-page footer{text-align:center; padding:3rem 1.3rem 4rem; color:var(--g-muted); font-size:.82rem;}
-#guide-page footer a{color:var(--g-red); text-decoration:none; font-weight:600;}
+#guide-page footer:not(.lp-footer){text-align:center; padding:3rem 1.3rem 4rem; color:var(--g-muted); font-size:.82rem;}
+#guide-page footer:not(.lp-footer) a{color:var(--g-red); text-decoration:none; font-weight:600;}
 #guide-page .stitch-cell{opacity:0; animation:g-pop .4s ease forwards;}
 @keyframes g-pop{ from{ opacity:0; transform:scale(.4); } to{ opacity:1; transform:scale(1); } }
 #guide-page .toc-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:.7rem; margin:1.5rem 0;}
@@ -3211,8 +3224,8 @@ body.trackerguide-mode #landing-page,body.trackerguide-mode #app-wrapper,body.tr
 #trackerguide-page .device svg{display:block; margin:0 auto .4rem;}
 #trackerguide-page .device span{font-size:.76rem; color:var(--tg-muted); font-weight:600;}
 #trackerguide-page .sync-flow{color:var(--tg-red-lt);}
-#trackerguide-page footer{text-align:center; padding:3rem 1.3rem 4rem; color:var(--tg-muted); font-size:.82rem;}
-#trackerguide-page footer a{color:var(--tg-red); text-decoration:none; font-weight:600;}
+#trackerguide-page footer:not(.lp-footer){text-align:center; padding:3rem 1.3rem 4rem; color:var(--tg-muted); font-size:.82rem;}
+#trackerguide-page footer:not(.lp-footer) a{color:var(--tg-red); text-decoration:none; font-weight:600;}
 #trackerguide-page .cta-row{text-align:center; margin:2.5rem 0 1rem;}
 #trackerguide-page .btn{display:inline-block; background:var(--tg-red); color:#fff; text-decoration:none; font-weight:700;
     font-size:.95rem; padding:.8rem 1.8rem; border-radius:11px; transition:background .15s;}
@@ -3268,14 +3281,16 @@ body.dark #trk-kits-sort{background:#221b2d;border-color:#4a3d55;color:#e7dcea}
 .trk-fmt select:focus{outline:none;border-color:var(--lp-red,#8B1A2B)}
 .trk-card.done .trk-clear{display:inline-block}
 #trk-exact-continue{margin-top:.55rem;border:1.5px solid var(--lp-red,#8B1A2B);background:var(--lp-red,#8B1A2B);color:#fff;border-radius:8px;padding:.4rem .8rem;font-size:.72rem;font-weight:700;cursor:pointer}
-#trk-manual-btn{margin-top:.55rem;border:1.5px dashed #d9c8ce;background:none;border-radius:8px;padding:.35rem .6rem;font-size:.7rem;font-weight:700;color:var(--lp-red,#8B1A2B);cursor:pointer}
-#trk-manual-btn:disabled{opacity:.4;cursor:default}
+#trk-manual-btn,#trk-skip-btn{display:block;width:100%;box-sizing:border-box;margin-top:.5rem;border-radius:9px;padding:.55rem .8rem;font-size:.76rem;font-weight:700;cursor:pointer;font-family:inherit;transition:background .15s,border-color .15s,color .15s}
+#trk-manual-btn{border:1.5px solid var(--lp-red,#8B1A2B);background:#fff;color:var(--lp-red,#8B1A2B)}
+#trk-manual-btn:hover:not(:disabled){background:#fdf2f4}
+#trk-manual-btn:disabled,#trk-skip-btn:disabled{opacity:.4;cursor:default}
 #trk-convert-btn{margin-top:.4rem;border:1.5px dashed #d9c8ce;background:none;border-radius:8px;padding:.35rem .7rem;font-size:.7rem;font-weight:700;color:var(--lp-red,#8B1A2B);cursor:pointer;font-family:inherit;transition:background .15s,border-color .15s}
 #trk-convert-btn:hover{background:#fdf2f4;border-color:var(--lp-red,#8B1A2B)}
 #trk-legend-brand{font-family:inherit;font-size:.72rem;font-weight:700;color:var(--lp-red,#8B1A2B);padding:.2rem .4rem;border:1.5px solid #e6d9dd;border-radius:8px;background:#fff;cursor:pointer}
 #trk-legend-brand:focus{outline:none;border-color:var(--lp-red,#8B1A2B)}
-#trk-skip-btn{margin-top:.35rem;border:none;background:none;font-size:.7rem;font-weight:700;color:var(--lp-muted,#7d6b72);cursor:pointer;text-decoration:underline}
-#trk-skip-btn:disabled{opacity:.4;cursor:default}
+#trk-skip-btn{border:1.5px solid #d9c8ce;background:#fff;color:var(--lp-ink,#2b2226)}
+#trk-skip-btn:hover:not(:disabled){border-color:var(--lp-red,#8B1A2B);color:var(--lp-red,#8B1A2B)}
 #trk-manual{max-width:760px;margin:0 auto 1rem;background:#fff;border:1.5px solid #e6d9dd;border-radius:12px;padding:1rem}
 #trk-manual h3{font-size:.95rem;margin:0 0 .2rem;color:var(--lp-ink,#2b2226)}
 #trk-manual .sub{font-size:.72rem;color:var(--lp-muted,#7d6b72);margin-bottom:.7rem}
@@ -3800,15 +3815,28 @@ body.dark .lp-coming-banner .lp-section-label{ color:#8B1A2B !important; }
 body.dark .ptly-foot{background:#171220;border-color:#3a3350}
 body.dark .ptly-foot-links a{color:#b9adc4}
 body.dark .ptly-foot-bottom{color:#7d7288}
-.lp-footer{background:#0f0a14;padding:3rem 0 1.5rem}
+/* Footer follows the theme: light by default, dark band under body.dark.
+   Colours are driven by CSS (not inline) so both themes read correctly. */
+.lp-footer{background:var(--lp-cream,#f5edee);padding:3rem 0 1.5rem;color:var(--lp-ink,#1a1520);border-top:1px solid var(--lp-border,#e8e4f0)}
 .lp-footer-inner{display:flex;gap:4rem;margin-bottom:2.5rem;flex-wrap:wrap}
 .lp-footer-brand{flex:1;min-width:180px}
+.lp-footer-brand .lp-logo,.lp-footer-brand .lp-logo span{color:var(--lp-ink,#1a1520)}
+.lp-footer-brand sup{color:var(--lp-muted,#5a5268)}
+.lp-footer-brand p{color:var(--lp-muted,#5a5268);font-size:.75rem;margin-top:.5rem;line-height:1.5}
 .lp-footer-links{display:flex;gap:3rem;flex-wrap:wrap}
 .lp-footer-col{display:flex;flex-direction:column;gap:.5rem}
-.lp-footer-col-title{font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:.25rem}
-.lp-footer-col a{text-decoration:none;font-size:.82rem;color:rgba(255,255,255,.55);transition:color .15s}
-.lp-footer-col a:hover{color:#fff}
-.lp-footer-bottom{display:flex;justify-content:space-between;font-size:.72rem;color:rgba(255,255,255,.3);border-top:1px solid rgba(255,255,255,.08);padding-top:1.25rem;flex-wrap:wrap;gap:.5rem}
+.lp-footer-col-title{font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--lp-muted,#5a5268);margin-bottom:.25rem}
+.lp-footer-col a{text-decoration:none;font-size:.82rem;color:var(--lp-muted,#5a5268);transition:color .15s}
+.lp-footer-col a:hover{color:var(--lp-red,#8B1A2B)}
+.lp-footer-bottom{display:flex;justify-content:space-between;font-size:.72rem;color:var(--lp-muted,#5a5268);opacity:.8;border-top:1px solid var(--lp-border,#e8e4f0);padding-top:1.25rem;flex-wrap:wrap;gap:.5rem}
+body.dark .lp-footer{background:#0f0a14;color:#fff;border-top-color:rgba(255,255,255,.08)}
+body.dark .lp-footer-brand .lp-logo,body.dark .lp-footer-brand .lp-logo span{color:#fff}
+body.dark .lp-footer-brand sup{color:rgba(255,255,255,.6)}
+body.dark .lp-footer-brand p{color:rgba(255,255,255,.5)}
+body.dark .lp-footer-col-title{color:rgba(255,255,255,.4)}
+body.dark .lp-footer-col a{color:rgba(255,255,255,.55)}
+body.dark .lp-footer-col a:hover{color:#fff}
+body.dark .lp-footer-bottom{color:rgba(255,255,255,.3);opacity:1;border-top-color:rgba(255,255,255,.08)}
 
 /* APP topbar */
 #topbar{
@@ -5318,11 +5346,11 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
   <div class="lp-container">
     <div class="lp-footer-inner">
       <div class="lp-footer-brand">
-        <a href="#" class="lp-logo" onclick="lpLogoHome();return false" style="color:#fff;text-decoration:none">
+        <a href="#" class="lp-logo" onclick="lpLogoHome();return false" style="text-decoration:none">
           <svg width="22" height="22" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="13" fill="#8B1A2B"/><path d="M8 14l4 4 8-8" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span style="color:#fff">Patternly</span><sup style="color:rgba(255,255,255,.6)">by Luca-S</sup>
+          <span>Patternly</span><sup>by Luca-S</sup>
         </a>
-        <p style="color:rgba(255,255,255,.5);font-size:.75rem;margin-top:.5rem;line-height:1.5">A free cross stitch pattern editor<br>made with ❤️ by Luca-S</p>
+        <p>A free cross stitch pattern editor<br>made with ❤️ by Luca-S</p>
       </div>
       <div class="lp-footer-links">
         <div class="lp-footer-col">
@@ -5333,13 +5361,13 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
           <a href="#" onclick="openThreads();return false">Thread Colours</a>
           <a href="#" onclick="openFileConverter();return false">File Converter</a>
           <a href="#" onclick="openCalculators();return false">Calculators</a>
-          <a href="#" onclick="openPricing();return false">Pricing</a>
-          <a href="#" onclick="openGuide();return false">Guide</a>
         </div>
         <div class="lp-footer-col">
           <div class="lp-footer-col-title">Learn</div>
           <a href="#how-it-works">How it works</a>
           <a href="#about">About Luca-S</a>
+          <a href="#" onclick="openPricing();return false">Pricing</a>
+          <a href="#" onclick="openGuide();return false">Guide</a>
         </div>
       </div>
     </div>
@@ -5538,7 +5566,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
         <button class="trk-clear" id="trk-legend-clear" onclick="event.stopPropagation();trkClearLegend()">✕ Clear file</button>
         <button id="trk-exact-continue" onclick="event.stopPropagation();trkExactContinue()" style="display:none">➡ Continue with generic symbols</button>
         <button id="trk-manual-btn" onclick="event.stopPropagation();trkManualOpen()" disabled>✍️ No legend? Assign colours manually</button>
-        <button id="trk-skip-btn" onclick="event.stopPropagation();trkSkipOpen()" disabled style="display:none">⏭ Skip — track by symbols only</button>
+        <button id="trk-skip-btn" onclick="event.stopPropagation();trkSkipOpen()" disabled>⏭ Skip colours — stitch based on symbols</button>
       </div>
     </div>
     <div id="trk-manual" style="display:none"></div>
@@ -6213,10 +6241,39 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 
 </div>
 
-<footer>
-  <div class="wrap">
-    <p>The Patternly Handbook · Made for stitchers, by Luca-S.
-      <a href="https://luca-s.com/apps/patternly">Open Patternly →</a></p>
+<footer class="lp-footer">
+  <div class="lp-container">
+    <div class="lp-footer-inner">
+      <div class="lp-footer-brand">
+        <a href="#" class="lp-logo" onclick="goHome();return false" style="text-decoration:none">
+          <svg width="22" height="22" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="13" fill="#8B1A2B"/><path d="M8 14l4 4 8-8" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Patternly</span><sup>by Luca-S</sup>
+        </a>
+        <p>A free cross stitch pattern editor<br>made with ❤️ by Luca-S</p>
+      </div>
+      <div class="lp-footer-links">
+        <div class="lp-footer-col">
+          <div class="lp-footer-col-title">Product</div>
+          <a href="#" onclick="ptlyGoSection('features');return false">Features</a>
+          <a href="#" onclick="openApp();return false">Open Editor</a>
+          <a href="#" onclick="openTracker();return false">Stitch Tracker</a>
+          <a href="#" onclick="openThreads();return false">Thread Colours</a>
+          <a href="#" onclick="openFileConverter();return false">File Converter</a>
+          <a href="#" onclick="openCalculators();return false">Calculators</a>
+        </div>
+        <div class="lp-footer-col">
+          <div class="lp-footer-col-title">Learn</div>
+          <a href="#" onclick="ptlyGoSection('how-it-works');return false">How it works</a>
+          <a href="#" onclick="ptlyGoSection('about');return false">About Luca-S</a>
+          <a href="#" onclick="openPricing();return false">Pricing</a>
+          <a href="#" onclick="openGuide();return false">Guide</a>
+        </div>
+      </div>
+    </div>
+    <div class="lp-footer-bottom">
+      <span>© 2026 Luca-S. All rights reserved.</span>
+      <span>Patternly is free to use. No account required.</span>
+    </div>
   </div>
 </footer>
 </div>
@@ -6410,10 +6467,39 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 
 </div>
 
-<footer>
-  <div class="wrap">
-    <p>Made for stitchers, by Luca-S. Questions about your kit or code?
-      <a href="https://luca-s.com/pages/contact">Get in touch</a>.</p>
+<footer class="lp-footer">
+  <div class="lp-container">
+    <div class="lp-footer-inner">
+      <div class="lp-footer-brand">
+        <a href="#" class="lp-logo" onclick="goHome();return false" style="text-decoration:none">
+          <svg width="22" height="22" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="13" fill="#8B1A2B"/><path d="M8 14l4 4 8-8" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Patternly</span><sup>by Luca-S</sup>
+        </a>
+        <p>A free cross stitch pattern editor<br>made with ❤️ by Luca-S</p>
+      </div>
+      <div class="lp-footer-links">
+        <div class="lp-footer-col">
+          <div class="lp-footer-col-title">Product</div>
+          <a href="#" onclick="ptlyGoSection('features');return false">Features</a>
+          <a href="#" onclick="openApp();return false">Open Editor</a>
+          <a href="#" onclick="openTracker();return false">Stitch Tracker</a>
+          <a href="#" onclick="openThreads();return false">Thread Colours</a>
+          <a href="#" onclick="openFileConverter();return false">File Converter</a>
+          <a href="#" onclick="openCalculators();return false">Calculators</a>
+        </div>
+        <div class="lp-footer-col">
+          <div class="lp-footer-col-title">Learn</div>
+          <a href="#" onclick="ptlyGoSection('how-it-works');return false">How it works</a>
+          <a href="#" onclick="ptlyGoSection('about');return false">About Luca-S</a>
+          <a href="#" onclick="openPricing();return false">Pricing</a>
+          <a href="#" onclick="openGuide();return false">Guide</a>
+        </div>
+      </div>
+    </div>
+    <div class="lp-footer-bottom">
+      <span>© 2026 Luca-S. All rights reserved.</span>
+      <span>Patternly is free to use. No account required.</span>
+    </div>
   </div>
 </footer>
 </div>
@@ -18295,6 +18381,17 @@ function trkDeleteProject(id, name){
         const blob=localStorage.getItem('patternly_trk_proj_'+id);
         if(blob && typeof trkSyncIdFromBlob==='function') syncId=trkSyncIdFromBlob(blob, id);
       }catch(e){}
+      // Tombstone the pattern's identity. The account id is a content hash that
+      // can drift from what was pushed, so the server delete below may miss a
+      // stale copy — which then RESURFACES as an "On your account" card the user
+      // just deleted. Suppress those cards locally by id and by name+size (the
+      // account keeps the backup; "Restore a backup" can still bring it back).
+      try{
+        const p=(typeof trkIndex==='function' ? trkIndex().find(x=>x.id===id) : null)||{};
+        const tomb=JSON.parse(localStorage.getItem('patternly_trk_tombstones')||'[]');
+        tomb.push({syncId, name:name||p.name||'', cols:p.cols, rows:p.rows, ts:Date.now()});
+        localStorage.setItem('patternly_trk_tombstones', JSON.stringify(tomb.slice(-60)));
+      }catch(e){}
       localStorage.removeItem('patternly_trk_proj_'+id);
       localStorage.removeItem('patternly_tracker_'+id);
       trkIndexWrite(trkIndex().filter(p=>p.id!==id));
@@ -18406,16 +18503,18 @@ async function trkChooseSource(kind){
 }
 // Called once both files are attached, just before the tracker is built.
 // Resolves when a name exists, so the caller can await it.
+// Resolves true when the user commits a name (Continue), false when they back
+// out (Cancel) — the caller must NOT build/save the pattern on false.
 function trkAskProjectName(){
   return new Promise(resolve=>{
-    if(trkPendingName || typeof pjShowModal!=='function'){ resolve(); return; }
+    if(trkPendingName || typeof pjShowModal!=='function'){ resolve(true); return; }
     pjShowModal({
       title:'Name your project',
       body:'Give this tracked pattern a title so you can find it later.',
       input:{placeholder:'e.g. Winter Wolves', value:'', maxLength:40},
       confirmLabel:'Continue',
-      onConfirm(v){ trkPendingName=(v||'').trim()||'Tracked Pattern'; resolve(); },
-      onCancel(){ trkPendingName='Tracked Pattern'; resolve(); }
+      onConfirm(v){ trkPendingName=(v||'').trim()||'Tracked Pattern'; resolve(true); },
+      onCancel(){ trkPendingName=''; resolve(false); }   // leave the name unset so a later Continue re-asks
     });
   });
 }
@@ -18988,7 +19087,19 @@ async function trkAppendUserPatternCards(grid){
       if(blob) localSyncIds.add(trkSyncIdFromBlob(blob, p.id));
     }
   }catch(e){}
-  const missing = info.items.filter(it=>!localSyncIds.has(it.id));
+  let missing = info.items.filter(it=>!localSyncIds.has(it.id));
+  // Hide account copies the user has deleted locally (see trkDeleteProject) so a
+  // just-removed pattern can't reappear as a cloud card. Match by account id or
+  // by name+size, ignoring any " (2)" collision suffix the sync added.
+  try{
+    const tomb=JSON.parse(localStorage.getItem('patternly_trk_tombstones')||'[]');
+    if(tomb.length){
+      const strip=s=>String(s||'').replace(/\s*\(\d+\)\s*$/,'').trim().toLowerCase();
+      missing = missing.filter(it=> !tomb.some(t=>
+        (t.syncId && t.syncId===it.id) ||
+        (strip(t.name) && strip(t.name)===strip(it.name) && t.cols===it.cols && t.rows===it.rows)));
+    }
+  }catch(e){}
   if(!missing.length) return;
   const esc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
   const rel=ts=>{ const m=Math.floor((Date.now()-ts)/60000); if(m<60) return m<=1?'just now':m+'m ago'; const h=Math.floor(m/60); if(h<24) return h+'h ago'; return Math.floor(h/24)+'d ago'; };
@@ -21725,8 +21836,10 @@ async function trkBuildLegendSpritesHybrid(){
 async function tryBuildTracker(){
   if(!trackerLegend || !trackerGrid || !trackerColourMap) return;
   // Both files are in and parsed, so now there is something to name. Catalogue
-  // kits already carry the product title and skip this.
-  await trkAskProjectName();
+  // kits already carry the product title and skip this. Cancel = don't create:
+  // stay on the upload screen with the files still attached (re-attaching a file
+  // asks again), and never build or save the project.
+  if(await trkAskProjectName()===false) return;
   // Crops FIRST — normalization uses shapes as evidence. Pre-normalization the
   // chart pass keys sprites by RAW glyph (the mapping is still empty).
   trkRawSprites={}; trkLegendSprites={};
@@ -24621,18 +24734,43 @@ function acctRenderPage(){
 // stitching canvas itself (app-mode / tracker-mode): those are workspaces where
 // a footer is only clutter and a mis-tap loses your place. One definition,
 // injected into whichever page is on screen, so the links never drift apart.
+// One footer definition, matching the landing page, injected into whichever
+// full-page tool is on screen so every page shows the SAME footer. NOT on the
+// stitching canvas (app-mode / tracker-mode) where a footer is only clutter.
+// Links are function-based so they work from any page (hash anchors would only
+// resolve on the landing); landing sections route home first, then scroll.
+function ptlyGoSection(id){ try{ goHome(); }catch(e){} setTimeout(()=>{ const el=document.getElementById(id); if(el) el.scrollIntoView({behavior:'smooth'}); }, 70); }
 function ptlyFooterHTML(){
-  const link=(fn,label)=>'<a href="#" onclick="'+fn+';return false">'+label+'</a>';
-  return '<div class="ptly-foot-inner">'
-    + '<div class="ptly-foot-links">'
-    +   link('openThreads()','Thread Colours')
-    +   link('openFileConverter()','File Converter')
-    +   link('openCalculators()','Calculators')
-    +   link('openTracker()','Stitch Tracker')
-    +   link('openPricing()','Pricing')
+  const fn=(call,label)=>'<a href="#" onclick="'+call+';return false">'+label+'</a>';
+  return '<div class="lp-container">'
+    + '<div class="lp-footer-inner">'
+    +   '<div class="lp-footer-brand">'
+    +     '<a href="#" class="lp-logo" onclick="goHome();return false" style="text-decoration:none">'
+    +       '<svg width="22" height="22" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="13" fill="#8B1A2B"/><path d="M8 14l4 4 8-8" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    +       '<span>Patternly</span><sup>by Luca-S</sup>'
+    +     '</a>'
+    +     '<p>A free cross stitch pattern editor<br>made with \u2764\ufe0f by Luca-S</p>'
+    +   '</div>'
+    +   '<div class="lp-footer-links">'
+    +     '<div class="lp-footer-col"><div class="lp-footer-col-title">Product</div>'
+    +       fn("ptlyGoSection('features')",'Features')
+    +       fn('openApp()','Open Editor')
+    +       fn('openTracker()','Stitch Tracker')
+    +       fn('openThreads()','Thread Colours')
+    +       fn('openFileConverter()','File Converter')
+    +       fn('openCalculators()','Calculators')
+    +     '</div>'
+    +     '<div class="lp-footer-col"><div class="lp-footer-col-title">Learn</div>'
+    +       fn("ptlyGoSection('how-it-works')",'How it works')
+    +       fn("ptlyGoSection('about')",'About Luca-S')
+    +       fn('openPricing()','Pricing')
+    +       fn('openGuide()','Guide')
+    +     '</div>'
+    +   '</div>'
     + '</div>'
-    + '<div class="ptly-foot-bottom">\u00a9 ' + new Date().getFullYear()
-    +   ' Luca-S \u00b7 Patternly is free to use, no account required.</div>'
+    + '<div class="lp-footer-bottom">'
+    +   '<span>\u00a9 ' + new Date().getFullYear() + ' Luca-S. All rights reserved.</span>'
+    +   '<span>Patternly is free to use. No account required.</span>'
     + '</div>';
 }
 
@@ -24640,10 +24778,11 @@ function ptlyFooterHTML(){
 function ptlyEnsureFooter(pageId){
   const page=document.getElementById(pageId);
   if(!page) return;
-  let f=page.querySelector(':scope > .ptly-foot');
+  const old=page.querySelector(':scope > .ptly-foot'); if(old) old.remove(); // retire the former slim footer
+  let f=page.querySelector(':scope > footer.lp-footer');
   if(!f){
     f=document.createElement('footer');
-    f.className='ptly-foot';
+    f.className='lp-footer';
     page.appendChild(f);
   }
   f.innerHTML=ptlyFooterHTML();
@@ -24995,7 +25134,10 @@ function acctModalClose(cancelled){
 function acctReopen(){
   const w=460, h=640;
   const x=Math.max(0,(screen.width-w)/2), y=Math.max(0,(screen.height-h)/2);
-  _acctLoginWin=window.open('/account/login','lucas_login',`popup=yes,width=${w},height=${h},left=${x},top=${y}`);
+  // Ask Shopify to return the popup to THIS app path (with a marker) after login,
+  // so the luca-s.com session cookie is set and the popup can self-signal + close.
+  const ret=encodeURIComponent(location.pathname+'?pl_authdone=1');
+  _acctLoginWin=window.open('/account/login?return_url='+ret,'lucas_login',`popup=yes,width=${w},height=${h},left=${x},top=${y}`);
 }
 async function acctOpenLogin(){
   acctCloseAll();
@@ -25009,8 +25151,9 @@ async function acctOpenLogin(){
   acctModalShow();
   acctReopen();
   if(!_acctLoginWin){
-    // popup blocked → plain tab; the modal keeps orchestrating
-    window.open('/account/login','_blank','noopener');
+    // popup blocked → plain tab; the modal keeps orchestrating. Still ask Shopify
+    // to return to the app so the cookie lands and polling catches it quickly.
+    window.open('/account/login?return_url='+encodeURIComponent(location.pathname),'_blank','noopener');
     document.getElementById('acct-m-text').textContent='A sign-in tab has opened. Finish there and come back — this page will notice by itself.';
   }
   clearInterval(_acctPollTimer);
@@ -25057,6 +25200,25 @@ function acctToggle(btn){
 }
 document.addEventListener('click',e=>{ if(!e.target.closest('.acct-wrap')) acctCloseAll(); });
 (function(){
+  // When the sign-in popup returns and signals it's done, re-check auth at once
+  // (no waiting for the 2.5s poll) and finish the flow.
+  window.addEventListener('message', e=>{
+    if(e.origin!==location.origin || !e.data || e.data.type!=='lucas_auth_done') return;
+    if(typeof acctRefresh!=='function') return;
+    acctRefresh().then(()=>{
+      if(typeof lucasAuth==='function' && lucasAuth().loggedIn){
+        clearInterval(_acctPollTimer);
+        try{ _acctLoginWin && _acctLoginWin.close(); }catch(err){}
+        if(typeof acctModalSuccess==='function') acctModalSuccess();
+        if(typeof toast==='function') toast('✓ Signed in with your Luca-S account');
+      }
+    });
+  });
+  // Safety net: also re-check the instant the user returns to this tab, so even
+  // if the popup couldn't self-close, coming back here signs them in immediately.
+  const recheck=()=>{ if(typeof acctRefresh==='function') acctRefresh(); };
+  window.addEventListener('focus', recheck);
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) recheck(); });
   if(lucasAuth().loggedIn) document.querySelectorAll('.acct-btn').forEach(b=>{ b.classList.add('acct-in'); b.title='Your Luca-S account — signed in'; });
 })();
 function openFileConverter(){
