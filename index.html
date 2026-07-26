@@ -3244,6 +3244,13 @@ body.tracker-mode{overflow:auto}
 #tracker-page #trk-kits-grid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.3rem}
 #tracker-page #trk-kits-grid > div{transition:transform .15s,box-shadow .15s}
 #tracker-page #trk-kits-grid > div:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(139,26,43,.12)}
+/* Catalogue list view (toggle): compact horizontal rows. */
+#trk-kits-grid.cat-list{display:flex !important;flex-direction:column;gap:.55rem !important;max-width:720px}
+#trk-kits-grid.cat-list .cat-card{flex-direction:row !important;align-items:center}
+#trk-kits-grid.cat-list .cat-thumb{width:64px !important;height:64px !important;aspect-ratio:auto !important;flex:0 0 64px;border-radius:8px;margin:.45rem 0 .45rem .45rem}
+#trk-kits-grid.cat-list .cat-body{flex:1;min-width:0}
+#trk-kits-sort{height:38px;border:1.5px solid #e6d9dd;border-radius:10px;padding:0 .6rem;font-size:.82rem;font-family:inherit;color:#5a4a51;background:#fff;cursor:pointer}
+body.dark #trk-kits-sort{background:#221b2d;border-color:#4a3d55;color:#e7dcea}
 #tracker-page .trk-cards{display:flex}
 #tracker-page #trk-verify{margin-bottom:1rem}
 .trk-cards{display:flex;gap:1.4rem;flex-wrap:wrap;margin:1.6rem 0}
@@ -4424,6 +4431,14 @@ body.dark .fabric-item.sel{background:rgba(255,255,255,.08);color:#f0b8c2}
     filter:grayscale(1);
   }
   #download-btn::before{content:"⬇";font-size:1.05rem}
+  /* Match the Save button to the Download icon-square so it always fits the row. */
+  #save-btn{
+    font-size:0;width:34px;height:34px;padding:0 !important;
+    display:inline-flex;align-items:center;justify-content:center;
+    background:#fff !important;border:1.5px solid #d8ccce !important;
+    color:#2b2226 !important;border-radius:9px;box-shadow:none !important;
+  }
+  #save-btn::before{content:"💾";font-size:1.05rem}
   /* On a phone the toolbar is tight, so the autosave note shrinks to a tick. */
   #save-state{font-size:0 !important;padding:0 .25rem !important}
   #save-state:not(:empty)::before{content:"✓";font-size:.95rem}
@@ -5466,10 +5481,15 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <!-- Luca-S catalogue -->
     <div id="trk-kits" style="display:none">
       <a href="#" id="trk-kits-back" style="display:inline-block;margin-bottom:.7rem;font-size:.78rem;color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">← Back to Stitch Tracker</a>
-      <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.9rem">
+      <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.9rem;flex-wrap:wrap">
         <input id="trk-kits-search" type="search" placeholder="Search by name or code (e.g. BU5102)"
-               style="flex:1;height:38px;border:1.5px solid #e6d9dd;border-radius:10px;padding:0 .8rem;font-size:.86rem;font-family:inherit">
+               style="flex:1;min-width:170px;height:38px;border:1.5px solid #e6d9dd;border-radius:10px;padding:0 .8rem;font-size:.86rem;font-family:inherit">
         <span id="trk-kits-count" style="font-size:.78rem;color:#6a626f;white-space:nowrap"></span>
+        <select id="trk-kits-sort" aria-label="Sort catalogue">
+          <option value="sku">Sort: SKU</option>
+          <option value="name">Sort: Name</option>
+        </select>
+        <span class="trk-viewtog" id="trk-view-catalogue"></span>
       </div>
       <div id="trk-kits-status" style="font-size:.86rem;color:#6a626f;padding:.6rem 0"></div>
       <div id="trk-kits-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.8rem"></div>
@@ -18620,30 +18640,59 @@ async function trkKitsLoad(force){
   }finally{ trkKitsLoading=false; }
 }
 
+function trkCatSort(){ try{ return localStorage.getItem('patternly_cat_sort')||'sku'; }catch(e){ return 'sku'; } }
+function trkCatView(){ try{ return localStorage.getItem('patternly_cat_view')==='list'?'list':'grid'; }catch(e){ return 'grid'; } }
+function trkCatSetupControls(){
+  const sel=document.getElementById('trk-kits-sort');
+  if(sel){
+    if(!sel._wired){ sel._wired=true; sel.onchange=()=>{ try{localStorage.setItem('patternly_cat_sort',sel.value);}catch(e){} trkKitsRender(); }; }
+    sel.value=trkCatSort();
+  }
+  const tog=document.getElementById('trk-view-catalogue');
+  if(tog){
+    if(!tog._wired){
+      tog._wired=true;
+      const gI='<svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1"/><rect x="9" y="1.5" width="5.5" height="5.5" rx="1"/><rect x="1.5" y="9" width="5.5" height="5.5" rx="1"/><rect x="9" y="9" width="5.5" height="5.5" rx="1"/></svg>';
+      const lI='<svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor"><rect x="1.5" y="2.5" width="13" height="2.6" rx="1"/><rect x="1.5" y="6.7" width="13" height="2.6" rx="1"/><rect x="1.5" y="10.9" width="13" height="2.6" rx="1"/></svg>';
+      tog.innerHTML='<button type="button" data-m="grid" title="Grid view" aria-label="Grid view">'+gI+'</button>'
+                  +'<button type="button" data-m="list" title="List view" aria-label="List view">'+lI+'</button>';
+      tog.querySelectorAll('button').forEach(b=>b.onclick=()=>{ try{localStorage.setItem('patternly_cat_view',b.dataset.m);}catch(e){} trkKitsRender(); });
+    }
+    tog.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.m===trkCatView()));
+  }
+}
 function trkKitsRender(){
   const grid=document.getElementById('trk-kits-grid'), sIn=document.getElementById('trk-kits-search');
   if(!grid) return;
+  trkCatSetupControls();
   const q=((sIn&&sIn.value)||'').trim().toLowerCase();
   const all=trkKitList||[];
   const list=all.filter(k=>!q
     || String(k.sku).toLowerCase().includes(q)
     || String(k.title||'').toLowerCase().includes(q));
+  // Sort by SKU (natural order so B702 < B710 < BU5102) or by name.
+  const sortBy=trkCatSort();
+  list.sort((a,b)=> sortBy==='name'
+    ? String(a.title||a.sku).localeCompare(String(b.title||b.sku))
+    : String(a.sku).localeCompare(String(b.sku), undefined, {numeric:true, sensitivity:'base'}));
   const cnt=document.getElementById('trk-kits-count');
   if(cnt) cnt.textContent = all.length ? list.length+' of '+all.length : '';
+  grid.classList.toggle('cat-list', trkCatView()==='list');
   grid.innerHTML='';
   if(!list.length && all.length){
-    grid.innerHTML='<div style="grid-column:1/-1;color:#6a626f;font-size:.86rem">No kit matches that search.</div>';
+    grid.innerHTML='<div style="color:#6a626f;font-size:.86rem">No kit matches that search.</div>';
     return;
   }
   const esc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
   for(const kit of list){
     const card=document.createElement('div');
+    card.className='cat-card';
     card.style.cssText='background:#fff;border:1.5px solid #e6d9dd;border-radius:12px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column';
     const meta=[(kit.w&&kit.h)?kit.w+'\u00d7'+kit.h:'', kit.colours?kit.colours+' colours':''].filter(Boolean).join(' \u00b7 ');
     card.innerHTML =
-      (kit.image?`<img src="${esc(trkKitImageUrl(kit))}" alt="" loading="lazy" style="width:100%;aspect-ratio:1;object-fit:cover;background:#f6f1f2">`
-                :`<div style="width:100%;aspect-ratio:1;background:#f6f1f2"></div>`)+
-      `<div style="padding:.7rem .75rem"><div style="font-weight:700;font-size:.92rem;line-height:1.35">${esc(kit.title||kit.sku)}</div>`+
+      (kit.image?`<img class="cat-thumb" src="${esc(trkKitImageUrl(kit))}" alt="" loading="lazy" style="width:100%;aspect-ratio:1;object-fit:cover;background:#f6f1f2">`
+                :`<div class="cat-thumb" style="width:100%;aspect-ratio:1;background:#f6f1f2"></div>`)+
+      `<div class="cat-body" style="padding:.7rem .75rem"><div style="font-weight:700;font-size:.92rem;line-height:1.35">${esc(kit.title||kit.sku)}</div>`+
       `<div style="font-size:.76rem;color:#6a626f;margin-top:.25rem">${esc(kit.sku)}${meta?' \u00b7 '+meta:''}</div></div>`;
     card.onclick=()=>trkOpenKit(kit);
     grid.appendChild(card);
