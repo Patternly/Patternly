@@ -6777,7 +6777,8 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <div class="acct-spin" id="acct-m-spin"></div>
     <b id="acct-m-title" style="font-size:.98rem;display:block;margin-bottom:.35rem">Signing you in…</b>
     <p id="acct-m-text" style="font-size:.8rem;color:#7d6b72;line-height:1.55;margin:0 0 1rem">A secure Luca-S sign-in window has opened. Enter your email there — you'll get a code, and new customers get an account automatically. This page will notice by itself.</p>
-    <div style="display:flex;gap:.5rem;justify-content:center">
+    <div style="display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap">
+      <button class="acct-m-btn primary" id="acct-m-finish" onclick="acctFinishSync()">I've signed in — finish</button>
       <button class="acct-m-btn" id="acct-m-reopen" onclick="acctReopen()">Reopen window</button>
       <button class="acct-m-btn" onclick="acctModalClose(true)">Cancel</button>
     </div>
@@ -25111,8 +25112,9 @@ function acctModalShow(){
   const m=document.getElementById('acct-modal');
   document.getElementById('acct-m-spin').style.display='';
   document.getElementById('acct-m-title').textContent='Signing you in…';
-  document.getElementById('acct-m-text').textContent='A secure Luca-S sign-in window has opened. Enter your email there — you\u2019ll get a code, and new customers get an account automatically. This page will notice by itself.';
+  document.getElementById('acct-m-text').textContent='A secure Luca-S sign-in window has opened. Sign in with your email there — you\u2019ll get a code, and new customers get an account automatically. When it shows you\u2019re signed in, tap \u201cI\u2019ve signed in \u2014 finish\u201d below (or click the Luca-S logo in that window to return to the store) and we\u2019ll connect your account.';
   document.getElementById('acct-m-reopen').style.display='';
+  const fin=document.getElementById('acct-m-finish'); if(fin) fin.style.display='';
   m.classList.add('open');
 }
 function acctModalSuccess(){
@@ -25122,7 +25124,30 @@ function acctModalSuccess(){
   document.getElementById('acct-m-title').textContent='✓ Signed in!';
   document.getElementById('acct-m-text').textContent='Welcome back — your Luca-S account is connected.';
   document.getElementById('acct-m-reopen').style.display='none';
+  const fin=document.getElementById('acct-m-finish'); if(fin) fin.style.display='none';
   setTimeout(()=>acctModalClose(false), 1400);
+}
+// Finish the sign-in without the user needing to know the trick. Shopify's new
+// customer accounts leave the popup on shopify.com after login; the luca-s.com
+// session only lands when the browser loads a luca-s.com page. As the window
+// that opened the popup we're allowed to navigate it (even cross-origin), so we
+// send it to our own app path — which sets the storefront session, then the
+// early head script there posts back to us and closes the popup.
+function acctFinishSync(){
+  const dest=location.origin+location.pathname+'?pl_authdone=1';
+  const t=document.getElementById('acct-m-text');
+  if(t) t.textContent='Connecting your account\u2026';
+  // Best effort: if the popup handle is still reachable, send it to a luca-s.com
+  // page (which sets the storefront session and self-closes via the head script).
+  // Shopify's COOP may have severed the handle — that's fine, we fall back to
+  // re-checking, since the session also lands the instant the user taps the
+  // Luca-S logo / "return to store" in that window.
+  try{ if(_acctLoginWin && !_acctLoginWin.closed) _acctLoginWin.location = dest; }catch(e){}
+  let n=0; const iv=setInterval(async ()=>{
+    if(typeof acctRefresh==='function') await acctRefresh();
+    if(typeof lucasAuth==='function' && lucasAuth().loggedIn){ clearInterval(iv); acctModalSuccess(); return; }
+    if(++n>=6){ clearInterval(iv); if(t) t.textContent='Nearly there — in the sign-in window, tap the Luca-S logo (top-left) to return to the store. That connects your account, and this page will pick it up right away.'; }
+  }, 900);
 }
 function acctModalClose(cancelled){
   document.getElementById('acct-modal').classList.remove('open');
@@ -25167,11 +25192,10 @@ async function acctOpenLogin(){
       if(typeof toast==='function') toast('✓ Signed in with your Luca-S account');
       return;
     }
-    if(_acctLoginWin && _acctLoginWin.closed){
-      const t=document.getElementById('acct-m-text');
-      if(t && document.getElementById('acct-modal').classList.contains('open'))
-        t.textContent='The sign-in window was closed. Reopen it to continue, or cancel.';
-    }
+    // NB: Shopify's COOP can make _acctLoginWin.closed read true even while the
+    // window is open, so we deliberately DON'T show a "window was closed" notice
+    // here — it was firing spuriously. The modal's own text guides the finish
+    // step, and the poll keeps watching for the session either way.
   };
   setTimeout(tick, 700);
   _acctPollTimer=setInterval(tick, 2500);
