@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v31";
+const MW_VERSION = "v32";
 
 const enc = new TextEncoder();
 
@@ -634,6 +634,18 @@ function hasPlusTag(tags, env) {
   if (!want || !Array.isArray(tags)) return false;
   return tags.some(t => String(t).trim().toLowerCase() === want);
 }
+// Complimentary / staff / VIP access: any customer you tag with this in Shopify
+// admin gets unlimited Plus, no subscription or payment needed. Accepts a
+// comma-separated list in COMP_TAG so you can run several (e.g. "patternly-comp,
+// patternly-vip,staff"). Defaults to "patternly-comp". Remove the tag to revoke.
+function hasCompTag(tags, env) {
+  if (!Array.isArray(tags)) return false;
+  const raw = String(env.COMP_TAG || "patternly-comp");
+  const wants = raw.split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+  if (!wants.length) return false;
+  const have = tags.map(t => String(t).trim().toLowerCase());
+  return wants.some(w => have.includes(w));
+}
 // Only orders inside the window are asked for, so this is a cheap query even
 // for a customer with a long history.
 async function plusFromOrders(email, env) {
@@ -713,8 +725,20 @@ async function plusState(auth, env) {
     });
     const cust = (who && who.customer) || {};
 
+    // 0. Complimentary access. A tag you control in Shopify admin grants
+    //    unlimited Plus with no subscription or payment — for staff, VIPs, gifts,
+    //    or an email list you comp. Checked first so it can't be overridden and
+    //    needs nothing else (no order, no lapse date — it simply never expires
+    //    while the tag is present).
+    if (hasCompTag(cust.tags, env)) {
+      out.plus = true;
+      out.source = "comp";
+      out.via = "tag";
+      out.plan = "complimentary";
+    }
+
     // 1. Subscription tag. Covers trials, where no order exists yet.
-    if (hasPlusTag(cust.tags, env)) {
+    if (!out.plus && hasPlusTag(cust.tags, env)) {
       out.plus = true;
       out.source = "subscription";
       out.via = "tag";
@@ -726,11 +750,15 @@ async function plusState(auth, env) {
     const sub = await plusFromOrders(cust.email, env);
     if (sub.until > Date.now()) {
       out.plus = true;
-      out.source = "subscription";
-      out.via = out.via ? "tag+order" : "order";
-      out.plan = sub.plan;                   // "monthly" or "annual"
-      out.plusUntil = sub.until;             // ~when access lapses without a renewal
-      out.paidAt = sub.paidAt;               // last payment seen
+      // Don't relabel a complimentary account as a subscriber, but still record
+      // the payment details in case you want to see them.
+      if (out.source !== "comp") {
+        out.source = "subscription";
+        out.via = out.via ? "tag+order" : "order";
+        out.plan = sub.plan;
+      }
+      out.plusUntil = sub.until;
+      out.paidAt = sub.paidAt;
     }
   } catch (e) {
     // Shopify unreachable or the query rejected: fall back on trial/override
