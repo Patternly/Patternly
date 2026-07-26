@@ -2467,15 +2467,16 @@ body.dark .pj-opt span{color:#a596ab}
 /* ── Confirmation modal (delete / unsaved changes) ── */
 #pjm-overlay{display:none;position:fixed;inset:0;background:rgba(43,34,38,.45);z-index:99999;align-items:center;justify-content:center;padding:1rem}
 #pjm-overlay.show{display:flex}
-.pjm-box{background:#fff;border-radius:16px;max-width:420px;width:100%;padding:1.6rem 1.6rem 1.3rem;box-shadow:0 20px 60px rgba(43,34,38,.25);font-family:'Inter',system-ui,sans-serif;animation:pjmIn .18s ease}
+.pjm-box{background:#fff;border-radius:16px;max-width:448px;width:100%;padding:1.6rem 1.6rem 1.3rem;box-shadow:0 20px 60px rgba(43,34,38,.25);font-family:'Inter',system-ui,sans-serif;animation:pjmIn .18s ease}
 @keyframes pjmIn{from{transform:translateY(10px);opacity:0}to{transform:none;opacity:1}}
 .pjm-box h3{font-family:'DM Serif Display',serif;font-size:1.35rem;color:#2b2226;margin:0 0 .5rem}
 .pjm-box p{color:#6d5d63;font-size:.93rem;line-height:1.55;margin:0 0 1rem}
 .pjm-box p b{color:#2b2226}
 #pjm-check-row{display:flex;align-items:center;gap:.55rem;background:#fdedf0;border:1px solid #f3d3da;border-radius:10px;padding:.65rem .8rem;margin:0 0 1.1rem;cursor:pointer;font-size:.87rem;color:#7a3644;user-select:none}
 #pjm-check-row input{accent-color:#8B1A2B;width:16px;height:16px;cursor:pointer;flex-shrink:0}
-.pjm-actions{display:flex;gap:.55rem;justify-content:flex-end;flex-wrap:wrap}
-.pjm-actions button{border-radius:9px;padding:.55rem 1rem;font-size:.87rem;font-weight:600;cursor:pointer;border:1px solid transparent;transition:all .15s}
+.pjm-actions{display:flex;gap:.45rem;justify-content:flex-end;flex-wrap:nowrap}
+.pjm-actions button{border-radius:9px;padding:.55rem .8rem;font-size:.85rem;font-weight:600;cursor:pointer;border:1px solid transparent;transition:all .15s;white-space:nowrap}
+@media(max-width:400px){.pjm-actions{flex-wrap:wrap}}
 #pjm-cancel{background:#fff;border-color:#e3d6da;color:#6d5d63}
 #pjm-cancel:hover{background:#f7f1f3}
 #pjm-secondary{background:#fff;border-color:#e3d6da;color:#8B1A2B}
@@ -3324,12 +3325,26 @@ body.dark .trk-crow.sel{background:#3a2130}
 #trk-saved-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:1rem;max-width:1000px;margin:0 auto 1.2rem}
 /* Grid/list toggle for the tracker home sections. Default (no modifier) is the
    horizontal slider; .as-list stacks compact rows. */
-.trk-cardgrid{max-width:1000px;margin:0 auto 1.4rem;display:flex;gap:1rem;overflow-x:auto;padding:.2rem .1rem 1rem;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+.trk-cardgrid{max-width:1000px;margin:0 auto 1.4rem;display:flex;gap:1rem;overflow-x:auto;padding:.2rem .1rem 1rem;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.trk-cardgrid::-webkit-scrollbar{display:none}
 .trk-cardgrid > .trk-pcard{flex:0 0 215px;scroll-snap-align:start}
 .trk-cardgrid.as-list{display:flex;flex-direction:column;gap:.7rem;overflow:visible;padding:0}
 .trk-cardgrid.as-list > .trk-pcard{flex:0 0 auto;display:flex;align-items:stretch}
 .trk-cardgrid.as-list > .trk-pcard .thumb{width:92px;height:92px;flex:0 0 92px;align-self:center;margin:.5rem 0 .5rem .5rem;border-radius:8px}
 .trk-cardgrid.as-list > .trk-pcard .body{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center}
+/* Slider wrapper + prev/next arrows (shown only when the row overflows). */
+.trk-slider-wrap{position:relative;max-width:1000px;margin:0 auto 1.4rem}
+.trk-slider-wrap > .trk-cardgrid{margin:0}
+.trk-slide-arrow{position:absolute;top:calc(50% - .5rem);transform:translateY(-50%);z-index:3;width:38px;height:38px;border-radius:50%;
+  border:1.5px solid #eadde1;background:rgba(255,255,255,.96);color:var(--lp-red,#8B1A2B);
+  box-shadow:0 3px 12px rgba(43,34,38,.18);cursor:pointer;display:none;align-items:center;justify-content:center;
+  font-size:1.35rem;line-height:0;padding:0 0 .1rem}
+.trk-slide-arrow.left{left:2px}
+.trk-slide-arrow.right{right:2px}
+.trk-slide-arrow:hover{background:#fff;border-color:#e2c8cf}
+.trk-slider-wrap.can-left > .trk-slide-arrow.left{display:flex}
+.trk-slider-wrap.can-right > .trk-slide-arrow.right{display:flex}
+body.dark .trk-slide-arrow{background:rgba(34,27,45,.96);border-color:#4a3d55;color:#f0d9df}
 .trk-viewtog{display:inline-flex;border:1.5px solid #eadde1;border-radius:9px;overflow:hidden;flex:0 0 auto}
 .trk-viewtog button{border:none;background:#fff;color:#8a7f86;padding:.28rem .5rem;cursor:pointer;display:flex;align-items:center;line-height:0}
 .trk-viewtog button.active{background:var(--lp-red,#8B1A2B);color:#fff}
@@ -5430,14 +5445,22 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
           <h2 style="flex:1;margin:0;font-size:1.15rem;color:var(--lp-ink,#2b2226);font-family:'DM Serif Display',Georgia,serif">My Luca-S Patterns</h2>
           <span class="trk-viewtog" id="trk-view-kits"></span>
         </div>
-        <div id="trk-mykits-grid" class="trk-cardgrid"></div>
+        <div class="trk-slider-wrap" id="trk-slider-kits">
+          <button type="button" class="trk-slide-arrow left" aria-label="Scroll left">&#8249;</button>
+          <div id="trk-mykits-grid" class="trk-cardgrid"></div>
+          <button type="button" class="trk-slide-arrow right" aria-label="Scroll right">&#8250;</button>
+        </div>
       </div>
       <div id="trk-uploads-section">
         <div class="trk-sec-head" style="max-width:1000px;margin:.2rem auto .3rem;display:flex;align-items:center;gap:.6rem">
           <h2 id="trk-uploads-head" style="flex:1;margin:0;font-size:1.15rem;color:var(--lp-ink,#2b2226);font-family:'DM Serif Display',Georgia,serif">My Tracked Patterns</h2>
           <span class="trk-viewtog" id="trk-view-uploads"></span>
         </div>
-        <div id="trk-proj-grid" class="trk-cardgrid"></div>
+        <div class="trk-slider-wrap" id="trk-slider-uploads">
+          <button type="button" class="trk-slide-arrow left" aria-label="Scroll left">&#8249;</button>
+          <div id="trk-proj-grid" class="trk-cardgrid"></div>
+          <button type="button" class="trk-slide-arrow right" aria-label="Scroll right">&#8250;</button>
+        </div>
       </div>
     </div>
     <!-- Luca-S catalogue -->
@@ -7023,6 +7046,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     </div>
     <button class="btn btn-ghost" id="clear-btn">Clear</button>
     <span id="save-state" title="Your work saves by itself" style="font-size:.72rem;color:var(--muted);padding:0 .5rem;white-space:nowrap;align-self:center"></span>
+    <button class="btn btn-ghost" id="save-btn" onclick="pjExplicitSave()" title="Save to this browser">💾 Save</button>
     <button class="btn btn-download" id="download-btn">⬇ Download</button>
   </div>
   <button id="tb-menu-btn" onclick="lpToggleMenu()" title="Menu">☰</button>
@@ -12875,6 +12899,15 @@ function pjCollectSettings(){
   return s;
 }
 
+// Explicit manual save from the editor's 💾 Save button. Sets _pjExplicitSave so
+// that, if browser storage is full, saveToBrowser falls back to a file export
+// (the autosave path never downloads). Gives the user clear confirmation.
+function pjExplicitSave(){
+  window._pjExplicitSave=true;
+  let ok=false;
+  try{ ok=saveToBrowser(); } finally { window._pjExplicitSave=false; }
+  if(ok && typeof toast==='function') toast('Saved to this browser');
+}
 function saveToBrowser(){
   const name=document.getElementById('pattern-name').value||'pattern';
   if(typeof lySyncActive==='function') lySyncActive();
@@ -19125,6 +19158,9 @@ function trkShowHomeInner(list){
   // View toggle (grid slider / list) per section, remembered across sessions.
   trkSetupViewToggle('kits','trk-view-kits','trk-mykits-grid');
   trkSetupViewToggle('uploads','trk-view-uploads','trk-proj-grid');
+  // Slider prev/next arrows for each section.
+  trkWireSlider('trk-slider-kits','trk-mykits-grid');
+  trkWireSlider('trk-slider-uploads','trk-proj-grid');
 }
 // Per-section grid/list view. Default (no modifier) is the horizontal slider;
 // 'list' stacks compact rows. The choice is remembered in localStorage.
@@ -19150,8 +19186,37 @@ function trkSetupViewToggle(key, togId, gridId){
     b.onclick=()=>{
       try{ localStorage.setItem('patternly_trk_view_'+key, b.dataset.m); }catch(e){}
       trkApplyView(grid, b.dataset.m); mark();
+      if(grid._sliderUpd) grid._sliderUpd();
     };
   });
+}
+// Prev/next arrows for a card slider: shown only when the row overflows, and the
+// relevant one hidden at each end. A MutationObserver keeps them correct as async
+// cards (cloud/owned) arrive; scroll + resize keep the end-state accurate.
+function trkWireSlider(wrapId, gridId){
+  const wrap=document.getElementById(wrapId), grid=document.getElementById(gridId);
+  if(!wrap || !grid) return;
+  const upd=()=>{
+    const overflow = grid.scrollWidth - grid.clientWidth > 2;
+    const atL = grid.scrollLeft <= 1;
+    const atR = grid.scrollLeft >= grid.scrollWidth - grid.clientWidth - 1;
+    wrap.classList.toggle('can-left', overflow && !atL);
+    wrap.classList.toggle('can-right', overflow && !atR);
+  };
+  grid._sliderUpd=upd;
+  if(!grid._sliderWired){
+    grid._sliderWired=true;
+    const step=()=>Math.max(200, Math.round(grid.clientWidth*0.85));
+    const la=wrap.querySelector('.trk-slide-arrow.left'), ra=wrap.querySelector('.trk-slide-arrow.right');
+    if(la) la.onclick=()=>grid.scrollBy({left:-step(), behavior:'smooth'});
+    if(ra) ra.onclick=()=>grid.scrollBy({left: step(), behavior:'smooth'});
+    grid.addEventListener('scroll', upd, {passive:true});
+    window.addEventListener('resize', upd, {passive:true});
+    try{ new MutationObserver(upd).observe(grid, {childList:true}); }catch(e){}
+  }
+  upd();
+  requestAnimationFrame(upd);
+  setTimeout(upd, 400);
 }
 function trkTitleReset(){
   const t=document.querySelector('#tracker-page .calc-title'), s=document.querySelector('#tracker-page .calc-sub');
