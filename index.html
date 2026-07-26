@@ -23126,7 +23126,7 @@ async function trkMergeLegendIntoExact(file, st, card){
       await tryBuildTracker(); return;
     }
     let msg=`✅ ${file.name} — kit symbols applied to ${r.matched} of ${r.total} colours`;
-    if(r.matched<r.total) msg+=` · ${r.total-r.matched} kept placeholders`;
+    if(r.matched<r.total) msg+=` · ${r.total-r.matched} kept placeholders`+((r.unmatched&&r.unmatched.length)?` (unmatched: ${r.unmatched.join(', ')})`:'');
     if(r.countWarn){ msg+=` · ⚠ ${r.countWarn} colour(s) have different stitch counts in the legend`; st.style.color='#b25f10'; }
     st.textContent=msg;
     // Vector symbols from the legend (not bitmap crops). The legend embeds the
@@ -23153,20 +23153,34 @@ async function trkMergeLegendIntoExact(file, st, card){
 function trkApplyLegendSymbols(legend){
   {
     const norm=c=>String(c||'').replace(/\s+/g,'').toLowerCase();
-    const legByCode={};
-    for(const s in legend.bySymbol){ const e=legend.bySymbol[s]; if(e.code && !(norm(e.code) in legByCode)) legByCode[norm(e.code)]=e; }
+    // Blend colours are spelled differently on each side: the .pat/.Ptly stores
+    // just the base with a plus ("502+"), the legend writes the full pair
+    // ("502+Black"). Reconcile them on the numeric base up to and including the
+    // '+', so "502+" and "502+Black" match while a plain "502" stays distinct.
+    const blendKey=c=>{ const s=norm(c); const i=s.indexOf('+'); return i>0 ? s.slice(0,i+1) : null; };
+    const legByCode={}, legByBlend={};
+    for(const s in legend.bySymbol){ const e=legend.bySymbol[s];
+      if(e.code){
+        const n=norm(e.code); if(!(n in legByCode)) legByCode[n]=e;
+        const bk=blendKey(e.code); if(bk && !(bk in legByBlend)) legByBlend[bk]=e;
+      }
+    }
     // build old->new symbol mapping by code
     const remap={}, takenNew=new Set(); let matched=0, countWarn=0;
     for(const oldSym in trackerLegend.bySymbol){
       const e=trackerLegend.bySymbol[oldSym];
-      const le=legByCode[norm(e.code)];
+      let le=legByCode[norm(e.code)];
+      if(!le){ const bk=blendKey(e.code); if(bk) le=legByBlend[bk]; } // blend reconcile
       if(le && le.symbol && !takenNew.has(le.symbol)){
         remap[oldSym]=le.symbol; takenNew.add(le.symbol); matched++;
         if(le.stitches && Math.abs(le.stitches - e.stitches) > 0.5) countWarn++;
       }
     }
     const total=Object.keys(trackerLegend.bySymbol).length;
-    if(!matched) return {matched:0, total, countWarn:0};
+    if(!matched) return {matched:0, total, countWarn:0, unmatched:Object.keys(trackerLegend.bySymbol).map(s=>trackerLegend.bySymbol[s].code).filter(Boolean)};
+    // Which .Ptly colours found no legend row (for a clear status + diagnosis).
+    // remap holds ONLY matched symbols at this point.
+    const unmatched=Object.keys(trackerLegend.bySymbol).filter(s=>!remap[s]).map(s=>trackerLegend.bySymbol[s].code).filter(Boolean);
     // unmatched placeholders that now collide with a kit symbol get a new letter
     const finalTaken=new Set(Object.values(remap));
     for(const oldSym in trackerLegend.bySymbol){
@@ -23197,7 +23211,7 @@ function trkApplyLegendSymbols(legend){
     trackerColourMap=map;
     // clear old text-symbol sprites so the legend glyph pass provides the looks
     trackerSprites={};
-    return {matched, total, countWarn};
+    return {matched, total, countWarn, unmatched};
   }
 }
 
