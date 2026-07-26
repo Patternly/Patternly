@@ -5385,16 +5385,6 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
   <div class="calc-container">
     <h1 class="calc-title">Stitch Tracker</h1>
     <p class="calc-sub">Upload the legend and chart PDFs from your Luca-S kit, then mark stitches as you go — your progress is saved in this browser.</p>
-    <div id="trk-projects" style="display:none">
-      <div id="trk-kits-section" style="display:none">
-        <h2 style="display:block;width:100%;max-width:1000px;margin:.2rem auto .8rem;font-size:1.15rem;color:var(--lp-ink,#2b2226);font-family:'DM Serif Display',Georgia,serif">My Luca-S Kits</h2>
-        <div id="trk-mykits-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:1rem;max-width:1000px;margin:0 auto 1.6rem"></div>
-      </div>
-      <div id="trk-uploads-section">
-        <h2 id="trk-uploads-head" style="display:block;width:100%;max-width:1000px;margin:.2rem auto .3rem;font-size:1.15rem;color:var(--lp-ink,#2b2226);font-family:'DM Serif Display',Georgia,serif;display:none">My Tracked Patterns</h2>
-        <div id="trk-proj-grid"></div>
-      </div>
-    </div>
     <div id="trk-upload">
     <a href="#" id="trk-back-home" style="display:none;font-size:.78rem;color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none" onclick="trkShowHome();return false">← My tracked patterns</a>
     <!-- Step 0 · where is this pattern coming from -->
@@ -5408,6 +5398,18 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
         <div class="trk-card-icon">📄</div>
         <h3>Upload Your Pattern</h3>
         <p style="color:#6a626f;font-size:.86rem;line-height:1.5;margin:.35rem 0 0">Upload the chart and legend from any brand — PDF, OXS, .pat or .Ptly.</p>
+      </div>
+    </div>
+    <!-- Saved patterns sit directly under the source chooser: My Luca-S Patterns,
+         then My Tracked Patterns. The guide banner drops to the bottom. -->
+    <div id="trk-projects" style="display:none">
+      <div id="trk-kits-section" style="display:none">
+        <h2 style="display:block;width:100%;max-width:1000px;margin:.2rem auto .8rem;font-size:1.15rem;color:var(--lp-ink,#2b2226);font-family:'DM Serif Display',Georgia,serif">My Luca-S Patterns</h2>
+        <div id="trk-mykits-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:1rem;max-width:1000px;margin:0 auto 1.6rem"></div>
+      </div>
+      <div id="trk-uploads-section">
+        <h2 id="trk-uploads-head" style="display:block;width:100%;max-width:1000px;margin:.2rem auto .3rem;font-size:1.15rem;color:var(--lp-ink,#2b2226);font-family:'DM Serif Display',Georgia,serif;display:none">My Tracked Patterns</h2>
+        <div id="trk-proj-grid"></div>
       </div>
     </div>
     <!-- New-here banner: horizontal strip pointing first-timers to the full guide -->
@@ -18776,6 +18778,7 @@ async function trkAppendCloudCards(grid, localList){
     if(!kit) continue;                       // not in the catalogue any more
     const card=document.createElement('div');
     card.className='trk-pcard';
+    card.dataset.sku=String(c.sku).toUpperCase();
     const pct=c.total ? Math.round(c.done/c.total*100) : 0;
     const nSess=c.sessions|0;
     const fmtT=ms=>{ if(!ms||ms<60000) return nSess? '<1m' : '\u2014'; const m=Math.round(ms/60000); return m<60? m+'m' : Math.floor(m/60)+'h '+(m%60)+'m'; };
@@ -18794,6 +18797,50 @@ async function trkAppendCloudCards(grid, localList){
     card.querySelector('h4').textContent=kit.title||kit.sku;
     card.querySelector('.open').onclick=()=>trkOpenKit(kit);
     card.querySelector('.del').onclick=e=>{ e.stopPropagation(); trkDeleteCloudProject(kit, c); };
+    grid.appendChild(card);
+  }
+}
+// Kits this account OWNS (bought) that aren't yet shown as a local or cloud
+// card. Ownership comes from /whoami (ownedSkus): a kit you've bought but have
+// never opened or stitched still belongs under "My Luca-S Patterns", so seed it
+// here with an Open action and no progress stats yet. Without this, a purchased
+// kit only appears once it's opened on this device or has cloud progress.
+async function trkAppendOwnedKitCards(grid){
+  let auth=lucasAuth();
+  // /whoami usually resolves on page load; if it hasn't yet, fetch once so a
+  // freshly opened tracker still lists owned kits.
+  if(!auth || !Array.isArray(auth.ownedSkus)){
+    try{
+      const base=TRK_KITS_BASE.replace(/\/patterns$/,'');
+      const r=await fetch(base+'/whoami',{credentials:'include',cache:'no-store'});
+      if(r.ok){ window.__LUCAS_AUTH__=await r.json(); auth=lucasAuth(); }
+    }catch(e){}
+  }
+  const owned=auth && auth.ownedSkus;
+  if(!auth || !auth.loggedIn || !Array.isArray(owned) || !owned.length) return;
+  if(!trkKitList){ try{ await trkKitsLoad(true); }catch(e){} }
+  const cat=trkKitList||[];
+  // Already-shown SKUs: every kit card (local + cloud) carries data-sku.
+  const shown=new Set();
+  grid.querySelectorAll('[data-sku]').forEach(el=>shown.add(el.dataset.sku));
+  const esc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  for(const sku of owned){
+    const SKU=String(sku).toUpperCase();
+    if(shown.has(SKU)) continue;                 // already a local or cloud card
+    const kit=cat.find(k=>String(k.sku).toUpperCase()===SKU);
+    if(!kit) continue;                           // owned but no published chart yet
+    shown.add(SKU);
+    const card=document.createElement('div');
+    card.className='trk-pcard';
+    card.dataset.sku=SKU;
+    card.innerHTML=(kit.image?`<img class="thumb" src="${esc(trkKitImageUrl(kit))}" alt="">`:'')
+      +`<div class="body"><h4></h4>
+      <div class="meta">Luca-S \u00b7 ${esc(kit.sku)}</div>
+      <div class="trk-pbar"><div style="width:0%"></div></div>
+      <div class="meta" style="margin:.4rem 0 .55rem;color:#8a7f86">Not started yet</div>
+      <div class="row"><button class="open">Open</button></div></div>`;
+    card.querySelector('h4').textContent=kit.title||kit.sku;
+    card.querySelector('.open').onclick=()=>trkOpenKit(kit);
     grid.appendChild(card);
   }
 }
@@ -18964,6 +19011,7 @@ function trkRenderProjectCards(grid, list, withAdd){
   for(const p of list){
     const pct=p.total?Math.round(p.done/p.total*100):0;
     const card=document.createElement('div'); card.className='trk-pcard';
+    if(p.sku) card.dataset.sku=String(p.sku).toUpperCase();
     const nSess=Object.keys(p.sessions||{}).length;
     const fmtT=ms=>{ if(!ms||ms<60000) return nSess? '<1m' : '—'; const m=Math.round(ms/60000); return m<60? m+'m' : Math.floor(m/60)+'h '+(m%60)+'m'; };
     card.innerHTML=`${p.thumb?`<img class="thumb" src="${p.thumb}" alt="">`:''}<div class="body"><h4></h4>
@@ -19038,9 +19086,11 @@ function trkShowHomeInner(list){
   const kitsSection=document.getElementById('trk-kits-section');
   if(kitsGrid){
     trkRenderProjectCards(kitsGrid, kitsLocal, false);
-    trkAppendCloudCards(kitsGrid, kitsLocal).then(()=>{
-      if(kitsSection) kitsSection.style.display = (kitsGrid.children.length>0) ? '' : 'none';
-    });
+    trkAppendCloudCards(kitsGrid, kitsLocal)
+      .then(()=>trkAppendOwnedKitCards(kitsGrid))
+      .then(()=>{
+        if(kitsSection) kitsSection.style.display = (kitsGrid.children.length>0) ? '' : 'none';
+      });
   }
 
   // ── My Tracked Patterns ── (no add tile; Restore-a-backup lives in this header)
