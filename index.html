@@ -19428,6 +19428,48 @@ async function parseLegendPdf(file){
     if(matches[0]) trackerLegendGlyphs[sym]={page:matches[0].page, x:matches[0].x, y:matches[0].y, h:matches[0].h, w:matches[0].w,
       alt: matches[1]?{page:matches[1].page, x:matches[1].x, y:matches[1].y, h:matches[1].h, w:matches[1].w}:null};
   }
+
+  // ── Un-mapped-glyph recovery. A Luca-S legend can embed CrossStitch3 in TWO
+  //    subsets, one WITHOUT a ToUnicode map (evidence: legend.pdf carries both
+  //    'BCDIEE+CrossStitch3' with ToUnicode and 'BCDHEE+CrossStitch3' without).
+  //    Glyphs in the un-mapped subset decode to NO character, so parseLegendText
+  //    can't pair them with a code — but the code (a plain number) is still real
+  //    text and the glyph is still DRAWN on the page. Recover by geometry: for a
+  //    code that stayed unmatched, sitting in the SAME x-column as the codes that
+  //    DID match (so a stitch count or a note number can't be mistaken for it),
+  //    take the empty-text glyph box immediately to its left (the symbol column)
+  //    and register that position under a synthetic key, so the sprite cropper
+  //    lifts the exact drawn shape the printed chart shows. Additive only —
+  //    every already-matched colour is left untouched.
+  {
+    const codeXs=[];
+    for(const c in legend.byCode){
+      const e=legend.byCode[c]; if(e.li==null || !lineItems[e.li]) continue;
+      const m=lineItems[e.li].find(it=>(it.str||'').trim().toUpperCase()===String(c).toUpperCase());
+      if(m) codeXs.push(m.x);
+    }
+    if(codeXs.length>=4){
+      codeXs.sort((a,b)=>a-b);
+      const colX = codeXs[codeXs.length>>1];           // median code-column x
+      for(let li=0; li<lineItems.length; li++){
+        const its=lineItems[li]; if(!its || !its.length) continue;
+        for(const ci of its){
+          const code=(ci.str||'').trim().toUpperCase();
+          if(!(/^\d{1,4}$/.test(code) || /^(WHITE|BLACK)$/.test(code))) continue;
+          if(legend.byCode[code]) continue;             // already matched
+          if(Math.abs(ci.x-colX)>18) continue;          // must sit in the code column, not the count/note
+          const sym=its
+            .filter(it=> it.x < ci.x-1 && (it.str||'').trim()==='' && it.w>0)
+            .sort((a,b)=> b.x-a.x)[0];                  // nearest empty glyph box to the left
+          if(!sym) continue;
+          const key='\u00A7'+code;                       // '§code' — cannot collide with a real glyph char
+          const entry={nr:Object.keys(legend.byCode).length+1, symbol:key, code, stitches:0, li, synthetic:true};
+          legend.byCode[code]=entry; legend.bySymbol[key]=entry;
+          trackerLegendGlyphs[key]={page:sym.page, x:sym.x, y:sym.y, h:sym.h, w:sym.w, alt:null};
+        }
+      }
+    }
+  }
   return legend;
 }
 
