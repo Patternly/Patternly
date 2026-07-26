@@ -25235,8 +25235,17 @@ async function fconvHandle(fileList){
       card.appendChild(btns);
     }catch(err){
       console.error(err);
-      label.textContent='⚠ '+f.name+' — '+err.message;
-      label.style.color='#9c3d4e';
+      if(/\.(xsm|xsp)$/i.test(f.name)){
+        // XSM/XSP is Cross Stitch Professional's private format and its layout
+        // shifts between versions (much of the file is a preview bitmap), so a
+        // direct read isn't always possible. Point calmly at the exact route.
+        card.style.borderColor='#e8d8a0'; card.style.background='#fffdf5';
+        label.style.color='#7a5c10'; label.style.fontWeight='600';
+        label.innerHTML='ℹ️ <b>'+f.name.replace(/</g,'&lt;')+'</b> — XSM/XSP is Cross Stitch Professional\u2019s own format and its layout varies between versions, so it can\u2019t always be read directly. The reliable route: in Cross Stitch Professional choose <b>File \u2192 Save As \u2192 PCStitch 5</b> (a <b>.pat</b> file) and drop that here \u2014 it converts exactly, every stitch and colour.';
+      } else {
+        label.textContent='⚠ '+f.name+' — '+err.message;
+        label.style.color='#9c3d4e';
+      }
     }
   }
 }
