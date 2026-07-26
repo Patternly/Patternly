@@ -3409,11 +3409,11 @@ body.trk-fs #trk-main{display:block;height:100dvh}
 body.trk-fs #trk-fsbar{display:flex}
 body.trk-fs{overflow:hidden}
 #trk-fsbar{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:max(.7rem,env(safe-area-inset-bottom));
-  z-index:9450;background:rgba(255,255,255,.97);border:1.5px solid #e6d9dd;border-radius:14px;
-  box-shadow:0 8px 28px rgba(43,34,38,.2);padding:.35rem;gap:.15rem;backdrop-filter:blur(6px)}
-#trk-fsbar button{display:flex;flex-direction:column;align-items:center;gap:.1rem;border:none;background:none;
-  font-family:inherit;font-size:1.05rem;line-height:1;padding:.45rem .6rem;border-radius:10px;cursor:pointer;color:#5a4a51}
-#trk-fsbar button span{font-size:.58rem;font-weight:700;letter-spacing:.01em}
+  z-index:9450;background:rgba(255,255,255,.97);border:1.5px solid #e6d9dd;border-radius:18px;max-width:calc(100vw - .8rem);
+  box-shadow:0 8px 28px rgba(43,34,38,.2);padding:.45rem;gap:.25rem;backdrop-filter:blur(6px)}
+#trk-fsbar button{display:flex;flex-direction:column;align-items:center;gap:.16rem;border:none;background:none;
+  font-family:inherit;font-size:1.45rem;line-height:1;padding:.58rem .7rem;border-radius:13px;cursor:pointer;color:#5a4a51}
+#trk-fsbar button span{font-size:.68rem;font-weight:700;letter-spacing:.01em}
 #trk-fsbar button.active{background:var(--lp-red,#8B1A2B);color:#fff}
 #trk-fspanel{display:none;position:fixed;right:0;top:0;bottom:0;width:min(88vw,320px);z-index:9460;
   background:#fff;border-left:1.5px solid #e6d9dd;box-shadow:-8px 0 30px rgba(43,34,38,.18);
@@ -5387,6 +5387,14 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <p class="calc-sub">Upload the legend and chart PDFs from your Luca-S kit, then mark stitches as you go — your progress is saved in this browser.</p>
     <div id="trk-upload">
     <a href="#" id="trk-back-home" style="display:none;font-size:.78rem;color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none" onclick="trkShowHome();return false">← My tracked patterns</a>
+    <!-- New-here banner: sits ABOVE the source chooser, full width to match it -->
+    <div id="trk-guide-banner" style="max-width:1100px;margin:1.6rem auto .4rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;justify-content:space-between;background:#fff;border:1.5px solid var(--lp-border,#eadde1);border-radius:16px;padding:1.1rem 1.4rem">
+      <div style="flex:1;min-width:220px">
+        <div style="font-family:'DM Serif Display',Georgia,serif;font-size:1.15rem;color:var(--lp-ink,#2b2226);margin-bottom:.15rem">New to the Stitch Tracker?</div>
+        <div style="font-size:.86rem;color:#6a626f;line-height:1.5">See how to open your kit’s pattern, mark stitches, and sync your progress across devices.</div>
+      </div>
+      <a href="#" onclick="openTrackerGuide();return false" style="flex-shrink:0;display:inline-block;background:var(--lp-red,#8B1A2B);color:#fff;text-decoration:none;font-weight:700;font-size:.92rem;padding:.75rem 1.6rem;border-radius:11px;white-space:nowrap">Full Tracker Guide →</a>
+    </div>
     <!-- Step 0 · where is this pattern coming from -->
     <div id="trk-source" class="trk-cards">
       <div class="trk-card" id="trk-src-lucas" role="button" tabindex="0">
@@ -5408,17 +5416,9 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
         <div id="trk-mykits-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:1rem;max-width:1000px;margin:0 auto 1.6rem"></div>
       </div>
       <div id="trk-uploads-section">
-        <h2 id="trk-uploads-head" style="display:block;width:100%;max-width:1000px;margin:.2rem auto .3rem;font-size:1.15rem;color:var(--lp-ink,#2b2226);font-family:'DM Serif Display',Georgia,serif;display:none">My Tracked Patterns</h2>
+        <h2 id="trk-uploads-head" style="display:block;width:100%;max-width:1000px;margin:.2rem auto .3rem;font-size:1.15rem;color:var(--lp-ink,#2b2226);font-family:'DM Serif Display',Georgia,serif">My Tracked Patterns</h2>
         <div id="trk-proj-grid"></div>
       </div>
-    </div>
-    <!-- New-here banner: horizontal strip pointing first-timers to the full guide -->
-    <div id="trk-guide-banner" style="max-width:760px;margin:1.4rem auto 0;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;justify-content:space-between;background:#fff;border:1.5px solid var(--lp-border,#eadde1);border-radius:16px;padding:1.1rem 1.4rem">
-      <div style="flex:1;min-width:220px">
-        <div style="font-family:'DM Serif Display',Georgia,serif;font-size:1.15rem;color:var(--lp-ink,#2b2226);margin-bottom:.15rem">New to the Stitch Tracker?</div>
-        <div style="font-size:.86rem;color:#6a626f;line-height:1.5">See how to open your kit’s pattern, mark stitches, and sync your progress across devices.</div>
-      </div>
-      <a href="#" onclick="openTrackerGuide();return false" style="flex-shrink:0;display:inline-block;background:var(--lp-red,#8B1A2B);color:#fff;text-decoration:none;font-weight:700;font-size:.92rem;padding:.75rem 1.6rem;border-radius:11px;white-space:nowrap">Full Tracker Guide →</a>
     </div>
     <!-- Luca-S catalogue -->
     <div id="trk-kits" style="display:none">
@@ -18297,6 +18297,12 @@ async function trkChooseSource(kind){
   // handler wiped the value trkOpenKit had just set, so catalogue kits never
   // synced at all.
   if(kind!=='lucas') trkCloudSku=null;
+  // Cap gate FIRST for uploads: if the account is at its synced-pattern cap, just
+  // show the modal over the current page — never strip the home layout to do it.
+  if(kind==='other'){
+    const capInfo = await trkUserPatternCapCheck();
+    if(capInfo.full){ trkUserCapModal(capInfo.cap); return; }
+  }
   const cards=document.querySelector('#trk-upload .trk-cards:not(#trk-source)');
   const src=document.getElementById('trk-source'), kits=document.getElementById('trk-kits');
   if(src) src.style.display='none';
@@ -18311,24 +18317,12 @@ async function trkChooseSource(kind){
   if(kind==='lucas'){
     if(cards) cards.style.display='none';
     if(ub) ub.style.display='none';
+    // Show the "← Back to Stitch Tracker" link above the catalogue search bar.
+    const kb=document.getElementById('trk-kits-back'); if(kb) kb.style.display='inline-block';
     if(kits) kits.style.display='';
     trkKitsLoad();
   }else{
-    // Cap gate BEFORE opening the uploader: an uploaded pattern counts toward the
-    // account's synced-pattern cap. Check the SERVER's count (local can drift if a
-    // push failed) and, if full, stop here with a clear message rather than letting
-    // them load and mark a pattern that then can't be saved.
-    if(kind==='other'){
-      const capInfo = await trkUserPatternCapCheck();
-      if(capInfo.full){
-        if(src) src.style.display='';
-        const gb2=document.getElementById('trk-guide-banner'); if(gb2) gb2.style.display='flex';
-        if(cards) cards.style.display='none';
-        if(ub) ub.style.display='none';
-        trkUserCapModal(capInfo.cap);
-        return;
-      }
-    }
+    // (Cap gate for uploads already ran at the top of this function.)
     if(kits) kits.style.display='none';
     if(cards) cards.style.display='';
     if(ub) ub.style.display='inline-block';
@@ -21503,10 +21497,16 @@ const trkCtx=trkCanvas.getContext('2d');
 function renderTracker(){
   if(!trackerGrid) return;
   const vp=trkViewport();
+  // Coordinate-ruler gutter: a fixed margin (px) reserved along the top and left
+  // so the 10/20/30 numbers sit OUTSIDE the stitches, never on top of them. Width
+  // tracks the widest label (chart size), not the zoom, so there is no circular
+  // dependency with the page-fit calc below. Zero when rulers are off.
+  const _rbMax=String(Math.max(trackerGrid.cols, trackerGrid.rows)).length;
+  const GUT=trkGridCfg.on ? Math.max(22, 8 + _rbMax*7) : 0;
   if(trkPageMode){
     // each page auto-fits the fixed viewport; user zoom scales on top of that
     const wrap=document.getElementById('trk-canvas-wrap');
-    const base=Math.max(4, Math.min((wrap.clientWidth-4)/vp.nc, (wrap.clientHeight-4)/vp.nr, 30));
+    const base=Math.max(4, Math.min((wrap.clientWidth-4-GUT)/vp.nc, (wrap.clientHeight-4-GUT)/vp.nr, 30));
     trackerCellPx=base*trkPageScale;
     document.getElementById('trk-zoom-label').textContent=Math.round(trkPageScale*100)+'%';
     document.getElementById('trk-page-label').textContent=(trkPageIdx+1)+'/'+vp.tiles;
@@ -21521,7 +21521,7 @@ function renderTracker(){
   // canvas covers just the visible window, so any zoom costs the same to draw.
   const wrap=document.getElementById('trk-canvas-wrap');
   const sizer=document.getElementById('trk-scroll-sizer');
-  const fullW=vp.nc*cell+1, fullH=vp.nr*cell+1;
+  const fullW=vp.nc*cell+1+GUT, fullH=vp.nr*cell+1+GUT;
   if(sizer){ sizer.style.width=fullW+'px'; sizer.style.height=fullH+'px'; }
 
   const dpr=Math.min(window.devicePixelRatio||1, 2);
@@ -21534,19 +21534,20 @@ function renderTracker(){
   trkCanvas.style.width=viewW+'px';
   trkCanvas.style.height=viewH+'px';
   trkCtx.setTransform(dpr,0,0,dpr,0,0);
-  // Shift the world so the visible window sits at the canvas origin.
-  trkCtx.translate(-sx,-sy);
-  trkView={sx,sy,viewW,viewH,cell,dpr};
+  // Shift the world so the visible window sits at the canvas origin, plus the
+  // ruler gutter so the stitches start below/right of the coordinate strip.
+  trkCtx.translate(GUT-sx,GUT-sy);
+  trkView={sx,sy,viewW,viewH,cell,dpr,gut:GUT};
 
   trkCtx.fillStyle='#ffffff';
-  trkCtx.fillRect(sx,sy,viewW,viewH);
+  trkCtx.fillRect(sx-GUT,sy-GUT,viewW,viewH);
 
   // Cell range actually on screen, with a one-cell margin so partly visible
-  // cells at the edges still draw.
-  const vc0=Math.max(vp.c0, vp.c0+Math.floor(sx/cell)-1);
-  const vr0=Math.max(vp.r0, vp.r0+Math.floor(sy/cell)-1);
-  const vc1=Math.min(vp.c0+vp.nc, vp.c0+Math.ceil((sx+viewW)/cell)+1);
-  const vr1=Math.min(vp.r0+vp.nr, vp.r0+Math.ceil((sy+viewH)/cell)+1);
+  // cells at the edges still draw. The gutter shifts the visible world window.
+  const vc0=Math.max(vp.c0, vp.c0+Math.floor((sx-GUT)/cell)-1);
+  const vr0=Math.max(vp.r0, vp.r0+Math.floor((sy-GUT)/cell)-1);
+  const vc1=Math.min(vp.c0+vp.nc, vp.c0+Math.ceil((sx+viewW-GUT)/cell)+1);
+  const vr1=Math.min(vp.r0+vp.nr, vp.r0+Math.ceil((sy+viewH-GUT)/cell)+1);
   const showSymbol=cell>=10, fontSize=Math.round(cell*0.62);
   // CrossStitch3 font mode: draw each cell's OWN character with the chart's
   // embedded font (pixel-exact) instead of cropped bitmaps. Colour still comes
@@ -21739,30 +21740,37 @@ function renderTracker(){
     }
     trkCtx.restore();
   }
-  // Coordinate rulers (numbers in a clean margin, outside the stitches). Drawn
-  // last in SCREEN space as fixed strips along the top and left of the visible
-  // canvas, so they sit in their own gutter and stay put as you scroll.
+  // Coordinate rulers: numbers live in the reserved gutter (outside the stitches).
+  // Drawn last in SCREEN space as fixed strips along the top and left, so they
+  // stay put as you scroll while the grid (offset by GUT) scrolls beneath.
   (function trkDrawRulers(){
-    if(!trkGridCfg.on || cell<5) return;
+    if(!trkGridCfg.on || cell<5 || !GUT) return;
     const vpp=trkViewport();
     const RB=10;
-    const fs=Math.max(9, Math.min(16, Math.round(cell*0.6)));
-    const gut=Math.max(18, fs+8);
+    const gut=GUT;
+    const fs=Math.max(9, Math.min(gut-6, Math.round(cell*0.6)));
     const inFs=document.body.classList.contains('trk-fs');
-    const stripBg = inFs ? 'rgba(20,16,24,0.82)' : 'rgba(255,255,255,0.94)';
+    const stripBg = inFs ? 'rgba(20,16,24,0.9)' : 'rgba(255,255,255,0.97)';
     const ink     = inFs ? '#ffffff' : '#4a3d55';
     const tick    = inFs ? 'rgba(255,255,255,0.5)' : 'rgba(74,61,85,0.4)';
     trkCtx.save();
     trkCtx.setTransform(trkView.dpr,0,0,trkView.dpr,0,0);
     trkCtx.font='600 '+fs+'px "DM Sans",system-ui,sans-serif';
     trkCtx.textBaseline='middle';
+    // Opaque strips fill the reserved gutter; the grid starts at (gut,gut).
     trkCtx.fillStyle=stripBg;
     trkCtx.fillRect(0,0,trkView.viewW,gut);
     trkCtx.fillRect(0,0,gut,trkView.viewH);
-    trkCtx.textAlign='center'; trkCtx.fillStyle=ink;
+    // Hairline separating the gutter from the grid.
+    trkCtx.strokeStyle=tick; trkCtx.lineWidth=1;
+    trkCtx.beginPath();
+    trkCtx.moveTo(0,gut-0.5); trkCtx.lineTo(trkView.viewW,gut-0.5);
+    trkCtx.moveTo(gut-0.5,0); trkCtx.lineTo(gut-0.5,trkView.viewH);
+    trkCtx.stroke();
+    trkCtx.textAlign='center';
     for(let gc=Math.ceil(vpp.c0/RB)*RB; gc<=vpp.c0+vpp.nc; gc+=RB){
       if(gc===0) continue;
-      const x=(gc-vpp.c0)*cell - trkView.sx;
+      const x=gut+(gc-vpp.c0)*cell - trkView.sx;   // grid is offset by gut
       if(x<gut+2 || x>trkView.viewW-2) continue;
       trkCtx.strokeStyle=tick; trkCtx.lineWidth=1;
       trkCtx.beginPath(); trkCtx.moveTo(x, gut-4); trkCtx.lineTo(x, gut); trkCtx.stroke();
@@ -21770,7 +21778,7 @@ function renderTracker(){
     }
     for(let gr=Math.ceil(vpp.r0/RB)*RB; gr<=vpp.r0+vpp.nr; gr+=RB){
       if(gr===0) continue;
-      const y=(gr-vpp.r0)*cell - trkView.sy;
+      const y=gut+(gr-vpp.r0)*cell - trkView.sy;
       if(y<gut+2 || y>trkView.viewH-2) continue;
       trkCtx.strokeStyle=tick; trkCtx.lineWidth=1;
       trkCtx.beginPath(); trkCtx.moveTo(gut-4, y); trkCtx.lineTo(gut, y); trkCtx.stroke();
@@ -21784,9 +21792,10 @@ function renderTracker(){
 function trkCellAt(pt){
   const rect=trkCanvas.getBoundingClientRect();
   // Canvas-space -> world-space: the canvas is a window onto the chart now, so
-  // add back the scroll offset it was drawn with.
-  const px=(pt.clientX-rect.left)+trkView.sx;
-  const py=(pt.clientY-rect.top)+trkView.sy;
+  // add back the scroll offset and remove the ruler gutter it was drawn with.
+  const g=(trkView&&trkView.gut)||0;
+  const px=(pt.clientX-rect.left)-g+trkView.sx;
+  const py=(pt.clientY-rect.top)-g+trkView.sy;
   const vp=trkViewport();
   const c=Math.floor(px/trackerCellPx)+vp.c0, r=Math.floor(py/trackerCellPx)+vp.r0;
   if(r<vp.r0||r>=vp.r0+vp.nr||c<vp.c0||c>=vp.c0+vp.nc) return null;
@@ -21920,16 +21929,18 @@ trkCanvas.addEventListener('pointermove', e=>{
       // the same to render, so there is no reason to quantise.
       const target=Math.max(1.5, Math.min(64, (trkPinch.px||trackerCellPx)*ratio));
       if(Math.abs(target-trackerCellPx)>0.01){
-        // Keep the point between the fingers under the fingers.
+        // Keep the point between the fingers under the fingers. The gutter is a
+        // fixed margin that must NOT scale, so anchor only the grid portion.
         const wrap=document.getElementById('trk-canvas-wrap');
         const rect=trkCanvas.getBoundingClientRect();
+        const g=(trkView&&trkView.gut)||0;
         const mx=(pts[0].x+pts[1].x)/2-rect.left+ (wrap?wrap.scrollLeft:0);
         const my=(pts[0].y+pts[1].y)/2-rect.top + (wrap?wrap.scrollTop:0);
         const k=target/trackerCellPx;
         trkSetZoomPx(target);
         if(wrap){
-          wrap.scrollLeft = mx*k - ((pts[0].x+pts[1].x)/2-rect.left);
-          wrap.scrollTop  = my*k - ((pts[0].y+pts[1].y)/2-rect.top);
+          wrap.scrollLeft = g + (mx-g)*k - ((pts[0].x+pts[1].x)/2-rect.left);
+          wrap.scrollTop  = g + (my-g)*k - ((pts[0].y+pts[1].y)/2-rect.top);
         }
         // keep +/- sensible afterwards
         let best=0;
