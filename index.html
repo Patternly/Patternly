@@ -6827,6 +6827,15 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <p class="calc-sub">Your Luca-S account, your patterns and your stitching — in one place.</p>
     <div class="acct-status" id="acct-status"><!-- filled by acctRenderPage() --></div>
     <div id="acct-plus-strip"></div>
+    <div id="acct-hub" style="display:none">
+      <div class="acct-hub-title">More</div>
+      <button class="acct-hub-row" onclick="openSubscriptionPage()"><span>My Subscription</span><i>&rsaquo;</i></button>
+      <button class="acct-hub-row" onclick="openThreads()"><span>Thread Colours</span><i>&rsaquo;</i></button>
+      <button class="acct-hub-row" onclick="openFileConverter()"><span>File Converter</span><i>&rsaquo;</i></button>
+      <button class="acct-hub-row" onclick="openCalculators()"><span>Calculators</span><i>&rsaquo;</i></button>
+      <button class="acct-hub-row" onclick="openPricing()"><span>Pricing</span><i>&rsaquo;</i></button>
+      <button class="acct-hub-row" onclick="openGuide()"><span>Guide</span><i>&rsaquo;</i></button>
+    </div>
     <div id="acct-patterns" style="display:none;margin-top:1.6rem"></div>
     <div class="acct-row-block">
       <div class="acct-row-head">
@@ -26605,7 +26614,24 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       + '#ptly-appnav button.active{color:var(--lp-red,#8B1A2B)}'
       + '#ptly-appnav button svg{width:24px;height:24px;stroke:currentColor;fill:none;'
       + 'stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}'
-      + '#ptly-appnav button span{line-height:1}';
+      + '#ptly-appnav button span{line-height:1}'
+      // Phase B: hide the top header in-app (bottom nav + Account tab replace it).
+      + 'body.ptly-appui #lp-nav{display:none!important}'
+      + 'body.ptly-appui .pj-header{display:none!important}'
+      // Account "hub" — links to the secondary pages, shown only in the app.
+      + 'body.ptly-appui #acct-hub{display:block!important}'
+      + '#acct-hub{max-width:520px;margin:1.5rem auto 0;border:1px solid rgba(0,0,0,.09);'
+      + 'border-radius:14px;overflow:hidden;background:#fff}'
+      + 'body.dark #acct-hub{background:#241b1e;border-color:rgba(255,255,255,.10)}'
+      + '.acct-hub-title{font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;'
+      + 'color:#9a8890;padding:.9rem 1.1rem .55rem}'
+      + '.acct-hub-row{display:flex;align-items:center;justify-content:space-between;width:100%;'
+      + 'background:none;border:0;border-top:1px solid rgba(0,0,0,.06);padding:.95rem 1.1rem;'
+      + 'font-family:inherit;font-size:.92rem;font-weight:600;color:var(--lp-ink,#2b2226);'
+      + 'cursor:pointer;text-align:left;-webkit-tap-highlight-color:transparent}'
+      + 'body.dark .acct-hub-row{color:#f2ecf4;border-top-color:rgba(255,255,255,.07)}'
+      + '.acct-hub-row i{color:#c9b9c0;font-style:normal;font-size:1.25rem;line-height:1}'
+      + '.acct-hub-row:active{background:rgba(139,26,43,.06)}';
     var st=document.createElement('style'); st.id='ptly-appnav-css'; st.textContent=css;
     document.head.appendChild(st);
 
