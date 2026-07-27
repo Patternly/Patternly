@@ -3506,9 +3506,13 @@ body.trk-fs{overflow:hidden}
 #trk-fspanel-body{flex:1;min-height:0;overflow-y:auto}
 #trk-fspanel-body > #trk-side,
 #trk-fspanel-body > #trk-grid-pop{display:block!important;width:100%!important;max-width:none!important;height:auto!important;min-height:0!important}
-#trk-fspanel-body #trk-colors{display:flex!important;flex-wrap:wrap;gap:.4rem}
+#trk-fspanel-body #trk-colors{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.3rem .5rem;align-content:start}
 #trk-fspanel-body #trk-grid-pop .tg-row,
 #trk-fspanel-body #trk-grid-pop label{display:flex!important;min-height:2rem}
+#trk-fspanel-body #trk-secondary{display:flex!important;flex-direction:column;gap:.55rem;align-items:stretch;margin-left:0}
+#trk-fspanel-body #trk-secondary #trk-viewseg,#trk-fspanel-body #trk-secondary #trk-pagebar{margin-left:0}
+#trk-fspanel-body #trk-secondary #trk-viewseg button,#trk-fspanel-body #trk-secondary #trk-pagebar select{flex:1}
+#trk-fspanel-body #trk-minimap{max-width:100%;overflow:auto}
 #trk-scroll-sizer > #trk-canvas{position:sticky;top:0;left:0;margin:0}
 /* The scroll container must not let the browser claim pinch either, or the
    gesture is intercepted before the canvas ever sees it. */
@@ -6802,9 +6806,8 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <b id="acct-m-title" style="font-size:.98rem;display:block;margin-bottom:.35rem">Signing you in…</b>
     <p id="acct-m-text" style="font-size:.8rem;color:#7d6b72;line-height:1.55;margin:0 0 1rem">A secure Luca-S sign-in has opened. Finish there — it brings you back automatically.</p>
     <div style="display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap">
-      <button class="acct-m-btn primary" id="acct-m-finish" onclick="acctFinishSync()">I've signed in — finish</button>
       <button class="acct-m-btn" id="acct-m-reopen" onclick="acctReopen()">Reopen window</button>
-      <button class="acct-m-btn" onclick="acctModalClose(true)">Cancel</button>
+      <button class="acct-m-btn primary" onclick="acctModalClose(true)">Close</button>
     </div>
   </div>
 </div>
@@ -24865,7 +24868,7 @@ async function acctRenderPlusStrip(){
   let d=null;
   try{
     const base=TRK_KITS_BASE.replace(/\/patterns$/,'');
-    const r=await fetch(base+'/plus/billing',{credentials:'include',cache:'no-store'});
+    const r=await fetch(base+'/plus/billing'+plSessQS(),{credentials:'include',cache:'no-store'});
     if(r.ok) d=await r.json();
   }catch(e){}
   if(!d){ draw('Membership','Could not load this just now.','Retry',()=>acctRenderPlusStrip()); return; }
@@ -24929,7 +24932,7 @@ async function acctRenderPlus(){
   let d=null;
   try{
     const base=TRK_KITS_BASE.replace(/\/patterns$/,'');
-    const r=await fetch(base+'/plus/billing',{credentials:'include',cache:'no-store'});
+    const r=await fetch(base+'/plus/billing'+plSessQS(),{credentials:'include',cache:'no-store'});
     if(r.ok) d=await r.json();
   }catch(e){}
   if(!d){ body.innerHTML='<span>Could not load your membership just now.</span>'; return; }
@@ -26056,6 +26059,15 @@ function trkFsPanel(kind){
     const zg=document.getElementById('trk-zoomgroup');
     if(zg){ const w=document.createElement('div'); w.style.cssText='margin-top:.9rem;display:flex;gap:.3rem;align-items:center';
             w.appendChild(zg); body.appendChild(w); }
+    // Pages control (Full/Pages toggle + per-page + navigator + minimap): lend it
+    // in here too, so in full-screen the reader can switch to Pages and step
+    // through the chart from Settings. It's the SAME live node as the toolbar's,
+    // moved and restored on close — so its buttons keep their handlers.
+    const sec=document.getElementById('trk-secondary');
+    if(sec){ const w=document.createElement('div'); w.id='trk-fs-pages-wrap';
+             w.style.cssText='margin-top:1rem;padding-top:.9rem;border-top:1px solid #f0e6ea;display:flex;flex-direction:column;gap:.55rem';
+             const lb=document.createElement('div'); lb.textContent='Pages'; lb.style.cssText='font-size:.72rem;font-weight:700;color:#7d6b72';
+             w.appendChild(lb); w.appendChild(sec); body.appendChild(w); }
     const btn=document.getElementById('fsb-settings'); if(btn) btn.classList.add('active');
   }
   panel.classList.add('open');
@@ -26093,6 +26105,13 @@ function trkFsRestore(){
   const zg=document.getElementById('trk-zoomgroup');
   const tb=document.getElementById('trk-zoombar');
   if(zg && tb && !tb.contains(zg)) tb.appendChild(zg);
+  // Return the borrowed Pages control to the toolbar (right after "☰ View")
+  // before the body is cleared, or body.innerHTML='' would destroy the live node.
+  const sec=document.getElementById('trk-secondary');
+  const more=document.getElementById('trk-more');
+  if(sec && more && sec.parentElement!==more.parentElement){
+    more.parentElement.insertBefore(sec, more.nextSibling);
+  }
   const body=document.getElementById('trk-fspanel-body');
   if(body) body.innerHTML='';
 }
@@ -26697,10 +26716,7 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       + 'color:var(--lp-red,#8B1A2B);opacity:0;animation:ptly-sw .5s ease forwards;animation-delay:.75s}'
       + 'body.dark #ptly-splash-word{color:#e79aa8}'
       + '.ptly-splash-cell{opacity:0;animation:g-pop .4s ease forwards}'
-      + '@keyframes ptly-sw{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}'
-      // Sign-in modal: the app returns automatically via the deep link, so the
-      // "Reopen window" fallback is noise in-app. Web keeps it.
-      + 'body.ptly-appui #acct-m-reopen{display:none!important}';
+      + '@keyframes ptly-sw{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}';
     var st=document.createElement('style'); st.id='ptly-appnav-css'; st.textContent=css;
     document.head.appendChild(st);
 
