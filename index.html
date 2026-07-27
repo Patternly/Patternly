@@ -25112,7 +25112,7 @@ function acctModalShow(){
   const m=document.getElementById('acct-modal');
   document.getElementById('acct-m-spin').style.display='';
   document.getElementById('acct-m-title').textContent='Signing you in…';
-  document.getElementById('acct-m-text').textContent='A secure Luca-S sign-in window has opened. Sign in with your email there — you\u2019ll get a code, and new customers get an account automatically. When it shows you\u2019re signed in, tap \u201cI\u2019ve signed in \u2014 finish\u201d below (or click the Luca-S logo in that window to return to the store) and we\u2019ll connect your account.';
+  document.getElementById('acct-m-text').textContent='A secure Luca-S sign-in window has opened. Sign in with your email there — you\u2019ll get a code, and new customers get an account automatically. It brings you back on its own; this page connects your account the moment you\u2019re done.';
   document.getElementById('acct-m-reopen').style.display='';
   const fin=document.getElementById('acct-m-finish'); if(fin) fin.style.display='';
   m.classList.add('open');
@@ -25134,19 +25134,15 @@ function acctModalSuccess(){
 // send it to our own app path — which sets the storefront session, then the
 // early head script there posts back to us and closes the popup.
 function acctFinishSync(){
-  const dest=location.origin+location.pathname+'?pl_authdone=1';
   const t=document.getElementById('acct-m-text');
-  if(t) t.textContent='Connecting your account\u2026';
-  // Best effort: if the popup handle is still reachable, send it to a luca-s.com
-  // page (which sets the storefront session and self-closes via the head script).
-  // Shopify's COOP may have severed the handle — that's fine, we fall back to
-  // re-checking, since the session also lands the instant the user taps the
-  // Luca-S logo / "return to store" in that window.
-  try{ if(_acctLoginWin && !_acctLoginWin.closed) _acctLoginWin.location = dest; }catch(e){}
+  if(t) t.textContent='Checking\u2026';
+  // With our own OAuth flow the callback sets the session and the popup returns
+  // on its own, so "finish" just re-checks a few times rather than driving the
+  // popup (which could abandon an in-progress sign-in).
   let n=0; const iv=setInterval(async ()=>{
     if(typeof acctRefresh==='function') await acctRefresh();
     if(typeof lucasAuth==='function' && lucasAuth().loggedIn){ clearInterval(iv); acctModalSuccess(); return; }
-    if(++n>=6){ clearInterval(iv); if(t) t.textContent='Nearly there — in the sign-in window, tap the Luca-S logo (top-left) to return to the store. That connects your account, and this page will pick it up right away.'; }
+    if(++n>=6){ clearInterval(iv); if(t) t.textContent='Not quite yet — finish signing in in that window, and this page will connect your account automatically.'; }
   }, 900);
 }
 function acctModalClose(cancelled){
@@ -25159,10 +25155,10 @@ function acctModalClose(cancelled){
 function acctReopen(){
   const w=460, h=640;
   const x=Math.max(0,(screen.width-w)/2), y=Math.max(0,(screen.height-h)/2);
-  // Ask Shopify to return the popup to THIS app path (with a marker) after login,
-  // so the luca-s.com session cookie is set and the popup can self-signal + close.
-  const ret=encodeURIComponent(location.pathname+'?pl_authdone=1');
-  _acctLoginWin=window.open('/account/login?return_url='+ret,'lucas_login',`popup=yes,width=${w},height=${h},left=${x},top=${y}`);
+  // Our own OAuth entry: /auth/start bounces through Shopify and returns the
+  // popup to /auth/callback (which sets our session cookie), then to the app
+  // with ?pl_authdone=1 so the head script closes it. No return-to-store dance.
+  _acctLoginWin=window.open('/apps/patternly/auth/start','lucas_login',`popup=yes,width=${w},height=${h},left=${x},top=${y}`);
 }
 async function acctOpenLogin(){
   acctCloseAll();
@@ -25176,10 +25172,10 @@ async function acctOpenLogin(){
   acctModalShow();
   acctReopen();
   if(!_acctLoginWin){
-    // popup blocked → plain tab; the modal keeps orchestrating. Still ask Shopify
-    // to return to the app so the cookie lands and polling catches it quickly.
-    window.open('/account/login?return_url='+encodeURIComponent(location.pathname),'_blank','noopener');
-    document.getElementById('acct-m-text').textContent='A sign-in tab has opened. Finish there and come back — this page will notice by itself.';
+    // popup blocked → plain tab; the modal keeps orchestrating. Same OAuth entry,
+    // which returns to the app and sets the session; the poll then catches it.
+    window.open('/apps/patternly/auth/start','_blank');
+    document.getElementById('acct-m-text').textContent='A sign-in tab has opened. Finish there and it\u2019ll bring you back — this page will notice by itself.';
   }
   clearInterval(_acctPollTimer);
   const tick=async ()=>{
