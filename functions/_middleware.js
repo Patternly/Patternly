@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v39";
+const MW_VERSION = "v40";
 
 const enc = new TextEncoder();
 
@@ -38,6 +38,10 @@ function timingSafeEqual(a, b) {
 const CUSTOMER_SHOP_ID_DEFAULT = "64819790053";
 function customerAuthBase(env) { return `https://shopify.com/authentication/${env.CUSTOMER_SHOP_ID || CUSTOMER_SHOP_ID_DEFAULT}`; }
 function customerRedirectUri(env) { return env.CUSTOMER_REDIRECT_URI || "https://luca-s.com/apps/patternly/auth/callback"; }
+// Deep link back into the native app after sign-in. Shopify never sees this —
+// it only ever redirects to the https callback above; our middleware makes this
+// final hop. Overridable via env if the scheme ever changes.
+function customerAppRedirect(env) { return env.CUSTOMER_APP_REDIRECT || "com.lucas.patternly://auth"; }
 function customerScope(env) { return env.CUSTOMER_SCOPE || "openid email"; }
 const CUSTOMER_BY_EMAIL_QUERY = `query($q:String!){ customers(first:1, query:$q){ edges{ node{ id email } } } }`;
 
@@ -1027,7 +1031,11 @@ async function handleRequest(context) {
     }
     const verifier = randToken(48);
     const challenge = await sha256b64url(verifier);
-    const state = await signCookie(env.CUSTOMER_SESSION_SECRET, { v: verifier, ts: Date.now(), n: randToken(8) });
+    // ?app=1 marks a native-app sign-in: the callback will deep-link the session
+    // back into the app instead of redirecting to the web URL. The flag rides
+    // inside the signed state so it survives the round-trip through Shopify.
+    const wantApp = url.searchParams.get("app") === "1";
+    const state = await signCookie(env.CUSTOMER_SESSION_SECRET, { v: verifier, ts: Date.now(), n: randToken(8), app: wantApp ? 1 : 0 });
     const a = new URL(customerAuthBase(env) + "/oauth/authorize");
     a.searchParams.set("client_id", env.CUSTOMER_CLIENT_ID);
     a.searchParams.set("response_type", "code");
@@ -1138,7 +1146,12 @@ async function handleRequest(context) {
     }
     // Land on the app with the marker (head script closes the popup) plus the
     // session token, which the app captures into localStorage.
-    const dest = "https://luca-s.com/apps/patternly?pl_authdone=1&pl_session=" + encodeURIComponent(sessTok);
+    // App sign-in → hand the session back into the native app via the custom
+    // scheme (the OS catches it, Capacitor's appUrlOpen listener stashes the
+    // token). Web sign-in → the existing app URL with the popup-close marker.
+    const dest = saved.app
+      ? (customerAppRedirect(env) + (customerAppRedirect(env).includes("?") ? "&" : "?") + "pl_session=" + encodeURIComponent(sessTok))
+      : ("https://luca-s.com/apps/patternly?pl_authdone=1&pl_session=" + encodeURIComponent(sessTok));
     return new Response(null, { status: 302, headers: { "location": dest, "cache-control": "no-store" } });
     } catch (e) {
       return new Response(
