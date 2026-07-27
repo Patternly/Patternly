@@ -24743,7 +24743,7 @@ function acctRenderPage(){
     el.innerHTML=`<div style="width:46px;height:46px;border-radius:50%;background:#fbe3e7;display:flex;align-items:center;justify-content:center;color:var(--lp-red,#8B1A2B);flex-shrink:0"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="8.2" r="3.6"/><path d="M4.8 19.4c1.5-3.1 4.2-4.6 7.2-4.6s5.7 1.5 7.2 4.6"/></svg></div>
       <div style="flex:1;min-width:180px"><b style="font-size:.95rem">✓ Signed in with your Luca-S account</b><p style="font-size:.76rem;color:#7d6b72;margin:.2rem 0 0">${a.email ? 'Signed in as <b>'+String(a.email).replace(/</g,'&lt;')+'</b>' : 'The same account you use in the Luca-S shop.'}</p></div>
       <a href="#" onclick="acctSignOut();return false" style="padding:.5rem .9rem;border:1.5px solid #eadde1;border-radius:9px;font-size:.8rem;font-weight:700;color:#5a4a51;text-decoration:none">Sign out</a>`;
-  } else if(a.proxied){
+  } else if(a.proxied || plIsApp()){
     el.innerHTML=`<div style="flex:1;min-width:200px"><b style="font-size:.95rem">You're not signed in</b><p style="font-size:.78rem;color:#7d6b72;margin:.25rem 0 0;line-height:1.5">Sign in with your email — you'll get a code, and new customers get an account automatically. A small sign-in window opens; the moment you're done, Patternly notices by itself.</p></div>
       <a href="#" onclick="acctOpenLogin();return false" style="padding:.55rem 1rem;border-radius:9px;background:var(--lp-red,#8B1A2B);color:#fff;font-size:.82rem;font-weight:700;text-decoration:none">Sign in / Create account</a>`;
   } else {
@@ -25108,7 +25108,9 @@ function acctSignOut(){
 function plSessQS(){ try{ const t=localStorage.getItem('pl_session'); return t?('?pl_session='+encodeURIComponent(t)):''; }catch(e){ return ''; } }
 async function acctRefresh(){
   if(_acctBusy) return;
-  if(!/(^|\.)luca-s\.com$/.test(location.hostname)) return;
+  // Run on luca-s.com (same-origin) OR wherever an absolute API base is set
+  // (the native app / off-proxy), where whoami reaches the backend by full URL.
+  if(!/(^|\.)luca-s\.com$/.test(location.hostname) && !window.PATTERNLY_API_BASE) return;
   _acctBusy=true;
   try{
     const r=await fetch((window.PATTERNLY_API_BASE||'/apps/patternly')+'/whoami'+plSessQS(),{cache:'no-store'});
@@ -25203,7 +25205,7 @@ function acctReopen(){
       var B=window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
       if(B && B.open){ B.open({ url: appUrl }); return; }
     }catch(e){}
-    // No Browser plugin available → last-resort system open (still deep-links back).
+    // No Browser plugin → last-resort system open (still deep-links back).
     try{ window.open(appUrl,'_blank'); }catch(e){}
     return;
   }
@@ -25258,7 +25260,7 @@ function acctBuildMenu(){
       <a href="#" onclick="acctGo(openSubscriptionPage);return false">My Subscription</a>
       <a href="#" onclick="acctSignOut();return false">Sign out</a>`;
   }
-  if(a.proxied){
+  if(a.proxied || plIsApp()){
     return `<div class="acct-note">Sign in with your email — a code is sent to you, and new customers get an account automatically.</div>
       <a href="#" onclick="acctOpenLogin();return false">Sign in / Create account</a>`;
   }
@@ -25293,25 +25295,34 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.acct-wrap')) acctC
   // plSessQS() reads it, close the in-app browser, and reflect the signed-in state.
   try{
     if(plIsApp()){
+      window.PATTERNLY_DEBUG_AUTH = false;  // debug pop-ups off (flip to true only to diagnose)
+      var _dbg=function(msg){ if(window.PATTERNLY_DEBUG_AUTH){ try{ alert('[auth] '+msg); }catch(e){} } };
       var _App=window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+      if(!_App || !_App.addListener){ _dbg('App plugin NOT available — deep link cannot be caught'); }
       if(_App && _App.addListener){
         _App.addListener('appUrlOpen', function(data){
           try{
             var raw=(data && data.url) ? String(data.url) : '';
+            _dbg('appUrlOpen fired:\n'+raw);
+            // Only react to our own scheme — never to the https URLs mid-flow.
+            if(raw.indexOf('com.lucas.patternly:')!==0){ _dbg('ignored (not our scheme)'); return; }
             var m=raw.match(/[?&]pl_session=([^&#]+)/);
-            if(!m) return;
+            if(!m){ _dbg('deep link had NO pl_session'); return; }
             try{ localStorage.setItem('pl_session', decodeURIComponent(m[1])); }catch(e){}
+            _dbg('token stored, length='+decodeURIComponent(m[1]).length+'\nclosing browser + checking whoami…');
             try{ var B=window.Capacitor.Plugins.Browser; B && B.close && B.close(); }catch(e){}
             if(typeof acctRefresh==='function'){
               acctRefresh().then(function(){
-                if(typeof lucasAuth==='function' && lucasAuth().loggedIn){
+                var li=(typeof lucasAuth==='function' && lucasAuth().loggedIn);
+                _dbg('after whoami: loggedIn='+li);
+                if(li){
                   clearInterval(_acctPollTimer);
                   if(typeof acctModalSuccess==='function') acctModalSuccess();
                   if(typeof toast==='function') toast('✓ Signed in with your Luca-S account');
                 }
-              });
+              }, function(err){ _dbg('whoami FAILED: '+(err&&err.message||err)); });
             }
-          }catch(e){}
+          }catch(e){ _dbg('listener error: '+(e&&e.message||e)); }
         });
       }
     }
