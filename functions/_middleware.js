@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v36";
+const MW_VERSION = "v37";
 
 const enc = new TextEncoder();
 
@@ -75,6 +75,12 @@ function getCookie(request, name) {
 function parseJwtPayload(jwt) {
   try { const p = String(jwt).split("."); return p.length < 2 ? null : JSON.parse(b64urlToStr(p[1])); }
   catch (e) { return null; }
+}
+async function fetchWithTimeout(resource, options, ms) {
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), ms || 8000);
+  try { return await fetch(resource, { ...(options || {}), signal: c.signal }); }
+  finally { clearTimeout(t); }
 }
 async function readSession(request, url, env) {
   // App Proxy strips Set-Cookie, so the session is a signed token the app keeps
@@ -993,6 +999,27 @@ export async function onRequest(context) {
     return new Response(null, { status: 302, headers: { "location": a.toString(), "cache-control": "no-store" } });
   }
 
+  // ── /auth/tokentest : prove the token endpoint is reachable from here ──
+  // Sends a deliberately-invalid code; a healthy setup returns Shopify's JSON
+  // error (400/401) quickly. A hang/timeout here means the fetch itself is the
+  // problem (network/egress), which would surface as a bare 500 in the callback.
+  if (url.pathname.endsWith("/auth/tokentest")) {
+    try {
+      const basic = "Basic " + btoa(env.CUSTOMER_CLIENT_ID + ":" + (env.CUSTOMER_CLIENT_SECRET || ""));
+      const resp = await fetchWithTimeout(customerAuthBase(env) + "/oauth/token", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded", "authorization": basic },
+        body: new URLSearchParams({ grant_type: "authorization_code", client_id: env.CUSTOMER_CLIENT_ID, redirect_uri: customerRedirectUri(env), code: "invalid-probe", code_verifier: "x".repeat(48) })
+      }, 8000);
+      const txt = await resp.text();
+      return new Response(JSON.stringify({ reached: true, status: resp.status, body: txt.slice(0, 500) }, null, 2),
+        { headers: { "content-type": "application/json", "cache-control": "no-store" } });
+    } catch (e) {
+      return new Response(JSON.stringify({ reached: false, aborted: (e && e.name === "AbortError"), msg: String(e && e.message || e) }, null, 2),
+        { status: 200, headers: { "content-type": "application/json", "cache-control": "no-store" } });
+    }
+  }
+
   // ── /auth/callback : Shopify returns here with ?code&state ──
   if (url.pathname.endsWith("/auth/callback")) {
     const debug = url.searchParams.get("debug") === "1";
@@ -1017,7 +1044,7 @@ export async function onRequest(context) {
     let tok;
     try {
       const basic = "Basic " + btoa(env.CUSTOMER_CLIENT_ID + ":" + (env.CUSTOMER_CLIENT_SECRET || ""));
-      const resp = await fetch(customerAuthBase(env) + "/oauth/token", {
+      const resp = await fetchWithTimeout(customerAuthBase(env) + "/oauth/token", {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded", "authorization": basic },
         body: new URLSearchParams({
@@ -1027,11 +1054,11 @@ export async function onRequest(context) {
           code,
           code_verifier: saved.v
         })
-      });
+      }, 8000);
       const txt = await resp.text();
-      if (!resp.ok) return fail("token-exchange", debug ? (resp.status + " " + txt) : "token exchange failed", 502);
+      if (!resp.ok) return fail("token-exchange", resp.status + " " + txt.slice(0, 400), 502);
       tok = JSON.parse(txt);
-    } catch (e) { return fail("token-fetch", e.message, 502); }
+    } catch (e) { return fail(e && e.name === "AbortError" ? "token-timeout" : "token-fetch", String(e && e.message || e), 502); }
 
     const claims = tok.id_token ? parseJwtPayload(tok.id_token) : null;
     const email = (claims && (claims.email || claims.email_address)) || null;
@@ -1040,7 +1067,10 @@ export async function onRequest(context) {
     let customerId = null;
     if (email) {
       try {
-        const r = await adminQuery(env, CUSTOMER_BY_EMAIL_QUERY, { q: "email:" + email });
+        const r = await Promise.race([
+          adminQuery(env, CUSTOMER_BY_EMAIL_QUERY, { q: "email:" + email }),
+          new Promise((_, rej) => setTimeout(() => rej(new Error("admin-timeout")), 6000))
+        ]);
         const node = r && r.customers && r.customers.edges && r.customers.edges[0] && r.customers.edges[0].node;
         if (node && node.id) customerId = String(node.id).replace(/^gid:\/\/shopify\/Customer\//, "");
       } catch (e) {}
