@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v34";
+const MW_VERSION = "v35";
 
 const enc = new TextEncoder();
 
@@ -981,12 +981,19 @@ export async function onRequest(context) {
   if (url.pathname.endsWith("/auth/callback")) {
     const debug = url.searchParams.get("debug") === "1";
     const fail = (step, msg, code = 400) => new Response(
-      debug ? JSON.stringify({ ok: false, step, msg }, null, 2) : `Sign-in didn't complete (${step}). Close this window and try again.`,
-      { status: code, headers: { "content-type": debug ? "application/json" : "text/plain", "cache-control": "no-store" } }
+      // Always surface the step + message here — the callback is a transient,
+      // non-sensitive page, and seeing the real reason is what unblocks setup.
+      JSON.stringify({ ok: false, step, msg }, null, 2),
+      { status: code, headers: { "content-type": "application/json", "cache-control": "no-store" } }
     );
+    try {
+    // Shopify can bounce back with an error instead of a code (bad scope, bad
+    // redirect_uri, denied consent). Show it plainly rather than 500-ing.
+    const oauthErr = url.searchParams.get("error");
+    if (oauthErr) return fail("shopify-error", oauthErr + ": " + (url.searchParams.get("error_description") || ""));
     const code = url.searchParams.get("code");
     const state = url.searchParams.get("state");
-    if (!code || !state) return fail("params", "missing code or state");
+    if (!code || !state) return fail("params", "missing code or state (query: " + [...url.searchParams.keys()].join(",") + ")");
     const saved = await verifyCookie(env.CUSTOMER_SESSION_SECRET, state);   // state is a signed, self-contained token
     if (!saved || !saved.v) return fail("state", "state signature invalid");
     if (saved.ts && Date.now() - saved.ts > 600000) return fail("expired", "sign-in took too long, try again");
@@ -1038,6 +1045,12 @@ export async function onRequest(context) {
     // session token, which the app captures into localStorage.
     const dest = "https://luca-s.com/apps/patternly?pl_authdone=1&pl_session=" + encodeURIComponent(sessTok);
     return new Response(null, { status: 302, headers: { "location": dest, "cache-control": "no-store" } });
+    } catch (e) {
+      return new Response(
+        JSON.stringify({ ok: false, step: "exception", msg: String(e && e.message || e), stack: String(e && e.stack || "").split("\n").slice(0, 4) }, null, 2),
+        { status: 500, headers: { "content-type": "application/json", "cache-control": "no-store" } }
+      );
+    }
   }
 
   // ── /auth/logout : the app just drops its stored token; nothing server-side ──
