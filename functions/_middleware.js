@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v32";
+const MW_VERSION = "v33";
 
 const enc = new TextEncoder();
 
@@ -27,6 +27,60 @@ function timingSafeEqual(a, b) {
   let r = 0;
   for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return r === 0;
+}
+
+// ── Customer Account API (OAuth) helpers ─────────────────────────────────────
+// A confidential OAuth client for Shopify's new customer accounts. Sign-in flows
+// through /auth/start → Shopify → /auth/callback (all on luca-s.com via the App
+// Proxy), and the callback sets our OWN signed session cookie — so we no longer
+// depend on Shopify's App Proxy logged_in_customer_id, which never lands for new
+// customer accounts until the browser returns to the storefront by hand.
+const CUSTOMER_SHOP_ID_DEFAULT = "64819790053";
+function customerAuthBase(env) { return `https://shopify.com/authentication/${env.CUSTOMER_SHOP_ID || CUSTOMER_SHOP_ID_DEFAULT}`; }
+function customerRedirectUri(env) { return env.CUSTOMER_REDIRECT_URI || "https://luca-s.com/apps/patternly/auth/callback"; }
+function customerScope(env) { return env.CUSTOMER_SCOPE || "openid email"; }
+const CUSTOMER_BY_EMAIL_QUERY = `query($q:String!){ customers(first:1, query:$q){ edges{ node{ id email } } } }`;
+
+function b64urlFromBytes(bytes) {
+  let s = ""; for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function b64urlFromStr(str) { return b64urlFromBytes(enc.encode(str)); }
+function b64urlToStr(b64) {
+  b64 = b64.replace(/-/g, "+").replace(/_/g, "/"); while (b64.length % 4) b64 += "=";
+  const bin = atob(b64), bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+function randToken(nBytes) { const a = new Uint8Array(nBytes); crypto.getRandomValues(a); return b64urlFromBytes(a); }
+async function sha256b64url(str) {
+  const d = await crypto.subtle.digest("SHA-256", enc.encode(str));
+  return b64urlFromBytes(new Uint8Array(d));
+}
+async function signCookie(secret, obj) {
+  const body = b64urlFromStr(JSON.stringify(obj));
+  return body + "." + await hmacHex(secret, body);
+}
+async function verifyCookie(secret, val) {
+  if (!secret || !val || val.indexOf(".") < 0) return null;
+  const i = val.lastIndexOf("."), body = val.slice(0, i), mac = val.slice(i + 1);
+  if (!timingSafeEqual(await hmacHex(secret, body), mac)) return null;
+  try { return JSON.parse(b64urlToStr(body)); } catch (e) { return null; }
+}
+function getCookie(request, name) {
+  const h = request.headers.get("cookie") || "";
+  const m = h.match(new RegExp("(?:^|;\\s*)" + name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "=([^;]*)"));
+  return m ? decodeURIComponent(m[1]) : null;
+}
+function parseJwtPayload(jwt) {
+  try { const p = String(jwt).split("."); return p.length < 2 ? null : JSON.parse(b64urlToStr(p[1])); }
+  catch (e) { return null; }
+}
+async function readSession(request, env) {
+  const s = await verifyCookie(env.CUSTOMER_SESSION_SECRET, getCookie(request, "pl_sess") || "");
+  if (!s || !s.customerId) return null;
+  if (s.exp && Date.now() > s.exp) return null;
+  return s;
 }
 
 async function readAuth(url, env) {
@@ -889,6 +943,127 @@ export async function onRequest(context) {
   const url = new URL(request.url);
   const auth = await readAuth(url, env);
 
+  // If the App Proxy didn't hand us a signed-in customer (which is the norm for
+  // Shopify's new customer accounts), fall back to our own OAuth session cookie.
+  // This is what makes sign-in "just work" without the return-to-store dance.
+  if (!auth.loggedIn) {
+    const s = await readSession(request, env);
+    if (s) { auth.loggedIn = true; auth.customerId = s.customerId; auth.email = s.email || null; auth.oauth = true; }
+  }
+
+  // ── /auth/start : begin Customer Account API OAuth (PKCE + state) ──
+  if (url.pathname.endsWith("/auth/start")) {
+    if (!env.CUSTOMER_CLIENT_ID || !env.CUSTOMER_SESSION_SECRET) {
+      return new Response("Customer login not configured", { status: 500, headers: { "cache-control": "no-store" } });
+    }
+    const state = randToken(24);
+    const verifier = randToken(48);
+    const challenge = await sha256b64url(verifier);
+    const stateCookie = await signCookie(env.CUSTOMER_SESSION_SECRET, { state, verifier, ts: Date.now() });
+    const a = new URL(customerAuthBase(env) + "/oauth/authorize");
+    a.searchParams.set("client_id", env.CUSTOMER_CLIENT_ID);
+    a.searchParams.set("response_type", "code");
+    a.searchParams.set("redirect_uri", customerRedirectUri(env));
+    a.searchParams.set("scope", customerScope(env));
+    a.searchParams.set("state", state);
+    a.searchParams.set("code_challenge", challenge);
+    a.searchParams.set("code_challenge_method", "S256");
+    return new Response(null, {
+      status: 302,
+      headers: {
+        "location": a.toString(),
+        "set-cookie": `pl_oauth=${stateCookie}; Path=/apps/patternly; Max-Age=600; HttpOnly; Secure; SameSite=Lax`,
+        "cache-control": "no-store"
+      }
+    });
+  }
+
+  // ── /auth/callback : Shopify returns here with ?code&state ──
+  if (url.pathname.endsWith("/auth/callback")) {
+    const debug = url.searchParams.get("debug") === "1";
+    const fail = (step, msg, code = 400) => new Response(
+      debug ? JSON.stringify({ ok: false, step, msg }, null, 2) : `Sign-in didn't complete (${step}). Close this window and try again.`,
+      { status: code, headers: { "content-type": debug ? "application/json" : "text/plain", "cache-control": "no-store" } }
+    );
+    const code = url.searchParams.get("code");
+    const state = url.searchParams.get("state");
+    if (!code || !state) return fail("params", "missing code or state");
+    const saved = await verifyCookie(env.CUSTOMER_SESSION_SECRET, getCookie(request, "pl_oauth") || "");
+    if (!saved) return fail("state-cookie", "state cookie missing/invalid (App Proxy may have dropped Set-Cookie)");
+    if (!timingSafeEqual(saved.state, state)) return fail("state", "state mismatch");
+    if (saved.ts && Date.now() - saved.ts > 600000) return fail("expired", "sign-in took too long, try again");
+
+    let tok;
+    try {
+      const basic = "Basic " + btoa(env.CUSTOMER_CLIENT_ID + ":" + (env.CUSTOMER_CLIENT_SECRET || ""));
+      const resp = await fetch(customerAuthBase(env) + "/oauth/token", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded", "authorization": basic },
+        body: new URLSearchParams({
+          grant_type: "authorization_code",
+          client_id: env.CUSTOMER_CLIENT_ID,
+          redirect_uri: customerRedirectUri(env),
+          code,
+          code_verifier: saved.verifier
+        })
+      });
+      const txt = await resp.text();
+      if (!resp.ok) return fail("token-exchange", debug ? (resp.status + " " + txt) : "token exchange failed", 502);
+      tok = JSON.parse(txt);
+    } catch (e) { return fail("token-fetch", e.message, 502); }
+
+    const claims = tok.id_token ? parseJwtPayload(tok.id_token) : null;
+    const email = (claims && (claims.email || claims.email_address)) || null;
+    const sub = (claims && claims.sub) || null;
+
+    // Resolve to the Admin customer id (the key entitlements use) via email;
+    // fall back to the token subject if the lookup can't find them.
+    let customerId = null;
+    if (email) {
+      try {
+        const r = await adminQuery(env, CUSTOMER_BY_EMAIL_QUERY, { q: "email:" + email });
+        const node = r && r.customers && r.customers.edges && r.customers.edges[0] && r.customers.edges[0].node;
+        if (node && node.id) customerId = String(node.id).replace(/^gid:\/\/shopify\/Customer\//, "");
+      } catch (e) {}
+    }
+    if (!customerId && sub) customerId = String(sub).replace(/^gid:\/\/shopify\/Customer\//, "");
+    if (!customerId) return fail("identify", debug ? ("no customer id — email=" + email + " sub=" + sub) : "could not identify account");
+
+    const sess = await signCookie(env.CUSTOMER_SESSION_SECRET, {
+      customerId, email, exp: Date.now() + 30 * 24 * 3600 * 1000
+    });
+    const setSess = `pl_sess=${sess}; Path=/; Max-Age=${30 * 24 * 3600}; HttpOnly; Secure; SameSite=Lax`;
+    const clearOauth = `pl_oauth=; Path=/apps/patternly; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
+    if (debug) {
+      return new Response(JSON.stringify({ ok: true, customerId, email, hasIdToken: !!tok.id_token, matchedAdmin: !!(email && customerId !== sub) }, null, 2),
+        { headers: { "content-type": "application/json", "set-cookie": setSess, "cache-control": "no-store" } });
+    }
+    // Land on our own app path with the marker the popup's head script watches
+    // for → it pings the opener and closes. If it can't (COOP), the opener's
+    // poll/focus still catches the now-set session within a second.
+    return new Response(null, {
+      status: 302,
+      headers: [
+        ["location", "https://luca-s.com/apps/patternly?pl_authdone=1"],
+        ["set-cookie", setSess],
+        ["set-cookie", clearOauth],
+        ["cache-control", "no-store"]
+      ]
+    });
+  }
+
+  // ── /auth/logout : clear our session ──
+  if (url.pathname.endsWith("/auth/logout")) {
+    return new Response(null, {
+      status: 302,
+      headers: {
+        "location": "https://luca-s.com/apps/patternly",
+        "set-cookie": `pl_sess=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`,
+        "cache-control": "no-store"
+      }
+    });
+  }
+
   // ── /whoami: live auth check for the running app ──
   // ── /code?sku=B720 : look up a design's access code ──────────────────────
   // For populating the Shopify metafield and building QR links. Returns the
@@ -929,6 +1104,7 @@ export async function onRequest(context) {
       adminTokenDirect: !!env.SHOPIFY_ADMIN_TOKEN,
       entitlementsPersist: !!env.ENTITLEMENTS,
       catalogueLive: !!(env.SHOPIFY_STORE && env.SHOPIFY_STOREFRONT_TOKEN),
+      customerAuth: !!(env.CUSTOMER_CLIENT_ID && env.CUSTOMER_CLIENT_SECRET && env.CUSTOMER_SESSION_SECRET),
       enforceProxy: ENFORCE_PROXY
     };
 
@@ -948,10 +1124,13 @@ export async function onRequest(context) {
     // Shopify's signature, so it cannot be asked for on another's behalf.
     if (auth.loggedIn && auth.customerId) {
       try {
-        const who = await adminQuery(env, CUSTOMER_EMAIL_QUERY, {
-          id: "gid://shopify/Customer/" + auth.customerId
-        });
-        if (who && who.customer && who.customer.email) body.email = who.customer.email;
+        if (auth.email) body.email = auth.email;   // already have it from the OAuth session
+        if (!body.email) {
+          const who = await adminQuery(env, CUSTOMER_EMAIL_QUERY, {
+            id: "gid://shopify/Customer/" + auth.customerId
+          });
+          if (who && who.customer && who.customer.email) body.email = who.customer.email;
+        }
         Object.assign(body, await plusState(auth, env));
         const owned = await ownedSkus(auth.customerId, env);
         if (owned) body.ownedSkus = [...owned].sort();
