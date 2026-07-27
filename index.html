@@ -26571,6 +26571,85 @@ function edNav(t){
 }
 function goProjects(){ pjGuardedLeave(openApp); }
 function goHomeGuarded(){ pjGuardedLeave(goHome); }
+
+// ─── App bottom tab bar ─────────────────────────────────────────────────────
+// A persistent 4-tab bar that makes the native app feel like an app. Shown ONLY
+// inside the Capacitor app (plIsApp) — or on the web with ?appui=1 so the layout
+// can be previewed in a desktop browser without an app rebuild. The website is
+// otherwise completely untouched. Tabs call the existing page functions; the
+// active tab is derived from the current body "mode" class, updated live via a
+// MutationObserver so external navigations stay in sync. Hidden on the editing
+// canvas (app-mode), which has its own toolbars.
+(function ptlyAppNav(){
+  function appUiOn(){
+    try{ return (typeof plIsApp==='function' && plIsApp()) || /[?&]appui=1/.test(location.search); }catch(e){ return false; }
+  }
+  function init(){
+    if(!appUiOn() || document.getElementById('ptly-appnav')) return;
+    document.body.classList.add('ptly-appui');
+
+    var css = ''
+      + 'body.ptly-appui{padding-bottom:calc(58px + env(safe-area-inset-bottom,0px))}'
+      + 'body.ptly-appui.app-mode{padding-bottom:0}'
+      + '#ptly-appnav{position:fixed;left:0;right:0;bottom:0;z-index:8000;background:#fff;'
+      + 'border-top:1px solid rgba(0,0,0,.08);box-shadow:0 -1px 14px rgba(0,0,0,.07);'
+      + 'padding-bottom:env(safe-area-inset-bottom,0px)}'
+      + 'body.dark #ptly-appnav{background:#241b1e;border-top-color:rgba(255,255,255,.10)}'
+      + 'body.app-mode #ptly-appnav{display:none}'
+      + '#ptly-appnav .pn-row{display:flex}'
+      + '#ptly-appnav button{flex:1;background:none;border:0;cursor:pointer;padding:.5rem 0 .45rem;'
+      + 'display:flex;flex-direction:column;align-items:center;gap:3px;color:#9a8890;'
+      + 'font-size:.66rem;font-weight:600;font-family:inherit;letter-spacing:.01em;'
+      + '-webkit-tap-highlight-color:transparent;transition:color .15s}'
+      + 'body.dark #ptly-appnav button{color:#b7a3ab}'
+      + '#ptly-appnav button.active{color:var(--lp-red,#8B1A2B)}'
+      + '#ptly-appnav button svg{width:24px;height:24px;stroke:currentColor;fill:none;'
+      + 'stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}'
+      + '#ptly-appnav button span{line-height:1}';
+    var st=document.createElement('style'); st.id='ptly-appnav-css'; st.textContent=css;
+    document.head.appendChild(st);
+
+    var ICON={
+      home:'<path d="M3 11.4 12 4l9 7.4"/><path d="M5.5 10v9h13v-9"/>',
+      editor:'<path d="M14.1 6.2l3.7 3.7"/><path d="M3.5 20.5 8 19.5 19.4 8.1a1.8 1.8 0 0 0-2.5-2.5L5.5 17z"/>',
+      tracker:'<circle cx="12" cy="12" r="8.4"/><path d="M8.4 12.3l2.5 2.5 4.7-5.2"/>',
+      account:'<circle cx="12" cy="8" r="3.4"/><path d="M5.2 19.6c1.5-3.4 4-5 6.8-5s5.3 1.6 6.8 5"/>'
+    };
+    function tabBtn(id,label){
+      return '<button data-tab="'+id+'" aria-label="'+label+'"><svg viewBox="0 0 24 24">'+ICON[id]+'</svg><span>'+label+'</span></button>';
+    }
+    var nav=document.createElement('div'); nav.id='ptly-appnav';
+    nav.innerHTML='<div class="pn-row">'+tabBtn('home','Home')+tabBtn('editor','Editor')+tabBtn('tracker','Tracker')+tabBtn('account','Account')+'</div>';
+    document.body.appendChild(nav);
+
+    function haptic(){ try{ var H=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Haptics; H&&H.impact&&H.impact({style:'Light'}); }catch(e){} }
+    var actions={
+      home:function(){ if(typeof goHome==='function') goHome(); },
+      editor:function(){ if(typeof openApp==='function') openApp(); },
+      tracker:function(){ if(typeof openTracker==='function') openTracker(); },
+      account:function(){ if(typeof openAccountPage==='function') openAccountPage(); }
+    };
+    nav.querySelectorAll('button[data-tab]').forEach(function(b){
+      b.addEventListener('click',function(){ haptic(); var fn=actions[b.getAttribute('data-tab')]; if(fn){ try{ fn(); }catch(e){} } setTimeout(updateActive,30); });
+    });
+
+    function currentTab(){
+      var c=document.body.classList;
+      if(c.contains('app-mode')||c.contains('projects-mode')) return 'editor';
+      if(c.contains('tracker-mode')||c.contains('trackerguide-mode')) return 'tracker';
+      if(c.contains('account-mode')||c.contains('subs-mode')||c.contains('pricing-mode')||c.contains('calc-mode')||c.contains('threads-mode')||c.contains('convert-mode')||c.contains('guide-mode')) return 'account';
+      return 'home';
+    }
+    function updateActive(){
+      var t=currentTab();
+      nav.querySelectorAll('button[data-tab]').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-tab')===t); });
+    }
+    try{ new MutationObserver(updateActive).observe(document.body,{attributes:true,attributeFilter:['class']}); }catch(e){}
+    updateActive();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
 function enterEditor(){
   document.body.classList.remove('projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode','guide-mode','trackerguide-mode');
   document.body.classList.add('app-mode');
