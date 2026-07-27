@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v37";
+const MW_VERSION = "v38";
 
 const enc = new TextEncoder();
 
@@ -1008,7 +1008,7 @@ export async function onRequest(context) {
       const basic = "Basic " + btoa(env.CUSTOMER_CLIENT_ID + ":" + (env.CUSTOMER_CLIENT_SECRET || ""));
       const resp = await fetchWithTimeout(customerAuthBase(env) + "/oauth/token", {
         method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded", "authorization": basic },
+        headers: { "content-type": "application/x-www-form-urlencoded", "authorization": basic, "accept": "application/json", "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36 Patternly/1.0" },
         body: new URLSearchParams({ grant_type: "authorization_code", client_id: env.CUSTOMER_CLIENT_ID, redirect_uri: customerRedirectUri(env), code: "invalid-probe", code_verifier: "x".repeat(48) })
       }, 8000);
       const txt = await resp.text();
@@ -1046,7 +1046,7 @@ export async function onRequest(context) {
       const basic = "Basic " + btoa(env.CUSTOMER_CLIENT_ID + ":" + (env.CUSTOMER_CLIENT_SECRET || ""));
       const resp = await fetchWithTimeout(customerAuthBase(env) + "/oauth/token", {
         method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded", "authorization": basic },
+        headers: { "content-type": "application/x-www-form-urlencoded", "authorization": basic, "accept": "application/json", "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36 Patternly/1.0" },
         body: new URLSearchParams({
           grant_type: "authorization_code",
           client_id: env.CUSTOMER_CLIENT_ID,
