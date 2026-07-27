@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v33";
+const MW_VERSION = "v34";
 
 const enc = new TextEncoder();
 
@@ -76,8 +76,11 @@ function parseJwtPayload(jwt) {
   try { const p = String(jwt).split("."); return p.length < 2 ? null : JSON.parse(b64urlToStr(p[1])); }
   catch (e) { return null; }
 }
-async function readSession(request, env) {
-  const s = await verifyCookie(env.CUSTOMER_SESSION_SECRET, getCookie(request, "pl_sess") || "");
+async function readSession(request, url, env) {
+  // App Proxy strips Set-Cookie, so the session is a signed token the app keeps
+  // in localStorage and sends as ?pl_session= (or an x-pl-session header).
+  const tok = url.searchParams.get("pl_session") || request.headers.get("x-pl-session") || "";
+  const s = await verifyCookie(env.CUSTOMER_SESSION_SECRET, tok);
   if (!s || !s.customerId) return null;
   if (s.exp && Date.now() > s.exp) return null;
   return s;
@@ -947,19 +950,22 @@ export async function onRequest(context) {
   // Shopify's new customer accounts), fall back to our own OAuth session cookie.
   // This is what makes sign-in "just work" without the return-to-store dance.
   if (!auth.loggedIn) {
-    const s = await readSession(request, env);
+    const s = await readSession(request, url, env);
     if (s) { auth.loggedIn = true; auth.customerId = s.customerId; auth.email = s.email || null; auth.oauth = true; }
   }
 
-  // ── /auth/start : begin Customer Account API OAuth (PKCE + state) ──
+  // ── /auth/start : begin Customer Account API OAuth (PKCE, stateless) ──
+  // No cookie: the App Proxy strips Set-Cookie. Instead we carry the PKCE
+  // verifier inside a signed `state` value that round-trips through Shopify.
+  // (For a confidential client the client_secret is the real protection, so
+  // the verifier travelling in state is acceptable.)
   if (url.pathname.endsWith("/auth/start")) {
     if (!env.CUSTOMER_CLIENT_ID || !env.CUSTOMER_SESSION_SECRET) {
       return new Response("Customer login not configured", { status: 500, headers: { "cache-control": "no-store" } });
     }
-    const state = randToken(24);
     const verifier = randToken(48);
     const challenge = await sha256b64url(verifier);
-    const stateCookie = await signCookie(env.CUSTOMER_SESSION_SECRET, { state, verifier, ts: Date.now() });
+    const state = await signCookie(env.CUSTOMER_SESSION_SECRET, { v: verifier, ts: Date.now(), n: randToken(8) });
     const a = new URL(customerAuthBase(env) + "/oauth/authorize");
     a.searchParams.set("client_id", env.CUSTOMER_CLIENT_ID);
     a.searchParams.set("response_type", "code");
@@ -968,14 +974,7 @@ export async function onRequest(context) {
     a.searchParams.set("state", state);
     a.searchParams.set("code_challenge", challenge);
     a.searchParams.set("code_challenge_method", "S256");
-    return new Response(null, {
-      status: 302,
-      headers: {
-        "location": a.toString(),
-        "set-cookie": `pl_oauth=${stateCookie}; Path=/apps/patternly; Max-Age=600; HttpOnly; Secure; SameSite=Lax`,
-        "cache-control": "no-store"
-      }
-    });
+    return new Response(null, { status: 302, headers: { "location": a.toString(), "cache-control": "no-store" } });
   }
 
   // ── /auth/callback : Shopify returns here with ?code&state ──
@@ -988,9 +987,8 @@ export async function onRequest(context) {
     const code = url.searchParams.get("code");
     const state = url.searchParams.get("state");
     if (!code || !state) return fail("params", "missing code or state");
-    const saved = await verifyCookie(env.CUSTOMER_SESSION_SECRET, getCookie(request, "pl_oauth") || "");
-    if (!saved) return fail("state-cookie", "state cookie missing/invalid (App Proxy may have dropped Set-Cookie)");
-    if (!timingSafeEqual(saved.state, state)) return fail("state", "state mismatch");
+    const saved = await verifyCookie(env.CUSTOMER_SESSION_SECRET, state);   // state is a signed, self-contained token
+    if (!saved || !saved.v) return fail("state", "state signature invalid");
     if (saved.ts && Date.now() - saved.ts > 600000) return fail("expired", "sign-in took too long, try again");
 
     let tok;
@@ -1004,7 +1002,7 @@ export async function onRequest(context) {
           client_id: env.CUSTOMER_CLIENT_ID,
           redirect_uri: customerRedirectUri(env),
           code,
-          code_verifier: saved.verifier
+          code_verifier: saved.v
         })
       });
       const txt = await resp.text();
@@ -1016,8 +1014,6 @@ export async function onRequest(context) {
     const email = (claims && (claims.email || claims.email_address)) || null;
     const sub = (claims && claims.sub) || null;
 
-    // Resolve to the Admin customer id (the key entitlements use) via email;
-    // fall back to the token subject if the lookup can't find them.
     let customerId = null;
     if (email) {
       try {
@@ -1029,39 +1025,24 @@ export async function onRequest(context) {
     if (!customerId && sub) customerId = String(sub).replace(/^gid:\/\/shopify\/Customer\//, "");
     if (!customerId) return fail("identify", debug ? ("no customer id — email=" + email + " sub=" + sub) : "could not identify account");
 
-    const sess = await signCookie(env.CUSTOMER_SESSION_SECRET, {
+    // Signed, self-contained session token — no cookie (App Proxy strips them).
+    // The app stores it in localStorage and sends it back as ?pl_session=.
+    const sessTok = await signCookie(env.CUSTOMER_SESSION_SECRET, {
       customerId, email, exp: Date.now() + 30 * 24 * 3600 * 1000
     });
-    const setSess = `pl_sess=${sess}; Path=/; Max-Age=${30 * 24 * 3600}; HttpOnly; Secure; SameSite=Lax`;
-    const clearOauth = `pl_oauth=; Path=/apps/patternly; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
     if (debug) {
-      return new Response(JSON.stringify({ ok: true, customerId, email, hasIdToken: !!tok.id_token, matchedAdmin: !!(email && customerId !== sub) }, null, 2),
-        { headers: { "content-type": "application/json", "set-cookie": setSess, "cache-control": "no-store" } });
+      return new Response(JSON.stringify({ ok: true, customerId, email, hasIdToken: !!tok.id_token, sessionToken: sessTok }, null, 2),
+        { headers: { "content-type": "application/json", "cache-control": "no-store" } });
     }
-    // Land on our own app path with the marker the popup's head script watches
-    // for → it pings the opener and closes. If it can't (COOP), the opener's
-    // poll/focus still catches the now-set session within a second.
-    return new Response(null, {
-      status: 302,
-      headers: [
-        ["location", "https://luca-s.com/apps/patternly?pl_authdone=1"],
-        ["set-cookie", setSess],
-        ["set-cookie", clearOauth],
-        ["cache-control", "no-store"]
-      ]
-    });
+    // Land on the app with the marker (head script closes the popup) plus the
+    // session token, which the app captures into localStorage.
+    const dest = "https://luca-s.com/apps/patternly?pl_authdone=1&pl_session=" + encodeURIComponent(sessTok);
+    return new Response(null, { status: 302, headers: { "location": dest, "cache-control": "no-store" } });
   }
 
-  // ── /auth/logout : clear our session ──
+  // ── /auth/logout : the app just drops its stored token; nothing server-side ──
   if (url.pathname.endsWith("/auth/logout")) {
-    return new Response(null, {
-      status: 302,
-      headers: {
-        "location": "https://luca-s.com/apps/patternly",
-        "set-cookie": `pl_sess=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`,
-        "cache-control": "no-store"
-      }
-    });
+    return new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
   }
 
   // ── /whoami: live auth check for the running app ──
