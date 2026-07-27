@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v40";
+const MW_VERSION = "v41";
 
 const enc = new TextEncoder();
 
@@ -785,6 +785,26 @@ async function plusState(auth, env) {
     } catch (e) { console.warn("trial read failed:", e.message); }
   }
 
+  // Store subscription (Apple / Google IAP via RevenueCat). Written to KV by the
+  // RevenueCat webhook (/iap/webhook), keyed to THIS customer id — the account is
+  // the source of truth, so a purchase made in the app grants Plus everywhere
+  // (web included) with no Shopify order or tag. Works even if Shopify is down.
+  if (!out.plus && env.ENTITLEMENTS) {
+    try {
+      const raw = await env.ENTITLEMENTS.get("plusiap:" + auth.customerId);
+      if (raw) {
+        const e = JSON.parse(raw);
+        if (e && e.active && (!e.expiresMs || e.expiresMs > Date.now())) {
+          out.plus = true;
+          out.source = "iap";
+          out.via = "store";
+          out.plan = e.plan || null;
+          if (e.expiresMs) out.plusUntil = e.expiresMs;
+        }
+      }
+    } catch (e) { console.warn("iap read failed:", e.message); }
+  }
+
   // One customer fetch serves both checks below.
   try {
     const who = await adminQuery(env, CUSTOMER_EMAIL_QUERY, {
@@ -1167,6 +1187,60 @@ async function handleRequest(context) {
   }
 
   // ── /whoami: live auth check for the running app ──
+  // ── /iap/webhook : RevenueCat subscription events ─────────────────────────
+  // RevenueCat POSTs here on every store-subscription event (purchase, renewal,
+  // cancellation, expiry, billing issue, refund). We record the customer's Plus
+  // status in KV keyed to their account id, which plusState() then reads.
+  //
+  // AUTH: RevenueCat sends a fixed Authorization header you set in its dashboard
+  // (env RC_WEBHOOK_AUTH). We also accept it as ?k= in case the App Proxy strips
+  // the header. The webhook's app_user_id MUST be the Patternly customer id — the
+  // app calls Purchases.logIn(customerId) so events arrive keyed to the account.
+  if (url.pathname === "/iap/webhook" || url.pathname.endsWith("/iap/webhook")) {
+    if (request.method !== "POST") {
+      return new Response("method not allowed", { status: 405 });
+    }
+    const want = env.RC_WEBHOOK_AUTH || "";
+    const got = request.headers.get("authorization") || url.searchParams.get("k") || "";
+    if (!want || !timingSafeEqual(got, want)) {
+      return new Response(JSON.stringify({ error: "unauthorized" }), {
+        status: 401, headers: { "content-type": "application/json" }
+      });
+    }
+    let body;
+    try { body = await request.json(); }
+    catch (e) { return new Response(JSON.stringify({ error: "bad json" }), { status: 400, headers: { "content-type": "application/json" } }); }
+    const ev = (body && body.event) || {};
+    const rawUid = String(ev.app_user_id || ev.original_app_user_id || "");
+    // Accept either a bare customer id or a Shopify gid; store the bare id.
+    const customerId = rawUid.replace(/^gid:\/\/shopify\/Customer\//, "").trim();
+    if (!customerId) {
+      return new Response(JSON.stringify({ ok: true, skipped: "no app_user_id" }), { headers: { "content-type": "application/json" } });
+    }
+    const type = String(ev.type || "").toUpperCase();
+    const INACTIVE = new Set(["EXPIRATION", "CANCELLATION", "BILLING_ISSUE", "SUBSCRIPTION_PAUSED", "REFUND"]);
+    const ACTIVE   = new Set(["INITIAL_PURCHASE", "RENEWAL", "UNCANCELLATION", "PRODUCT_CHANGE", "NON_RENEWING_PURCHASE", "SUBSCRIPTION_EXTENDED", "TEMPORARY_ENTITLEMENT_GRANT"]);
+    const expiresMs = Number(ev.expiration_at_ms || 0) || 0;
+    const productId = ev.product_id || (Array.isArray(ev.product_ids) ? ev.product_ids[0] : null) || null;
+    const plan = /year|annual|yr/i.test(String(productId)) ? "annual"
+               : /month|mo\b/i.test(String(productId)) ? "monthly" : null;
+    // CANCELLATION means "won't renew" but access continues until expiry, so it
+    // is judged by the expiry date, not treated as instantly inactive.
+    let active;
+    if (type === "CANCELLATION") active = expiresMs ? expiresMs > Date.now() : false;
+    else if (INACTIVE.has(type)) active = false;
+    else if (ACTIVE.has(type))   active = expiresMs ? expiresMs > Date.now() : true;
+    else                         active = expiresMs ? expiresMs > Date.now() : undefined;
+    const rec = { active: !!active, expiresMs, productId, plan, type, updatedMs: Date.now() };
+    if (env.ENTITLEMENTS) {
+      try { await env.ENTITLEMENTS.put("plusiap:" + customerId, JSON.stringify(rec)); }
+      catch (e) { console.warn("iap put failed:", e.message); }
+    }
+    return new Response(JSON.stringify({ ok: true, customerId, active: rec.active, type }), {
+      headers: { "content-type": "application/json", "cache-control": "no-store" }
+    });
+  }
+
   // ── /code?sku=B720 : look up a design's access code ──────────────────────
   // For populating the Shopify metafield and building QR links. Returns the
   // derived code plus a ready-made deep link. Gated behind an admin key so the
