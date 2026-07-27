@@ -6831,6 +6831,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <div class="acct-status" id="acct-status"><!-- filled by acctRenderPage() --></div>
     <div id="acct-plus-strip"></div>
     <div id="acct-hub" style="display:none">
+      <div id="acct-plus-iap" style="display:none"></div>
       <div class="acct-hub-title">Appearance</div>
       <button class="acct-hub-row" id="acct-dark-row" onclick="try{toggleTheme();}catch(e){} var el=this.querySelector('.st'); if(el) el.textContent=document.body.classList.contains('dark')?'On':'Off';"><span>Dark mode</span><span class="st" style="color:var(--lp-red,#8B1A2B);font-weight:700;font-size:.82rem">Off</span></button>
       <div class="acct-hub-title">More</div>
@@ -25145,6 +25146,7 @@ async function acctRefresh(){
     if(r.ok){
       const a=await r.json();
       window.__LUCAS_AUTH__=a;
+      if(typeof rcSyncUser==='function'){ try{ rcSyncUser(); }catch(e){} }   // keep RevenueCat keyed to the account
       document.querySelectorAll('.acct-btn').forEach(b=>b.classList.toggle('acct-in', !!a.loggedIn));
       if(typeof prRenderCta==='function') prRenderCta();
       // Auth (with the real country) has landed — if the pricing page is open,
@@ -25220,6 +25222,127 @@ function plIsApp(){
     return !!C.isNative;
   }catch(e){ return false; }
 }
+
+// ─── RevenueCat store subscriptions (native IAP) ────────────────────────────
+// App-only. Handles the Apple/Google store subscription for Patternly Plus.
+// The account is the source of truth: we logIn to RevenueCat with the Shopify
+// customerId, so a purchase is keyed to the account and RevenueCat's webhook
+// tells our middleware (which then reports Plus everywhere, web included).
+// Guarded throughout: on the web, or if the plugin isn't installed, every call
+// no-ops and the UI stays hidden — nothing here can affect the website.
+var RC_PUBLIC_KEY   = 'goog_MmTyvUoqhatQfzxBXXDsUYxgQBs';
+var RC_ENTITLEMENT  = 'plus';   // the entitlement id configured in RevenueCat
+var _rcReady = false, _rcUser = null;
+function rc(){
+  try{ var P=window.Capacitor&&window.Capacitor.Plugins; return P&&(P.Purchases||P.PurchasesPlugin||P.CapacitorPurchases)||null; }catch(e){ return null; }
+}
+async function rcConfigure(){
+  if(!plIsApp() || _rcReady) return;
+  var P=rc(); if(!P||!P.configure) return;
+  try{
+    var uid = (typeof lucasAuth==='function' && lucasAuth().customerId) ? String(lucasAuth().customerId) : null;
+    await P.configure({ apiKey: RC_PUBLIC_KEY, appUserID: uid || undefined });
+    _rcReady = true; _rcUser = uid;
+  }catch(e){ /* leave unconfigured; UI stays hidden */ }
+}
+// Keep RevenueCat's user in sync with the signed-in account.
+async function rcSyncUser(){
+  if(!plIsApp()) return;
+  var P=rc(); if(!P) return;
+  if(!_rcReady){ await rcConfigure(); }
+  if(!_rcReady) return;
+  try{
+    var uid = (typeof lucasAuth==='function' && lucasAuth().customerId) ? String(lucasAuth().customerId) : null;
+    if(uid && uid!==_rcUser){ if(P.logIn) await P.logIn({ appUserID: uid }); _rcUser=uid; }
+    else if(!uid && _rcUser){ if(P.logOut) await P.logOut(); _rcUser=null; }
+  }catch(e){}
+}
+async function rcCustomerInfo(){
+  var P=rc(); if(!P||!P.getCustomerInfo) return null;
+  try{ var r=await P.getCustomerInfo(); return (r&&r.customerInfo)||r||null; }catch(e){ return null; }
+}
+function rcInfoHasPlus(info){
+  try{ return !!(info && info.entitlements && info.entitlements.active && info.entitlements.active[RC_ENTITLEMENT]); }catch(e){ return false; }
+}
+// Fetch the current offering's packages (monthly / yearly).
+async function rcPackages(){
+  var P=rc(); if(!P||!P.getOfferings) return [];
+  try{
+    var r=await P.getOfferings();
+    var cur=(r&&r.current)||(r&&r.offerings&&r.offerings.current)||null;
+    return (cur&&cur.availablePackages)||[];
+  }catch(e){ return []; }
+}
+// Run a purchase. On success the entitlement is active immediately AND the
+// RevenueCat webhook updates our middleware, so a whoami refresh reflects Plus.
+async function rcPurchase(pkg){
+  var P=rc(); if(!P||!P.purchasePackage||!pkg) return {ok:false, reason:'unavailable'};
+  try{
+    var r=await P.purchasePackage({ aPackage: pkg });
+    var info=(r&&r.customerInfo)||null;
+    var ok=rcInfoHasPlus(info);
+    if(typeof acctRefresh==='function'){ try{ await acctRefresh(); }catch(e){} }
+    return { ok: ok, info: info };
+  }catch(e){
+    // RevenueCat throws with userCancelled when the user backs out — not an error.
+    if(e && (e.userCancelled || e.code==='1' || /cancel/i.test(String(e.message||'')))) return {ok:false, reason:'cancelled'};
+    return { ok:false, reason:'error', message:(e&&e.message)||String(e) };
+  }
+}
+async function rcRestore(){
+  var P=rc(); if(!P||!P.restorePurchases) return false;
+  try{ var r=await P.restorePurchases(); if(typeof acctRefresh==='function'){ try{ await acctRefresh(); }catch(e){} } return rcInfoHasPlus((r&&r.customerInfo)||null); }catch(e){ return false; }
+}
+// ── Subscribe UI (rendered into the app Account page) ──
+var _rcPkgs=[];
+async function rcRenderPlusSection(){
+  var sec=document.getElementById('acct-plus-iap'); if(!sec) return;
+  if(!plIsApp() || !rc()){ sec.style.display='none'; return; }   // web / no plugin → hidden
+  var a=(typeof lucasAuth==='function')?lucasAuth():{loggedIn:false};
+  sec.style.display='block';
+  if(!a.loggedIn){
+    sec.innerHTML='<div class="acct-hub-title">Patternly Plus</div>'
+      +'<button class="acct-hub-row" onclick="acctOpenLogin()"><span>Sign in to subscribe</span><i>&rsaquo;</i></button>';
+    return;
+  }
+  var info=await rcCustomerInfo();
+  if(a.plus || rcInfoHasPlus(info)){
+    sec.innerHTML='<div class="acct-hub-title">Patternly Plus</div>'
+      +'<div class="acct-hub-row" style="cursor:default"><span>\u2713 You\u2019re subscribed to Plus</span></div>';
+    return;
+  }
+  sec.innerHTML='<div class="acct-hub-title">Patternly Plus</div>'
+    +'<button class="acct-hub-row" onclick="rcShowPackages()"><span>Subscribe to Plus</span><i>&rsaquo;</i></button>'
+    +'<div id="acct-plus-pkgs" style="display:none"></div>'
+    +'<button class="acct-hub-row" onclick="rcRestoreUI()"><span style="font-size:.82rem;color:#9a8890;font-weight:600">Restore purchases</span></button>';
+}
+async function rcShowPackages(){
+  var box=document.getElementById('acct-plus-pkgs'); if(!box) return;
+  box.style.display='block';
+  box.innerHTML='<div style="padding:.7rem 1.1rem;color:#9a8890;font-size:.85rem">Loading plans\u2026</div>';
+  _rcPkgs=await rcPackages();
+  if(!_rcPkgs.length){ box.innerHTML='<div style="padding:.7rem 1.1rem;color:#9a8890;font-size:.85rem">No plans available yet.</div>'; return; }
+  box.innerHTML=_rcPkgs.map(function(p,i){
+    var pr=(p.product&&(p.product.priceString||p.product.price))||'';
+    var t=String(p.packageType||p.identifier||'');
+    var label=/ANNUAL|YEAR/i.test(t)?'Yearly':(/MONTH/i.test(t)?'Monthly':(p.identifier||'Plan'));
+    return '<button class="acct-hub-row" onclick="rcBuy('+i+')"><span>'+label+'</span><span style="color:var(--lp-red,#8B1A2B);font-weight:700">'+pr+'</span></button>';
+  }).join('');
+}
+async function rcBuy(i){
+  var pkg=_rcPkgs[i]; if(!pkg) return;
+  var r=await rcPurchase(pkg);
+  if(r.ok){ if(typeof toast==='function') toast('\u2713 Welcome to Patternly Plus'); rcRenderPlusSection(); }
+  else if(r.reason==='cancelled'){ /* user backed out — silent */ }
+  else if(typeof toast==='function') toast('Purchase didn\u2019t complete');
+}
+async function rcRestoreUI(){
+  if(typeof toast==='function') toast('Restoring\u2026');
+  var ok=await rcRestore();
+  if(typeof toast==='function') toast(ok?'\u2713 Plus restored':'No purchases to restore');
+  rcRenderPlusSection();
+}
+
 function acctReopen(){
   // Native app: open Shopify sign-in in an in-app browser (Capacitor Browser)
   // pointed at /auth/start?app=1. The middleware finishes by deep-linking the
@@ -26666,6 +26789,7 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
     document.body.classList.add('ptly-appui');
     try{ showSplash(); }catch(e){}
     try{ setTimeout(hideNativeSplash, 2500); }catch(e){}
+    try{ if(typeof rcConfigure==='function') rcConfigure(); }catch(e){}
 
     var css = ''
       + 'body.ptly-appui{padding-bottom:calc(58px + env(safe-area-inset-bottom,0px))}'
@@ -26786,6 +26910,7 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       var sec=isSecondaryHub();
       try{ himg.style.display = sec ? 'none' : ''; hback.style.display = sec ? 'inline-flex' : 'none'; }catch(e){}
       try{ var dr=document.getElementById('acct-dark-row'); if(dr){ var st=dr.querySelector('.st'); if(st) st.textContent=document.body.classList.contains('dark')?'On':'Off'; } }catch(e){}
+      try{ if(document.body.classList.contains('account-mode') && typeof rcRenderPlusSection==='function') rcRenderPlusSection(); }catch(e){}
     }
     try{ new MutationObserver(updateActive).observe(document.body,{attributes:true,attributeFilter:['class']}); }catch(e){}
     updateActive();
