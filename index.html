@@ -4,6 +4,21 @@
 <meta charset="UTF-8"/>
 <meta name="color-scheme" content="light">
 <script>
+/* API base for the native app / off-proxy contexts. On the live site Patternly
+   is served from luca-s.com through the Shopify App Proxy, so relative paths
+   (/apps/patternly/...) resolve correctly and we leave everything untouched.
+   Anywhere else — the Capacitor app (capacitor://localhost, file://), or local
+   dev — those relative paths would resolve to localhost and fail, so we point
+   the whole backend surface at the absolute proxy URL. TRK_KITS_BASE and every
+   `base` derived from it read window.PATTERNLY_KITS_BASE; the few hardcoded
+   auth/whoami paths read window.PATTERNLY_API_BASE. */
+try{
+  var _onProxy = /(^|\.)luca-s\.com$/i.test(location.hostname) && /^https?:$/i.test(location.protocol);
+  if(!_onProxy){
+    window.PATTERNLY_API_BASE  = 'https://luca-s.com/apps/patternly';
+    window.PATTERNLY_KITS_BASE = 'https://luca-s.com/apps/patternly/patterns';
+  }
+}catch(e){}
 /* Sign-in popup returning from our OAuth callback. The App Proxy strips cookies,
    so the session arrives as a signed ?pl_session= token — stash it in
    localStorage (shared with the opener, same origin), then signal the opener and
@@ -25096,7 +25111,7 @@ async function acctRefresh(){
   if(!/(^|\.)luca-s\.com$/.test(location.hostname)) return;
   _acctBusy=true;
   try{
-    const r=await fetch('/apps/patternly/whoami'+plSessQS(),{cache:'no-store'});
+    const r=await fetch((window.PATTERNLY_API_BASE||'/apps/patternly')+'/whoami'+plSessQS(),{cache:'no-store'});
     if(r.ok){
       const a=await r.json();
       window.__LUCAS_AUTH__=a;
@@ -25171,7 +25186,7 @@ function acctReopen(){
   // Our own OAuth entry: /auth/start bounces through Shopify and returns the
   // popup to /auth/callback (which sets our session cookie), then to the app
   // with ?pl_authdone=1 so the head script closes it. No return-to-store dance.
-  _acctLoginWin=window.open('/apps/patternly/auth/start','lucas_login',`popup=yes,width=${w},height=${h},left=${x},top=${y}`);
+  _acctLoginWin=window.open((window.PATTERNLY_API_BASE||'/apps/patternly')+'/auth/start','lucas_login',`popup=yes,width=${w},height=${h},left=${x},top=${y}`);
 }
 async function acctOpenLogin(){
   acctCloseAll();
@@ -25187,7 +25202,7 @@ async function acctOpenLogin(){
   if(!_acctLoginWin){
     // popup blocked → plain tab; the modal keeps orchestrating. Same OAuth entry,
     // which returns to the app and sets the session; the poll then catches it.
-    window.open('/apps/patternly/auth/start','_blank');
+    window.open((window.PATTERNLY_API_BASE||'/apps/patternly')+'/auth/start','_blank');
     document.getElementById('acct-m-text').textContent='A sign-in tab has opened. Finish there and it\u2019ll bring you back — this page will notice by itself.';
   }
   clearInterval(_acctPollTimer);
