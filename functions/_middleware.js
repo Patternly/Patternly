@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v35";
+const MW_VERSION = "v36";
 
 const enc = new TextEncoder();
 
@@ -944,14 +944,21 @@ async function servePattern(key, auth, request, url, env) {
 export async function onRequest(context) {
   const { request, next, env } = context;
   const url = new URL(request.url);
-  const auth = await readAuth(url, env);
-
-  // If the App Proxy didn't hand us a signed-in customer (which is the norm for
-  // Shopify's new customer accounts), fall back to our own OAuth session cookie.
-  // This is what makes sign-in "just work" without the return-to-store dance.
-  if (!auth.loggedIn) {
-    const s = await readSession(request, url, env);
-    if (s) { auth.loggedIn = true; auth.customerId = s.customerId; auth.email = s.email || null; auth.oauth = true; }
+  let auth;
+  try {
+    auth = await readAuth(url, env);
+    // If the App Proxy didn't hand us a signed-in customer (the norm for new
+    // customer accounts), fall back to our own OAuth session token.
+    if (!auth.loggedIn) {
+      const s = await readSession(request, url, env);
+      if (s) { auth.loggedIn = true; auth.customerId = s.customerId; auth.email = s.email || null; auth.oauth = true; }
+    }
+  } catch (e) {
+    auth = { proxied: false, loggedIn: false, customerId: null, shop: null };
+    if (url.pathname.indexOf("/auth/") >= 0) {
+      return new Response(JSON.stringify({ ok: false, step: "pre-routing-exception", msg: String(e && e.message || e), stack: String(e && e.stack || "").split("\n").slice(0, 5) }, null, 2),
+        { status: 500, headers: { "content-type": "application/json", "cache-control": "no-store" } });
+    }
   }
 
   // ── /auth/start : begin Customer Account API OAuth (PKCE, stateless) ──
@@ -974,6 +981,15 @@ export async function onRequest(context) {
     a.searchParams.set("state", state);
     a.searchParams.set("code_challenge", challenge);
     a.searchParams.set("code_challenge_method", "S256");
+    if (url.searchParams.get("debug") === "1") {
+      return new Response(JSON.stringify({
+        authorizeUrl: a.toString(),
+        redirect_uri: customerRedirectUri(env),
+        scope: customerScope(env),
+        tokenEndpoint: customerAuthBase(env) + "/oauth/token",
+        clientIdSet: !!env.CUSTOMER_CLIENT_ID, secretSet: !!env.CUSTOMER_CLIENT_SECRET, sessionSecretSet: !!env.CUSTOMER_SESSION_SECRET
+      }, null, 2), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
+    }
     return new Response(null, { status: 302, headers: { "location": a.toString(), "cache-control": "no-store" } });
   }
 
