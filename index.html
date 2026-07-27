@@ -6831,6 +6831,8 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <div class="acct-status" id="acct-status"><!-- filled by acctRenderPage() --></div>
     <div id="acct-plus-strip"></div>
     <div id="acct-hub" style="display:none">
+      <div class="acct-hub-title">Appearance</div>
+      <button class="acct-hub-row" id="acct-dark-row" onclick="try{toggleTheme();}catch(e){} var el=this.querySelector('.st'); if(el) el.textContent=document.body.classList.contains('dark')?'On':'Off';"><span>Dark mode</span><span class="st" style="color:var(--lp-red,#8B1A2B);font-weight:700;font-size:.82rem">Off</span></button>
       <div class="acct-hub-title">More</div>
       <button class="acct-hub-row" onclick="openSubscriptionPage()"><span>My Subscription</span><i>&rsaquo;</i></button>
       <button class="acct-hub-row" onclick="openThreads()"><span>Thread Colours</span><i>&rsaquo;</i></button>
@@ -26626,6 +26628,9 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
   function appUiOn(){
     try{ return (typeof plIsApp==='function' && plIsApp()) || /[?&]appui=1/.test(location.search); }catch(e){ return false; }
   }
+  function hideNativeSplash(){
+    try{ var S=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.SplashScreen; if(S&&S.hide) S.hide({fadeOutDuration:250}); }catch(e){}
+  }
   function showSplash(){
     if(document.getElementById('ptly-splash')) return;
     var reduce=false; try{ reduce=matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
@@ -26652,6 +26657,7 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
     box.appendChild(word);
     ov.appendChild(box);
     document.body.appendChild(ov);
+    hideNativeSplash();   // hand straight off from the native splash to this animation
     var total=reduce?350:(n*30 + 400 + 300);
     setTimeout(function(){ ov.classList.add('gone'); setTimeout(function(){ if(ov&&ov.parentNode) ov.parentNode.removeChild(ov); }, 480); }, total);
   }
@@ -26659,6 +26665,7 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
     if(!appUiOn() || document.getElementById('ptly-appnav')) return;
     document.body.classList.add('ptly-appui');
     try{ showSplash(); }catch(e){}
+    try{ setTimeout(hideNativeSplash, 2500); }catch(e){}
 
     var css = ''
       + 'body.ptly-appui{padding-bottom:calc(58px + env(safe-area-inset-bottom,0px))}'
@@ -26778,6 +26785,7 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       nav.querySelectorAll('button[data-tab]').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-tab')===t); });
       var sec=isSecondaryHub();
       try{ himg.style.display = sec ? 'none' : ''; hback.style.display = sec ? 'inline-flex' : 'none'; }catch(e){}
+      try{ var dr=document.getElementById('acct-dark-row'); if(dr){ var st=dr.querySelector('.st'); if(st) st.textContent=document.body.classList.contains('dark')?'On':'Off'; } }catch(e){}
     }
     try{ new MutationObserver(updateActive).observe(document.body,{attributes:true,attributeFilter:['class']}); }catch(e){}
     updateActive();
