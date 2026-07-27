@@ -4,15 +4,24 @@
 <meta charset="UTF-8"/>
 <meta name="color-scheme" content="light">
 <script>
-/* Sign-in popup returning from Shopify: we ask Shopify to send it back here with
-   ?pl_authdone=1. By the time it lands, the luca-s.com customer-session cookie is
-   set, so signal the opener (which re-checks /whoami) and close — before the app
-   renders, so there's no flash and no manual step. Only fires when this really is
-   the popup (has an opener), so a normal visit with the param is unaffected. */
+/* Sign-in popup returning from our OAuth callback. The App Proxy strips cookies,
+   so the session arrives as a signed ?pl_session= token — stash it in
+   localStorage (shared with the opener, same origin), then signal the opener and
+   close before the app renders. Only acts when this really is the popup. */
 try{
-  if(location.search.indexOf('pl_authdone')>-1 && window.opener && !window.opener.closed){
+  var _q=new URLSearchParams(location.search);
+  var _tok=_q.get('pl_session');
+  if(_tok){ try{ localStorage.setItem('pl_session', _tok); }catch(e){} }
+  if(_q.has('pl_authdone') && window.opener && !window.opener.closed){
     try{ window.opener.postMessage({type:'lucas_auth_done'}, location.origin); }catch(e){}
     window.close();
+  } else if(_tok || _q.has('pl_authdone')){
+    // Main window landed with the token in the URL — stash it (above) and scrub
+    // the address bar so the session token isn't left visible or bookmarkable.
+    try{ _q.delete('pl_session'); _q.delete('pl_authdone');
+      var _u=location.pathname+(_q.toString()?('?'+_q.toString()):'')+location.hash;
+      history.replaceState(null,'',_u);
+    }catch(e){}
   }
 }catch(e){}
 </script>
@@ -18128,7 +18137,7 @@ async function trkCheckStillOwned(id){
   let auth=null;
   try{
     const base=TRK_KITS_BASE.replace(/\/patterns$/,'');
-    const r=await fetch(base+'/whoami',{credentials:'include',cache:'no-store'});
+    const r=await fetch(base+'/whoami'+plSessQS(),{credentials:'include',cache:'no-store'});
     if(!r.ok) return true;
     auth=await r.json();
   }catch(e){ return true; }                              // offline — fail open
@@ -18679,7 +18688,7 @@ async function trkOpenFromLink(sku, code){
   if(!plus){
     try{
       const base=TRK_KITS_BASE.replace(/\/patterns$/,'');
-      const r=await fetch(base+'/whoami',{credentials:'include',cache:'no-store'});
+      const r=await fetch(base+'/whoami'+plSessQS(),{credentials:'include',cache:'no-store'});
       if(r.ok){ window.__LUCAS_AUTH__=await r.json(); plus=trkPlusOk(); }
     }catch(e){ plus=false; }
   }
@@ -19008,7 +19017,7 @@ async function trkAppendOwnedKitCards(grid){
   if(!auth || !Array.isArray(auth.ownedSkus)){
     try{
       const base=TRK_KITS_BASE.replace(/\/patterns$/,'');
-      const r=await fetch(base+'/whoami',{credentials:'include',cache:'no-store'});
+      const r=await fetch(base+'/whoami'+plSessQS(),{credentials:'include',cache:'no-store'});
       if(r.ok){ window.__LUCAS_AUTH__=await r.json(); auth=lucasAuth(); }
     }catch(e){}
   }
@@ -19415,7 +19424,7 @@ async function openTracker(){
     let ok=false;
     try{
       const base=TRK_KITS_BASE.replace(/\/patterns$/,'');
-      const r=await fetch(base+'/whoami',{credentials:'include',cache:'no-store'});
+      const r=await fetch(base+'/whoami'+plSessQS(),{credentials:'include',cache:'no-store'});
       if(r.ok){ window.__LUCAS_AUTH__=await r.json(); ok=trkPlusOk(); }
     }catch(e){ ok=true; }   // cannot reach the server: do not block a payer
     if(!ok){ trkPlusGate(); return; }
@@ -25065,8 +25074,9 @@ async function acctRenderPatterns(){
 let _acctBusy=false;
 function acctSignOut(){
   acctCloseAll();
-  // Log out of the Shopify session without navigating Patternly or popping a
-  // window: load /account/logout in a hidden iframe, then re-check status.
+  // Our sign-in is a signed token in localStorage — drop it. Also poke Shopify's
+  // own logout (hidden iframe) in case an App-Proxy session exists too.
+  try{ localStorage.removeItem('pl_session'); }catch(e){}
   try{
     let f=document.getElementById('_acctLogoutFrame');
     if(!f){ f=document.createElement('iframe'); f.id='_acctLogoutFrame'; f.style.display='none'; document.body.appendChild(f); }
@@ -25078,12 +25088,15 @@ function acctSignOut(){
   if(typeof toast==='function') toast('Signed out');
   setTimeout(acctRefresh, 1800); // reconcile with the server's real state
 }
+// The session is a signed token in localStorage (App Proxy strips cookies), sent
+// to /whoami so the server knows who's signed in. Empty string when signed out.
+function plSessQS(){ try{ const t=localStorage.getItem('pl_session'); return t?('?pl_session='+encodeURIComponent(t)):''; }catch(e){ return ''; } }
 async function acctRefresh(){
   if(_acctBusy) return;
   if(!/(^|\.)luca-s\.com$/.test(location.hostname)) return;
   _acctBusy=true;
   try{
-    const r=await fetch('/apps/patternly/whoami',{cache:'no-store'});
+    const r=await fetch('/apps/patternly/whoami'+plSessQS(),{cache:'no-store'});
     if(r.ok){
       const a=await r.json();
       window.__LUCAS_AUTH__=a;
@@ -26326,7 +26339,7 @@ function plusWaitPanel(show){
 async function plusCheckNow(){
   try{
     const base = TRK_KITS_BASE.replace(/\/patterns$/,'');
-    const r = await fetch(base+'/whoami',{credentials:'include',cache:'no-store'});
+    const r = await fetch(base+'/whoami'+plSessQS(),{credentials:'include',cache:'no-store'});
     if(!r.ok) return false;
     const a = await r.json();
     const was = !!(window.__LUCAS_AUTH__ && window.__LUCAS_AUTH__.plus);
