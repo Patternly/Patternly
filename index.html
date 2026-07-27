@@ -26593,9 +26593,39 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
   function appUiOn(){
     try{ return (typeof plIsApp==='function' && plIsApp()) || /[?&]appui=1/.test(location.search); }catch(e){ return false; }
   }
+  function showSplash(){
+    if(document.getElementById('ptly-splash')) return;
+    var reduce=false; try{ reduce=matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+    var ov=document.createElement('div'); ov.id='ptly-splash';
+    var box=document.createElement('div'); box.id='ptly-splash-box';
+    var svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.setAttribute('viewBox','0 0 130 100'); svg.setAttribute('width','150'); svg.setAttribute('height','116');
+    var heart=['01100110','11111111','11111111','01111110','00111100','00011000'];
+    var cell=15, ox=5, oy=5, n=0;
+    heart.forEach(function(row,r){ row.split('').forEach(function(v,c){ if(v!=='1') return;
+      var x=ox+c*cell, y=oy+r*cell;
+      var g=document.createElementNS('http://www.w3.org/2000/svg','g');
+      g.setAttribute('class','ptly-splash-cell');
+      g.style.animationDelay=(reduce?0:n*0.03)+'s';
+      g.style.transformOrigin=(x+cell/2)+'px '+(y+cell/2)+'px';
+      var mk=function(a,b,cc,d){ var l=document.createElementNS('http://www.w3.org/2000/svg','line');
+        l.setAttribute('x1',a);l.setAttribute('y1',b);l.setAttribute('x2',cc);l.setAttribute('y2',d);
+        l.setAttribute('stroke','#8B1A2B');l.setAttribute('stroke-width','2.8');l.setAttribute('stroke-linecap','round');return l; };
+      var p=cell*0.22; g.appendChild(mk(x+p,y+p,x+cell-p,y+cell-p)); g.appendChild(mk(x+cell-p,y+p,x+p,y+cell-p));
+      svg.appendChild(g); n++;
+    }); });
+    box.appendChild(svg);
+    var word=document.createElement('div'); word.id='ptly-splash-word'; word.textContent='Patternly';
+    box.appendChild(word);
+    ov.appendChild(box);
+    document.body.appendChild(ov);
+    var total=reduce?350:(n*30 + 400 + 300);
+    setTimeout(function(){ ov.classList.add('gone'); setTimeout(function(){ if(ov&&ov.parentNode) ov.parentNode.removeChild(ov); }, 480); }, total);
+  }
   function init(){
     if(!appUiOn() || document.getElementById('ptly-appnav')) return;
     document.body.classList.add('ptly-appui');
+    try{ showSplash(); }catch(e){}
 
     var css = ''
       + 'body.ptly-appui{padding-bottom:calc(58px + env(safe-area-inset-bottom,0px))}'
@@ -26637,7 +26667,23 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       + 'background:transparent;cursor:pointer}'
       + 'body.app-mode #ptly-appheader{display:none}'
       + '#ptly-appheader img{height:32px;width:auto;display:block}'
-      + 'body.dark #ptly-appheader img{filter:brightness(1.75) saturate(.92)}';
+      + 'body.dark #ptly-appheader img{filter:brightness(1.75) saturate(.92)}'
+      + '#ptly-appheader-back{display:none;align-items:center;gap:3px;background:none;border:0;'
+      + 'font-family:inherit;font-size:.98rem;font-weight:700;color:var(--lp-red,#8B1A2B);'
+      + 'cursor:pointer;padding:2px 4px 2px 0;-webkit-tap-highlight-color:transparent}'
+      + '#ptly-appheader-back svg{width:20px;height:20px;stroke:currentColor;fill:none;'
+      + 'stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round}'
+      // Splash: stitch-in heart reveal (reuses the g-pop keyframe from the guide).
+      + '#ptly-splash{position:fixed;inset:0;z-index:100050;display:flex;align-items:center;'
+      + 'justify-content:center;background:#fbf7f2;transition:opacity .45s ease}'
+      + 'body.dark #ptly-splash{background:#171220}'
+      + '#ptly-splash.gone{opacity:0;pointer-events:none}'
+      + '#ptly-splash-box{display:flex;flex-direction:column;align-items:center;gap:12px}'
+      + '#ptly-splash-word{font-family:"DM Serif Display",serif;font-size:1.7rem;'
+      + 'color:var(--lp-red,#8B1A2B);opacity:0;animation:ptly-sw .5s ease forwards;animation-delay:.75s}'
+      + 'body.dark #ptly-splash-word{color:#e79aa8}'
+      + '.ptly-splash-cell{opacity:0;animation:g-pop .4s ease forwards}'
+      + '@keyframes ptly-sw{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}';
     var st=document.createElement('style'); st.id='ptly-appnav-css'; st.textContent=css;
     document.head.appendChild(st);
 
@@ -26663,8 +26709,13 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       if(s && s.src){ himg.src=s.src; }
       else{ var n=0, iv=setInterval(function(){ var x=pick(); if(x && x.src){ himg.src=x.src; clearInterval(iv); } if(++n>25) clearInterval(iv); },100); }
     })();
+    var hback=document.createElement('button'); hback.id='ptly-appheader-back'; hback.type='button';
+    hback.innerHTML='<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><span>Account</span>';
+    hback.addEventListener('click', function(){ if(typeof openAccountPage==='function') openAccountPage(); });
+    himg.style.cursor='pointer';
+    himg.addEventListener('click', function(){ if(typeof goHome==='function') goHome(); });
+    hdr.appendChild(hback);
     hdr.appendChild(himg);
-    hdr.addEventListener('click', function(){ if(typeof goHome==='function') goHome(); });
     document.body.insertBefore(hdr, document.body.firstChild);
 
     function haptic(){ try{ var H=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Haptics; H&&H.impact&&H.impact({style:'Light'}); }catch(e){} }
@@ -26685,9 +26736,15 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       if(c.contains('account-mode')||c.contains('subs-mode')||c.contains('pricing-mode')||c.contains('calc-mode')||c.contains('threads-mode')||c.contains('convert-mode')||c.contains('guide-mode')) return 'account';
       return 'home';
     }
+    function isSecondaryHub(){
+      var c=document.body.classList;
+      return c.contains('subs-mode')||c.contains('pricing-mode')||c.contains('calc-mode')||c.contains('threads-mode')||c.contains('convert-mode')||c.contains('guide-mode')||c.contains('trackerguide-mode');
+    }
     function updateActive(){
       var t=currentTab();
       nav.querySelectorAll('button[data-tab]').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-tab')===t); });
+      var sec=isSecondaryHub();
+      try{ himg.style.display = sec ? 'none' : ''; hback.style.display = sec ? 'inline-flex' : 'none'; }catch(e){}
     }
     try{ new MutationObserver(updateActive).observe(document.body,{attributes:true,attributeFilter:['class']}); }catch(e){}
     updateActive();
