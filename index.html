@@ -25180,7 +25180,33 @@ function acctModalClose(cancelled){
     try{ _acctLoginWin && _acctLoginWin.close(); }catch(e){}
   }
 }
+// True only inside the native Capacitor app (never on the web build). Guards all
+// native-only sign-in behaviour so the website flow stays exactly as it was.
+function plIsApp(){
+  try{
+    var C=window.Capacitor; if(!C) return false;
+    if(typeof C.isNativePlatform==='function') return C.isNativePlatform();
+    if(typeof C.getPlatform==='function') return C.getPlatform()!=='web';
+    return !!C.isNative;
+  }catch(e){ return false; }
+}
 function acctReopen(){
+  // Native app: open Shopify sign-in in an in-app browser (Capacitor Browser)
+  // pointed at /auth/start?app=1. The middleware finishes by deep-linking the
+  // session back via com.lucas.patternly://auth, which appUrlOpen (below) catches.
+  // window.open() can't be used here — a webview hands it to the system browser,
+  // where the returning session lands out of the app's reach.
+  if(plIsApp()){
+    var appUrl=(window.PATTERNLY_API_BASE||'/apps/patternly')+'/auth/start?app=1';
+    _acctLoginWin=null;
+    try{
+      var B=window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
+      if(B && B.open){ B.open({ url: appUrl }); return; }
+    }catch(e){}
+    // No Browser plugin available → last-resort system open (still deep-links back).
+    try{ window.open(appUrl,'_blank'); }catch(e){}
+    return;
+  }
   const w=460, h=640;
   const x=Math.max(0,(screen.width-w)/2), y=Math.max(0,(screen.height-h)/2);
   // Our own OAuth entry: /auth/start bounces through Shopify and returns the
@@ -25199,7 +25225,7 @@ async function acctOpenLogin(){
   }
   acctModalShow();
   acctReopen();
-  if(!_acctLoginWin){
+  if(!plIsApp() && !_acctLoginWin){
     // popup blocked → plain tab; the modal keeps orchestrating. Same OAuth entry,
     // which returns to the app and sets the session; the poll then catches it.
     window.open((window.PATTERNLY_API_BASE||'/apps/patternly')+'/auth/start','_blank');
@@ -25262,6 +25288,34 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.acct-wrap')) acctC
       }
     });
   });
+  // Native app: the sign-in session comes back as a deep link
+  // (com.lucas.patternly://auth?pl_session=…). Capture the token, stash it where
+  // plSessQS() reads it, close the in-app browser, and reflect the signed-in state.
+  try{
+    if(plIsApp()){
+      var _App=window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+      if(_App && _App.addListener){
+        _App.addListener('appUrlOpen', function(data){
+          try{
+            var raw=(data && data.url) ? String(data.url) : '';
+            var m=raw.match(/[?&]pl_session=([^&#]+)/);
+            if(!m) return;
+            try{ localStorage.setItem('pl_session', decodeURIComponent(m[1])); }catch(e){}
+            try{ var B=window.Capacitor.Plugins.Browser; B && B.close && B.close(); }catch(e){}
+            if(typeof acctRefresh==='function'){
+              acctRefresh().then(function(){
+                if(typeof lucasAuth==='function' && lucasAuth().loggedIn){
+                  clearInterval(_acctPollTimer);
+                  if(typeof acctModalSuccess==='function') acctModalSuccess();
+                  if(typeof toast==='function') toast('✓ Signed in with your Luca-S account');
+                }
+              });
+            }
+          }catch(e){}
+        });
+      }
+    }
+  }catch(e){}
   // Safety net: also re-check the instant the user returns to this tab, so even
   // if the popup couldn't self-close, coming back here signs them in immediately.
   const recheck=()=>{ if(typeof acctRefresh==='function') acctRefresh(); };
