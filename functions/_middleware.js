@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v38";
+const MW_VERSION = "v39";
 
 const enc = new TextEncoder();
 
@@ -947,7 +947,56 @@ async function servePattern(key, auth, request, url, env) {
   return new Response(obj.body, { headers });
 }
 
+// ── CORS for the native app / local dev ─────────────────────────────────────
+// On the live site the app is same-origin (served from luca-s.com via the
+// Shopify App Proxy) so no CORS headers are needed and none are added — live
+// behaviour is untouched. The Capacitor app runs from its own local webview
+// origin (https://localhost on Android, capacitor://localhost on iOS) and the
+// local dev server from http://localhost:PORT; those are cross-origin, so we
+// echo the origin back (credentialed requests forbid the "*" wildcard) and
+// answer the browser's preflight. Only these trusted origins get CORS headers.
+function corsOrigin(origin) {
+  if (!origin) return null;
+  if (origin === "capacitor://localhost") return origin;
+  if (origin === "https://localhost") return origin;
+  if (/^https?:\/\/localhost(:\d+)?$/i.test(origin)) return origin;
+  return null;
+}
+function applyCors(res, allowOrigin) {
+  if (!allowOrigin) return res;               // same-origin / untrusted → unchanged
+  const r = new Response(res.body, res);      // clone so headers are mutable
+  r.headers.set("Access-Control-Allow-Origin", allowOrigin);
+  r.headers.set("Access-Control-Allow-Credentials", "true");
+  const vary = r.headers.get("Vary");
+  r.headers.set("Vary", vary ? (vary + ", Origin") : "Origin");
+  return r;
+}
+
 export async function onRequest(context) {
+  const { request } = context;
+  const allow = corsOrigin(request.headers.get("Origin"));
+
+  // Preflight — answer before any auth/routing work.
+  if (request.method === "OPTIONS" && allow) {
+    const reqHeaders = request.headers.get("Access-Control-Request-Headers") || "content-type, x-patternly-code";
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": allow,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": reqHeaders,
+        "Access-Control-Max-Age": "86400",
+        "Vary": "Origin"
+      }
+    });
+  }
+
+  const res = await handleRequest(context);
+  return applyCors(res, allow);
+}
+
+async function handleRequest(context) {
   const { request, next, env } = context;
   const url = new URL(request.url);
   let auth;
