@@ -6800,7 +6800,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
   <div class="acct-m-box">
     <div class="acct-spin" id="acct-m-spin"></div>
     <b id="acct-m-title" style="font-size:.98rem;display:block;margin-bottom:.35rem">Signing you in…</b>
-    <p id="acct-m-text" style="font-size:.8rem;color:#7d6b72;line-height:1.55;margin:0 0 1rem">A secure Luca-S sign-in window has opened. Enter your email there — you'll get a code, and new customers get an account automatically. This page will notice by itself.</p>
+    <p id="acct-m-text" style="font-size:.8rem;color:#7d6b72;line-height:1.55;margin:0 0 1rem">A secure Luca-S sign-in has opened. Finish there — it brings you back automatically.</p>
     <div style="display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap">
       <button class="acct-m-btn primary" id="acct-m-finish" onclick="acctFinishSync()">I've signed in — finish</button>
       <button class="acct-m-btn" id="acct-m-reopen" onclick="acctReopen()">Reopen window</button>
@@ -18028,6 +18028,13 @@ function trkUniqueLocalKey(baseKey){
     return base+'_'+Date.now().toString(36);
   }catch(e){ return baseKey; }
 }
+// A catalogue kit gets a STABLE key from its SKU, so reopening the same kit
+// reuses its one project instead of spawning a fresh duplicate card each time
+// (trkUniqueLocalKey deliberately makes a new id on every collision, which was
+// creating a new "My Tracked Patterns" card on every open).
+function trkForcedKitKey(){
+  return trkCloudSku ? ('kit_'+String(trkCloudSku).replace(/[^A-Za-z0-9_]/g,'_')) : null;
+}
 function trkHashString(s){
   let h=5381; for(let i=0;i<s.length;i++){ h=((h<<5)+h+s.charCodeAt(i))|0; }
   // second pass for better spread
@@ -18607,10 +18614,16 @@ function trkKitCodeSet(sku, v){
 // settles the question without a round trip to find out.
 async function trkKitFetch(url, sku){
   const code = trkKitCode(sku);
+  // Carry the session token: the App Proxy strips cookies, so credentials:'include'
+  // isn't enough. Every other authed call rides pl_session in the query, and
+  // opening a purchased pattern must too — otherwise the server sees a logged-out
+  // request and gates a signed-in user behind "Sign in to open this pattern".
+  const sess = (typeof plSessQS==='function' ? plSessQS() : '').replace(/^\?/,'');
+  const withSess = sess ? (url + (url.includes('?')?'&':'?') + sess) : url;
   const opts = {credentials:'include', cache:'no-cache'};
-  let r = await fetch(url, Object.assign({}, opts, code?{headers:{'x-patternly-code':code}}:{}));
+  let r = await fetch(withSess, Object.assign({}, opts, code?{headers:{'x-patternly-code':code}}:{}));
   if(r.status===401 && code && r.headers.get('x-code-seen')!=='1'){
-    r = await fetch(url+(url.includes('?')?'&':'?')+'pcode='+encodeURIComponent(code), opts);
+    r = await fetch(withSess+(withSess.includes('?')?'&':'?')+'pcode='+encodeURIComponent(code), opts);
   }
   return r;
 }
@@ -18877,6 +18890,7 @@ async function trkOpenKit(kit){
   try{
     trkPendingName = kit.title || kit.sku;
     trkCloudSku = kit.sku;                       // enables account-side progress
+    trackerActiveProjectKey = trkForcedKitKey() || trackerActiveProjectKey;   // stable per-SKU key → no duplicate cards on reopen
     const bsel=document.getElementById('trk-legend-brand'); if(bsel) bsel.value='lucas';
     if(kit.ptly || (kit.files && kit.files.ptly)){
       await trkHandleChart(await grab('ptly', kit.sku+'.Ptly'));   // exact data, no legend needed
@@ -23564,7 +23578,7 @@ async function trkHandleChartOxs(file, preText){
       fabricCount:+props.getAttribute('stitchesperinch')||null,
       stitchesSize:{w:W,h:H}, finishedSize:null, rowCount:Object.keys(bySymbol).length};
     trackerColourMap=map; trackerManual=false; trackerSymbolsOnly=false; trackerBwOnly=false;
-    trackerActiveProjectKey=trkUniqueLocalKey(file.name.replace(/[^a-zA-Z0-9]/g,'_'));
+    trackerActiveProjectKey=trkForcedKitKey()||trkUniqueLocalKey(file.name.replace(/[^a-zA-Z0-9]/g,'_'));
     trackerProjectName=trkPendingName || (props.getAttribute('charttitle')||'').trim() || file.name.replace(/\.[^.]+$/,'');
     card.classList.add('done');
     window.trackerExactFormat=preText?'Patternly':'OXS'; window.trkExactGrid=true;
@@ -23635,7 +23649,7 @@ function trkLoadEmbedded(payload, fileName){
     rowCount:Object.keys(bySymbol).length};
   trackerColourMap=map;
   trackerManual=false; trackerSymbolsOnly=false; trackerBwOnly=false; trkApplyViewAvail();
-  trackerActiveProjectKey=(payload.name||fileName||'pattern').replace(/[^a-zA-Z0-9]/g,'_')+'_'+cols+'x'+rows;
+  trackerActiveProjectKey=trkForcedKitKey()||((payload.name||fileName||'pattern').replace(/[^a-zA-Z0-9]/g,'_')+'_'+cols+'x'+rows);
   trackerProjectName=trkPendingName || payload.name || (fileName||'').replace(/\.[^.]+$/,'') || 'Tracked Pattern';
 }
 
@@ -23840,7 +23854,7 @@ async function trkHandleChartPat(file, preBuf){
       return {x1:l.x1,y1:l.y1,x2:l.x2,y2:l.y2,r:pe.r||0,g:pe.g||0,b:pe.b||0,code:pe.code||''}; });
     trackerGrid.knotsList=(d.knots||[]).map(k=>{ const pe=d.palette[k.pi]||{};
       return {x:k.x,y:k.y,r:pe.r||0,g:pe.g||0,b:pe.b||0,code:pe.code||''}; });
-    trackerActiveProjectKey=trkUniqueLocalKey(file.name.replace(/[^a-zA-Z0-9]/g,'_'));
+    trackerActiveProjectKey=trkForcedKitKey()||trkUniqueLocalKey(file.name.replace(/[^a-zA-Z0-9]/g,'_'));
     trackerProjectName=trkPendingName || d.title || file.name.replace(/\.[^.]+$/,'');
     card.classList.add('done');
     window.trackerExactFormat=preBuf?'Patternly':'PCStitch'; window.trkExactGrid=true;
@@ -25151,7 +25165,7 @@ function acctModalShow(){
   const m=document.getElementById('acct-modal');
   document.getElementById('acct-m-spin').style.display='';
   document.getElementById('acct-m-title').textContent='Signing you in…';
-  document.getElementById('acct-m-text').textContent='A secure Luca-S sign-in window has opened. Sign in with your email there — you\u2019ll get a code, and new customers get an account automatically. It brings you back on its own; this page connects your account the moment you\u2019re done.';
+  document.getElementById('acct-m-text').textContent='A secure Luca-S sign-in has opened. Finish there — it brings you back automatically.';
   document.getElementById('acct-m-reopen').style.display='';
   const fin=document.getElementById('acct-m-finish'); if(fin) fin.style.display='';
   m.classList.add('open');
@@ -26683,7 +26697,10 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       + 'color:var(--lp-red,#8B1A2B);opacity:0;animation:ptly-sw .5s ease forwards;animation-delay:.75s}'
       + 'body.dark #ptly-splash-word{color:#e79aa8}'
       + '.ptly-splash-cell{opacity:0;animation:g-pop .4s ease forwards}'
-      + '@keyframes ptly-sw{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}';
+      + '@keyframes ptly-sw{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}'
+      // Sign-in modal: the app returns automatically via the deep link, so the
+      // "Reopen window" fallback is noise in-app. Web keeps it.
+      + 'body.ptly-appui #acct-m-reopen{display:none!important}';
     var st=document.createElement('style'); st.id='ptly-appnav-css'; st.textContent=css;
     document.head.appendChild(st);
 
