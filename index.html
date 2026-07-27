@@ -26631,7 +26631,13 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       + 'cursor:pointer;text-align:left;-webkit-tap-highlight-color:transparent}'
       + 'body.dark .acct-hub-row{color:#f2ecf4;border-top-color:rgba(255,255,255,.07)}'
       + '.acct-hub-row i{color:#c9b9c0;font-style:normal;font-size:1.25rem;line-height:1}'
-      + '.acct-hub-row:active{background:rgba(139,26,43,.06)}';
+      + '.acct-hub-row:active{background:rgba(139,26,43,.06)}'
+      // Phase C: slim top header — just the logo, scrolls away with the page.
+      + '#ptly-appheader{display:flex;align-items:center;padding:11px 16px 9px;'
+      + 'background:transparent;cursor:pointer}'
+      + 'body.app-mode #ptly-appheader{display:none}'
+      + '#ptly-appheader img{height:32px;width:auto;display:block}'
+      + 'body.dark #ptly-appheader img{filter:brightness(1.75) saturate(.92)}';
     var st=document.createElement('style'); st.id='ptly-appnav-css'; st.textContent=css;
     document.head.appendChild(st);
 
@@ -26647,6 +26653,19 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
     var nav=document.createElement('div'); nav.id='ptly-appnav';
     nav.innerHTML='<div class="pn-row">'+tabBtn('home','Home')+tabBtn('editor','Editor')+tabBtn('tracker','Tracker')+tabBtn('account','Account')+'</div>';
     document.body.appendChild(nav);
+
+    // Slim top header — logo only, scrolls away, tap goes home (YouTube-style).
+    var hdr=document.createElement('div'); hdr.id='ptly-appheader';
+    var himg=document.createElement('img'); himg.id='ptly-appheader-img'; himg.alt='Patternly by Luca-S';
+    (function(){
+      function pick(){ return document.querySelector('.topbar-logo img') || document.getElementById('lp-logo-img'); }
+      var s=pick();
+      if(s && s.src){ himg.src=s.src; }
+      else{ var n=0, iv=setInterval(function(){ var x=pick(); if(x && x.src){ himg.src=x.src; clearInterval(iv); } if(++n>25) clearInterval(iv); },100); }
+    })();
+    hdr.appendChild(himg);
+    hdr.addEventListener('click', function(){ if(typeof goHome==='function') goHome(); });
+    document.body.insertBefore(hdr, document.body.firstChild);
 
     function haptic(){ try{ var H=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Haptics; H&&H.impact&&H.impact({style:'Light'}); }catch(e){} }
     var actions={
