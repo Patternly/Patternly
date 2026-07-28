@@ -2953,7 +2953,7 @@ body.dark #trk-manual-btn,body.dark #trk-skip-btn{ background:#2a2138; border-co
 body.dark #trk-manual-btn:hover:not(:disabled),body.dark #trk-skip-btn:hover:not(:disabled){ background:#2f2030; border-color:#e0a9b4; }
 /* the "still finishing PDF" verify box: inline white background */
 body.dark #trk-verify{ background:#221c30 !important; border-color:#37303f !important; }
-body.dark #trk-verify p{ color:#b6abc2 !important; }
+body.dark #trk-verify,body.dark #trk-verify p{ color:#b6abc2 !important; }
 body.dark #trk-verify b{ color:#f2ecf4 !important; }
 /* "PDF upload coming soon" modal has its own CSS block */
 body.dark #soon-card{ background:#221c30 !important; }
@@ -3501,6 +3501,28 @@ body.trk-fs{overflow:hidden}
   font-family:inherit;font-size:1.45rem;line-height:1;padding:.58rem .7rem;border-radius:13px;cursor:pointer;color:#5a4a51}
 #trk-fsbar button span{font-size:.68rem;font-weight:700;letter-spacing:.01em}
 #trk-fsbar button.active{background:var(--lp-red,#8B1A2B);color:#fff}
+/* ── Full-View bottom colour bar (v345, experimental): a horizontal scrollable
+   strip of colours to pick/scroll while marking. Shows only in full view and
+   only when populated (body.trk-cbar); the fsbar lifts to sit just above it. */
+#trk-colorbar{display:none}
+body.trk-fs.trk-cbar #trk-colorbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:9455;
+  gap:.4rem;padding:.45rem .5rem calc(.45rem + env(safe-area-inset-bottom,0px));
+  overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;
+  background:rgba(255,255,255,.98);border-top:1.5px solid #e6d9dd;box-shadow:0 -3px 16px rgba(43,34,38,.12);backdrop-filter:blur(6px)}
+#trk-colorbar::-webkit-scrollbar{display:none}
+body.dark.trk-fs.trk-cbar #trk-colorbar{background:rgba(34,27,45,.98);border-top-color:#4a3d55}
+body.trk-fs.trk-cbar #trk-fsbar{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+.cbchip{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:50px;
+  padding:.32rem .3rem;border:1.5px solid #e6d9dd;border-radius:9px;background:#fff;cursor:pointer;
+  font-family:inherit;-webkit-tap-highlight-color:transparent}
+body.dark .cbchip{background:#2a2236;border-color:#4a3d55;color:#efe9f3}
+.cbchip.sel{border-color:var(--lp-red,#8B1A2B);background:#fdf4f6}
+body.dark .cbchip.sel{background:#3a2130}
+.cbchip .sw{width:20px;height:20px;border-radius:5px;border:1px solid rgba(0,0,0,.18)}
+.cbchip .sy{font-size:14px;line-height:1;display:inline-flex;align-items:center;justify-content:center}
+.cbchip .sy img{width:16px;height:16px}
+.cbchip .cd{font-size:.6rem;font-weight:700;color:var(--lp-muted,#7d6b72);white-space:nowrap;max-width:56px;overflow:hidden;text-overflow:ellipsis}
+.cbchip .ct{font-size:.55rem;color:var(--lp-muted,#7d6b72)}
 #trk-fspanel{display:none;position:fixed;right:0;top:0;bottom:0;width:min(88vw,320px);z-index:9460;
   background:#fff;border-left:1.5px solid #e6d9dd;box-shadow:-8px 0 30px rgba(43,34,38,.18);
   overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:5rem}
@@ -3508,6 +3530,11 @@ body.trk-fs{overflow:hidden}
 #trk-fspanel-head{position:sticky;top:0;background:#fff;display:flex;align-items:center;justify-content:space-between;
   padding:.8rem .9rem .5rem;border-bottom:1px solid #f0e4e8;font-size:.9rem}
 #trk-fspanel-head button{border:none;background:none;font-size:1.1rem;cursor:pointer;color:#7d6b72}
+/* v346 (item 6a): the full-view panel chrome had no dark override, so it stayed
+   white in dark mode behind the (already-dark) borrowed cards. */
+body.dark #trk-fspanel{background:#171220;border-left-color:#37303f;color:#efe9f3}
+body.dark #trk-fspanel-head{background:#171220;border-bottom-color:#37303f;color:#efe9f3}
+body.dark #trk-fspanel-head button{color:#b6abc2}
 #trk-fspanel-body{padding:.7rem .9rem}
 /* The Colours and Settings panels borrow live nodes from the normal layout.
    Those nodes were authored to size inside their original flex/rail parents, so
@@ -3520,7 +3547,8 @@ body.trk-fs{overflow:hidden}
 #trk-fspanel-body #trk-colors{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.3rem .5rem;align-content:start}
 #trk-fspanel-body #trk-grid-pop .tg-row,
 #trk-fspanel-body #trk-grid-pop label{display:flex!important;min-height:2rem}
-#trk-fspanel-body #trk-secondary{display:flex!important;flex-direction:column;gap:.55rem;align-items:stretch;margin-left:0}
+#trk-fspanel-body #trk-secondary{display:flex!important;flex-direction:column;gap:.55rem;align-items:stretch;margin-left:0;
+  position:static!important;top:auto!important;left:auto!important;background:transparent!important;border:none!important;box-shadow:none!important;padding:0!important}
 #trk-fspanel-body #trk-secondary #trk-viewseg,#trk-fspanel-body #trk-secondary #trk-pagebar{margin-left:0}
 #trk-fspanel-body #trk-secondary #trk-viewseg button,#trk-fspanel-body #trk-secondary #trk-pagebar select{flex:1}
 #trk-fspanel-body #trk-minimap{max-width:100%;overflow:auto}
@@ -4493,7 +4521,7 @@ body.dark .fabric-item.sel{background:rgba(255,255,255,.08);color:#f0b8c2}
   .tbh-btn{padding:.3rem .4rem}
   /* equal 34px squares (icons are outline SVGs that follow the button colour) */
   #download-btn,#save-btn{
-    font-size:0;width:34px;height:34px;padding:0 !important;
+    font-size:0;width:34px;height:34px;padding:0 !important;gap:0;
     display:inline-flex;align-items:center;justify-content:center;
     background:#fff !important;border:1.5px solid #d8ccce !important;
     color:#2b2226 !important;border-radius:9px;box-shadow:none !important;
@@ -5658,7 +5686,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
               <button id="trk-view-full" class="active">Full</button><button id="trk-view-pages">Pages</button>
             </span>
             <span class="trk-group" id="trk-pagebar" style="display:none">
-              <select id="trk-page-cells"><option value="30">30/page</option><option value="50" selected>50/page</option><option value="80">80/page</option><option value="110">110/page</option></select>
+              <select id="trk-page-cells"><option value="30">30/page</option><option value="40">40/page</option><option value="50" selected>50/page</option></select>
               <button id="trk-page-prev">‹</button><span id="trk-page-label">1/1</span><button id="trk-page-next">›</button>
             </span>
             <div id="trk-minimap" style="display:none" title="Click a page to jump to it"></div>
@@ -17648,7 +17676,11 @@ document.querySelectorAll('.ct-btn[data-tool]').forEach(btn=>{
   // (Any 0-size draw before the editor opens is corrected by the
   // ResizeObserver / _rulerPostRender hooks above.)
   const _rcb = document.getElementById('vd-rulers');
-  _rcb.checked = true;
+  // Rulers default ON on desktop only; on mobile and the app they start OFF
+  // (the toolbar/canvas is tight on small screens) — users can switch them on
+  // in View settings whenever they want.
+  var _rulersDefault = !( (window.matchMedia && window.matchMedia('(max-width:820px)').matches) || (typeof plIsApp==='function' && plIsApp()) );
+  _rcb.checked = _rulersDefault;
   _rcb.dispatchEvent(new Event('change'));
 })();
 
@@ -22661,6 +22693,29 @@ function updateTrackerProgressUI(){
       list.appendChild(prow);
     }
   }
+  // ── Bottom colour bar (Full View): a horizontal, scrollable strip of the same
+  // colours, so you can pick/scroll them while marking without opening the side
+  // panel. It drives the SAME selection as the list, so the two stay in sync.
+  (function(){
+    let cbar=document.getElementById('trk-colorbar');
+    if(!cbar){ cbar=document.createElement('div'); cbar.id='trk-colorbar'; document.body.appendChild(cbar); }
+    cbar.innerHTML=''; let cbn=0;
+    for(const e of entries){
+      const col=trackerColourMap[e.symbol]; if(!col) continue;
+      const t=total[e.symbol]||0, d=done[e.symbol]||0;
+      const chip=document.createElement('button');
+      chip.className='cbchip'+(trkSelHas(e.symbol)?' sel':'');
+      chip.dataset.sym=e.symbol;
+      if(t>0&&d===t) chip.style.opacity='0.5';
+      const codeTxt=String(e.code||('#'+e.nr)).replace(/</g,'&lt;');
+      chip.innerHTML=`<span class="sw" style="background:rgb(${col.r},${col.g},${col.b})"></span>`+
+        symHtml(e.symbol,15)+`<span class="cd">${codeTxt}</span><span class="ct">${d}/${t}</span>`;
+      chip.onclick=()=>{ trkSelToggle(e.symbol); renderTracker(); updateTrackerProgressUI(); };
+      cbar.appendChild(chip); cbn++;
+    }
+    document.body.classList.toggle('trk-cbar', cbn>0);
+    try{ const s=cbar.querySelector('.cbchip.sel'); if(s) s.scrollIntoView({inline:'nearest',block:'nearest'}); }catch(_){}
+  })();
   // Thread-length estimate: 2.5 cm of working thread per full cross at 14 ct,
   // scaled by the kit's fabric count (same formula as the editor's estimator)
   const trkMetrage = st => st*0.025*(14/((trackerLegend&&trackerLegend.fabricCount)||14));
@@ -26226,8 +26281,8 @@ function trkFsPanel(kind){
     // moved and restored on close — so its buttons keep their handlers.
     const sec=document.getElementById('trk-secondary');
     if(sec){ const w=document.createElement('div'); w.id='trk-fs-pages-wrap';
-             w.style.cssText='margin-top:1rem;padding-top:.9rem;border-top:1px solid #f0e6ea;display:flex;flex-direction:column;gap:.55rem';
-             const lb=document.createElement('div'); lb.textContent='Pages'; lb.style.cssText='font-size:.72rem;font-weight:700;color:#7d6b72';
+             w.style.cssText='margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--lp-border,#f0e6ea);display:flex;flex-direction:column;gap:.55rem';
+             const lb=document.createElement('div'); lb.textContent='Pages'; lb.style.cssText='font-size:.72rem;font-weight:700;color:var(--lp-muted,#7d6b72)';
              w.appendChild(lb); w.appendChild(sec); body.appendChild(w); }
     const btn=document.getElementById('fsb-settings'); if(btn) btn.classList.add('active');
   }
@@ -26898,13 +26953,13 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       home:'<path d="M3 11.4 12 4l9 7.4"/><path d="M5.5 10v9h13v-9"/>',
       editor:'<path d="M14.1 6.2l3.7 3.7"/><path d="M3.5 20.5 8 19.5 19.4 8.1a1.8 1.8 0 0 0-2.5-2.5L5.5 17z"/>',
       tracker:'<circle cx="12" cy="12" r="8.4"/><path d="M8.4 12.3l2.5 2.5 4.7-5.2"/>',
-      account:'<circle cx="12" cy="8" r="3.4"/><path d="M5.2 19.6c1.5-3.4 4-5 6.8-5s5.3 1.6 6.8 5"/>'
+      account:'<path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/>'
     };
     function tabBtn(id,label){
       return '<button data-tab="'+id+'" aria-label="'+label+'"><svg viewBox="0 0 24 24">'+ICON[id]+'</svg><span>'+label+'</span></button>';
     }
     var nav=document.createElement('div'); nav.id='ptly-appnav';
-    nav.innerHTML='<div class="pn-row">'+tabBtn('home','Home')+tabBtn('editor','Editor')+tabBtn('tracker','Tracker')+tabBtn('account','Account')+'</div>';
+    nav.innerHTML='<div class="pn-row">'+tabBtn('home','Home')+tabBtn('editor','Editor')+tabBtn('tracker','Tracker')+tabBtn('account','More')+'</div>';
     document.body.appendChild(nav);
 
     // Slim top header — logo only, scrolls away, tap goes home (YouTube-style).
@@ -26930,7 +26985,7 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       home:function(){ if(typeof goHome==='function') goHome(); },
       editor:function(){ if(typeof openApp==='function') openApp(); },
       tracker:function(){ if(typeof openTracker==='function') openTracker(); },
-      account:function(){ if(typeof openAccountPage==='function') openAccountPage(); }
+      account:function(){ if(typeof lpToggleMenu==='function') lpToggleMenu(); else if(typeof openAccountPage==='function') openAccountPage(); }
     };
     nav.querySelectorAll('button[data-tab]').forEach(function(b){
       b.addEventListener('click',function(){ haptic(); var fn=actions[b.getAttribute('data-tab')]; if(fn){ try{ fn(); }catch(e){} } setTimeout(updateActive,30); });
