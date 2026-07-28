@@ -3501,28 +3501,49 @@ body.trk-fs{overflow:hidden}
   font-family:inherit;font-size:1.45rem;line-height:1;padding:.58rem .7rem;border-radius:13px;cursor:pointer;color:#5a4a51}
 #trk-fsbar button span{font-size:.68rem;font-weight:700;letter-spacing:.01em}
 #trk-fsbar button.active{background:var(--lp-red,#8B1A2B);color:#fff}
-/* ── Full-View bottom colour bar (v345, experimental): a horizontal scrollable
-   strip of colours to pick/scroll while marking. Shows only in full view and
-   only when populated (body.trk-cbar); the fsbar lifts to sit just above it. */
+/* ── Full-View colour sheet (v348): opens from the Colours tab, hidden by
+   default. A bottom sheet with a header (grid/list toggle + close) and a
+   vertically-scrolling body. Grid = chips; List = rows. Mini-menu hides while open. */
 #trk-colorbar{display:none}
-body.trk-fs.trk-cbar #trk-colorbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:9455;
-  gap:.4rem;padding:.45rem .5rem calc(.45rem + env(safe-area-inset-bottom,0px));
-  overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;
-  background:rgba(255,255,255,.98);border-top:1.5px solid #e6d9dd;box-shadow:0 -3px 16px rgba(43,34,38,.12);backdrop-filter:blur(6px)}
-#trk-colorbar::-webkit-scrollbar{display:none}
-body.dark.trk-fs.trk-cbar #trk-colorbar{background:rgba(34,27,45,.98);border-top-color:#4a3d55}
-body.trk-fs.trk-cbar #trk-fsbar{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
-.cbchip{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:50px;
-  padding:.32rem .3rem;border:1.5px solid #e6d9dd;border-radius:9px;background:#fff;cursor:pointer;
-  font-family:inherit;-webkit-tap-highlight-color:transparent}
+body.trk-fs.trk-cbopen #trk-colorbar{display:flex;flex-direction:column;position:fixed;left:0;right:0;bottom:0;z-index:9458;
+  max-height:min(42vh,300px);background:rgba(255,255,255,.99);border-top:1.5px solid #e6d9dd;border-radius:16px 16px 0 0;
+  box-shadow:0 -6px 26px rgba(43,34,38,.22);backdrop-filter:blur(8px)}
+body.dark.trk-fs.trk-cbopen #trk-colorbar{background:rgba(23,18,32,.99);border-top-color:#4a3d55}
+body.trk-fs.trk-cbopen #trk-fsbar{display:none}
+#trk-cb-head{display:flex;align-items:center;gap:.5rem;padding:.55rem .7rem .45rem;flex:0 0 auto;position:relative;border-bottom:1px solid #f0e4e8}
+body.dark #trk-cb-head{border-bottom-color:#37303f}
+#trk-cb-head .cb-grab{position:absolute;top:5px;left:50%;transform:translateX(-50%);width:38px;height:4px;border-radius:99px;background:#d8ccce}
+body.dark #trk-cb-head .cb-grab{background:#4a3d55}
+#trk-cb-head .cb-title{font-weight:700;font-size:.82rem;color:var(--lp-ink,#2b2226);flex:1;margin-top:3px}
+#trk-cb-viewtog{display:flex;border:1.5px solid #e6d9dd;border-radius:8px;overflow:hidden}
+body.dark #trk-cb-viewtog{border-color:#4a3d55}
+#trk-cb-viewtog button{border:none;background:#fff;cursor:pointer;font-size:.9rem;line-height:1;padding:.28rem .55rem;color:var(--lp-muted,#7d6b72)}
+body.dark #trk-cb-viewtog button{background:#221b2d;color:#b6abc2}
+#trk-cb-viewtog button.on{background:var(--lp-red,#8B1A2B);color:#fff}
+#trk-cb-close{border:none;background:none;cursor:pointer;font-size:1.2rem;line-height:1;color:var(--lp-muted,#7d6b72);padding:.1rem .3rem}
+#trk-cb-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:.55rem .6rem calc(.6rem + env(safe-area-inset-bottom,0px));
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:.4rem;align-content:start}
+body.cb-list #trk-cb-body{display:flex;flex-direction:column;gap:2px}
+.cbchip .sycell,.cbrow .sycell{display:inline-flex;align-items:center;justify-content:center;background:#f2ece2;color:#241b1e;border-radius:5px;overflow:hidden;flex-shrink:0}
+.cbchip .sycell{width:22px;height:22px;font-size:14px;line-height:1}
+.cbrow .sycell{width:20px;height:20px;font-size:13px;line-height:1}
+.cbchip .sycell img,.cbrow .sycell img{width:16px;height:16px}
+.cbchip .sw,.cbrow .sw{border-radius:5px;border:1px solid rgba(0,0,0,.18);flex-shrink:0}
+.cbchip{display:flex;flex-direction:column;align-items:center;gap:2px;padding:.32rem .3rem;border:1.5px solid #e6d9dd;border-radius:9px;background:#fff;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent}
 body.dark .cbchip{background:#2a2236;border-color:#4a3d55;color:#efe9f3}
 .cbchip.sel{border-color:var(--lp-red,#8B1A2B);background:#fdf4f6}
 body.dark .cbchip.sel{background:#3a2130}
-.cbchip .sw{width:20px;height:20px;border-radius:5px;border:1px solid rgba(0,0,0,.18)}
-.cbchip .sy{font-size:14px;line-height:1;display:inline-flex;align-items:center;justify-content:center}
-.cbchip .sy img{width:16px;height:16px}
+.cbchip .sw{width:20px;height:20px}
 .cbchip .cd{font-size:.6rem;font-weight:700;color:var(--lp-muted,#7d6b72);white-space:nowrap;max-width:56px;overflow:hidden;text-overflow:ellipsis}
 .cbchip .ct{font-size:.55rem;color:var(--lp-muted,#7d6b72)}
+.cbrow{display:flex;align-items:center;gap:.5rem;padding:.35rem .4rem;border:1.5px solid transparent;border-radius:8px;background:#fff;cursor:pointer;font-family:inherit;text-align:left;-webkit-tap-highlight-color:transparent}
+body.dark .cbrow{background:#221b2d;color:#efe9f3}
+.cbrow.sel{border-color:var(--lp-red,#8B1A2B);background:#fdf4f6}
+body.dark .cbrow.sel{background:#3a2130}
+.cbrow .sw{width:16px;height:16px}
+.cbrow .cbcode{font-size:.72rem;font-weight:700;white-space:nowrap}
+.cbrow .cblabel{flex:1;font-size:.72rem;color:var(--lp-muted,#7d6b72);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cbrow .cbct{font-size:.66rem;color:var(--lp-muted,#7d6b72);font-variant-numeric:tabular-nums}
 #trk-fspanel{display:none;position:fixed;right:0;top:0;bottom:0;width:min(88vw,320px);z-index:9460;
   background:#fff;border-left:1.5px solid #e6d9dd;box-shadow:-8px 0 30px rgba(43,34,38,.18);
   overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:5rem}
@@ -22010,6 +22031,8 @@ let trkPageMode=false, trkPageCells=50, trkPageIdx=0, trkPageScale=1;
 let trkGridCfg={on:true, op:35, block:10, bw:1, lw:0.5};
 try{ Object.assign(trkGridCfg, JSON.parse(localStorage.getItem('patternly_trk_grid')||'{}')); }catch(e){}
 function trkGridSave(){ try{ localStorage.setItem('patternly_trk_grid', JSON.stringify(trkGridCfg)); }catch(e){} }
+// Full-view colour sheet: 'grid' (chips) or 'list' (rows). Toggled from its header.
+let trkCbView='grid'; try{ trkCbView=localStorage.getItem('patternly_trk_cbview')||'grid'; }catch(e){}
 function trkViewport(){
   if(!trkPageMode || !trackerGrid) return trackerGrid?{r0:0,c0:0,nr:trackerGrid.rows,nc:trackerGrid.cols}:null;
   const N=trkPageCells;
@@ -22233,9 +22256,9 @@ function renderTracker(){
   // gridlines: fine each cell, bold every 10
   if(trkGridCfg.on){
     const bwMode=trackerViewMode==='bw';
-    const fineA=(trkGridCfg.op/100)*(bwMode?0.7:0.4), boldA=Math.min(1, trkGridCfg.op/100*(bwMode?1.4:1));
+    const fineA=(trkGridCfg.op/100)*(bwMode?0.95:0.8), boldA=Math.min(1, trkGridCfg.op/100*(bwMode?1.4:1.05));
     if(trkGridCfg.lw>0){
-      trkCtx.strokeStyle=`rgba(0,0,0,${fineA})`; trkCtx.lineWidth=Math.max(trkGridCfg.lw, cell*0.035);
+      trkCtx.strokeStyle=`rgba(0,0,0,${fineA})`; trkCtx.lineWidth=Math.max(trkGridCfg.lw, cell*0.05);
       for(let c=0;c<=vp.nc;c++){trkCtx.beginPath();trkCtx.moveTo(c*cell+0.5,0);trkCtx.lineTo(c*cell+0.5,vp.nr*cell);trkCtx.stroke();}
       for(let r=0;r<=vp.nr;r++){trkCtx.beginPath();trkCtx.moveTo(0,r*cell+0.5);trkCtx.lineTo(vp.nc*cell,r*cell+0.5);trkCtx.stroke();}
     }
@@ -22693,28 +22716,59 @@ function updateTrackerProgressUI(){
       list.appendChild(prow);
     }
   }
-  // ── Bottom colour bar (Full View): a horizontal, scrollable strip of the same
-  // colours, so you can pick/scroll them while marking without opening the side
-  // panel. It drives the SAME selection as the list, so the two stay in sync.
+  // ── Full-View colour sheet: opens from the Colours tab (hidden by default).
+  // Header has a grid/list toggle + close; body scrolls vertically. Drives the
+  // SAME selection as the side list, so everything stays in sync.
   (function(){
     let cbar=document.getElementById('trk-colorbar');
-    if(!cbar){ cbar=document.createElement('div'); cbar.id='trk-colorbar'; document.body.appendChild(cbar); }
-    cbar.innerHTML=''; let cbn=0;
+    if(!cbar){
+      cbar=document.createElement('div'); cbar.id='trk-colorbar';
+      cbar.innerHTML='<div id="trk-cb-head"><span class="cb-grab"></span>'
+        +'<span class="cb-title">Colours</span>'
+        +'<span id="trk-cb-viewtog"><button data-v="grid" title="Grid view">\u25A6</button><button data-v="list" title="List view">\u2630</button></span>'
+        +'<button id="trk-cb-close" title="Close">\u2715</button></div>'
+        +'<div id="trk-cb-body"></div>';
+      document.body.appendChild(cbar);
+      cbar.querySelector('#trk-cb-close').onclick=()=>trkToggleColourBar(false);
+      cbar.querySelectorAll('#trk-cb-viewtog button').forEach(b=>{
+        b.onclick=()=>{ trkCbView=b.dataset.v; try{ localStorage.setItem('patternly_trk_cbview',trkCbView); }catch(_){}
+          document.body.classList.toggle('cb-list',trkCbView==='list');
+          updateTrackerProgressUI(); };
+      });
+      // Swipe the header down to dismiss (standard bottom-sheet gesture).
+      (function(){ const h=cbar.querySelector('#trk-cb-head'); let sy=null;
+        h.addEventListener('touchstart',e=>{ sy=e.touches[0].clientY; },{passive:true});
+        h.addEventListener('touchmove',e=>{ if(sy!=null && e.touches[0].clientY-sy>46){ sy=null; trkToggleColourBar(false); } },{passive:true});
+        h.addEventListener('touchend',()=>{ sy=null; },{passive:true});
+      })();
+    }
+    document.body.classList.toggle('cb-list',trkCbView==='list');
+    cbar.querySelectorAll('#trk-cb-viewtog button').forEach(x=>x.classList.toggle('on',x.dataset.v===trkCbView));
+    const cbody=cbar.querySelector('#trk-cb-body'); cbody.innerHTML='';
+    const listMode=trkCbView==='list';
     for(const e of entries){
       const col=trackerColourMap[e.symbol]; if(!col) continue;
       const t=total[e.symbol]||0, d=done[e.symbol]||0;
-      const chip=document.createElement('button');
-      chip.className='cbchip'+(trkSelHas(e.symbol)?' sel':'');
-      chip.dataset.sym=e.symbol;
-      if(t>0&&d===t) chip.style.opacity='0.5';
       const codeTxt=String(e.code||('#'+e.nr)).replace(/</g,'&lt;');
-      chip.innerHTML=`<span class="sw" style="background:rgb(${col.r},${col.g},${col.b})"></span>`+
-        symHtml(e.symbol,15)+`<span class="cd">${codeTxt}</span><span class="ct">${d}/${t}</span>`;
-      chip.onclick=()=>{ trkSelToggle(e.symbol); renderTracker(); updateTrackerProgressUI(); };
-      cbar.appendChild(chip); cbn++;
+      const el=document.createElement('button');
+      el.dataset.sym=e.symbol;
+      if(t>0&&d===t) el.style.opacity='0.5';
+      if(listMode){
+        el.className='cbrow'+(trkSelHas(e.symbol)?' sel':'');
+        el.innerHTML=`<span class="sw" style="background:rgb(${col.r},${col.g},${col.b})"></span>`+
+          `<span class="sycell">${symHtml(e.symbol,14)}</span>`+
+          `<span class="cbcode">${codeTxt}</span>`+
+          `<span class="cblabel">${(col.label||'').replace(/</g,'&lt;')}</span>`+
+          `<span class="cbct">${d}/${t}</span>`;
+      } else {
+        el.className='cbchip'+(trkSelHas(e.symbol)?' sel':'');
+        el.innerHTML=`<span class="sw" style="background:rgb(${col.r},${col.g},${col.b})"></span>`+
+          `<span class="sycell">${symHtml(e.symbol,15)}</span>`+
+          `<span class="cd">${codeTxt}</span><span class="ct">${d}/${t}</span>`;
+      }
+      el.onclick=()=>{ trkSelToggle(e.symbol); renderTracker(); updateTrackerProgressUI(); };
+      cbody.appendChild(el);
     }
-    document.body.classList.toggle('trk-cbar', cbn>0);
-    try{ const s=cbar.querySelector('.cbchip.sel'); if(s) s.scrollIntoView({inline:'nearest',block:'nearest'}); }catch(_){}
   })();
   // Thread-length estimate: 2.5 cm of working thread per full cross at 14 ct,
   // scaled by the kit's fabric count (same formula as the editor's estimator)
@@ -26239,7 +26293,7 @@ function trkToggleFullscreen(on){
   const b=document.body;
   const want = (on===undefined) ? !b.classList.contains('trk-fs') : !!on;
   b.classList.toggle('trk-fs', want);
-  if(!want){ trkFsPanel(null); trkFsRestore(); }
+  if(!want){ trkFsPanel(null); trkFsRestore(); b.classList.remove('trk-cbopen'); }
   else trkFsSyncMode();
   const btn=document.getElementById('trk-fs-btn');
   if(btn) btn.textContent = want ? '⛶ Exit full screen' : '⛶ Full screen';
@@ -26292,16 +26346,27 @@ function trkFsPanel(kind){
   const on=(id,fn)=>{ const e=document.getElementById(id); if(e) e.addEventListener('click',fn); };
   on('fsb-pan', ()=>{ trkMode='pan'; trkApplyMode(); trkFsSyncMode(); });
   on('fsb-mark',()=>{ trkMode='mark'; trkApplyMode(); trkFsSyncMode(); });
-  on('fsb-colours', ()=>trkFsPanel(document.getElementById('fsb-colours').classList.contains('active')?null:'colours'));
+  on('fsb-colours', ()=>trkToggleColourBar());
   on('fsb-settings',()=>trkFsPanel(document.getElementById('fsb-settings').classList.contains('active')?null:'settings'));
   on('fsb-exit', ()=>trkToggleFullscreen(false));
   document.addEventListener('keydown', e=>{
     if(e.key==='Escape' && document.body.classList.contains('trk-fs')){
-      if(document.getElementById('trk-fspanel').classList.contains('open')) trkFsPanel(null);
+      if(document.body.classList.contains('trk-cbopen')) trkToggleColourBar(false);
+      else if(document.getElementById('trk-fspanel').classList.contains('open')) trkFsPanel(null);
       else trkToggleFullscreen(false);
     }
   });
 })();
+// Show/hide the Full-View colour sheet. Opening it hides the mini-menu (CSS) and
+// refreshes its contents; the Colours tab reflects the open state.
+function trkToggleColourBar(force){
+  const open = (force===undefined) ? !document.body.classList.contains('trk-cbopen') : !!force;
+  document.body.classList.toggle('trk-cbopen', open);
+  const btn=document.getElementById('fsb-colours'); if(btn) btn.classList.toggle('active', open);
+  if(open){ try{ updateTrackerProgressUI(); }catch(_){}
+    try{ const s=document.querySelector('#trk-cb-body .sel'); if(s) s.scrollIntoView({block:'nearest'}); }catch(_){}
+  }
+}
 // Return the borrowed elements to the normal layout. They are live nodes, so
 // leaving them in the panel would empty the standard workspace.
 function trkFsRestore(){
