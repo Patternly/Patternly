@@ -3358,7 +3358,7 @@ body.dark .trk-card.done{background:#1c2b22}
 #trk-selcard-info b{font-size:.82rem;color:var(--lp-ink,#2b2226)}
 #trk-selcard-x{background:none;border:none;color:var(--lp-red,#8B1A2B);font-weight:700;cursor:pointer}
 body.dark #trk-selcard{background:#3a2130}
-body.dark #trk-selcard-sym{background:#221b2d;border-color:#4a3d55}
+body.dark #trk-selcard-sym{background:#ece4d6;border-color:#4a3d55;color:#241b1e}
 #trk-selcard-info .mm{font-weight:400;color:var(--lp-muted,#7d6b72);font-size:.72rem}
 .trk-selswatches{display:flex;flex-wrap:nowrap;overflow:hidden;align-items:center;gap:3px;margin:2px 0}
 .trk-selswatches .ovf{font-size:10px;font-weight:700;opacity:.65;white-space:nowrap;flex:0 0 auto}
@@ -22235,13 +22235,13 @@ function renderTracker(){
     const bwMode=trackerViewMode==='bw';
     const fineA=(trkGridCfg.op/100)*(bwMode?0.7:0.4), boldA=Math.min(1, trkGridCfg.op/100*(bwMode?1.4:1));
     if(trkGridCfg.lw>0){
-      trkCtx.strokeStyle=`rgba(0,0,0,${fineA})`; trkCtx.lineWidth=trkGridCfg.lw;
+      trkCtx.strokeStyle=`rgba(0,0,0,${fineA})`; trkCtx.lineWidth=Math.max(trkGridCfg.lw, cell*0.035);
       for(let c=0;c<=vp.nc;c++){trkCtx.beginPath();trkCtx.moveTo(c*cell+0.5,0);trkCtx.lineTo(c*cell+0.5,vp.nr*cell);trkCtx.stroke();}
       for(let r=0;r<=vp.nr;r++){trkCtx.beginPath();trkCtx.moveTo(0,r*cell+0.5);trkCtx.lineTo(vp.nc*cell,r*cell+0.5);trkCtx.stroke();}
     }
     // bold lines aligned to the GLOBAL block grid, so pages match the paper chart
     const B=trkGridCfg.block;
-    trkCtx.strokeStyle=`rgba(0,0,0,${boldA})`; trkCtx.lineWidth=trkGridCfg.bw;
+    trkCtx.strokeStyle=`rgba(0,0,0,${boldA})`; trkCtx.lineWidth=Math.max(trkGridCfg.bw, cell*0.05);
     for(let gc=Math.ceil(vc0/B)*B; gc<=vc1; gc+=B){const x=(gc-vp.c0)*cell+0.5;trkCtx.beginPath();trkCtx.moveTo(x,trkView.sy);trkCtx.lineTo(x,trkView.sy+trkView.viewH);trkCtx.stroke();}
     for(let gr=Math.ceil(vr0/B)*B; gr<=vr1; gr+=B){const y=(gr-vp.r0)*cell+0.5;trkCtx.beginPath();trkCtx.moveTo(trkView.sx,y);trkCtx.lineTo(trkView.sx+trkView.viewW,y);trkCtx.stroke();}
     // Centre lines: printed charts mark the middle so you can find your place
@@ -26985,7 +26985,7 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       home:function(){ if(typeof goHome==='function') goHome(); },
       editor:function(){ if(typeof openApp==='function') openApp(); },
       tracker:function(){ if(typeof openTracker==='function') openTracker(); },
-      account:function(){ if(typeof lpToggleMenu==='function') lpToggleMenu(); else if(typeof openAccountPage==='function') openAccountPage(); }
+      account:function(){ if(typeof openAccountPage==='function') openAccountPage(); }
     };
     nav.querySelectorAll('button[data-tab]').forEach(function(b){
       b.addEventListener('click',function(){ haptic(); var fn=actions[b.getAttribute('data-tab')]; if(fn){ try{ fn(); }catch(e){} } setTimeout(updateActive,30); });
