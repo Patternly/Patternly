@@ -2586,6 +2586,17 @@ body.projects-mode .pj-header, body.calc-mode .pj-header, body.tracker-mode .pj-
 #landing-page{background:#fdf9f5}  /* explicit — never rely on the embedding page's background */
 html{background:#fdf9f5}
 body.dark #landing-page,html:has(body.dark){background:#171220}
+/* v340 app dark-theme fixes ── item 1: body itself was never themed, so the pink
+   base (#f5edee) showed in the status-bar strip behind the transparent app header. */
+body.dark{background:#171220}
+/* item 5: the tracker "New to…" banner had a hard-coded white background inline. */
+body.dark #trk-guide-banner{background:#221c30!important;border-color:#37303f!important}
+/* item 4: account "Your patterns" cards — hard white bg + inherited (light) title
+   text meant white-on-white in dark mode. Drive colours from these classes instead. */
+.acct-pat-card{background:#fff;border:1.5px solid #e6d9dd}
+body.dark .acct-pat-card{background:#221c30;border-color:#37303f}
+.acct-pat-title{color:#2b2226}
+body.dark .acct-pat-title{color:#efe9f3}
 body.dark .lp-hero-badge{background:#3a2028;color:#f0a8b6;border-color:#57303a}
 /* Logo PNG is transparent now — in dark mode just lift it so the burgundy reads */
 body.dark #lp-logo-img,body.dark #pj-logo-img,body.dark #calc-logo-img{
@@ -3887,6 +3898,8 @@ body.dark .lp-footer-bottom{color:rgba(255,255,255,.3);opacity:1;border-top-colo
 .btn-primary{background:var(--ink);color:#fff}
 .btn-save{background:var(--accent);color:#fff}
 .btn-download{background:var(--mint);color:var(--ink)}
+/* v341: toolbar Save/Download icons — outline SVGs that follow the button colour. */
+.tb-ico{width:1.05em;height:1.05em;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-.15em}
 .btn-cart{background:#2E7D32;color:#fff}
 .btn-icon{padding:.4rem .55rem;font-size:1rem}
 
@@ -4478,23 +4491,17 @@ body.dark .fabric-item.sel{background:rgba(255,255,255,.08);color:#f0b8c2}
   }
   .btn{padding:.35rem .5rem;font-size:.7rem}
   .tbh-btn{padding:.3rem .4rem}
-  /* equal 34px squares, black & white (grayscale neutralises the emoji tints) */
-  #download-btn{
-    font-size:0;width:34px;height:34px;padding:0 !important;
-    display:inline-flex;align-items:center;justify-content:center;
-    background:#fff !important;border:1.5px solid #d8ccce !important;
-    color:#2b2226 !important;border-radius:9px;box-shadow:none !important;
-    filter:grayscale(1);
-  }
-  #download-btn::before{content:"⬇";font-size:1.05rem}
-  /* Match the Save button to the Download icon-square so it always fits the row. */
-  #save-btn{
+  /* equal 34px squares (icons are outline SVGs that follow the button colour) */
+  #download-btn,#save-btn{
     font-size:0;width:34px;height:34px;padding:0 !important;
     display:inline-flex;align-items:center;justify-content:center;
     background:#fff !important;border:1.5px solid #d8ccce !important;
     color:#2b2226 !important;border-radius:9px;box-shadow:none !important;
   }
-  #save-btn::before{content:"💾";font-size:1.05rem}
+  #download-btn .tb-ico,#save-btn .tb-ico{width:18px;height:18px}
+  body.dark #download-btn,body.dark #save-btn{
+    background:#241b1e !important;border-color:#3a2f33 !important;color:#efe9f3 !important;
+  }
   /* On a phone the toolbar is tight, so the autosave note shrinks to a tick. */
   #save-state{font-size:0 !important;padding:0 .25rem !important}
   #save-state:not(:empty)::before{content:"✓";font-size:.95rem}
@@ -5490,8 +5497,8 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <!-- New-here banner: sits ABOVE the source chooser, full width to match it -->
     <div id="trk-guide-banner" style="max-width:1100px;margin:1.6rem auto .4rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;justify-content:space-between;background:#fff;border:1.5px solid var(--lp-border,#eadde1);border-radius:16px;padding:1.1rem 1.4rem">
       <div style="flex:1;min-width:220px">
-        <div style="font-family:'DM Serif Display',Georgia,serif;font-size:1.15rem;color:var(--lp-ink,#2b2226);margin-bottom:.15rem">New to the Stitch Tracker?</div>
-        <div style="font-size:.86rem;color:#6a626f;line-height:1.5">See how to open your kit’s pattern, mark stitches, and sync your progress across devices.</div>
+        <div style="font-family:'DM Serif Display',Georgia,serif;font-size:1.15rem;color:var(--lp-ink,#2b2226);margin-bottom:.15rem">New to Patternly?</div>
+        <div style="font-size:.86rem;color:var(--lp-muted,#6a626f);line-height:1.5">See how to open your kit’s pattern, mark stitches, and sync your progress across devices.</div>
       </div>
       <a href="#" onclick="openTrackerGuide();return false" style="flex-shrink:0;display:inline-block;background:var(--lp-red,#8B1A2B);color:#fff;text-decoration:none;font-weight:700;font-size:.92rem;padding:.75rem 1.6rem;border-radius:11px;white-space:nowrap">Full Tracker Guide →</a>
     </div>
@@ -6833,7 +6840,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <div id="acct-hub" style="display:none">
       <div id="acct-plus-iap" style="display:none"></div>
       <div class="acct-hub-title">Appearance</div>
-      <button class="acct-hub-row" id="acct-dark-row" onclick="try{toggleTheme();}catch(e){} var el=this.querySelector('.st'); if(el) el.textContent=document.body.classList.contains('dark')?'On':'Off';"><span>Dark mode</span><span class="st" style="color:var(--lp-red,#8B1A2B);font-weight:700;font-size:.82rem">Off</span></button>
+      <div class="acct-hub-row" id="acct-dark-row" style="cursor:default"><span>Dark mode</span><button class="theme-switch" onclick="toggleTheme()" title="Toggle light/dark theme" aria-label="Toggle dark mode"><span class="ts-knob"></span></button></div>
       <div class="acct-hub-title">More</div>
       <button class="acct-hub-row" onclick="openSubscriptionPage()"><span>My Subscription</span><i>&rsaquo;</i></button>
       <button class="acct-hub-row" onclick="openThreads()"><span>Thread Colours</span><i>&rsaquo;</i></button>
@@ -7192,8 +7199,8 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     </div>
     <button class="btn btn-ghost" id="clear-btn">Clear</button>
     <span id="save-state" title="Your work saves by itself" style="font-size:.72rem;color:var(--muted);padding:0 .5rem;white-space:nowrap;align-self:center"></span>
-    <button class="btn btn-ghost" id="save-btn" onclick="pjExplicitSave()" title="Save to this browser">💾 Save</button>
-    <button class="btn btn-download" id="download-btn">⬇ Download</button>
+    <button class="btn btn-ghost" id="save-btn" onclick="pjExplicitSave()" title="Save to this browser"><svg class="tb-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3H18V21L12 16.5L6 21Z"/></svg> Save</button>
+    <button class="btn btn-download" id="download-btn"><svg class="tb-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V16.5M8.5 13l3.5 3.5 3.5-3.5"/></svg> Download</button>
   </div>
   <button id="tb-menu-btn" onclick="lpToggleMenu()" title="Menu">☰</button>
 </div>
@@ -18117,10 +18124,21 @@ function trkSaveProject(){
       knotsList: (trackerGrid.knotsList&&trackerGrid.knotsList.length)?trackerGrid.knotsList:null
     }));
     const prev=trkIndex().find(p=>p.id===id);
-    const list=trkIndex().filter(p=>p.id!==id);
+    const curSku=trkCloudSku||(prev&&prev.sku)||null;
+    // One card per kit: drop this id, and also any OTHER entry sharing this SKU
+    // (stale duplicates from before catalogue kits used a stable per-SKU key),
+    // cleaning their orphaned storage so a bought kit can never show twice.
+    const list=trkIndex().filter(p=>{
+      if(p.id===id) return false;
+      if(curSku && p.sku && String(p.sku).toUpperCase()===String(curSku).toUpperCase()){
+        try{ localStorage.removeItem('patternly_trk_proj_'+p.id); localStorage.removeItem('patternly_tracker_'+p.id); }catch(e){}
+        return false;
+      }
+      return true;
+    });
     let total=0; for(const row of trackerGrid.cells) for(const ch of row) if(ch!==' ') total++;
     list.unshift({id, name:trackerProjectName||id, cols:trackerGrid.cols, rows:trackerGrid.rows, total,
-      done:prev?prev.done:0, ts:Date.now(), thumb:trkMakeThumb(), sku:trkCloudSku||(prev&&prev.sku)||null,
+      done:prev?prev.done:0, ts:Date.now(), thumb:trkMakeThumb(), sku:curSku,
       threads:(trackerLegend.rowCount||Object.keys(trackerColourMap).length),
       sessions:(prev&&prev.sessions)||{}});
     trkPendingName='';
@@ -18897,6 +18915,23 @@ async function trkOpenKit(kit){
     trkPendingName = kit.title || kit.sku;
     trkCloudSku = kit.sku;                       // enables account-side progress
     trackerActiveProjectKey = trkForcedKitKey() || trackerActiveProjectKey;   // stable per-SKU key → no duplicate cards on reopen
+    // Collapse any earlier duplicates of this kit down to its one stable card.
+    // (Cards created before the stable-key era carry the SKU under a different
+    // id; without this they'd sit alongside kit_<SKU> as a permanent duplicate.)
+    try{
+      const _canon=trackerActiveProjectKey, _sku=String(kit.sku||'').toUpperCase();
+      if(_sku){
+        const _before=trkIndex(), _kept=_before.filter(p=>{
+          if(p.id===_canon) return true;
+          if(String(p.sku||'').toUpperCase()===_sku){
+            try{ localStorage.removeItem('patternly_trk_proj_'+p.id); localStorage.removeItem('patternly_tracker_'+p.id); }catch(e){}
+            return false;
+          }
+          return true;
+        });
+        if(_kept.length!==_before.length) trkIndexWrite(_kept);
+      }
+    }catch(e){}
     const bsel=document.getElementById('trk-legend-brand'); if(bsel) bsel.value='lucas';
     if(kit.ptly || (kit.files && kit.files.ptly)){
       await trkHandleChart(await grab('ptly', kit.sku+'.Ptly'));   // exact data, no legend needed
@@ -25062,7 +25097,7 @@ async function acctRenderPatterns(){
   if(!a.loggedIn || !Array.isArray(owned)){ box.style.display='none'; return; }
   box.style.display='';
   box.innerHTML='<div style="max-width:860px;margin:0 auto"><h3 style="font-family:var(--lp-serif,Georgia,serif);font-size:1.05rem;margin:0 0 .2rem">Your patterns</h3>'
-    +'<p style="font-size:.78rem;color:#7d6b72;margin:0 0 .9rem">Kits you\u2019ve bought \u2014 open any of them in the Stitch Tracker, no code needed.</p></div>'
+    +'<p style="font-size:.78rem;color:var(--lp-muted,#7d6b72);margin:0 0 .9rem">Kits you\u2019ve bought \u2014 open any of them in the Stitch Tracker, no code needed.</p></div>'
     +'<div id="acct-patterns-grid" style="font-size:.82rem;color:#7d6b72">Checking\u2026</div>';
   const grid=document.getElementById('acct-patterns-grid');
   if(!owned.length){
@@ -25097,11 +25132,12 @@ async function acctRenderPatterns(){
   grid.innerHTML = mine.length ? '' : '<div style="grid-column:1/-1;font-size:.82rem;color:#7d6b72">No patterns published for your kits yet.</div>';
   for(const kit of mine){
     const card=document.createElement('div');
-    card.style.cssText='background:#fff;border:1.5px solid #e6d9dd;border-radius:12px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column';
+    card.className='acct-pat-card';
+    card.style.cssText='border-radius:12px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column';
     card.innerHTML=(kit.image?`<img src="${esc(trkKitImageUrl(kit))}" alt="" loading="lazy" style="width:100%;aspect-ratio:1;object-fit:cover;background:#f6f1f2">`
                              :`<div style="width:100%;aspect-ratio:1;background:#f6f1f2"></div>`)
-      +`<div style="padding:.5rem .6rem"><div style="font-weight:700;font-size:.78rem;line-height:1.3">${esc(kit.title||kit.sku)}</div>`
-      +`<div style="font-size:.7rem;color:#6a626f;margin-top:.15rem">${esc(kit.sku)}</div></div>`;
+      +`<div style="padding:.5rem .6rem"><div class="acct-pat-title" style="font-weight:700;font-size:.78rem;line-height:1.3">${esc(kit.title||kit.sku)}</div>`
+      +`<div style="font-size:.7rem;color:var(--lp-muted,#6a626f);margin-top:.15rem">${esc(kit.sku)}</div></div>`;
     card.onclick=()=>{ openTracker(); setTimeout(()=>trkOpenKit(kit), 60); };
     grid.appendChild(card);
   }
@@ -26798,7 +26834,14 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       + 'border-top:1px solid rgba(0,0,0,.08);box-shadow:0 -1px 14px rgba(0,0,0,.07);'
       + 'padding-bottom:env(safe-area-inset-bottom,0px)}'
       + 'body.dark #ptly-appnav{background:#241b1e;border-top-color:rgba(255,255,255,.10)}'
-      + 'body.app-mode #ptly-appnav{display:none}'
+      // v342: the 4-tab nav used to be hidden in the editor (app-mode). Show it there
+      // too, and lift the editor's floating tools above it so nothing overlaps.
+      // Scoped to mobile widths (where the tools are bottom-pinned).
+      + '@media(max-width:820px){'
+      +   'body.ptly-appui #quick-bar{bottom:calc(58px + env(safe-area-inset-bottom,0px) + 10px)!important}'
+      +   'body.ptly-appui #qb-left-btn,body.ptly-appui #qb-right-btn{bottom:calc(58px + env(safe-area-inset-bottom,0px) + 12px)!important}'
+      +   'body.ptly-appui .pj-selbar{bottom:calc(58px + env(safe-area-inset-bottom,0px) + 12px)}'
+      + '}'
       + '#ptly-appnav .pn-row{display:flex}'
       + '#ptly-appnav button{flex:1;background:none;border:0;cursor:pointer;padding:.5rem 0 .45rem;'
       + 'display:flex;flex-direction:column;align-items:center;gap:3px;color:#9a8890;'
