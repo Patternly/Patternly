@@ -40,7 +40,7 @@ try{
   }
 }catch(e){}
 </script>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Patternly by Luca-S — Pattern Editor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
@@ -3506,7 +3506,15 @@ body.trk-fs #trk-fsbar{display:flex}
 body.trk-fs{overflow:hidden}
 #trk-fsbar{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:max(.7rem,env(safe-area-inset-bottom));
   z-index:9450;background:rgba(255,255,255,.97);border:1.5px solid #e6d9dd;border-radius:18px;max-width:calc(100vw - .8rem);
-  box-shadow:0 8px 28px rgba(43,34,38,.2);padding:.45rem;gap:.25rem;backdrop-filter:blur(6px)}
+  box-shadow:0 8px 28px rgba(43,34,38,.2);padding:.45rem;gap:.25rem;backdrop-filter:blur(6px);transition:transform .28s ease,opacity .28s ease}
+/* #1: the floating control bar slides away when you scroll DOWN the pattern and
+   returns on scroll UP (full-view only). */
+body.fsbar-hidden #trk-fsbar{transform:translateX(-50%) translateY(180%);opacity:0;pointer-events:none}
+/* #2: bottom sheets follow the finger and settle smoothly instead of snapping
+   between two fixed heights. The .sheet-dragging class kills the transition
+   while a finger is actively moving the sheet. */
+#trk-colorbar,#trk-fspanel{transition:transform .30s cubic-bezier(.32,.72,0,1),max-height .30s cubic-bezier(.32,.72,0,1)}
+#trk-colorbar.sheet-dragging,#trk-fspanel.sheet-dragging{transition:none!important}
 #trk-fsbar button{display:flex;flex-direction:column;align-items:center;gap:.16rem;border:none;background:none;
   font-family:inherit;font-size:1.45rem;line-height:1;padding:.58rem .7rem;border-radius:13px;cursor:pointer;color:#5a4a51}
 #trk-fsbar button span{font-size:.68rem;font-weight:700;letter-spacing:.01em}
@@ -3528,10 +3536,10 @@ body.dark #trk-cb-head .cb-grab{background:#4a3d55}
 #trk-cb-head .cb-title{font-weight:700;font-size:.82rem;color:var(--lp-ink,#2b2226);flex:1;margin-top:3px}
 #trk-cb-viewtog{display:flex;border:1.5px solid #e6d9dd;border-radius:8px;overflow:hidden}
 body.dark #trk-cb-viewtog{border-color:#4a3d55}
-#trk-cb-viewtog button{border:none;background:#fff;cursor:pointer;font-size:.9rem;line-height:1;padding:.28rem .55rem;color:var(--lp-muted,#7d6b72)}
+#trk-cb-viewtog button{border:none;background:#fff;cursor:pointer;font-size:1.12rem;line-height:1;padding:.34rem .62rem;color:var(--lp-muted,#7d6b72)}
 body.dark #trk-cb-viewtog button{background:#221b2d;color:#b6abc2}
 #trk-cb-viewtog button.on{background:var(--lp-red,#8B1A2B);color:#fff}
-#trk-cb-close{border:none;background:none;cursor:pointer;font-size:1.2rem;line-height:1;color:var(--lp-muted,#7d6b72);padding:.1rem .3rem}
+#trk-cb-close{border:none;background:none;cursor:pointer;font-size:1.5rem;line-height:1;color:var(--lp-muted,#7d6b72);padding:.1rem .38rem}
 #trk-cb-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:.55rem .6rem calc(.6rem + env(safe-area-inset-bottom,0px));
   display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:.4rem;align-content:start}
 body.cb-list #trk-cb-body{display:flex;flex-direction:column;gap:2px}
@@ -3561,7 +3569,7 @@ body.dark .cbrow.sel{background:#3a2130}
 #trk-fspanel.open{display:flex;flex-direction:column}
 #trk-fspanel-head{position:sticky;top:0;flex:0 0 auto;background:#fff;display:flex;align-items:center;justify-content:space-between;
   padding:.8rem .9rem .5rem;border-bottom:1px solid #f0e4e8;font-size:.9rem}
-#trk-fspanel-head button{border:none;background:none;font-size:1.1rem;cursor:pointer;color:#7d6b72}
+#trk-fspanel-head button{border:none;background:none;font-size:1.4rem;cursor:pointer;color:#7d6b72}
 /* v346 (item 6a): the full-view panel chrome had no dark override, so it stayed
    white in dark mode behind the (already-dark) borrowed cards. */
 body.dark #trk-fspanel{background:#171220;border-left-color:#37303f;color:#efe9f3}
@@ -18393,6 +18401,7 @@ async function trkOpenProject(id){
     document.getElementById('trk-projects').style.display='none';
     document.getElementById('trk-upload').style.display='none';
     document.getElementById('trk-workspace').style.display='';
+    trkMode='pan'; trkApplyMode(); // Pan is always the default when entering a pattern
     const box=document.getElementById('trk-verify');
     box.style.borderColor='#3f8f5f';
     box.innerHTML=`<b style="color:#2E7D32">${trackerProjectName}</b> — loaded from this browser. ${trackerLegend.rowCount} colours · ${s.cols}×${s.rows} stitches.`;
@@ -22049,6 +22058,7 @@ async function tryBuildTracker(){
   document.getElementById('trk-projects').style.display='none';
   document.getElementById('trk-upload').style.display='none';
   document.getElementById('trk-workspace').style.display='';
+  trkMode='pan'; trkApplyMode(); // Pan is always the default when entering a pattern
   trackerShowVerification();
   trackerStitched = Array.from({length: trackerGrid.rows}, ()=>Array(trackerGrid.cols).fill(false));
   trkApplyViewAvail();
@@ -22610,6 +22620,12 @@ function trkPointerEnd(e){
 }
 trkCanvas.addEventListener('pointerup', trkPointerEnd);
 trkCanvas.addEventListener('pointercancel', trkPointerEnd);
+// While two fingers are down, block the browser's native one-finger panning so a
+// pinch is ZOOM ONLY — the canvas can't be dragged around during the gesture.
+// Pointer-event preventDefault can't stop native touch-scroll; a non-passive
+// touchmove listener can. This removes the tug-of-war that made the canvas
+// wobble and made the pinch drop out (forcing a lift-and-re-touch to resume).
+trkCanvas.addEventListener('touchmove', e=>{ if(e.touches && e.touches.length>=2) e.preventDefault(); }, {passive:false});
 window.addEventListener('pointerup', ()=>{ if(trkMarking!==null){ trkMarking=null; updateTrackerProgressUI(); saveTrackerProgress(); } });
 // Right-click a stitch: highlight its colour (both modes)
 trkCanvas.addEventListener('contextmenu', e=>{
@@ -22795,14 +22811,13 @@ function updateTrackerProgressUI(){
           document.body.classList.toggle('cb-list',trkCbView==='list');
           updateTrackerProgressUI(); };
       });
-      // Swipe the header: up expands to full height, down collapses then closes.
-      (function(){ const h=cbar.querySelector('#trk-cb-head'); let sy=null;
-        h.addEventListener('touchstart',e=>{ sy=e.touches[0].clientY; },{passive:true});
-        h.addEventListener('touchmove',e=>{ if(sy==null) return; const dy=e.touches[0].clientY-sy;
-          if(dy<-42){ sy=null; document.body.classList.add('cb-exp'); }
-          else if(dy>46){ sy=null; if(document.body.classList.contains('cb-exp')) document.body.classList.remove('cb-exp'); else trkToggleColourBar(false); } },{passive:true});
-        h.addEventListener('touchend',()=>{ sy=null; },{passive:true});
-      })();
+      // #2: interactive drag — the sheet follows the finger and settles smoothly.
+      trkSheetDrag(cbar.querySelector('#trk-cb-head'), cbar, {
+        expandClass:'cb-exp',
+        collapsedPx:vh=>Math.min(0.42*vh,300),
+        close:()=>trkToggleColourBar(false),
+        isOpen:()=>document.body.classList.contains('trk-cbopen')
+      });
     }
     document.body.classList.toggle('cb-list',trkCbView==='list');
     cbar.querySelectorAll('#trk-cb-viewtog button').forEach(x=>x.classList.toggle('on',x.dataset.v===trkCbView));
@@ -26423,15 +26438,85 @@ function trkFsPanel(kind){
   panel.classList.add('open');
   document.body.classList.add('trk-setopen');
 }
-// Swipe the settings-sheet header: up expands, down collapses then closes.
+// ── #2: Interactive bottom-sheet drag. The sheet grows/shrinks UNDER the finger
+// and settles with a CSS transition, instead of snapping between two fixed
+// heights. Drag it well down to dismiss. Shared by the Colours and Settings
+// sheets (function declaration → hoisted, so the Colours build can call it too).
+function trkSheetDrag(header, sheet, opts){
+  if(!header || !sheet) return;
+  let startY=null, startH=0, collapsedPx=0, expandedPx=0, lastH=0, down=0, moved=false;
+  const vh=()=>window.innerHeight||document.documentElement.clientHeight;
+  header.addEventListener('touchstart', e=>{
+    if(opts.isOpen && !opts.isOpen()) return;
+    startY=e.touches[0].clientY;
+    startH=sheet.getBoundingClientRect().height;
+    collapsedPx=opts.collapsedPx(vh());
+    expandedPx=Math.round(0.88*vh());
+    lastH=startH; down=0; moved=false;
+    sheet.classList.add('sheet-dragging');   // freeze transition while dragging
+    sheet.style.transform='';
+  }, {passive:false});
+  header.addEventListener('touchmove', e=>{
+    if(startY==null) return;
+    const dy=e.touches[0].clientY-startY;
+    if(Math.abs(dy)>3){ moved=true; e.preventDefault(); } // own the gesture
+    const newH=startH-dy;                      // drag up (dy<0) grows the sheet
+    if(newH>=collapsedPx){
+      lastH=Math.min(newH, expandedPx); down=0;
+      sheet.style.maxHeight=lastH+'px';
+      sheet.style.transform='';
+    } else {
+      // below the collapsed height → slide the whole sheet down toward dismissal
+      lastH=collapsedPx; down=collapsedPx-newH;
+      sheet.style.maxHeight=collapsedPx+'px';
+      sheet.style.transform='translateY('+down+'px)';
+    }
+  }, {passive:false});
+  function settle(){
+    if(startY==null) return;
+    startY=null;
+    sheet.classList.remove('sheet-dragging');  // re-enable transition for the settle
+    if(!moved){ sheet.style.transform=''; sheet.style.maxHeight=''; return; } // a tap — leave state
+    if(down > collapsedPx*0.30){
+      sheet.style.transform='translateY(110%)'; // dismiss with a slide-down
+      setTimeout(()=>{ sheet.style.transform=''; sheet.style.maxHeight=''; try{opts.close();}catch(_){}; }, 300);
+      return;
+    }
+    sheet.style.transform='';
+    const mid=(collapsedPx+expandedPx)/2;
+    if(lastH>=mid) document.body.classList.add(opts.expandClass);
+    else document.body.classList.remove(opts.expandClass);
+    sheet.style.maxHeight='';                   // hand back to the class; transition animates
+  }
+  header.addEventListener('touchend', settle, {passive:true});
+  header.addEventListener('touchcancel', settle, {passive:true});
+}
+// Wire the settings sheet.
 (function(){
-  const h=document.getElementById('trk-fspanel-head'); if(!h) return;
-  let sy=null;
-  h.addEventListener('touchstart',e=>{ sy=e.touches[0].clientY; },{passive:true});
-  h.addEventListener('touchmove',e=>{ if(sy==null) return; const dy=e.touches[0].clientY-sy;
-    if(dy<-42){ sy=null; document.body.classList.add('trk-setexp'); }
-    else if(dy>46){ sy=null; if(document.body.classList.contains('trk-setexp')) document.body.classList.remove('trk-setexp'); else trkFsPanel(null); } },{passive:true});
-  h.addEventListener('touchend',()=>{ sy=null; },{passive:true});
+  trkSheetDrag(document.getElementById('trk-fspanel-head'), document.getElementById('trk-fspanel'), {
+    expandClass:'trk-setexp',
+    collapsedPx:vh=>Math.min(0.60*vh,460),
+    close:()=>trkFsPanel(null),
+    isOpen:()=>document.body.classList.contains('trk-setopen')
+  });
+})();
+// ── #1: hide the floating control bar when scrolling DOWN the pattern, bring it
+// back on scroll UP (full-view only). One-time; the wrap exists in static markup.
+(function(){
+  const wrap=document.getElementById('trk-canvas-wrap'); if(!wrap) return;
+  let lastY=0, tick=false;
+  wrap.addEventListener('scroll', ()=>{
+    if(tick) return; tick=true;
+    requestAnimationFrame(()=>{
+      tick=false;
+      if(!document.body.classList.contains('trk-fs')){ lastY=wrap.scrollTop; return; }
+      const y=wrap.scrollTop, d=y-lastY;
+      if(Math.abs(d)<6) return;                 // ignore jitter
+      if(d>0 && y>44) document.body.classList.add('fsbar-hidden');   // down → hide
+      else if(d<0) document.body.classList.remove('fsbar-hidden');   // up → show
+      lastY=y;
+    });
+  }, {passive:true});
 })();
 (function(){
   const on=(id,fn)=>{ const e=document.getElementById(id); if(e) e.addEventListener('click',fn); };
@@ -27084,9 +27169,14 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       + '.acct-hub-row i{color:#c9b9c0;font-style:normal;font-size:1.25rem;line-height:1}'
       + '.acct-hub-row:active{background:rgba(139,26,43,.06)}'
       // Phase C: slim top header — just the logo, scrolls away with the page.
-      + '#ptly-appheader{display:flex;align-items:center;padding:11px 16px 9px;'
+      + '#ptly-appheader{display:flex;align-items:center;padding:calc(11px + env(safe-area-inset-top,0px)) 16px 9px;'
       + 'background:transparent;cursor:pointer}'
       + 'body.app-mode #ptly-appheader{display:none}'
+      // iOS safe area: the editor topbar sits at the very top in-app, so drop it
+      // below the status bar. --toolbar is auto on mobile, so padding grows the bar
+      // (its white/dark background then fills the status-bar strip). No-op where the
+      // inset is 0 (Android / desktop / non-notched).
+      + 'body.ptly-appui #topbar{padding-top:calc(env(safe-area-inset-top,0px))}'
       + '#ptly-appheader img{height:32px;width:auto;display:block}'
       + 'body.dark #ptly-appheader img{filter:brightness(1.75) saturate(.92)}'
       + '#ptly-appheader-back{display:none;align-items:center;gap:3px;background:none;border:0;'
