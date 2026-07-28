@@ -2359,6 +2359,14 @@ var qrcode = function() {
   --accent:#8B1A2B;
 }
 html,body{height:100%;font-family:'DM Sans',sans-serif;background:#f5edee;color:var(--ink)}
+/* iOS status-bar scrim: with viewport-fit=cover the webview extends under the
+   status bar, so on scrolling pages the page content would slide up behind the
+   clock/wifi/battery. This pins an opaque strip (height = the top safe-area inset)
+   over that zone, matching the page background, so those icons always sit on a
+   clean background. Excluded in the editor (app-mode), where the opaque #topbar
+   already fills the strip. Resolves to 0 height off iOS / non-notched devices. */
+body.ptly-appui:not(.app-mode)::before{content:'';position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top,0px);background:#f5edee;z-index:6000;pointer-events:none}
+body.dark.ptly-appui:not(.app-mode)::before{background:#171220}
 /* The landing page scrolls on the document, not inside a box, so the body must
    be free to grow past the viewport — otherwise html/body stay pinned at 100%,
    the content overflows a fixed-height body, and the sticky nav rides up with
@@ -5112,6 +5120,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       </div>
       <a href="#" onclick="openPricing();return false">Pricing</a>
       <a href="#" onclick="openGuide();return false">Guide</a>
+          <a href="#" onclick="plOpenPrivacy();return false">Privacy Policy</a>
       <a href="https://luca-s.com/" target="_blank" rel="noopener" style="color:var(--lp-red);font-weight:600">Luca-S Shop ↗</a>
     </div>
     <button id="lp-menu-btn" onclick="lpToggleMenu()" title="Menu" style="display:none;background:none;border:1.5px solid var(--lp-border);border-radius:9px;width:36px;height:36px;cursor:pointer;font-size:1.05rem;line-height:1;flex-shrink:0;color:var(--lp-ink)">☰</button>
@@ -5489,6 +5498,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
           <a href="#about">About Luca-S</a>
           <a href="#" onclick="openPricing();return false">Pricing</a>
           <a href="#" onclick="openGuide();return false">Guide</a>
+          <a href="#" onclick="plOpenPrivacy();return false">Privacy Policy</a>
         </div>
       </div>
     </div>
@@ -6404,6 +6414,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
           <a href="#" onclick="ptlyGoSection('about');return false">About Luca-S</a>
           <a href="#" onclick="openPricing();return false">Pricing</a>
           <a href="#" onclick="openGuide();return false">Guide</a>
+          <a href="#" onclick="plOpenPrivacy();return false">Privacy Policy</a>
         </div>
       </div>
     </div>
@@ -6630,6 +6641,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
           <a href="#" onclick="ptlyGoSection('about');return false">About Luca-S</a>
           <a href="#" onclick="openPricing();return false">Pricing</a>
           <a href="#" onclick="openGuide();return false">Guide</a>
+          <a href="#" onclick="plOpenPrivacy();return false">Privacy Policy</a>
         </div>
       </div>
     </div>
@@ -6950,6 +6962,8 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <button class="acct-hub-row" onclick="openCalculators()"><span>Calculators</span><i>&rsaquo;</i></button>
       <button class="acct-hub-row" onclick="openPricing()"><span>Pricing</span><i>&rsaquo;</i></button>
       <button class="acct-hub-row" onclick="openGuide()"><span>Guide</span><i>&rsaquo;</i></button>
+      <div class="acct-hub-title">Legal</div>
+      <button class="acct-hub-row" onclick="plOpenPrivacy()"><span>Privacy Policy</span><i>&rsaquo;</i></button>
     </div>
     <div id="acct-patterns" style="display:none;margin-top:1.6rem"></div>
     <div class="acct-row-block">
@@ -25588,6 +25602,18 @@ function acctReopen(){
   // popup to /auth/callback (which sets our session cookie), then to the app
   // with ?pl_authdone=1 so the head script closes it. No return-to-store dance.
   _acctLoginWin=window.open((window.PATTERNLY_API_BASE||'/apps/patternly')+'/auth/start','lucas_login',`popup=yes,width=${w},height=${h},left=${x},top=${y}`);
+}
+// Privacy policy — opens the hosted page. In the native app it uses the
+// Capacitor in-app browser; on the web it opens a new tab. Update the URL below
+// to the exact page you publish on luca-s.com.
+window.PATTERNLY_PRIVACY_URL = 'https://luca-s.com/pages/patternly-privacy';
+function plOpenPrivacy(){
+  var url = window.PATTERNLY_PRIVACY_URL;
+  try{
+    var B = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
+    if(B && B.open){ B.open({ url: url }); return; }
+  }catch(e){}
+  try{ window.open(url,'_blank','noopener'); }catch(e){}
 }
 async function acctOpenLogin(){
   acctCloseAll();
