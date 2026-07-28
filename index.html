@@ -6962,7 +6962,9 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <button class="acct-hub-row" onclick="openCalculators()"><span>Calculators</span><i>&rsaquo;</i></button>
       <button class="acct-hub-row" onclick="openPricing()"><span>Pricing</span><i>&rsaquo;</i></button>
       <button class="acct-hub-row" onclick="openGuide()"><span>Guide</span><i>&rsaquo;</i></button>
-      <div class="acct-hub-title">Legal</div>
+      <button class="acct-hub-row" onclick="plOpenExt('https://luca-s.com')"><span>Luca-S Shop</span><i>&#8599;</i></button>
+    </div>
+    <div id="acct-hub-legal">
       <button class="acct-hub-row" onclick="plOpenPrivacy()"><span>Privacy Policy</span><i>&rsaquo;</i></button>
     </div>
     <div id="acct-patterns" style="display:none;margin-top:1.6rem"></div>
@@ -6980,7 +6982,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       </div>
       <div class="acct-row-scroll" id="acct-trk-scroll"></div>
     </div>
-    <p style="max-width:860px;margin:1.4rem auto 0;text-align:center;font-size:.74rem;color:#7d6b72">Your orders &amp; addresses live in the <a href="https://luca-s.com/account" target="_blank" rel="noopener" style="color:var(--lp-red,#8B1A2B);font-weight:600">Luca-S shop account ↗</a> · your kits and their stitch progress follow your account across devices · patterns you upload yourself save in this browser.</p>
+    <p class="acct-shop-note" style="max-width:860px;margin:1.4rem auto 0;text-align:center;font-size:.74rem;color:#7d6b72">Your orders &amp; addresses live in the <a href="https://luca-s.com/account" target="_blank" rel="noopener" style="color:var(--lp-red,#8B1A2B);font-weight:600">Luca-S shop account ↗</a> · your kits and their stitch progress follow your account across devices · patterns you upload yourself save in this browser.</p>
   </div>
 </div><!-- /account-page -->
 
@@ -25466,7 +25468,18 @@ function plIsApp(){
 // tells our middleware (which then reports Plus everywhere, web included).
 // Guarded throughout: on the web, or if the plugin isn't installed, every call
 // no-ops and the UI stays hidden — nothing here can affect the website.
-var RC_PUBLIC_KEY   = 'goog_MmTyvUoqhatQfzxBXXDsUYxgQBs';
+// RevenueCat uses a DIFFERENT public SDK key per store: goog_ for Google Play,
+// appl_ for the App Store. Pick the right one from the runtime platform so the
+// same build works on both. Both are PUBLIC SDK keys (safe to ship).
+var RC_PUBLIC_KEY_ANDROID = 'goog_MmTyvUoqhatQfzxBXXDsUYxgQBs';
+var RC_PUBLIC_KEY_IOS     = 'appl_rzjMHMuNzBqXqFSqTftvSphiOeF';
+function rcApiKey(){
+  try{
+    var C = window.Capacitor;
+    var plat = (C && typeof C.getPlatform === 'function') ? C.getPlatform() : '';
+    return plat === 'ios' ? RC_PUBLIC_KEY_IOS : RC_PUBLIC_KEY_ANDROID;
+  }catch(e){ return RC_PUBLIC_KEY_ANDROID; }
+}
 var RC_ENTITLEMENT  = 'plus';   // the entitlement id configured in RevenueCat
 var _rcReady = false, _rcUser = null;
 function rc(){
@@ -25477,7 +25490,7 @@ async function rcConfigure(){
   var P=rc(); if(!P||!P.configure) return;
   try{
     var uid = (typeof lucasAuth==='function' && lucasAuth().customerId) ? String(lucasAuth().customerId) : null;
-    await P.configure({ apiKey: RC_PUBLIC_KEY, appUserID: uid || undefined });
+    await P.configure({ apiKey: rcApiKey(), appUserID: uid || undefined });
     _rcReady = true; _rcUser = uid;
   }catch(e){ /* leave unconfigured; UI stays hidden */ }
 }
@@ -25609,6 +25622,14 @@ function acctReopen(){
 window.PATTERNLY_PRIVACY_URL = 'https://luca-s.com/pages/patternly-privacy';
 function plOpenPrivacy(){
   var url = window.PATTERNLY_PRIVACY_URL;
+  try{
+    var B = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
+    if(B && B.open){ B.open({ url: url }); return; }
+  }catch(e){}
+  try{ window.open(url,'_blank','noopener'); }catch(e){}
+}
+// Open any external URL — Capacitor in-app browser in the app, new tab on web.
+function plOpenExt(url){
   try{
     var B = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
     if(B && B.open){ B.open({ url: url }); return; }
@@ -27153,7 +27174,7 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
     try{ if(typeof rcConfigure==='function') rcConfigure(); }catch(e){}
 
     var css = ''
-      + 'body.ptly-appui{padding-bottom:calc(58px + env(safe-area-inset-bottom,0px))}'
+      + 'body.ptly-appui{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}'
       + 'body.ptly-appui.app-mode{padding-bottom:0}'
       + '#ptly-appnav{position:fixed;left:0;right:0;bottom:0;z-index:8000;background:#fff;'
       + 'border-top:1px solid rgba(0,0,0,.08);box-shadow:0 -1px 14px rgba(0,0,0,.07);'
@@ -27194,6 +27215,15 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       + 'body.dark .acct-hub-row{color:#f2ecf4;border-top-color:rgba(255,255,255,.07)}'
       + '.acct-hub-row i{color:#c9b9c0;font-style:normal;font-size:1.25rem;line-height:1}'
       + '.acct-hub-row:active{background:rgba(139,26,43,.06)}'
+      // v361: Privacy Policy sits in its own separate card below the hub.
+      + '#acct-hub-legal{display:none}'
+      + 'body.ptly-appui #acct-hub-legal{display:block;max-width:520px;margin:.9rem auto 0;'
+      + 'border:1px solid rgba(0,0,0,.09);border-radius:14px;overflow:hidden;background:#fff}'
+      + 'body.dark.ptly-appui #acct-hub-legal{background:#241b1e;border-color:rgba(255,255,255,.10)}'
+      + '#acct-hub-legal .acct-hub-row{border-top:0}'
+      // v361: the shop-account note and the site footer are web-only chrome; hide in-app.
+      + 'body.ptly-appui .acct-shop-note{display:none!important}'
+      + 'body.ptly-appui .lp-footer{display:none!important}'
       // Phase C: slim top header — just the logo, scrolls away with the page.
       + '#ptly-appheader{display:flex;align-items:center;padding:calc(11px + env(safe-area-inset-top,0px)) 16px 9px;'
       + 'background:transparent;cursor:pointer}'
@@ -27203,7 +27233,7 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       // (its white/dark background then fills the status-bar strip). No-op where the
       // inset is 0 (Android / desktop / non-notched).
       + 'body.ptly-appui #topbar{padding-top:calc(env(safe-area-inset-top,0px))}'
-      + '#ptly-appheader img{height:32px;width:auto;display:block}'
+      + '#ptly-appheader img{height:40px;width:auto;display:block}'
       + 'body.dark #ptly-appheader img{filter:brightness(1.75) saturate(.92)}'
       + '#ptly-appheader-back{display:none;align-items:center;gap:3px;background:none;border:0;'
       + 'font-family:inherit;font-size:.98rem;font-weight:700;color:var(--lp-red,#8B1A2B);'
