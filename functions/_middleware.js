@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v41";
+const MW_VERSION = "v42";
 
 const enc = new TextEncoder();
 
@@ -1064,6 +1064,10 @@ async function handleRequest(context) {
     a.searchParams.set("state", state);
     a.searchParams.set("code_challenge", challenge);
     a.searchParams.set("code_challenge_method", "S256");
+    // ?switch=1 forces Shopify to show its login screen (prompt=login) even when a
+    // session cookie already exists, so the user can sign in as a DIFFERENT account
+    // instead of silently reusing the cached one. Additive: absent = unchanged flow.
+    if (url.searchParams.get("switch") === "1") a.searchParams.set("prompt", "login");
     if (url.searchParams.get("debug") === "1") {
       return new Response(JSON.stringify({
         authorizeUrl: a.toString(),
