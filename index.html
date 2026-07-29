@@ -3491,13 +3491,13 @@ body.dark #trk-minimap span{background:#221b2d}
    The chart takes the whole viewport and the controls float over it, so the
    stitcher sees as much of the pattern as the screen allows. */
 body.trk-fs #trk-workspace{position:fixed;inset:0;z-index:9400;background:#fff;margin:0;padding:0;overflow:hidden}
-body.trk-fs #trk-canvas-wrap{height:100dvh;border:none;border-radius:0;box-sizing:border-box}
+body.trk-fs #trk-canvas-wrap{height:100dvh;border:none;border-radius:0;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 /* A visible frame around the design so the edge of the chart is obvious against
    the fullscreen background. ~2mm ≈ 7.5px; using an inset outline on the canvas
    area so it sits on top of the content rather than being scrolled away. */
-body.trk-fs #trk-canvas-wrap::after{
-  content:'';position:fixed;inset:0;pointer-events:none;z-index:9410;
-  border:7px solid #ffffff}
+/* The white edge-frame used to cover the outer ~7px of the chart, which hid the
+   ruler numbers (10/20/30…) at the edges. Removed. */
+body.trk-fs #trk-canvas-wrap::after{ display:none }
 /* Hide the normal-mode side rail and zoombar in fullscreen — but NOT when their
    contents have been moved into the fullscreen panel. The panel borrows the live
    #trk-side / #trk-grid-pop nodes; without this exemption the display:none rule
@@ -3735,6 +3735,14 @@ body.mm-open{overflow:hidden}
 #lp-mobile-menu .lp-mm-sub{padding-left:2.1rem;font-size:.9rem}
 body.dark #lp-mobile-menu{background:#1e1830;border-color:#37303f}
 body.dark #lp-mobile-menu a{color:#efe9f3}
+/* In the app, the hamburger menu presents as a bottom sheet (slides up from the
+   bottom) rather than the web side panel — for both the landing hamburger and
+   the editor one. z-index sits above the bottom tab bar so it isn't clipped. */
+body.ptly-appui #lp-mobile-menu{top:auto;bottom:0;left:0;right:0;width:auto;max-height:80vh;z-index:8600;
+  border-right:none;border-radius:18px 18px 0 0;transform:translateY(100%);
+  padding-bottom:calc(1.2rem + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 34px rgba(43,34,38,.28)}
+body.ptly-appui #lp-mobile-menu.open{transform:translateY(0)}
+body.ptly-appui #lp-mm-scrim{z-index:8590}
 body.dark #lp-menu-btn{border-color:#37303f;color:#efe9f3}
 @media(max-width:860px){
   /* Three-slot header: menu | logo | account. The logo centres because the two
@@ -27172,6 +27180,29 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
 // can be previewed in a desktop browser without an app rebuild. The website is
 // otherwise completely untouched. Tabs call the existing page functions; the
 // active tab is derived from the current body "mode" class, updated live via a
+// Lock the app UI against zooming. In the native app the whole interface is a
+// fixed layout, so pinch-zoom and the iOS "focus a small input → zoom in" jump
+// (which the user then can't undo) are bugs, not features. WKWebView honours
+// user-scalable=no + maximum-scale, unlike mobile Safari. The canvas has its own
+// in-app zoom controls, so nothing is lost. Web is untouched.
+(function setAppViewport(){
+  try{
+    if(!(typeof plIsApp==='function' && plIsApp())) return;
+    var vp=document.querySelector('meta[name="viewport"]'); if(!vp) return;
+    var minDim=Math.min(screen.width||9999, screen.height||9999);
+    if(minDim>=768){
+      // Tablet (iPad): the desktop web layout is the default and is only replaced
+      // by the mobile layout at widths <=820px — so on a wider iPad it shows the
+      // two-panel desktop editor + top nav. Pin a phone-width viewport so every
+      // @media(max-width:820px) rule fires and the app renders as a (scaled-up)
+      // phone app: bottom tab bar, mobile sheets, no desktop chrome. Zoom locked.
+      vp.setAttribute('content','width=600, viewport-fit=cover, user-scalable=no');
+    } else {
+      // Phone: native width; lock zoom (stops pinch + iOS input auto-zoom).
+      vp.setAttribute('content','width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, user-scalable=no');
+    }
+  }catch(e){}
+})();
 // MutationObserver so external navigations stay in sync. Hidden on the editing
 // canvas (app-mode), which has its own toolbars.
 (function ptlyAppNav(){
@@ -27279,7 +27310,7 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       // below the status bar. --toolbar is auto on mobile, so padding grows the bar
       // (its white/dark background then fills the status-bar strip). No-op where the
       // inset is 0 (Android / desktop / non-notched).
-      + 'body.ptly-appui #topbar{padding-top:calc(env(safe-area-inset-top,0px))}'
+      + 'body.ptly-appui #topbar{padding-top:calc(env(safe-area-inset-top,0px) + 6px)}'
       + '#ptly-appheader img{height:48px;width:auto;display:block}'
       + 'body.dark #ptly-appheader img{filter:brightness(1.75) saturate(.92)}'
       + '#ptly-appheader-back{display:none;align-items:center;gap:3px;background:none;border:0;'
