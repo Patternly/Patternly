@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v42";
+const MW_VERSION = "v43";
 
 const enc = new TextEncoder();
 
@@ -1162,7 +1162,7 @@ async function handleRequest(context) {
     // Signed, self-contained session token — no cookie (App Proxy strips them).
     // The app stores it in localStorage and sends it back as ?pl_session=.
     const sessTok = await signCookie(env.CUSTOMER_SESSION_SECRET, {
-      customerId, email, exp: Date.now() + 30 * 24 * 3600 * 1000
+      customerId, email, idt: tok.id_token || null, exp: Date.now() + 30 * 24 * 3600 * 1000
     });
     if (debug) {
       return new Response(JSON.stringify({ ok: true, customerId, email, hasIdToken: !!tok.id_token, sessionToken: sessTok }, null, 2),
@@ -1188,6 +1188,36 @@ async function handleRequest(context) {
   // ── /auth/logout : the app just drops its stored token; nothing server-side ──
   if (url.pathname.endsWith("/auth/logout")) {
     return new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
+  }
+
+  // ── /auth/switch : sign in as a DIFFERENT account ─────────────────────────
+  // The in-app browser shares Shopify's session cookie, so a plain re-login just
+  // silently reuses the same account (Shopify ignores prompt=login). To force a
+  // real re-login we first hit Shopify's OIDC end-session (logout) endpoint —
+  // which clears that cookie in the browser — then bounce to /auth/relogin,
+  // which starts a fresh OAuth. Needs the id_token (stored in the session) as
+  // id_token_hint. /auth/relogin must be registered as a Logout URI in the
+  // Customer Account API settings.
+  if (url.pathname.endsWith("/auth/switch")) {
+    const appBase = customerRedirectUri(env).replace(/\/auth\/callback$/, "");
+    const sess = url.searchParams.get("pl_session");
+    let idt = null;
+    if (sess) { try { const s = await verifyCookie(env.CUSTOMER_SESSION_SECRET, sess); if (s && s.idt) idt = s.idt; } catch (e) {} }
+    if (idt) {
+      const lo = new URL(customerAuthBase(env) + "/auth/logout");
+      lo.searchParams.set("id_token_hint", idt);
+      lo.searchParams.set("post_logout_redirect_uri", appBase + "/auth/relogin");
+      return new Response(null, { status: 302, headers: { "location": lo.toString(), "cache-control": "no-store" } });
+    }
+    // No id_token on this (older) session → best effort: go straight to a fresh
+    // login. It may still reuse the cookie, but there's nothing to log out with.
+    return new Response(null, { status: 302, headers: { "location": appBase + "/auth/start?app=1", "cache-control": "no-store" } });
+  }
+
+  // ── /auth/relogin : where Shopify lands after end-session; start OAuth anew ──
+  if (url.pathname.endsWith("/auth/relogin")) {
+    const appBase = customerRedirectUri(env).replace(/\/auth\/callback$/, "");
+    return new Response(null, { status: 302, headers: { "location": appBase + "/auth/start?app=1", "cache-control": "no-store" } });
   }
 
   // ── /whoami: live auth check for the running app ──
