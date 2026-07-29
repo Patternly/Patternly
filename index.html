@@ -5120,7 +5120,6 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       </div>
       <a href="#" onclick="openPricing();return false">Pricing</a>
       <a href="#" onclick="openGuide();return false">Guide</a>
-          <a href="#" onclick="plOpenPrivacy();return false">Privacy Policy</a>
       <a href="https://luca-s.com/" target="_blank" rel="noopener" style="color:var(--lp-red);font-weight:600">Luca-S Shop ↗</a>
     </div>
     <button id="lp-menu-btn" onclick="lpToggleMenu()" title="Menu" style="display:none;background:none;border:1.5px solid var(--lp-border);border-radius:9px;width:36px;height:36px;cursor:pointer;font-size:1.05rem;line-height:1;flex-shrink:0;color:var(--lp-ink)">☰</button>
@@ -6953,8 +6952,6 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
     <div id="acct-plus-strip"></div>
     <div id="acct-hub" style="display:none">
       <div id="acct-plus-iap" style="display:none"></div>
-      <div class="acct-hub-title">Appearance</div>
-      <div class="acct-hub-row" id="acct-dark-row" style="cursor:default"><span>Dark mode</span><button class="theme-switch" onclick="toggleTheme()" title="Toggle light/dark theme" aria-label="Toggle dark mode"><span class="ts-knob"></span></button></div>
       <div class="acct-hub-title">More</div>
       <button class="acct-hub-row" onclick="openSubscriptionPage()"><span>My Subscription</span><i>&rsaquo;</i></button>
       <button class="acct-hub-row" onclick="openThreads()"><span>Thread Colours</span><i>&rsaquo;</i></button>
@@ -6964,24 +6961,13 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <button class="acct-hub-row" onclick="openGuide()"><span>Guide</span><i>&rsaquo;</i></button>
       <button class="acct-hub-row" onclick="plOpenExt('https://luca-s.com')"><span>Luca-S Shop</span><i>&#8599;</i></button>
     </div>
+    <div id="acct-hub-appearance">
+      <div class="acct-hub-row" id="acct-dark-row" style="cursor:default"><span>Dark mode</span><button class="theme-switch" onclick="toggleTheme()" title="Toggle light/dark theme" aria-label="Toggle dark mode"><span class="ts-knob"></span></button></div>
+    </div>
     <div id="acct-hub-legal">
       <button class="acct-hub-row" onclick="plOpenPrivacy()"><span>Privacy Policy</span><i>&rsaquo;</i></button>
     </div>
     <div id="acct-patterns" style="display:none;margin-top:1.6rem"></div>
-    <div class="acct-row-block">
-      <div class="acct-row-head">
-        <div><b>My Patterns</b><span id="acct-pat-count"></span></div>
-        <button class="acct-row-open" onclick="openApp()">Open all →</button>
-      </div>
-      <div class="acct-row-scroll" id="acct-pat-scroll"></div>
-    </div>
-    <div class="acct-row-block">
-      <div class="acct-row-head">
-        <div><b>My Tracked Patterns</b><span id="acct-trk-count"></span></div>
-        <button class="acct-row-open" onclick="openTracker()">Open all →</button>
-      </div>
-      <div class="acct-row-scroll" id="acct-trk-scroll"></div>
-    </div>
     <p class="acct-shop-note" style="max-width:860px;margin:1.4rem auto 0;text-align:center;font-size:.74rem;color:#7d6b72">Your orders &amp; addresses live in the <a href="https://luca-s.com/account" target="_blank" rel="noopener" style="color:var(--lp-red,#8B1A2B);font-weight:600">Luca-S shop account ↗</a> · your kits and their stitch progress follow your account across devices · patterns you upload yourself save in this browser.</p>
   </div>
 </div><!-- /account-page -->
@@ -25009,7 +24995,7 @@ function acctRenderPage(){
     el.innerHTML=`<div style="width:46px;height:46px;border-radius:50%;background:#fbe3e7;display:flex;align-items:center;justify-content:center;color:var(--lp-red,#8B1A2B);flex-shrink:0"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="8.2" r="3.6"/><path d="M4.8 19.4c1.5-3.1 4.2-4.6 7.2-4.6s5.7 1.5 7.2 4.6"/></svg></div>
       <div style="flex:1;min-width:180px"><b style="font-size:.95rem">✓ Signed in with your Luca-S account</b><p style="font-size:.76rem;color:#7d6b72;margin:.2rem 0 0">${a.email ? 'Signed in as <b>'+String(a.email).replace(/</g,'&lt;')+'</b>' : 'The same account you use in the Luca-S shop.'}</p></div>
       <div style="display:flex;flex-direction:column;gap:.45rem;align-items:flex-end">
-      <a href="#" onclick="acctSignOut();return false" style="padding:.5rem .9rem;border:1.5px solid #eadde1;border-radius:9px;font-size:.8rem;font-weight:700;color:#5a4a51;text-decoration:none">Sign out</a>
+      <a href="#" onclick="acctSignOutConfirm();return false" style="padding:.5rem .9rem;border:1.5px solid #eadde1;border-radius:9px;font-size:.8rem;font-weight:700;color:#5a4a51;text-decoration:none">Sign out</a>
       <a href="#" onclick="acctOpenLogin(true);return false" style="font-size:.72rem;color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">Use a different account</a>
       </div>`;
   } else if(a.proxied || plIsApp()){
@@ -25301,7 +25287,7 @@ async function acctRenderPatterns(){
   const owned=a.ownedSkus;
   if(!a.loggedIn || !Array.isArray(owned)){ box.style.display='none'; return; }
   box.style.display='';
-  box.innerHTML='<div style="max-width:860px;margin:0 auto"><h3 style="font-family:var(--lp-serif,Georgia,serif);font-size:1.05rem;margin:0 0 .2rem">Your patterns</h3>'
+  box.innerHTML='<div style="max-width:860px;margin:0 auto"><h3 style="font-family:var(--lp-serif,Georgia,serif);font-size:1.05rem;margin:0 0 .2rem">My Luca-S Patterns</h3>'
     +'<p style="font-size:.78rem;color:var(--lp-muted,#7d6b72);margin:0 0 .9rem">Kits you\u2019ve bought \u2014 open any of them in the Stitch Tracker, no code needed.</p></div>'
     +'<div id="acct-patterns-grid" style="font-size:.82rem;color:#7d6b72">Checking\u2026</div>';
   const grid=document.getElementById('acct-patterns-grid');
@@ -25357,6 +25343,10 @@ async function acctRenderPatterns(){
 // Live sign-in status: /whoami travels through the App Proxy, so Shopify signs
 // it too — Patternly can re-check without reloading (editor state stays safe).
 let _acctBusy=false;
+function acctSignOutConfirm(){
+  // Extra confirmation so a stray tap doesn't sign the person out.
+  if(window.confirm('Sign out of your Luca-S account on this device?')) acctSignOut();
+}
 function acctSignOut(){
   acctCloseAll();
   // Our sign-in is a signed token in localStorage — drop it. Also poke Shopify's
@@ -25559,8 +25549,9 @@ async function rcRenderPlusSection(){
   }
   var info=await rcCustomerInfo();
   if(a.plus || rcInfoHasPlus(info)){
-    sec.innerHTML='<div class="acct-hub-title">Patternly Plus</div>'
-      +'<div class="acct-hub-row" style="cursor:default"><span>\u2713 You\u2019re subscribed to Plus</span></div>';
+    // Already subscribed — the subscription card above already says so, so this
+    // section would be redundant. Hide it.
+    sec.style.display='none';
     return;
   }
   sec.innerHTML='<div class="acct-hub-title">Patternly Plus</div>'
@@ -25603,9 +25594,19 @@ function acctReopen(forceSwitch){
   // where the returning session lands out of the app's reach.
   // forceSwitch adds &switch=1 so the middleware forces Shopify's login screen
   // (prompt=login) instead of silently reusing the cached session.
-  var sw = forceSwitch ? '&switch=1' : '';
+  // forceSwitch signs in as a DIFFERENT account: route through /auth/switch,
+  // which logs the current Shopify session out (clearing the shared browser
+  // cookie) before starting a fresh login — Shopify ignores prompt=login, so a
+  // plain re-open would just silently reuse the same account.
   if(plIsApp()){
-    var appUrl=(window.PATTERNLY_API_BASE||'/apps/patternly')+'/auth/start?app=1'+sw;
+    var base=(window.PATTERNLY_API_BASE||'/apps/patternly');
+    var appUrl;
+    if(forceSwitch){
+      var sess=''; try{ sess=localStorage.getItem('pl_session')||''; }catch(e){}
+      appUrl = base + '/auth/switch?app=1' + (sess ? '&pl_session='+encodeURIComponent(sess) : '');
+    } else {
+      appUrl = base + '/auth/start?app=1';
+    }
     _acctLoginWin=null;
     try{
       var B=window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
@@ -26929,10 +26930,40 @@ function plusCheckoutUrl(period){
 // Opened in a new tab: the editor may hold unsaved work, and navigating the
 // whole page away to a checkout would lose it.
 function prStartTrial(){
+  // In the native app, digital subscriptions MUST go through Apple/Google in-app
+  // purchase (StoreKit via RevenueCat) — not the luca-s.com web checkout. The web
+  // path is only for the website. (Also fixes the account mismatch where the web
+  // checkout used the browser's Shopify session instead of the app's login.)
+  if(typeof plIsApp==='function' && plIsApp()){ prStartTrialNative(); return; }
   const url = plusCheckoutUrl(prPeriod);
   try{ window.open(url, '_blank', 'noopener'); }
   catch(e){ location.href = url; }
   plusWatchForReturn();
+}
+async function prStartTrialNative(){
+  if(typeof lucasAuth==='function' && !lucasAuth().loggedIn){ acctOpenLogin(); return; }
+  if(typeof toast==='function') toast('Loading plans\u2026');
+  var pkgs = (typeof rcPackages==='function') ? await rcPackages() : [];
+  if(!pkgs || !pkgs.length){
+    if(typeof toast==='function') toast('Plans aren\u2019t available yet — please try again shortly');
+    return;
+  }
+  var wantYear = (prPeriod === 'year');
+  var pick = null;
+  for(var i=0;i<pkgs.length;i++){
+    var t = String(pkgs[i].packageType || pkgs[i].identifier || '');
+    if(wantYear ? /ANNUAL|YEAR/i.test(t) : /MONTH/i.test(t)){ pick = pkgs[i]; break; }
+  }
+  if(!pick) pick = pkgs[0];
+  var r = await rcPurchase(pick);
+  if(r && r.ok){
+    if(typeof toast==='function') toast('\u2713 Welcome to Patternly Plus');
+    if(typeof rcRenderPlusSection==='function') rcRenderPlusSection();
+  } else if(r && r.reason==='cancelled'){
+    /* user backed out — silent */
+  } else if(typeof toast==='function'){
+    toast('Purchase didn\u2019t complete');
+  }
 }
 
 // After a checkout the customer comes back to this tab, and their Plus status
@@ -27218,7 +27249,7 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       + 'body.ptly-appui .pj-header{display:none!important}'
       // Account "hub" — links to the secondary pages, shown only in the app.
       + 'body.ptly-appui #acct-hub{display:block!important}'
-      + '#acct-hub{max-width:520px;margin:1.5rem auto 0;border:1px solid rgba(0,0,0,.09);'
+      + '#acct-hub{max-width:860px;margin:1.5rem auto 0;border:1px solid rgba(0,0,0,.09);'
       + 'border-radius:14px;overflow:hidden;background:#fff}'
       + 'body.dark #acct-hub{background:#241b1e;border-color:rgba(255,255,255,.10)}'
       + '.acct-hub-title{font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;'
@@ -27230,12 +27261,13 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       + 'body.dark .acct-hub-row{color:#f2ecf4;border-top-color:rgba(255,255,255,.07)}'
       + '.acct-hub-row i{color:#c9b9c0;font-style:normal;font-size:1.25rem;line-height:1}'
       + '.acct-hub-row:active{background:rgba(139,26,43,.06)}'
-      // v361: Privacy Policy sits in its own separate card below the hub.
-      + '#acct-hub-legal{display:none}'
-      + 'body.ptly-appui #acct-hub-legal{display:block;max-width:520px;margin:.9rem auto 0;'
+      // v361/v366: Privacy Policy and the separated Dark-mode toggle each sit in
+      // their own card below the hub, matching the hub width (860px).
+      + '#acct-hub-legal,#acct-hub-appearance{display:none}'
+      + 'body.ptly-appui #acct-hub-legal,body.ptly-appui #acct-hub-appearance{display:block;max-width:860px;margin:.9rem auto 0;'
       + 'border:1px solid rgba(0,0,0,.09);border-radius:14px;overflow:hidden;background:#fff}'
-      + 'body.dark.ptly-appui #acct-hub-legal{background:#241b1e;border-color:rgba(255,255,255,.10)}'
-      + '#acct-hub-legal .acct-hub-row{border-top:0}'
+      + 'body.dark.ptly-appui #acct-hub-legal,body.dark.ptly-appui #acct-hub-appearance{background:#241b1e;border-color:rgba(255,255,255,.10)}'
+      + '#acct-hub-legal .acct-hub-row,#acct-hub-appearance .acct-hub-row{border-top:0}'
       // v361: the shop-account note and the site footer are web-only chrome; hide in-app.
       + 'body.ptly-appui .acct-shop-note{display:none!important}'
       + 'body.ptly-appui .lp-footer{display:none!important}'
@@ -27248,7 +27280,7 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       // (its white/dark background then fills the status-bar strip). No-op where the
       // inset is 0 (Android / desktop / non-notched).
       + 'body.ptly-appui #topbar{padding-top:calc(env(safe-area-inset-top,0px))}'
-      + '#ptly-appheader img{height:40px;width:auto;display:block}'
+      + '#ptly-appheader img{height:48px;width:auto;display:block}'
       + 'body.dark #ptly-appheader img{filter:brightness(1.75) saturate(.92)}'
       + '#ptly-appheader-back{display:none;align-items:center;gap:3px;background:none;border:0;'
       + 'font-family:inherit;font-size:.98rem;font-weight:700;color:var(--lp-red,#8B1A2B);'
@@ -27281,22 +27313,31 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
     var nav=document.createElement('div'); nav.id='ptly-appnav';
     nav.innerHTML='<div class="pn-row">'+tabBtn('home','Home')+tabBtn('editor','Editor')+tabBtn('tracker','Tracker')+tabBtn('account','More')+'</div>';
     document.body.appendChild(nav);
-    // #1: hide the bottom nav when scrolling DOWN a page, bring it back on scroll
-    // UP (smooth via the CSS transition). Skips the editor (the canvas pans, it
-    // doesn't window-scroll) and the very top of the page.
+    // #3: the bottom nav tracks the scroll 1:1 — it moves at the same speed as
+    // your finger (scroll down pushes it off, scroll up pulls it back), then
+    // settles fully open/closed when scrolling stops. Skips the editor (canvas
+    // pans, no window-scroll) and always shows at the very top.
     (function(){
-      var lastY = window.scrollY || 0, ticking = false;
+      var lastY = window.scrollY || 0, off = 0, NAVH = 0, ticking = false, settleT = null;
+      function apply(){ nav.style.transform = 'translateY(' + off + 'px)'; }
       window.addEventListener('scroll', function(){
         if(ticking) return; ticking = true;
         requestAnimationFrame(function(){
           ticking = false;
+          if(document.body.classList.contains('app-mode')){ lastY = window.scrollY||0; return; }
+          if(!NAVH) NAVH = nav.offsetHeight || 90;
           var y = window.scrollY || document.documentElement.scrollTop || 0;
-          var d = y - lastY;
-          if(document.body.classList.contains('app-mode')){ lastY = y; return; }
-          if(Math.abs(d) < 8) return;
-          if(d > 0 && y > 60) document.body.classList.add('appnav-hidden');   // down → hide
-          else if(d < 0) document.body.classList.remove('appnav-hidden');     // up → show
-          lastY = y;
+          var d = y - lastY; lastY = y;
+          nav.style.transition = 'none';               // 1:1 with the finger
+          off = Math.max(0, Math.min(NAVH, off + d));
+          if(y <= 4) off = 0;                          // always visible at the top
+          apply();
+          if(settleT) clearTimeout(settleT);
+          settleT = setTimeout(function(){             // snap open/closed on stop
+            nav.style.transition = 'transform .16s ease-out';
+            off = (off > NAVH/2) ? NAVH : 0;
+            apply();
+          }, 110);
         });
       }, {passive:true});
     })();
