@@ -25008,7 +25008,10 @@ function acctRenderPage(){
   if(a.loggedIn){
     el.innerHTML=`<div style="width:46px;height:46px;border-radius:50%;background:#fbe3e7;display:flex;align-items:center;justify-content:center;color:var(--lp-red,#8B1A2B);flex-shrink:0"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="8.2" r="3.6"/><path d="M4.8 19.4c1.5-3.1 4.2-4.6 7.2-4.6s5.7 1.5 7.2 4.6"/></svg></div>
       <div style="flex:1;min-width:180px"><b style="font-size:.95rem">✓ Signed in with your Luca-S account</b><p style="font-size:.76rem;color:#7d6b72;margin:.2rem 0 0">${a.email ? 'Signed in as <b>'+String(a.email).replace(/</g,'&lt;')+'</b>' : 'The same account you use in the Luca-S shop.'}</p></div>
-      <a href="#" onclick="acctSignOut();return false" style="padding:.5rem .9rem;border:1.5px solid #eadde1;border-radius:9px;font-size:.8rem;font-weight:700;color:#5a4a51;text-decoration:none">Sign out</a>`;
+      <div style="display:flex;flex-direction:column;gap:.45rem;align-items:flex-end">
+      <a href="#" onclick="acctSignOut();return false" style="padding:.5rem .9rem;border:1.5px solid #eadde1;border-radius:9px;font-size:.8rem;font-weight:700;color:#5a4a51;text-decoration:none">Sign out</a>
+      <a href="#" onclick="acctOpenLogin(true);return false" style="font-size:.72rem;color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">Use a different account</a>
+      </div>`;
   } else if(a.proxied || plIsApp()){
     el.innerHTML=`<div style="flex:1;min-width:200px"><b style="font-size:.95rem">You're not signed in</b><p style="font-size:.78rem;color:#7d6b72;margin:.25rem 0 0;line-height:1.5">Sign in with your email — you'll get a code, and new customers get an account automatically. A small sign-in window opens; the moment you're done, Patternly notices by itself.</p></div>
       <a href="#" onclick="acctOpenLogin();return false" style="padding:.55rem 1rem;border-radius:9px;background:var(--lp-red,#8B1A2B);color:#fff;font-size:.82rem;font-weight:700;text-decoration:none">Sign in / Create account</a>`;
@@ -25592,14 +25595,17 @@ async function rcRestoreUI(){
   rcRenderPlusSection();
 }
 
-function acctReopen(){
+function acctReopen(forceSwitch){
   // Native app: open Shopify sign-in in an in-app browser (Capacitor Browser)
   // pointed at /auth/start?app=1. The middleware finishes by deep-linking the
   // session back via com.lucas.patternly://auth, which appUrlOpen (below) catches.
   // window.open() can't be used here — a webview hands it to the system browser,
   // where the returning session lands out of the app's reach.
+  // forceSwitch adds &switch=1 so the middleware forces Shopify's login screen
+  // (prompt=login) instead of silently reusing the cached session.
+  var sw = forceSwitch ? '&switch=1' : '';
   if(plIsApp()){
-    var appUrl=(window.PATTERNLY_API_BASE||'/apps/patternly')+'/auth/start?app=1';
+    var appUrl=(window.PATTERNLY_API_BASE||'/apps/patternly')+'/auth/start?app=1'+sw;
     _acctLoginWin=null;
     try{
       var B=window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
@@ -25614,7 +25620,7 @@ function acctReopen(){
   // Our own OAuth entry: /auth/start bounces through Shopify and returns the
   // popup to /auth/callback (which sets our session cookie), then to the app
   // with ?pl_authdone=1 so the head script closes it. No return-to-store dance.
-  _acctLoginWin=window.open((window.PATTERNLY_API_BASE||'/apps/patternly')+'/auth/start','lucas_login',`popup=yes,width=${w},height=${h},left=${x},top=${y}`);
+  _acctLoginWin=window.open((window.PATTERNLY_API_BASE||'/apps/patternly')+'/auth/start'+(forceSwitch?'?switch=1':''),'lucas_login',`popup=yes,width=${w},height=${h},left=${x},top=${y}`);
 }
 // Privacy policy — opens the hosted page. In the native app it uses the
 // Capacitor in-app browser; on the web it opens a new tab. Update the URL below
@@ -25636,21 +25642,29 @@ function plOpenExt(url){
   }catch(e){}
   try{ window.open(url,'_blank','noopener'); }catch(e){}
 }
-async function acctOpenLogin(){
+async function acctOpenLogin(forceSwitch){
   acctCloseAll();
-  // Already signed in (e.g. logged into the shop in another tab)? Detect it
-  // BEFORE opening anything — no popup, just the green dot and a toast.
-  await acctRefresh();
-  if(lucasAuth().loggedIn){
-    if(typeof toast==='function') toast('✓ You\u2019re signed in with your Luca-S account');
-    return;
+  if(forceSwitch){
+    // Switching accounts: drop our token so the auto-detect below can't short-
+    // circuit, and let acctReopen force Shopify's login screen (prompt=login).
+    try{ localStorage.removeItem('pl_session'); }catch(e){}
+    window.__LUCAS_AUTH__={...lucasAuth(), loggedIn:false, customerId:null};
+    document.querySelectorAll('.acct-btn').forEach(function(b){ b.classList.remove('acct-in'); });
+  } else {
+    // Already signed in (e.g. logged into the shop in another tab)? Detect it
+    // BEFORE opening anything — no popup, just the green dot and a toast.
+    await acctRefresh();
+    if(lucasAuth().loggedIn){
+      if(typeof toast==='function') toast('✓ You\u2019re signed in with your Luca-S account');
+      return;
+    }
   }
   acctModalShow();
-  acctReopen();
+  acctReopen(forceSwitch);
   if(!plIsApp() && !_acctLoginWin){
     // popup blocked → plain tab; the modal keeps orchestrating. Same OAuth entry,
     // which returns to the app and sets the session; the poll then catches it.
-    window.open((window.PATTERNLY_API_BASE||'/apps/patternly')+'/auth/start','_blank');
+    window.open((window.PATTERNLY_API_BASE||'/apps/patternly')+'/auth/start'+(forceSwitch?'?switch=1':''),'_blank');
     document.getElementById('acct-m-text').textContent='A sign-in tab has opened. Finish there and it\u2019ll bring you back — this page will notice by itself.';
   }
   clearInterval(_acctPollTimer);
@@ -27178,7 +27192,8 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       + 'body.ptly-appui.app-mode{padding-bottom:0}'
       + '#ptly-appnav{position:fixed;left:0;right:0;bottom:0;z-index:8000;background:#fff;'
       + 'border-top:1px solid rgba(0,0,0,.08);box-shadow:0 -1px 14px rgba(0,0,0,.07);'
-      + 'padding-bottom:env(safe-area-inset-bottom,0px)}'
+      + 'padding-bottom:env(safe-area-inset-bottom,0px);transition:transform .32s cubic-bezier(.4,0,.2,1)}'
+      + 'body.appnav-hidden #ptly-appnav{transform:translateY(115%)}'
       + 'body.dark #ptly-appnav{background:#241b1e;border-top-color:rgba(255,255,255,.10)}'
       // v342: the 4-tab nav used to be hidden in the editor (app-mode). Show it there
       // too, and lift the editor's floating tools above it so nothing overlaps.
@@ -27266,6 +27281,25 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
     var nav=document.createElement('div'); nav.id='ptly-appnav';
     nav.innerHTML='<div class="pn-row">'+tabBtn('home','Home')+tabBtn('editor','Editor')+tabBtn('tracker','Tracker')+tabBtn('account','More')+'</div>';
     document.body.appendChild(nav);
+    // #1: hide the bottom nav when scrolling DOWN a page, bring it back on scroll
+    // UP (smooth via the CSS transition). Skips the editor (the canvas pans, it
+    // doesn't window-scroll) and the very top of the page.
+    (function(){
+      var lastY = window.scrollY || 0, ticking = false;
+      window.addEventListener('scroll', function(){
+        if(ticking) return; ticking = true;
+        requestAnimationFrame(function(){
+          ticking = false;
+          var y = window.scrollY || document.documentElement.scrollTop || 0;
+          var d = y - lastY;
+          if(document.body.classList.contains('app-mode')){ lastY = y; return; }
+          if(Math.abs(d) < 8) return;
+          if(d > 0 && y > 60) document.body.classList.add('appnav-hidden');   // down → hide
+          else if(d < 0) document.body.classList.remove('appnav-hidden');     // up → show
+          lastY = y;
+        });
+      }, {passive:true});
+    })();
 
     // Slim top header — logo only, scrolls away, tap goes home (YouTube-style).
     var hdr=document.createElement('div'); hdr.id='ptly-appheader';
