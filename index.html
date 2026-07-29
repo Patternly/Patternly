@@ -4644,7 +4644,7 @@ body.dark .fabric-item.sel{background:rgba(255,255,255,.08);color:#f0b8c2}
     transition:transform .25s ease;
     transform:translateX(-100%);
     overflow-y:auto;
-    padding-top:.5rem;
+    padding-top:calc(env(safe-area-inset-top,0px) + .5rem);
   }
   #left-panel-toggle-bar{display:none !important} /* desktop collapse chevron */
   #sidebar.open{transform:translateX(0);}
@@ -4693,7 +4693,7 @@ body.dark .fabric-item.sel{background:rgba(255,255,255,.08);color:#f0b8c2}
 
   /* Right panel (Palette / Thread Library / Check) becomes a slide-in overlay */
   #right-panel{
-    display:flex !important;position:fixed;right:0;top:0;bottom:64px;height:auto;
+    display:flex !important;position:fixed;right:0;top:0;bottom:64px;height:auto;padding-top:env(safe-area-inset-top,0px);
     width:min(80vw,320px) !important;min-width:0;z-index:640;
     transform:translateX(105%);transition:transform .25s ease;
     box-shadow:-6px 0 26px rgba(0,0,0,.25);
@@ -4786,6 +4786,16 @@ body.dark .fabric-item.sel{background:rgba(255,255,255,.08);color:#f0b8c2}
    modal (z 7000 vs 690) and cover the Convert button on phones — hide all
    three while the preview is open; cvClose restores them for the editor. */
 body.cv-open #quick-bar, body.cv-open #qb-left-btn, body.cv-open #qb-right-btn{display:none !important}
+/* When the Download sheet/modal is open, hide the floating tools pill so it can't
+   sit on top of the Download button (it opens right where the pill lives). */
+body.app-mode:has(#export-panel.open) #quick-bar,
+body.app-mode:has(#export-panel.open) #qb-left-btn,
+body.app-mode:has(#export-panel.open) #qb-right-btn,
+body.app-mode:has(#export-panel.open) .pj-selbar,
+body.app-mode:has(#modal-overlay.show) #quick-bar,
+body.app-mode:has(#modal-overlay.show) #qb-left-btn,
+body.app-mode:has(#modal-overlay.show) #qb-right-btn,
+body.app-mode:has(#modal-overlay.show) .pj-selbar{display:none !important}
 #cv-modal.open{display:flex;align-items:center;justify-content:center;padding:16px}
 #cv-card{background:#fff;border:1.5px solid #eadde1;border-radius:16px;box-shadow:0 24px 64px rgba(43,34,38,.35);max-width:min(980px,100%);width:100%;max-height:calc(100vh - 32px);display:flex;flex-direction:column;overflow:hidden}
 #cv-head{display:flex;justify-content:space-between;align-items:center;padding:.8rem 1rem;border-bottom:1px solid #f0e4e8;font-size:.95rem;color:#2b2226}
@@ -6961,10 +6971,10 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <button class="acct-hub-row" onclick="openGuide()"><span>Guide</span><i>&rsaquo;</i></button>
       <button class="acct-hub-row" onclick="plOpenExt('https://luca-s.com')"><span>Luca-S Shop</span><i>&#8599;</i></button>
     </div>
-    <div id="acct-hub-appearance">
+    <div id="acct-hub-appearance" style="display:none">
       <div class="acct-hub-row" id="acct-dark-row" style="cursor:default"><span>Dark mode</span><button class="theme-switch" onclick="toggleTheme()" title="Toggle light/dark theme" aria-label="Toggle dark mode"><span class="ts-knob"></span></button></div>
     </div>
-    <div id="acct-hub-legal">
+    <div id="acct-hub-legal" style="display:none">
       <button class="acct-hub-row" onclick="plOpenPrivacy()"><span>Privacy Policy</span><i>&rsaquo;</i></button>
     </div>
     <div id="acct-patterns" style="display:none;margin-top:1.6rem"></div>
@@ -13845,7 +13855,7 @@ async function xqClaim(){
 
   if(a && a.loggedIn){
     try{
-      const r = await fetch(xqBase()+'/exports', { method:'POST', credentials:'include', cache:'no-store' });
+      const r = await fetch(xqBase()+'/exports'+plSessQS(), { method:'POST', credentials:'include', cache:'no-store' });
       if(r.status === 402){
         const j = await r.json().catch(()=>({}));
         return { allowed:false, plus:false, signedIn:true, used:j.used||limit, limit:j.limit||limit };
@@ -19134,7 +19144,9 @@ function trkPdfSoonPanel(){
 async function trkCloudProjects(){
   try{
     const base=TRK_KITS_BASE.replace(/\/patterns$/,'');
-    const r=await fetch(base+'/progress',{credentials:'include',cache:'no-cache'});
+    let url=base+'/progress';
+    try{ var t=localStorage.getItem('pl_session'); if(t) url += (url.indexOf('?')>=0?'&':'?')+'pl_session='+encodeURIComponent(t); }catch(e){}
+    const r=await fetch(url,{credentials:'include',cache:'no-cache'});
     if(!r.ok) return [];
     const j=await r.json();
     return Array.isArray(j.kits)?j.kits:[];
@@ -19250,7 +19262,7 @@ function trkDeleteCloudProject(kit, c){
     async onConfirm(){
       try{
         const base=TRK_KITS_BASE.replace(/\/patterns$/,'');
-        await fetch(base+'/progress?sku='+encodeURIComponent(kit.sku),
+        await fetch(trkProgressUrl(kit.sku),
                     {method:'DELETE', credentials:'include'});
       }catch(e){ console.warn('[tracker] cloud delete failed', e); }
       // and any local copy of the same kit
@@ -23024,7 +23036,12 @@ let trkCloudSku=null;          // set when a catalogue kit is opened
 let _trkCloudT=null, _trkCloudBusy=false;
 
 function trkProgressUrl(sku){
-  return TRK_KITS_BASE.replace(/\/patterns$/,'') + '/progress?sku=' + encodeURIComponent(sku);
+  // Auth is cookie-free (the App Proxy strips Set-Cookie), so the signed session
+  // must ride in the query as ?pl_session= like every other authed call — without
+  // it the /progress endpoint sees no session and 401s, and sync silently dies.
+  var u = TRK_KITS_BASE.replace(/\/patterns$/,'') + '/progress?sku=' + encodeURIComponent(sku);
+  try{ var t=localStorage.getItem('pl_session'); if(t) u += '&pl_session=' + encodeURIComponent(t); }catch(e){}
+  return u;
 }
 function trkPackProgress(){
   return trackerStitched.map(r=>r.map(v=>v?'1':'0').join('')).join('|');
@@ -23040,7 +23057,9 @@ function trkCountDone(){
 // trkSaveProject writes to localStorage — plus its progress. Capped at 5 by the
 // server; a 6th new pattern comes back 409 and we tell the user.
 function trkUserPatternUrl(id){
-  return TRK_KITS_BASE.replace(/\/patterns$/,'') + '/user-patterns' + (id ? '/'+encodeURIComponent(id) : '');
+  var u = TRK_KITS_BASE.replace(/\/patterns$/,'') + '/user-patterns' + (id ? '/'+encodeURIComponent(id) : '');
+  try{ var t=localStorage.getItem('pl_session'); if(t) u += '?pl_session='+encodeURIComponent(t); }catch(e){}
+  return u;
 }
 let _trkUpBusy=false, _trkUpT=null, _trkLastSyncedKey=null;
 async function trkUserPatternPush(){
@@ -27084,6 +27103,22 @@ function lpLogoHome(){
 function edToggleNav(){
   document.body.classList.toggle('ednav');
 }
+// Web: the account page and the active tracker page don't ship with a footer.
+// Clone the existing site footer onto them so the footer shows there too. (In the
+// app all footers are hidden via body.ptly-appui .lp-footer{display:none}.)
+(function ensurePageFooters(){
+  function run(){
+    try{
+      var src=document.querySelector('.lp-footer'); if(!src) return;
+      ['account-page','tracker-page'].forEach(function(id){
+        var pg=document.getElementById(id);
+        if(pg && !pg.querySelector('.lp-footer')) pg.appendChild(src.cloneNode(true));
+      });
+    }catch(e){}
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',run);
+  else run();
+})();
 function lpToggleMenu(){
   const mm=document.getElementById('lp-mobile-menu');
   if(mm.classList.contains('open')){ lpCloseMenu(); return; }
@@ -27284,7 +27319,7 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       // v361/v366: Privacy Policy and the separated Dark-mode toggle each sit in
       // their own card below the hub, matching the hub width (860px).
       + '#acct-hub-legal,#acct-hub-appearance{display:none}'
-      + 'body.ptly-appui #acct-hub-legal,body.ptly-appui #acct-hub-appearance{display:block;max-width:860px;margin:.9rem auto 0;'
+      + 'body.ptly-appui #acct-hub-legal,body.ptly-appui #acct-hub-appearance{display:block!important;max-width:860px;margin:.9rem auto 0;'
       + 'border:1px solid rgba(0,0,0,.09);border-radius:14px;overflow:hidden;background:#fff}'
       + 'body.dark.ptly-appui #acct-hub-legal,body.dark.ptly-appui #acct-hub-appearance{background:#241b1e;border-color:rgba(255,255,255,.10)}'
       + '#acct-hub-legal .acct-hub-row,#acct-hub-appearance .acct-hub-row{border-top:0}'
