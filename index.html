@@ -23347,8 +23347,7 @@ async function trkCloudPush(){
   // can fire with trkCloudSku still set but no pattern open, and reading
   // trackerGrid.cells on a null grid was throwing here — killing the very push
   // that saves your last marks before you switch away. No grid = nothing to push.
-  if(_trkCloudBusy || !trackerGrid) return;
-  if(!trkCloudSku){ try{ toast('⚠ SYNC: this kit has no SKU — progress stays only on this device'); }catch(e){} return; }
+  if(!trkCloudSku || _trkCloudBusy || !trackerGrid) return;
   _trkCloudBusy=true;
   try{
     const r=await fetch(trkProgressUrl(trkCloudSku), {
@@ -23365,8 +23364,7 @@ async function trkCloudPush(){
       })())
     });
     if(!r.ok) console.warn('[tracker] progress push refused', r.status);
-    try{ toast(r.ok ? '✓ SYNC push → 200 OK (saved to your account)' : ('⚠ SYNC push → '+r.status+' (server refused)')); }catch(e){}
-  }catch(e){ console.warn('[tracker] cloud push failed', e); try{ toast('⚠ SYNC push error: '+(e&&e.message||e)); }catch(_){} }
+  }catch(e){ console.warn('[tracker] cloud push failed', e); }
   finally{ _trkCloudBusy=false; }
 }
 // Merge by UNION: a stitched cell stays stitched. Stitching is not usually
@@ -23385,11 +23383,10 @@ async function trkCloudPull(){
       }
       return;
     }
-    if(!r.ok){ console.warn('[tracker] progress fetch', r.status); try{ toast('⚠ SYNC pull → '+r.status+' (server refused the read)'); }catch(e){} return; }
+    if(!r.ok){ console.warn('[tracker] progress fetch', r.status); return; }
     const rec=await r.json();
-    if(!rec || !rec.data){ try{ toast('⚠ SYNC pull → 200 but NO progress data stored'); }catch(e){} return; }
-    if(rec.cols && (rec.cols!==trackerGrid.cols || rec.rows!==trackerGrid.rows)){ try{ toast('⚠ SYNC pull: size mismatch — stored '+rec.cols+'×'+rec.rows+' vs open '+trackerGrid.cols+'×'+trackerGrid.rows); }catch(e){} return; }
-    try{ toast('✓ SYNC pull → 200, applying stored progress…'); }catch(e){}
+    if(!rec || !rec.data) return;
+    if(rec.cols && (rec.cols!==trackerGrid.cols || rec.rows!==trackerGrid.rows)) return;
     const lines=rec.data.split('|');
     let added=0;
     for(let y=0;y<trackerGrid.rows && y<lines.length;y++){
