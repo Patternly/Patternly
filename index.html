@@ -19583,6 +19583,8 @@ function trkRenderProjectCards(grid, list, withAdd){
   };
 }
 function trkShowHome(){
+  // Get the final marks up to the account BEFORE the grid is torn down below.
+  try{ trkFlushProgress(); }catch(e){}
   // Combined page: the source chooser (Luca-S Patterns / Upload) sits at the top,
   // and the saved patterns — My Luca-S Kits, then My Tracked Patterns — sit below
   // it on the same page. Starting something and carrying something on live together.
@@ -23420,6 +23422,17 @@ function saveTrackerProgress(){
 // Leaving the tab is the last chance to get the final marks up.
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden){ trkCloudPush(); trkUserPatternPush(); } });
 window.addEventListener('pagehide', ()=>{ trkCloudPush(); trkUserPatternPush(); });
+// Flush the debounced cloud push NOW. Marking schedules a push ~4s later; if you
+// leave the pattern (Home/back, or open another kit) before it fires, the last
+// marks never reach your account. Navigating inside the app does NOT fire
+// visibilitychange/pagehide, so those handlers don't cover it — this does.
+// trkCloudPush builds its request body synchronously, so the latest progress is
+// captured even though the pattern view is about to be torn down.
+function trkFlushProgress(){
+  try{ clearTimeout(_trkCloudT); }catch(e){}
+  try{ trkCloudPush(); }catch(e){}
+  try{ if(typeof trkUserPatternPush==='function') trkUserPatternPush(); }catch(e){}
+}
 function loadTrackerProgress(){
   try{
     const raw=localStorage.getItem('patternly_tracker_'+trackerActiveProjectKey);
