@@ -1811,6 +1811,134 @@ async function handleRequest(context) {
       return bad("method", 405);
     }
   }
+  // ── /editor-patterns: sync a Plus member's OWN Editor-created designs ──────
+  // DELIBERATELY SEPARATE from /user-patterns (the Tracker's uploaded charts):
+  // different route, a different KV prefix ("edpat:" vs the tracker's "upat:"),
+  // and its own R2 bucket binding (EDITOR_PATTERNS). The two systems share NO
+  // storage keys, so Editor sync can never disturb Stitch Tracker sync (Rule #1).
+  // Plus-only, and gated on the server as well as the client.
+  //   GET    /editor-patterns          -> {items:[{id,name,cols,rows,threads,savedAt,ts}], cap, used}
+  //   GET    /editor-patterns/:id      -> the stored design blob (JSON) for one
+  //   PUT    /editor-patterns/:id      <- {name, blob, cols, rows, threads, savedAt}
+  //   DELETE /editor-patterns/:id      -> removes it, freeing a slot
+  {
+    const MARKEP = "/editor-patterns";
+    const epAt = url.pathname.indexOf(MARKEP);
+    if (epAt !== -1) {
+      const bad = (msg, code) => new Response(JSON.stringify({ error: msg }), {
+        status: code, headers: { "content-type": "application/json", "cache-control": "no-store" }
+      });
+      if (!auth.loggedIn || !auth.customerId) return bad("signin", 401);
+      // Editor-pattern sync is a Plus feature — enforce it here too so the store
+      // stays Plus-only even if a client is modified.
+      const ent = await plusState(auth, env);
+      if (!ent || !ent.plus) return bad("plus", 402);
+      if (!env.ENTITLEMENTS) return bad("storage not configured", 500);
+      if (!env.EDITOR_PATTERNS) return bad("editor pattern storage not configured", 500);
+
+      // How many Editor designs a Plus account may sync. Named so it can vary by
+      // env without a code change.
+      const EDITOR_PATTERN_CAP = (env.EDITOR_PATTERN_CAP | 0) || 50;
+
+      const tail = url.pathname.slice(epAt + MARKEP.length).replace(/^\/+/, "");
+      const id = decodeURIComponent(tail).trim();
+      const metaPrefix = "edpat:" + auth.customerId + ":";
+
+      // ── list every synced Editor design for this account ──
+      if (!id && request.method === "GET") {
+        const items = [];
+        let cursor;
+        for (let page = 0; page < 5; page++) {
+          const listed = await env.ENTITLEMENTS.list({ prefix: metaPrefix, limit: 1000, cursor });
+          for (const k of listed.keys) {
+            const raw = await env.ENTITLEMENTS.get(k.name);
+            if (!raw) continue;
+            try {
+              const rec = JSON.parse(raw);
+              items.push({
+                id: k.name.slice(metaPrefix.length),
+                name: rec.name || "Untitled pattern",
+                cols: rec.cols | 0, rows: rec.rows | 0, threads: rec.threads | 0,
+                savedAt: rec.savedAt || 0, ts: rec.ts || 0
+              });
+            } catch (e) {}
+          }
+          if (!listed.list_complete) cursor = listed.cursor; else break;
+        }
+        items.sort((a, b) => b.ts - a.ts);
+        return new Response(JSON.stringify({ items, cap: EDITOR_PATTERN_CAP, used: items.length }), {
+          headers: { "content-type": "application/json", "cache-control": "no-store" }
+        });
+      }
+
+      if (!id || !/^[A-Za-z0-9_-]{1,64}$/.test(id)) return bad("bad id", 400);
+      const metaKey = metaPrefix + id;
+      const blobKey = auth.customerId + "/" + id + ".json";
+
+      // ── fetch one design's blob back (for a new device) ──
+      if (request.method === "GET") {
+        const obj = await env.EDITOR_PATTERNS.get(blobKey);
+        if (!obj) return bad("notfound", 404);
+        const text = await obj.text();
+        return new Response(text, {
+          headers: { "content-type": "application/json", "cache-control": "no-store" }
+        });
+      }
+
+      // ── create or update a synced design ──
+      if (request.method === "PUT" || request.method === "POST") {
+        let body;
+        try { body = await request.json(); } catch (e) { return bad("bad body", 400); }
+        if (typeof body.blob !== "string" || !body.blob) return bad("bad blob", 400);
+        // Editor designs can carry layers + a thumbnail, so allow a little more
+        // than an uploaded chart, but still bounded.
+        if (body.blob.length > 5_000_000) return bad("too large", 413);
+
+        // Cap check only when this id is NEW; updating an existing design is
+        // always allowed (it doesn't consume a new slot).
+        const existing = await env.ENTITLEMENTS.get(metaKey);
+        if (!existing) {
+          let count = 0; let cursor;
+          for (let page = 0; page < 5; page++) {
+            const listed = await env.ENTITLEMENTS.list({ prefix: metaPrefix, limit: 1000, cursor });
+            count += listed.keys.length;
+            if (!listed.list_complete) cursor = listed.cursor; else break;
+          }
+          if (count >= EDITOR_PATTERN_CAP) {
+            return new Response(JSON.stringify({
+              error: "cap", cap: EDITOR_PATTERN_CAP, used: count,
+              message: "You can sync up to " + EDITOR_PATTERN_CAP +
+                " Editor patterns. Remove one to add another."
+            }), { status: 409, headers: { "content-type": "application/json", "cache-control": "no-store" } });
+          }
+        }
+
+        await env.EDITOR_PATTERNS.put(blobKey, body.blob, {
+          httpMetadata: { contentType: "application/json" }
+        });
+        const rec = {
+          name: (typeof body.name === "string" ? body.name : "Untitled pattern").slice(0, 120),
+          cols: body.cols | 0, rows: body.rows | 0, threads: body.threads | 0,
+          savedAt: body.savedAt | 0, ts: Date.now()
+        };
+        await env.ENTITLEMENTS.put(metaKey, JSON.stringify(rec));
+        return new Response(JSON.stringify({ ok: true, id, ts: rec.ts }), {
+          headers: { "content-type": "application/json", "cache-control": "no-store" }
+        });
+      }
+
+      // ── delete a synced design, freeing a slot ──
+      if (request.method === "DELETE") {
+        await env.EDITOR_PATTERNS.delete(blobKey);
+        await env.ENTITLEMENTS.delete(metaKey);
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { "content-type": "application/json", "cache-control": "no-store" }
+        });
+      }
+      return bad("method", 405);
+    }
+  }
+
   // Matched by index rather than prefix so it works both on the bare Pages
   // domain and under the Shopify App Proxy path, same as /whoami above.
   const MARK = "/patterns/";
