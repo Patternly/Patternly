@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v43";
+const MW_VERSION = "v44";
 
 const enc = new TextEncoder();
 
@@ -562,6 +562,7 @@ async function latchSkus(customerId, skus, env) {
     for (const s of skus) if (!have.has(s)) { have.add(s); added = true; }
     if (added) {
       await env.ENTITLEMENTS.put("cust:" + customerId, JSON.stringify([...have].sort()));
+      _cache.delete("owned:" + customerId);   // bust cache so the kit counts as owned right away
     }
   } catch (e) {
     console.warn("latch write failed:", e.message);
@@ -925,6 +926,7 @@ async function servePattern(key, auth, request, url, env) {
           headers: { "x-code-seen": c.seen ? "1" : "0", "cache-control": "no-store" }
         });
       }
+      if (auth && auth.customerId) { try { await latchSkus(auth.customerId, new Set([sku]), env); } catch (e) {} }
       return deliver(key, env);
     }
     if (owns === false || owns === "anon") {
@@ -948,6 +950,15 @@ async function servePattern(key, auth, request, url, env) {
             }
           }
         );
+      }
+      // A valid access code from a SIGNED-IN customer permanently grants them
+      // this kit, so stitch progress can sync (/progress) and it shows up in
+      // "My Luca-S Patterns" — just like a purchase. (Anonymous code users have
+      // no account to grant to; they still get the chart.) This is what lets a
+      // kit opened by code — not bought on the account — be tracked & synced.
+      if (auth && auth.customerId) {
+        try { await latchSkus(auth.customerId, new Set([sku]), env); }
+        catch (e) { console.warn("latch on code failed:", e.message); }
       }
       return deliver(key, env);
     }
