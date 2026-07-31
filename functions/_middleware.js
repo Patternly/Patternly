@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v44";
+const MW_VERSION = "v46";
 
 const enc = new TextEncoder();
 
