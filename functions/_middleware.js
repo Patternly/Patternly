@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v46";
+const MW_VERSION = "v47";
 
 const enc = new TextEncoder();
 
@@ -1749,6 +1749,16 @@ async function handleRequest(context) {
 
       // ── fetch one pattern's blob back (for a new device) ──
       if (request.method === "GET") {
+        // ?part=progress returns the packed per-cell stitched state (stored as a
+        // separate R2 object) so a new device restores EXACT marks, not just the
+        // done/total counts held in KV.
+        if (new URL(request.url).searchParams.get("part") === "progress") {
+          const pobj = await env.USER_PATTERNS.get(blobKey + ".progress");
+          if (!pobj) return bad("notfound", 404);
+          return new Response(await pobj.text(), {
+            headers: { "content-type": "text/plain", "cache-control": "no-store" }
+          });
+        }
         const obj = await env.USER_PATTERNS.get(blobKey);
         if (!obj) return bad("notfound", 404);
         const text = await obj.text();
@@ -1788,6 +1798,17 @@ async function handleRequest(context) {
         await env.USER_PATTERNS.put(blobKey, body.blob, {
           httpMetadata: { contentType: "application/json" }
         });
+        // Store the per-cell stitched progress as a SEPARATE R2 object so
+        // "Continue on this device" restores exact marks. Kept separate from the
+        // chart so the chart's content-hash sync id stays stable. Clearing it
+        // when absent avoids leaving stale marks behind.
+        if (typeof body.progress === "string" && body.progress) {
+          await env.USER_PATTERNS.put(blobKey + ".progress", body.progress, {
+            httpMetadata: { contentType: "text/plain" }
+          });
+        } else {
+          try { await env.USER_PATTERNS.delete(blobKey + ".progress"); } catch (e) {}
+        }
         const rec = {
           name: (typeof body.name === "string" ? body.name : "Untitled pattern").slice(0, 120),
           done: body.done | 0, total: body.total | 0,
@@ -1803,6 +1824,7 @@ async function handleRequest(context) {
       // ── delete a synced pattern, freeing a slot ──
       if (request.method === "DELETE") {
         await env.USER_PATTERNS.delete(blobKey);
+        try { await env.USER_PATTERNS.delete(blobKey + ".progress"); } catch (e) {}
         await env.ENTITLEMENTS.delete(metaKey);
         return new Response(JSON.stringify({ ok: true }), {
           headers: { "content-type": "application/json", "cache-control": "no-store" }
