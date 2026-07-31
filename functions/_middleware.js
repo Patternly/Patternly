@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v50";
+const MW_VERSION = "v51";
 
 const enc = new TextEncoder();
 
@@ -1702,6 +1702,7 @@ async function handleRequest(context) {
       const bad = (msg, code) => new Response(JSON.stringify({ error: msg }), {
         status: code, headers: { "content-type": "application/json", "cache-control": "no-store" }
       });
+      try {
       if (!auth.loggedIn || !auth.customerId) return bad("signin", 401);
       if (!env.ENTITLEMENTS) return bad("storage not configured", 500);
       if (!env.USER_PATTERNS) return bad("pattern storage not configured", 500);
@@ -1839,6 +1840,14 @@ async function handleRequest(context) {
         });
       }
       return bad("method", 405);
+      } catch (e) {
+        // Surface the REAL reason (uncaught throw anywhere in the handler:
+        // KV/R2 op, quota rejection, etc.) instead of a blank platform 500.
+        return new Response(JSON.stringify({
+          error: "handler_threw",
+          detail: String((e && (e.message || e.name || e.toString())) || e).slice(0, 400)
+        }), { status: 500, headers: { "content-type": "application/json", "cache-control": "no-store" } });
+      }
     }
   }
   // ── /editor-patterns: sync a Plus member's OWN Editor-created designs ──────
