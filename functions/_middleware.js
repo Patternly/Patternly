@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v49";
+const MW_VERSION = "v50";
 
 const enc = new TextEncoder();
 
@@ -1794,36 +1794,39 @@ async function handleRequest(context) {
           }
         }
 
-        // Store the chart blob in R2, then the summary in KV. The KV record is
-        // what the pattern LIST is built from, so it must be written before the
-        // best-effort progress object below — otherwise a progress-write hiccup
-        // could stop the pattern appearing on another device at all.
-        await env.USER_PATTERNS.put(blobKey, body.blob, {
-          httpMetadata: { contentType: "application/json" }
-        });
-        const rec = {
-          name: (typeof body.name === "string" ? body.name : "Untitled pattern").slice(0, 120),
-          done: body.done | 0, total: body.total | 0,
-          cols: body.cols | 0, rows: body.rows | 0, threads: body.threads | 0,
-          timeMs: body.timeMs | 0, sessions: body.sessions | 0, ts: Date.now()
-        };
-        await env.ENTITLEMENTS.put(metaKey, JSON.stringify(rec));
-        // Per-cell stitched progress: a SEPARATE R2 object so "Continue on this
-        // device" restores exact marks (kept apart from the chart so its
-        // content-hash sync id stays stable). Best-effort ONLY — never let a
-        // progress failure break pattern storage or listing.
+        // Store the chart blob in R2, then the summary in KV, then best-effort
+        // progress. Wrapped so any storage error returns its REASON instead of a
+        // blank 500 we can't diagnose.
         try {
-          if (typeof body.progress === "string" && body.progress) {
-            await env.USER_PATTERNS.put(blobKey + ".progress", body.progress, {
-              httpMetadata: { contentType: "text/plain" }
-            });
-          } else {
-            await env.USER_PATTERNS.delete(blobKey + ".progress");
-          }
-        } catch (e) {}
-        return new Response(JSON.stringify({ ok: true, id, ts: rec.ts }), {
-          headers: { "content-type": "application/json", "cache-control": "no-store" }
-        });
+          await env.USER_PATTERNS.put(blobKey, body.blob, {
+            httpMetadata: { contentType: "application/json" }
+          });
+          const rec = {
+            name: (typeof body.name === "string" ? body.name : "Untitled pattern").slice(0, 120),
+            done: body.done | 0, total: body.total | 0,
+            cols: body.cols | 0, rows: body.rows | 0, threads: body.threads | 0,
+            timeMs: body.timeMs | 0, sessions: body.sessions | 0, ts: Date.now()
+          };
+          await env.ENTITLEMENTS.put(metaKey, JSON.stringify(rec));
+          try {
+            if (typeof body.progress === "string" && body.progress) {
+              await env.USER_PATTERNS.put(blobKey + ".progress", body.progress, {
+                httpMetadata: { contentType: "text/plain" }
+              });
+            } else {
+              await env.USER_PATTERNS.delete(blobKey + ".progress");
+            }
+          } catch (e) {}
+          return new Response(JSON.stringify({ ok: true, id, ts: rec.ts }), {
+            headers: { "content-type": "application/json", "cache-control": "no-store" }
+          });
+        } catch (e) {
+          return new Response(JSON.stringify({
+            error: "store_failed",
+            detail: String((e && (e.message || e.name)) || e).slice(0, 300),
+            blobLen: (body.blob ? body.blob.length : 0)
+          }), { status: 500, headers: { "content-type": "application/json", "cache-control": "no-store" } });
+        }
       }
 
       // ── delete a synced pattern, freeing a slot ──
