@@ -4454,8 +4454,8 @@ body.dark .fabric-item.sel{background:rgba(255,255,255,.08);color:#f0b8c2}
 
 /* ── CANVAS AREA ── */
 #canvas-area{flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:flex-start;padding:1.5rem;background:#f5edee;position:relative}
-#grid-canvas{cursor:crosshair;image-rendering:pixelated;border:1px solid #d5cde8;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.1);touch-action:pinch-zoom}
-#grid-canvas.pan-mode{touch-action:auto}
+#grid-canvas{cursor:crosshair;image-rendering:pixelated;border:1px solid #d5cde8;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.1);touch-action:none}
+#grid-canvas.pan-mode{touch-action:pan-x pan-y}
 
 
 /* ── TOAST ── */
@@ -7364,7 +7364,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 ══════════════════════════════════════════════════════════ -->
 <style id="ifsize-css">
 #app-wrapper{--ui-scale:1}
-#app-wrapper #topbar, #app-wrapper #sidebar, #app-wrapper #right-panel{ zoom:var(--ui-scale,1); }
+#app-wrapper #sidebar, #app-wrapper #right-panel{ zoom:var(--ui-scale,1); }
 #ifsize-btn{width:34px;height:34px;border:1.5px solid #eadde1;background:#fff;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);flex-shrink:0;transition:border-color .15s,color .15s;padding:0}
 #ifsize-btn:hover{border-color:var(--accent);color:var(--accent)}
 #ifsize-pop{display:none;position:absolute;top:calc(100% + 8px);right:0;z-index:100060;background:#fff;border:1.5px solid #eadde1;border-radius:12px;box-shadow:0 12px 34px rgba(43,34,38,.20);padding:.55rem;width:210px}
@@ -14962,6 +14962,66 @@ const zof=document.getElementById('zoom-out-float');
 if(zif) zif.addEventListener('click',zoomIn);
 if(zof) zof.addEventListener('click',zoomOut);
 
+// ── Pinch-to-zoom around the fingers (editor canvas) ──────────────────────
+// The browser's native pinch (touch-action:pinch-zoom) anchored to the corner;
+// we take it over so zoom centres on the pinch midpoint. Capture-phase on the
+// scroll container isolates 2-finger gestures from the draw/select handlers.
+function edSetDisplayCell(cell){
+  cell=Math.min(40, Math.max(2, cell));
+  CELL=Math.max(1, Math.ceil(cell));                 // crisp integer backing
+  canvas.width=COLS*CELL+1; canvas.height=ROWS*CELL+1;
+  canvas.style.width=Math.round(COLS*cell)+'px';
+  canvas.style.height=Math.round(ROWS*cell)+'px';
+  const pct=Math.round(cell/18*100)+'%';
+  const zl=document.getElementById('zoom-label'); if(zl) zl.textContent=pct;
+  const fl=document.getElementById('zoom-label-float'); if(fl) fl.textContent=pct;
+  render();
+  return cell;
+}
+let _edPinch=null;
+function _edPinchStart(e){
+  if(e.touches.length!==2) return;
+  const t1=e.touches[0], t2=e.touches[1];
+  const dist=Math.hypot(t2.clientX-t1.clientX, t2.clientY-t1.clientY)||1;
+  const mx=(t1.clientX+t2.clientX)/2, my=(t1.clientY+t2.clientY)/2;
+  const cr=canvas.getBoundingClientRect();
+  const fx=Math.min(1,Math.max(0,(mx-cr.left)/(cr.width||1)));
+  const fy=Math.min(1,Math.max(0,(my-cr.top)/(cr.height||1)));
+  _edPinch={dist, mx, my, fx, fy, startCell:(cr.width/COLS)||CELL, ratio:1};
+  canvas.style.transformOrigin=(fx*cr.width)+'px '+(fy*cr.height)+'px';
+  e.preventDefault(); e.stopPropagation();
+}
+function _edPinchMove(e){
+  if(!_edPinch || e.touches.length!==2) return;
+  e.preventDefault(); e.stopPropagation();
+  const t1=e.touches[0], t2=e.touches[1];
+  const dist=Math.hypot(t2.clientX-t1.clientX, t2.clientY-t1.clientY)||1;
+  let ratio=dist/_edPinch.dist;
+  const target=_edPinch.startCell*ratio;
+  if(target<2) ratio=2/_edPinch.startCell;
+  if(target>40) ratio=40/_edPinch.startCell;
+  _edPinch.ratio=ratio;
+  canvas.style.transform='scale('+ratio+')';   // smooth live feedback; bake on release
+}
+function _edPinchEnd(e){
+  if(!_edPinch || e.touches.length>=2) return;
+  const p=_edPinch; _edPinch=null;
+  e.stopPropagation();
+  canvas.style.transform=''; canvas.style.transformOrigin='';
+  const finalCell=edSetDisplayCell(p.startCell*p.ratio);   // resize + render once
+  const ar=canvasArea.getBoundingClientRect();
+  canvasArea.scrollLeft = canvas.offsetLeft + p.fx*COLS*finalCell - (p.mx-ar.left);
+  canvasArea.scrollTop  = canvas.offsetTop  + p.fy*ROWS*finalCell - (p.my-ar.top);
+  let best=0;
+  for(let i=0;i<zoomLevels.length;i++) if(Math.abs(zoomLevels[i]-finalCell)<Math.abs(zoomLevels[best]-finalCell)) best=i;
+  zoomIdx=best;   // keep +/- stepping sensible
+}
+canvasArea.addEventListener('touchstart', _edPinchStart, {capture:true, passive:false});
+canvasArea.addEventListener('touchmove', _edPinchMove, {capture:true, passive:false});
+canvasArea.addEventListener('touchend', _edPinchEnd, {capture:true, passive:false});
+canvasArea.addEventListener('touchcancel', _edPinchEnd, {capture:true, passive:false});
+
+
 // ─────────────────────────────────────────────────────────────
 // KEYBOARD
 // ─────────────────────────────────────────────────────────────
@@ -15847,6 +15907,9 @@ async function edpAfterRender(wrap){
   // mark them as not-yet-on-this-device. Clear any cloud cards left from a
   // previous pass first so re-renders never stack duplicates.
   wrap.querySelectorAll('.pj-cloud').forEach(el=>el.remove());
+  // Account patterns exist, so the "no saved patterns yet" empty-state (shown
+  // when there are 0 LOCAL patterns) would read as a phantom second section.
+  wrap.querySelectorAll('.pj-empty-hint').forEach(el=>el.remove());
   for(const it of missing){
     const card=document.createElement('div'); card.className='pj-card pj-cloud';
     const thumb=document.createElement('div'); thumb.className='pj-thumb';
@@ -19837,6 +19900,16 @@ async function trkContinueFromAccount(it, card){
     setS('Couldn\u2019t save this pattern on this device. Try again.');
     return;
   }
+  // 3b) Pull the per-cell stitched marks too and write them where the tracker
+  //     loads progress from, so the pattern opens at its real completion — the
+  //     chart blob carries only the chart, not the marks.
+  try{
+    const prog = await trkUserPatternFetchProgress(it.id);
+    if(prog && typeof prog==='string' && prog.indexOf('|')>=0){
+      localStorage.setItem('patternly_tracker_'+localId,
+        JSON.stringify({cols:it.cols, rows:it.rows, data:prog}));
+    }
+  }catch(e){ console.error('[trk] continue: progress restore failed', e); }
   // 4) Open it like any locally-saved pattern. trkOpenProject swallows its own
   //    errors, so confirm the workspace actually opened and report precisely.
   try{ await trkOpenProject(localId); }catch(e){ console.error('[trk] continue: open threw', e); }
@@ -23703,6 +23776,17 @@ async function trkUserPatternFetch(id){
     const r=await fetch(trkUserPatternUrl(id), {credentials:'include', cache:'no-cache'});
     if(!r.ok) return null;
     return await r.text();   // the stored project blob (JSON string)
+  }catch(e){ return null; }
+}
+// Fetch the packed per-cell stitched marks for one account pattern (separate
+// from the chart blob) so "Continue on this device" restores exact progress.
+async function trkUserPatternFetchProgress(id){
+  try{
+    var base = trkUserPatternUrl(id);
+    var url = base + (base.indexOf('?')>=0 ? '&' : '?') + 'part=progress';
+    const r=await fetch(url, {credentials:'include', cache:'no-cache'});
+    if(!r.ok) return null;
+    return await r.text();   // rows of '1'/'0' joined by '|'
   }catch(e){ return null; }
 }
 async function trkUserPatternDelete(id){
