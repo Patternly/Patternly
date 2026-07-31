@@ -15912,7 +15912,17 @@ async function edpAfterRender(wrap){
   // member stops signing in, so theirs age out on schedule).
   if(!_edpSyncedThisSession){
     _edpSyncedThisSession=true;
-    for(const p of pjLoadAll()){ await edpPush(p.id); }
+    const acctById=new Map(info.items.map(it=>[it.id,it]));
+    for(const p of pjLoadAll()){
+      const a=acctById.get(p.id);
+      // CLOBBER-GUARD: never overwrite a NEWER account copy (edited on another
+      // device) with an older local one — that would roll the other device's
+      // work back on the account. The pull-newer pass above already refreshed
+      // any local copies that were stale, so anything still older here should be
+      // left alone, not pushed.
+      if(a && (a.savedAt||0) > (p.savedAt||0)) continue;
+      await edpPush(p.id);
+    }
   }
 
   const localIds=new Set(pjLoadAll().map(p=>p.id));
@@ -28586,7 +28596,22 @@ function pjNewPattern(name){
 }
 
 // Open an existing saved pattern
-function pjOpenProject(id){
+async function pjOpenProject(id){
+  // Account-centric open: a design is an ACCOUNT object, not a per-browser copy.
+  // If it was edited on another device the account copy is newer, so pull it
+  // BEFORE opening — you always continue from the latest, never a stale local
+  // copy. (Only pulls when the account is genuinely newer, so unsaved local work
+  // is never clobbered.)
+  try{
+    if(typeof edpEnabled==='function' && edpEnabled()){
+      const info=await edpList();
+      if(info && Array.isArray(info.items)){
+        const a=info.items.find(it=>it.id===id);
+        const local=pjLoadAll().find(p=>p.id===id);
+        if(a && (!local || (a.savedAt||0) > (local.savedAt||0))){ await edpPullOne(id); }
+      }
+    }
+  }catch(e){}
   const d=pjLoadAll().find(p=>p.id===id);
   if(!d){ toast('Could not find that pattern'); renderProjectsPage(); return; }
   pjLoadIntoEditor(d);
