@@ -22967,16 +22967,20 @@ function renderTracker(){
           }
         }
       }
+      if(trkLightUpDraw && !stitched && !ghost){
+        // Light-up: grey the un-worked cells slightly so the finished (red) ones pop.
+        trkCtx.fillStyle='rgba(150,150,150,0.28)';
+        trkCtx.fillRect(x+1,y+1,cell-1,cell-1);
+      }
       if(stitched){
         if(ghost){ trkCtx.fillStyle='rgba(255,255,255,0.35)'; trkCtx.fillRect(x+1,y+1,cell-1,cell-1); continue; }
         if(trkLightUpDraw){
-          // Completed stitches LIGHT UP as a bright red dot on each finished
-          // cell, so worked areas read clearly from a distance. (Default OFF.)
-          const cx=x+cell/2, cy=y+cell/2, rad=Math.max(1.5,(cell-1)*0.38);
+          // Completed stitches fill the WHOLE cell bright red so worked areas
+          // read clearly from a distance; the symbol stays on top. (Default OFF.)
           trkCtx.fillStyle='rgba(233,42,44,0.95)';
-          trkCtx.beginPath(); trkCtx.arc(cx,cy,rad,0,6.2832); trkCtx.fill();
-          // Keep the cell's symbol readable ON TOP of the dot when zoomed in
-          // (white glyph / light sprite, since the red dot is dark).
+          trkCtx.fillRect(x+1,y+1,cell-1,cell-1);
+          // Keep the cell's symbol readable ON TOP when zoomed in (white glyph /
+          // light sprite, since the red fill is dark).
           if(showSymbol){
             const part=partAt(r,c);
             if(useChartFont){
