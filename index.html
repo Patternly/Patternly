@@ -23764,11 +23764,15 @@ let _trkUpBusy=false, _trkUpT=null, _trkLastSyncedKey=null;
 async function trkUserPatternPush(){
   // Only for uploaded patterns (kits go through trkCloudPush). Needs a signed-in
   // account and a loaded project.
-  if(trkCloudSku || _trkUpBusy) return;
-  if(!trackerLegend || !trackerGrid || !trackerColourMap) return;
-  if(typeof trkPlusOk==='function' && !trkPlusOk()) return;   // tracker is Plus-only anyway
+  if(trkCloudSku || _trkUpBusy) return;   // kit open or a push already in flight — normal
+  if(!trackerLegend || !trackerGrid || !trackerColourMap){ if(window._trkSyncDebug&&typeof toast==='function') toast('sync skip: no pattern loaded'); return; }
+  if(typeof trkPlusOk==='function' && !trkPlusOk()){
+    if(typeof toast==='function') toast('\u26a0 Sync skipped \u2014 tracker sync needs a Plus account signed in on THIS device.', 6000);
+    console.warn('[tracker] sync skipped: not Plus / not signed in', (typeof lucasAuth==='function'?lucasAuth():null));
+    return;
+  }
   const id = trackerActiveProjectKey;
-  if(!id) return;
+  if(!id){ if(window._trkSyncDebug&&typeof toast==='function') toast('sync skip: no active pattern id'); return; }
   // Full project blob is already in localStorage from trkSaveProject.
   let blob;
   try{ blob = localStorage.getItem('patternly_trk_proj_'+id); }catch(e){}
@@ -23866,6 +23870,7 @@ async function trkUserPatternPush(){
       if(typeof toast==='function') toast('Couldn\u2019t sync this pattern to your account (server '+r.status+').');
       console.warn('[tracker] user-pattern push refused', r.status);
     } else {
+      if(typeof toast==='function') toast('\u2713 Synced this pattern to your account', 3500);
       console.log('[tracker] user-pattern synced ok', safeId);
     }
   }catch(e){ console.warn('[tracker] user-pattern push failed', e); }
