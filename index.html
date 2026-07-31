@@ -23833,8 +23833,17 @@ async function trkUserPatternPush(){
       // Cap reached — this is a NEW pattern that won't fit. Tell the user once.
       let info={}; try{ info=await r.json(); }catch(e){}
       trkUserCapNotice(info);
+    } else if(r.status===413){
+      if(typeof toast==='function') toast('This pattern is too large to sync to your account.');
+      console.warn('[tracker] user-pattern push refused: too large (413)');
+    } else if(r.status===401){
+      if(typeof toast==='function') toast('Sign in on this device to sync this pattern to your account.');
+      console.warn('[tracker] user-pattern push refused: not signed in (401)');
     } else if(!r.ok){
+      if(typeof toast==='function') toast('Couldn\u2019t sync this pattern to your account (server '+r.status+').');
       console.warn('[tracker] user-pattern push refused', r.status);
+    } else {
+      console.log('[tracker] user-pattern synced ok', safeId);
     }
   }catch(e){ console.warn('[tracker] user-pattern push failed', e); }
   finally{ _trkUpBusy=false; }
