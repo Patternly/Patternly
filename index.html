@@ -3750,6 +3750,7 @@ body.dark #lp-menu-btn{border-color:#37303f;color:#efe9f3}
 }
 .lp-hero-badge{display:inline-flex;align-items:center;gap:.4rem;background:var(--lp-red-light);color:var(--lp-red);font-size:.75rem;font-weight:600;padding:.35rem .8rem;border-radius:99px;margin-bottom:1.25rem;border:1px solid #f5c5cd}
 .lp-h1{font-family:'DM Serif Display',serif;font-size:3rem;line-height:1.18;color:var(--lp-ink);margin-bottom:1.25rem}
+@media(max-width:820px){.lp-h1{font-size:1.5rem;line-height:1.22;margin-bottom:.75rem}}
 .lp-accent{color:var(--lp-red)}
 .lp-hero-sub{font-size:1.02rem;color:var(--lp-muted);line-height:1.7;margin-bottom:2rem;max-width:480px}
 .lp-hero-btns{display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:2rem}
@@ -7370,7 +7371,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 #ifsize-pop{display:none;position:absolute;top:calc(100% + 8px);right:0;z-index:100060;background:#fff;border:1.5px solid #eadde1;border-radius:12px;box-shadow:0 12px 34px rgba(43,34,38,.20);padding:.55rem;width:210px}
 #ifsize-pop.open{display:block}
 .ifsize-ttl{font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:.1rem .25rem .45rem}
-.ifsize-grid{display:grid;grid-template-columns:1fr 1fr;gap:.35rem}
+.ifsize-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.35rem}
 .ifsize-opt{padding:.5rem .4rem;border-radius:8px;border:1.5px solid #efe0e2;background:#fafafa;color:var(--ink);font-family:inherit;font-size:.77rem;font-weight:700;cursor:pointer;transition:all .12s}
 .ifsize-opt:hover{border-color:var(--accent)}
 .ifsize-opt.active{background:var(--accent);border-color:var(--accent);color:#fff}
@@ -7379,6 +7380,14 @@ body.dark #ifsize-btn{background:#241c30;border-color:#3a2f47;color:#c9bcd0}
 body.dark #ifsize-pop{background:#241c30;border-color:#3a2f47}
 body.dark .ifsize-opt{background:#2e2540;border-color:#463a55;color:#f2ecf4}
 body.dark .ifsize-note,body.dark .ifsize-ttl{color:#a596ab}
+</style>
+<style id="trk-lu-css">
+.trk-lu-switch{position:relative;flex-shrink:0;width:46px;height:27px;display:inline-block;cursor:pointer}
+.trk-lu-switch input{opacity:0;width:0;height:0;position:absolute}
+.trk-lu-switch .trk-lu-slider{position:absolute;inset:0;background:#d8ccd0;border-radius:27px;transition:background .2s}
+.trk-lu-switch .trk-lu-slider:before{content:'';position:absolute;height:21px;width:21px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.trk-lu-switch input:checked + .trk-lu-slider{background:var(--lp-red,#8B1A2B)}
+.trk-lu-switch input:checked + .trk-lu-slider:before{transform:translateX(19px)}
 </style>
 <div id="app-wrapper" style="display:none;flex-direction:column;height:100vh;overflow:hidden">
 
@@ -7448,7 +7457,6 @@ body.dark .ifsize-note,body.dark .ifsize-ttl{color:#a596ab}
           <button class="ifsize-opt" data-sz="small" onclick="ifSetSize('small')">Small</button>
           <button class="ifsize-opt" data-sz="medium" onclick="ifSetSize('medium')">Medium</button>
           <button class="ifsize-opt" data-sz="large" onclick="ifSetSize('large')">Large</button>
-          <button class="ifsize-opt" data-sz="xl" onclick="ifSetSize('xl')">Extra Large</button>
         </div>
         <div class="ifsize-note">Scales the menus and controls. Canvas zoom isn't affected.</div>
       </div>
@@ -15877,23 +15885,28 @@ async function edpAfterRender(wrap){
   // reflect account sync in the subtitle
   try{ const sub=document.querySelector('#projects-page .pj-sub'); if(sub) sub.innerHTML='Synced to your Luca-S account — your designs follow you across devices. <b><span id="pj-count">'+pjLoadAll().length+'</span> of <span id="pj-cap">'+pjSlotCap()+'</span></b> on this device.'; }catch(e){}
 
-  if(!_edpSyncedThisSession){
-    _edpSyncedThisSession=true;
+  // PULL-NEWER on EVERY render: if a design was edited on another device its
+  // account copy is newer, so pull it down — this is what makes edits sync BACK
+  // to this device, not just out. Safe here: the projects page is never shown
+  // mid-edit, so a local unsaved edit can't be clobbered. (Previously this ran
+  // once per session, so a second device's later edits never returned without a
+  // full page reload.)
+  {
     const local=pjLoadAll();
     const acctById=new Map(info.items.map(it=>[it.id,it]));
-    const localById=new Map(local.map(p=>[p.id,p]));
-    let changed=false;
+    let pulled=false;
     for(const p of local){
       const a=acctById.get(p.id);
-      // If the account copy is newer (edited on another device), pull it down
-      // FIRST so we never overwrite newer work with an older local copy.
-      if(a && (a.savedAt||0) > (p.savedAt||0)){ if(await edpPullOne(p.id)) changed=true; }
-      // Re-push the newest copy every session. This also refreshes the rolling
-      // 90-day expiry, so an ACTIVE member never loses their cloud copies; a
-      // lapsed member stops signing in, so theirs age out on schedule.
-      await edpPush(p.id);
+      if(a && (a.savedAt||0) > (p.savedAt||0)){ if(await edpPullOne(p.id)) pulled=true; }
     }
-    if(changed && typeof renderProjectsPage==='function'){ renderProjectsPage(); return; }  // re-render re-appends
+    if(pulled && typeof renderProjectsPage==='function'){ renderProjectsPage(); return; }  // re-render with pulled edits
+  }
+  // Push local up once per session — seeds the account and refreshes the rolling
+  // 90-day expiry so an ACTIVE member never loses their cloud copies (a lapsed
+  // member stops signing in, so theirs age out on schedule).
+  if(!_edpSyncedThisSession){
+    _edpSyncedThisSession=true;
+    for(const p of pjLoadAll()){ await edpPush(p.id); }
   }
 
   const localIds=new Set(pjLoadAll().map(p=>p.id));
@@ -18913,6 +18926,7 @@ async function trkOpenProject(id){
     // account copy — this is what lets a project continue on another device.
     trkCloudSku = (trkIndex().find(p=>p.id===id)||{}).sku || null;
     if(trkCloudSku) setTimeout(trkCloudPull, 400);
+    else setTimeout(trkUserPatternPull, 400);   // uploaded patterns pull back too
     trkSelClear();
     trackerSymbolsOnly=!!s.symbolsOnly; trackerBwOnly=!!s.bwOnly;
     if(trackerBwOnly) trackerViewMode='bw';
@@ -20071,6 +20085,8 @@ function trkShowHomeInner(list){
       .then(()=>trkAppendOwnedKitCards(kitsGrid))
       .then(()=>{
         if(kitsSection) kitsSection.style.display = (kitsGrid.children.length>0) ? '' : 'none';
+        // List view paginates 5 per page; slider view keeps the horizontal slider.
+        if(trkViewMode('kits')==='list') plPaginateGrid(kitsGrid, 5, 'trkkits'); else plUnpaginate(kitsGrid);
       });
   }
 
@@ -20098,6 +20114,55 @@ function trkShowHomeInner(list){
 }
 // Per-section grid/list view. Default (no modifier) is the horizontal slider;
 // 'list' stacks compact rows. The choice is remembered in localStorage.
+// ── Generic list pagination (My Luca-S Patterns) ──────────────────────────
+// Hides all but the current page's cards and renders a compact pager below the
+// grid. DOM-level so it works no matter how cards were appended.
+let plPageState={};
+function plPagerBtn(txt, disabled, fn){
+  var b=document.createElement('button'); b.type='button'; b.textContent=txt; b.disabled=!!disabled;
+  b.style.cssText='min-width:34px;height:34px;padding:0 .6rem;border-radius:8px;border:1.5px solid var(--lp-border,#e6d9dd);background:'+(disabled?'#f4eef0':'#fff')+';color:var(--lp-ink,#2b2226);font-family:inherit;font-weight:700;font-size:1rem;cursor:'+(disabled?'default':'pointer')+';opacity:'+(disabled?'.45':'1');
+  if(!disabled) b.onclick=fn;
+  return b;
+}
+function plPaginateGrid(grid, perPage, stateKey, cardSelector){
+  if(!grid) return;
+  var pagerId=grid.id+'-pager';
+  var oldP=document.getElementById(pagerId); if(oldP) oldP.remove();
+  var cards=Array.prototype.filter.call(grid.children, function(el){
+    return el.nodeType===1 && (!cardSelector || (el.matches && el.matches(cardSelector)));
+  });
+  if(cards.length<=perPage){
+    cards.forEach(function(c){ if(c.dataset.plHidden){ c.style.display=''; delete c.dataset.plHidden; } });
+    return;
+  }
+  var pages=Math.ceil(cards.length/perPage);
+  var cur=plPageState[stateKey]||1; if(cur>pages)cur=pages; if(cur<1)cur=1;
+  function show(page){
+    plPageState[stateKey]=page;
+    cards.forEach(function(c,i){
+      var on=(Math.floor(i/perPage)+1)===page;
+      c.style.display=on?'':'none';
+      if(on) delete c.dataset.plHidden; else c.dataset.plHidden='1';
+    });
+    var op=document.getElementById(pagerId); if(op) op.remove();
+    var pager=document.createElement('div'); pager.id=pagerId;
+    pager.style.cssText='display:flex;align-items:center;justify-content:center;gap:.6rem;margin:1rem auto 0;max-width:720px';
+    pager.appendChild(plPagerBtn('\u2039', page<=1, function(){ show(page-1); }));
+    var lbl=document.createElement('span'); lbl.textContent='Page '+page+' of '+pages;
+    lbl.style.cssText='font-size:.8rem;font-weight:700;color:var(--lp-muted,#7d6b72);min-width:96px;text-align:center';
+    pager.appendChild(lbl);
+    pager.appendChild(plPagerBtn('\u203a', page>=pages, function(){ show(page+1); }));
+    grid.parentNode.insertBefore(pager, grid.nextSibling);
+  }
+  show(cur);
+}
+function plUnpaginate(grid){
+  if(!grid) return;
+  var oldP=document.getElementById(grid.id+'-pager'); if(oldP) oldP.remove();
+  Array.prototype.forEach.call(grid.children, function(c){
+    if(c.dataset && c.dataset.plHidden){ c.style.display=''; delete c.dataset.plHidden; }
+  });
+}
 function trkViewMode(key){
   try{ return localStorage.getItem('patternly_trk_view_'+key)==='list' ? 'list' : 'grid'; }catch(e){ return 'grid'; }
 }
@@ -20121,6 +20186,9 @@ function trkSetupViewToggle(key, togId, gridId){
       try{ localStorage.setItem('patternly_trk_view_'+key, b.dataset.m); }catch(e){}
       trkApplyView(grid, b.dataset.m); mark();
       if(grid._sliderUpd) grid._sliderUpd();
+      if(gridId==='trk-mykits-grid'){
+        if(b.dataset.m==='list') plPaginateGrid(grid, 5, 'trkkits'); else plUnpaginate(grid);
+      }
     };
   });
 }
@@ -22703,8 +22771,18 @@ const trkCtx=trkCanvas.getContext('2d');
   window.addEventListener('resize', ()=>{ if(trackerGrid) renderTracker(); });
 })();
 
+// Light-up completed stitches (full-view only): marked stitches glow instead of
+// dimming, so finished areas read from a distance. Persisted across sessions.
+let trkLightUpOn=false;
+try{ trkLightUpOn = localStorage.getItem('patternly_trk_lightup')==='1'; }catch(e){}
+function trkSetLightUp(on){
+  trkLightUpOn=!!on;
+  try{ localStorage.setItem('patternly_trk_lightup', on?'1':'0'); }catch(e){}
+  if(typeof renderTracker==='function' && trackerGrid) renderTracker();
+}
 function renderTracker(){
   if(!trackerGrid) return;
+  const trkLightUpDraw = trkLightUpOn && document.body.classList.contains('trk-fs');
   const vp=trkViewport();
   // Coordinate-ruler gutter: a fixed margin (px) reserved along the top and left
   // so the 10/20/30 numbers sit OUTSIDE the stitches, never on top of them. Width
@@ -22875,14 +22953,25 @@ function renderTracker(){
       }
       if(stitched){
         if(ghost){ trkCtx.fillStyle='rgba(255,255,255,0.35)'; trkCtx.fillRect(x+1,y+1,cell-1,cell-1); continue; }
-        trkCtx.fillStyle='rgba(255,255,255,0.55)';
-        trkCtx.fillRect(x+1,y+1,cell-1,cell-1);
-        trkCtx.strokeStyle='rgba(45,42,53,0.7)';
-        trkCtx.lineWidth=Math.max(1.5,cell*0.14);
-        trkCtx.beginPath();
-        trkCtx.moveTo(x+cell*0.18,y+cell*0.18); trkCtx.lineTo(x+cell*0.82,y+cell*0.82);
-        trkCtx.moveTo(x+cell*0.82,y+cell*0.18); trkCtx.lineTo(x+cell*0.18,y+cell*0.82);
-        trkCtx.stroke();
+        if(trkLightUpDraw){
+          // Light-up: the base fill already painted the full colour; keep it
+          // vivid (no dimming wash) and add a glossy sheen + bright ring so the
+          // finished stitch "lights up" against the un-worked chart.
+          trkCtx.fillStyle='rgba(255,255,255,0.28)';
+          trkCtx.fillRect(x+1,y+1,cell-1,Math.max(1,(cell-1)*0.5));
+          trkCtx.strokeStyle='rgba(255,255,255,0.6)';
+          trkCtx.lineWidth=Math.max(1,cell*0.08);
+          trkCtx.strokeRect(x+1.5,y+1.5,cell-2,cell-2);
+        } else {
+          trkCtx.fillStyle='rgba(255,255,255,0.55)';
+          trkCtx.fillRect(x+1,y+1,cell-1,cell-1);
+          trkCtx.strokeStyle='rgba(45,42,53,0.7)';
+          trkCtx.lineWidth=Math.max(1.5,cell*0.14);
+          trkCtx.beginPath();
+          trkCtx.moveTo(x+cell*0.18,y+cell*0.18); trkCtx.lineTo(x+cell*0.82,y+cell*0.82);
+          trkCtx.moveTo(x+cell*0.82,y+cell*0.18); trkCtx.lineTo(x+cell*0.18,y+cell*0.82);
+          trkCtx.stroke();
+        }
       }
     }
   }
@@ -23861,6 +23950,34 @@ async function trkCloudPull(){
       trkCloudPush();          // local had extras too — put the union back
     }
   }catch(e){ console.warn('[tracker] cloud pull failed', e); }
+}
+// Pull-back for UPLOADED patterns (no SKU): mirror the kit reconciliation so
+// marks made on another device sync BACK here too. Union merge (only ever ADDS
+// account marks, never unmarks), keyed by the chart's content-hash sync id, so
+// it needs no timestamps and converges across devices.
+async function trkUserPatternPull(){
+  if(trkCloudSku || !trackerGrid || !trackerActiveProjectKey) return;   // kits use trkCloudPull
+  try{
+    const blob=localStorage.getItem('patternly_trk_proj_'+trackerActiveProjectKey);
+    if(!blob) return;
+    const safeId=trkSyncIdFromBlob(blob, trackerActiveProjectKey);
+    if(!safeId) return;
+    const data=await trkUserPatternFetchProgress(safeId);
+    if(!data || typeof data!=='string' || data.indexOf('|')<0) return;
+    const lines=data.split('|');
+    let added=0;
+    for(let y=0;y<trackerGrid.rows && y<lines.length;y++){
+      const ln=lines[y];
+      for(let x=0;x<trackerGrid.cols && x<ln.length;x++){
+        if(ln[x]==='1' && !trackerStitched[y][x]){ trackerStitched[y][x]=true; added++; }
+      }
+    }
+    if(added){
+      renderTracker(); updateTrackerProgressUI();
+      saveTrackerProgress();   // persist the union locally + queue the push back
+      toast(added.toLocaleString()+' stitches synced from your account');
+    }
+  }catch(e){ console.warn('[tracker] user-pattern pull failed', e); }
 }
 function saveTrackerProgress(){
   clearTimeout(_trkSaveT);
@@ -25949,6 +26066,7 @@ async function acctRenderPatterns(){
       +(unpublished.length===1?' — no Patternly chart for that kit yet.':' — no Patternly charts for those kits yet.');
     grid.appendChild(note);
   }
+  plPaginateGrid(grid, 8, 'acctkits', '.acct-pat-card');
 }
 // Live sign-in status: /whoami travels through the App Proxy, so Shopify signs
 // it too — Patternly can re-check without reloading (editor state stays safe).
@@ -27074,6 +27192,20 @@ function trkFsPanel(kind){
     const btn=document.getElementById('fsb-colours'); if(btn) btn.classList.add('active');
   } else if(kind==='settings'){
     title.textContent='Settings';
+    // Light-up toggle at the top of Settings (full-view only). Fresh node each
+    // open; remove any prior one first so it never stacks.
+    (function(){
+      var old=document.getElementById('trk-fs-lightup-wrap'); if(old) old.remove();
+      var w=document.createElement('div'); w.id='trk-fs-lightup-wrap';
+      w.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:.7rem;margin:0 0 .9rem;padding:0 0 .9rem;border-bottom:1px solid var(--lp-border,#f0e6ea)';
+      var lab=document.createElement('div');
+      lab.style.cssText='font-size:.82rem;font-weight:700;color:var(--lp-ink,#2b2226)';
+      lab.innerHTML='Light up completed stitches<div style=\'font-size:.68rem;font-weight:500;color:var(--lp-muted,#7d6b72);margin-top:.15rem\'>Finished stitches glow so your progress reads from a distance</div>';
+      var sw=document.createElement('label'); sw.className='trk-lu-switch';
+      sw.innerHTML='<input type=\'checkbox\''+(trkLightUpOn?' checked':'')+'><span class=\'trk-lu-slider\'></span>';
+      sw.querySelector('input').addEventListener('change',function(){ trkSetLightUp(this.checked); });
+      w.appendChild(lab); w.appendChild(sw); body.appendChild(w);
+    })();
     const pop=document.getElementById('trk-grid-pop');
     if(pop){ pop.classList.add('open'); pop.style.position='static'; pop.style.width='auto';
              pop.style.border='none'; pop.style.boxShadow='none'; pop.style.padding='0'; body.appendChild(pop); }
@@ -28913,7 +29045,7 @@ document.querySelectorAll('#lp-nav a[href^="#"]').forEach(a=>{
 
 <script>
 (function(){
-  var IF_SCALE={small:0.85, medium:1.0, large:1.18, xl:1.38};
+  var IF_SCALE={small:0.85, medium:1.0, large:1.18};
   var IF_KEY='patternly_ui_scale';
   function appWrap(){ return document.getElementById('app-wrapper'); }
   function ifClose(){ var p=document.getElementById('ifsize-pop'); if(p) p.classList.remove('open'); }
