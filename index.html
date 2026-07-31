@@ -22967,27 +22967,28 @@ function renderTracker(){
           }
         }
       }
-      if(trkLightUpDraw && !stitched && !ghost){
-        // Light-up mode: fade the un-worked cells right back so the finished
-        // stitches stand out sharply against them.
-        trkCtx.fillStyle='rgba(255,255,255,0.6)';
-        trkCtx.fillRect(x+1,y+1,cell-1,cell-1);
-      }
       if(stitched){
         if(ghost){ trkCtx.fillStyle='rgba(255,255,255,0.35)'; trkCtx.fillRect(x+1,y+1,cell-1,cell-1); continue; }
         if(trkLightUpDraw){
-          // Light-up: brighten the finished stitch and ring it brightly so it
-          // GLOWS against the dimmed un-worked chart.
-          if(col){
-            const br=(v)=>Math.round(v+(255-v)*0.16);
-            trkCtx.fillStyle=`rgb(${br(col.r)},${br(col.g)},${br(col.b)})`;
-            trkCtx.fillRect(x+1,y+1,cell-1,cell-1);
+          // Completed stitches LIGHT UP as a bright red dot on each finished
+          // cell, so worked areas read clearly from a distance. (Default OFF.)
+          const cx=x+cell/2, cy=y+cell/2, rad=Math.max(1.5,(cell-1)*0.38);
+          trkCtx.fillStyle='rgba(233,42,44,0.95)';
+          trkCtx.beginPath(); trkCtx.arc(cx,cy,rad,0,6.2832); trkCtx.fill();
+          // Keep the cell's symbol readable ON TOP of the dot when zoomed in
+          // (white glyph / light sprite, since the red dot is dark).
+          if(showSymbol){
+            const part=partAt(r,c);
+            if(useChartFont){
+              const g=chartGlyphAt(r,c);
+              if(g && fontMiss(g)){ const spr=trackerSprites[sym]; if(spr) drawSprite(spr.light, x, y, part); }
+              else if(g){ trkCtx.fillStyle='rgba(255,255,255,0.95)'; drawGlyph(g, chartFontPx, x, y, part, trkChartFontStack); }
+            } else {
+              const spr=trackerSprites[sym];
+              if(spr){ drawSprite(spr.light, x, y, part); }
+              else { trkCtx.fillStyle='rgba(255,255,255,0.95)'; drawGlyph((sym.length>1?sym[0]:sym)+'\uFE0E', fontSize, x, y, part, '"PatternlySymbols","Segoe UI Symbol","Noto Sans Symbols",Arial,sans-serif'); }
+            }
           }
-          trkCtx.fillStyle='rgba(255,255,255,0.34)';
-          trkCtx.fillRect(x+1,y+1,cell-1,Math.max(1,(cell-1)*0.5));
-          trkCtx.strokeStyle='rgba(255,255,255,0.9)';
-          trkCtx.lineWidth=Math.max(1.4,cell*0.11);
-          trkCtx.strokeRect(x+1.7,y+1.7,cell-2.4,cell-2.4);
         } else {
           trkCtx.fillStyle='rgba(255,255,255,0.55)';
           trkCtx.fillRect(x+1,y+1,cell-1,cell-1);
