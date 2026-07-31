@@ -1839,6 +1839,11 @@ async function handleRequest(context) {
       // How many Editor designs a Plus account may sync. Named so it can vary by
       // env without a code change.
       const EDITOR_PATTERN_CAP = (env.EDITOR_PATTERN_CAP | 0) || 50;
+      // Rolling expiry: every save refreshes it, so an active member's designs
+      // never expire, while a lapsed member's cloud copies age out and delete
+      // themselves after this window (their browser copies are never touched).
+      const EDITOR_PATTERN_TTL_DAYS = (env.EDITOR_PATTERN_TTL_DAYS | 0) || 90;
+      const EDITOR_PATTERN_TTL_SEC = Math.max(86400, EDITOR_PATTERN_TTL_DAYS * 86400);
 
       const tail = url.pathname.slice(epAt + MARKEP.length).replace(/^\/+/, "");
       const id = decodeURIComponent(tail).trim();
@@ -1921,7 +1926,7 @@ async function handleRequest(context) {
           cols: body.cols | 0, rows: body.rows | 0, threads: body.threads | 0,
           savedAt: body.savedAt | 0, ts: Date.now()
         };
-        await env.ENTITLEMENTS.put(metaKey, JSON.stringify(rec));
+        await env.ENTITLEMENTS.put(metaKey, JSON.stringify(rec), { expirationTtl: EDITOR_PATTERN_TTL_SEC });
         return new Response(JSON.stringify({ ok: true, id, ts: rec.ts }), {
           headers: { "content-type": "application/json", "cache-control": "no-store" }
         });
