@@ -7362,6 +7362,24 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 <!-- ══════════════════════════════════════════════════════════
      APP (hidden until user clicks "Open Editor")
 ══════════════════════════════════════════════════════════ -->
+<style id="ifsize-css">
+#app-wrapper{--ui-scale:1}
+#app-wrapper #topbar, #app-wrapper #sidebar, #app-wrapper #right-panel{ zoom:var(--ui-scale,1); }
+#ifsize-btn{width:34px;height:34px;border:1.5px solid #eadde1;background:#fff;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);flex-shrink:0;transition:border-color .15s,color .15s;padding:0}
+#ifsize-btn:hover{border-color:var(--accent);color:var(--accent)}
+#ifsize-pop{display:none;position:absolute;top:calc(100% + 8px);right:0;z-index:100060;background:#fff;border:1.5px solid #eadde1;border-radius:12px;box-shadow:0 12px 34px rgba(43,34,38,.20);padding:.55rem;width:210px}
+#ifsize-pop.open{display:block}
+.ifsize-ttl{font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:.1rem .25rem .45rem}
+.ifsize-grid{display:grid;grid-template-columns:1fr 1fr;gap:.35rem}
+.ifsize-opt{padding:.5rem .4rem;border-radius:8px;border:1.5px solid #efe0e2;background:#fafafa;color:var(--ink);font-family:inherit;font-size:.77rem;font-weight:700;cursor:pointer;transition:all .12s}
+.ifsize-opt:hover{border-color:var(--accent)}
+.ifsize-opt.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.ifsize-note{font-size:.64rem;color:var(--muted);padding:.45rem .25rem 0;line-height:1.35}
+body.dark #ifsize-btn{background:#241c30;border-color:#3a2f47;color:#c9bcd0}
+body.dark #ifsize-pop{background:#241c30;border-color:#3a2f47}
+body.dark .ifsize-opt{background:#2e2540;border-color:#463a55;color:#f2ecf4}
+body.dark .ifsize-note,body.dark .ifsize-ttl{color:#a596ab}
+</style>
 <div id="app-wrapper" style="display:none;flex-direction:column;height:100vh;overflow:hidden">
 
 <div id="topbar">
@@ -7420,7 +7438,23 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <div id="zoom-label">100%</div>
       <button class="zoom-btn" id="zoom-in" title="Zoom in">+</button>
     </div>
-    <button class="btn btn-ghost" id="clear-btn" data-i18n="ed.clear">Clear</button>
+    <span id="ifsize-wrap" style="position:relative;display:inline-flex">
+      <button id="ifsize-btn" title="Interface size" aria-label="Interface size" onclick="ifToggle(event)">
+        <svg viewBox="0 0 24 24" width="20" height="20"><text x="0.5" y="19" font-size="16" font-weight="800" fill="currentColor" font-family="'DM Sans',sans-serif">A</text><text x="12.5" y="19" font-size="10.5" font-weight="800" fill="currentColor" font-family="'DM Sans',sans-serif">A</text></svg>
+      </button>
+      <div id="ifsize-pop">
+        <div class="ifsize-ttl">Interface size</div>
+        <div class="ifsize-grid">
+          <button class="ifsize-opt" data-sz="small" onclick="ifSetSize('small')">Small</button>
+          <button class="ifsize-opt" data-sz="medium" onclick="ifSetSize('medium')">Medium</button>
+          <button class="ifsize-opt" data-sz="large" onclick="ifSetSize('large')">Large</button>
+          <button class="ifsize-opt" data-sz="xl" onclick="ifSetSize('xl')">Extra Large</button>
+        </div>
+        <div class="ifsize-note">Scales the menus and controls. Canvas zoom isn't affected.</div>
+      </div>
+    </span>
+    
+<button class="btn btn-ghost" id="clear-btn" data-i18n="ed.clear">Clear</button>
     <span id="save-state" title="Your work saves by itself" style="font-size:.72rem;color:var(--muted);padding:0 .5rem;white-space:nowrap;align-self:center"></span>
     <button class="btn btn-ghost" id="save-btn" onclick="pjExplicitSave()" title="Save to this browser"><svg class="tb-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3H18V21L12 16.5L6 21Z"/></svg> <span data-i18n="ed.save">Save</span></button>
     <button class="btn btn-download" id="download-btn"><svg class="tb-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V16.5M8.5 13l3.5 3.5 3.5-3.5"/></svg> <span data-i18n="ed.download">Download</span></button>
@@ -15808,10 +15842,11 @@ async function edpAfterRender(wrap){
   const missing=info.items.filter(it=>!localIds.has(it.id) && !tombSet.has(it.id));
   if(!missing.length) return;
 
-  const hdr=document.createElement('div');
-  hdr.style.cssText='grid-column:1/-1;margin:1.3rem 0 .2rem;font-size:.8rem;font-weight:700;color:#8B1A2B';
-  hdr.textContent='On your account — tap to continue on this device';
-  wrap.appendChild(hdr);
+  // Merge account-only designs into the SAME "My Patterns" grid — no separate
+  // section heading. The cloud icon + "Continue on this device" button already
+  // mark them as not-yet-on-this-device. Clear any cloud cards left from a
+  // previous pass first so re-renders never stack duplicates.
+  wrap.querySelectorAll('.pj-cloud').forEach(el=>el.remove());
   for(const it of missing){
     const card=document.createElement('div'); card.className='pj-card pj-cloud';
     const thumb=document.createElement('div'); thumb.className='pj-thumb';
@@ -19768,21 +19803,51 @@ async function trkContinueFromAccount(it, card){
   const setS=(m)=>{ if(st){ st.style.display=''; st.textContent=m; } };
   setS('Downloading\u2026');
   let blob;
-  try{ blob = await trkUserPatternFetch(it.id); }catch(e){}
+  try{ blob = await trkUserPatternFetch(it.id); }catch(e){ console.error('[trk] continue: fetch failed', e); }
   if(!blob){ setS('Couldn\u2019t download this pattern. Try again.'); return; }
+  // 1) Validate the download is a real, openable project BEFORE storing it.
+  let parsed;
+  try{ parsed = JSON.parse(blob); }catch(e){ console.error('[trk] continue: blob not JSON', e); }
+  if(!parsed || !parsed.legend || typeof parsed.cells!=='string' || !parsed.cols || !parsed.rows){
+    console.error('[trk] continue: blob missing fields', parsed && Object.keys(parsed));
+    setS('This synced copy looks incomplete \u2014 open it once on the device it was made on so it can re-sync, then try again.');
+    return;
+  }
+  const baseKey = (it.name||'pattern').replace(/[^A-Za-z0-9_]/g,'_') || 'pattern';
+  const localId = trkUniqueLocalKey(baseKey);
+  // 2) Store the blob. localStorage can be full on a device that already holds
+  //    several patterns (including, when testing, the copy this was pushed from).
   try{
-    // Give it a fresh local key, store the blob, register it in the index, then
-    // open it exactly like any locally-saved pattern.
-    const baseKey = (it.name||'pattern').replace(/[^A-Za-z0-9_]/g,'_') || 'pattern';
-    const localId = trkUniqueLocalKey(baseKey);
     localStorage.setItem('patternly_trk_proj_'+localId, blob);
+  }catch(e){
+    console.error('[trk] continue: setItem quota', e);
+    setS('Not enough space on this device to open this pattern. Remove another tracked pattern, then try again.');
+    return;
+  }
+  // 3) Register it in the index.
+  try{
     const list=trkIndex().filter(p=>p.id!==localId);
     list.unshift({id:localId, name:it.name||'My pattern', cols:it.cols, rows:it.rows,
       total:it.total, done:it.done, ts:Date.now(), sku:null,
       threads:it.threads, sessions:it.sessions||{}});
     trkIndexWrite(list);
-    await trkOpenProject(localId);
-  }catch(e){ setS('Couldn\u2019t open this pattern.'); }
+  }catch(e){
+    console.error('[trk] continue: index write failed', e);
+    try{ localStorage.removeItem('patternly_trk_proj_'+localId); }catch(_){}
+    setS('Couldn\u2019t save this pattern on this device. Try again.');
+    return;
+  }
+  // 4) Open it like any locally-saved pattern. trkOpenProject swallows its own
+  //    errors, so confirm the workspace actually opened and report precisely.
+  try{ await trkOpenProject(localId); }catch(e){ console.error('[trk] continue: open threw', e); }
+  const ws=document.getElementById('trk-workspace');
+  const opened = ws && ws.style.display!=='none' && trackerActiveProjectKey===localId;
+  if(!opened){
+    console.error('[trk] continue: open did not complete for', localId);
+    try{ localStorage.removeItem('patternly_trk_proj_'+localId);
+         trkIndexWrite(trkIndex().filter(p=>p.id!==localId)); }catch(_){}
+    setS('Downloaded fine, but this device couldn\u2019t open it. If it keeps happening, let us know \u2014 the copy on your account is safe.');
+  }
 }
 // Rename an account pattern (and its local copy if present).
 function trkRenameUserPattern(it, card){
@@ -28759,6 +28824,36 @@ document.querySelectorAll('#lp-nav a[href^="#"]').forEach(a=>{
     if(!ROUTES[name]) return;
     setTimeout(()=>apply(name, arg && decodeURIComponent(arg)), 0);
   });
+})();
+</script>
+
+<script>
+(function(){
+  var IF_SCALE={small:0.85, medium:1.0, large:1.18, xl:1.38};
+  var IF_KEY='patternly_ui_scale';
+  function appWrap(){ return document.getElementById('app-wrapper'); }
+  function ifClose(){ var p=document.getElementById('ifsize-pop'); if(p) p.classList.remove('open'); }
+  window.ifSetSize=function(sz){
+    if(!IF_SCALE[sz]) sz='medium';
+    var w=appWrap(); if(w) w.style.setProperty('--ui-scale', IF_SCALE[sz]);
+    try{ localStorage.setItem(IF_KEY, sz); }catch(e){}
+    document.querySelectorAll('.ifsize-opt').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-sz')===sz); });
+    ifClose();
+    requestAnimationFrame(function(){
+      try{ window.dispatchEvent(new Event('resize')); }catch(e){}
+      try{ if(typeof render==='function') render(); }catch(e){}
+      try{ if(typeof fitZoomToView==='function') fitZoomToView(); }catch(e){}
+    });
+  };
+  window.ifToggle=function(ev){ if(ev){ ev.stopPropagation(); } var p=document.getElementById('ifsize-pop'); if(p) p.classList.toggle('open'); };
+  document.addEventListener('click', function(e){ var w=document.getElementById('ifsize-wrap'); if(w && !w.contains(e.target)) ifClose(); });
+  function ifApply(){
+    var sz='medium';
+    try{ var s=localStorage.getItem(IF_KEY); if(s && IF_SCALE[s]) sz=s; }catch(e){}
+    var w=appWrap(); if(w) w.style.setProperty('--ui-scale', IF_SCALE[sz]);
+    document.querySelectorAll('.ifsize-opt').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-sz')===sz); });
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', ifApply); else ifApply();
 })();
 </script>
 
