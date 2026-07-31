@@ -15844,6 +15844,12 @@ async function edpPush(id){
   finally{ _edpBusy=false; }
 }
 function edpQueuePush(id){ if(!edpEnabled()||!id) return; clearTimeout(_edpPushT); _edpPushT=setTimeout(()=>edpPush(id), 4000); }
+// Flush the debounced Editor push immediately when the tab/app is backgrounded,
+// so an edit made here reaches the account BEFORE switching to another device
+// (otherwise the 4s debounce can miss it and the other device pulls nothing new).
+function edpFlushNow(){ try{ if(_edpPushT){ clearTimeout(_edpPushT); _edpPushT=null; } if(typeof currentProjectId!=='undefined' && currentProjectId && typeof edpPush==='function') edpPush(currentProjectId); }catch(e){} }
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) edpFlushNow(); });
+window.addEventListener('pagehide', edpFlushNow);
 async function edpList(){
   if(!edpEnabled()) return null;
   try{ const r=await fetch(edpUrl(''),{credentials:'include',cache:'no-store'}); if(!r.ok) return null; return await r.json(); }
@@ -22951,17 +22957,27 @@ function renderTracker(){
           }
         }
       }
+      if(trkLightUpDraw && !stitched && !ghost){
+        // Light-up mode: fade the un-worked cells right back so the finished
+        // stitches stand out sharply against them.
+        trkCtx.fillStyle='rgba(255,255,255,0.6)';
+        trkCtx.fillRect(x+1,y+1,cell-1,cell-1);
+      }
       if(stitched){
         if(ghost){ trkCtx.fillStyle='rgba(255,255,255,0.35)'; trkCtx.fillRect(x+1,y+1,cell-1,cell-1); continue; }
         if(trkLightUpDraw){
-          // Light-up: the base fill already painted the full colour; keep it
-          // vivid (no dimming wash) and add a glossy sheen + bright ring so the
-          // finished stitch "lights up" against the un-worked chart.
-          trkCtx.fillStyle='rgba(255,255,255,0.28)';
+          // Light-up: brighten the finished stitch and ring it brightly so it
+          // GLOWS against the dimmed un-worked chart.
+          if(col){
+            const br=(v)=>Math.round(v+(255-v)*0.16);
+            trkCtx.fillStyle=`rgb(${br(col.r)},${br(col.g)},${br(col.b)})`;
+            trkCtx.fillRect(x+1,y+1,cell-1,cell-1);
+          }
+          trkCtx.fillStyle='rgba(255,255,255,0.34)';
           trkCtx.fillRect(x+1,y+1,cell-1,Math.max(1,(cell-1)*0.5));
-          trkCtx.strokeStyle='rgba(255,255,255,0.6)';
-          trkCtx.lineWidth=Math.max(1,cell*0.08);
-          trkCtx.strokeRect(x+1.5,y+1.5,cell-2,cell-2);
+          trkCtx.strokeStyle='rgba(255,255,255,0.9)';
+          trkCtx.lineWidth=Math.max(1.4,cell*0.11);
+          trkCtx.strokeRect(x+1.7,y+1.7,cell-2.4,cell-2.4);
         } else {
           trkCtx.fillStyle='rgba(255,255,255,0.55)';
           trkCtx.fillRect(x+1,y+1,cell-1,cell-1);
