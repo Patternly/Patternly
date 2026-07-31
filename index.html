@@ -20118,11 +20118,14 @@ function trkShowHomeInner(list){
     // per-account, not per-device). "Reset synced" wipes them so a full account
     // can't silently block new syncs while we get to the bottom of this.
     (async()=>{ try{
+      const a=(typeof lucasAuth==='function'?lucasAuth():{})||{};
       const info=await trkUserPatternList();
       const el=document.getElementById('trk-acct-dbg'); if(!el) return;
       const used=(info&&info.used)||0, cap=(info&&info.cap)||5;
+      const idShort = a.customerId ? ('id\u2026'+String(a.customerId).slice(-6)) : 'no id';
+      const who = a.loggedIn ? ((a.email ? a.email : idShort)+(a.plus?' \u00b7 Plus':' \u00b7 NOT Plus')) : 'NOT SIGNED IN';
       const names=((info&&info.items)||[]).map(it=>String(it.name||'?')).join(', ');
-      el.innerHTML=used+'/'+cap+' on account'+(names?(' ('+names+')'):'')
+      el.innerHTML='<b style="color:#8B1A2B">ACCOUNT: '+who+'</b> \u00b7 '+used+'/'+cap+' synced'+(names?(' ('+names+')'):'')
         +' \u00b7 <a href="#" onclick="trkClearAccount().then(()=>trkShowHome());return false" style="color:#8B1A2B;font-weight:700;text-decoration:none">Reset synced</a>';
     }catch(e){} })();
   }
