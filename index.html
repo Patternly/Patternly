@@ -20112,22 +20112,7 @@ function trkShowHomeInner(list){
   const upHead=document.getElementById('trk-uploads-head');
   if(upHead){
     upHead.innerHTML='My Tracked Patterns '
-      +'<a href="#" onclick="trkImportPick();return false" style="font-family:inherit;font-size:.72rem;font-weight:700;color:var(--lp-red,#8B1A2B);text-decoration:none;margin-left:.6rem">\u2b06 Restore a backup</a>'
-      +' <span id="trk-acct-dbg" style="font-family:inherit;font-size:.7rem;font-weight:600;color:#7d6b72;margin-left:.6rem"></span>';
-    // DIAGNOSTIC: show how many uploaded patterns are on the ACCOUNT (the 5-cap is
-    // per-account, not per-device). "Reset synced" wipes them so a full account
-    // can't silently block new syncs while we get to the bottom of this.
-    (async()=>{ try{
-      const a=(typeof lucasAuth==='function'?lucasAuth():{})||{};
-      const info=await trkUserPatternList();
-      const el=document.getElementById('trk-acct-dbg'); if(!el) return;
-      const used=(info&&info.used)||0, cap=(info&&info.cap)||5;
-      const idShort = a.customerId ? ('id\u2026'+String(a.customerId).slice(-6)) : 'no id';
-      const who = a.loggedIn ? ((a.email ? a.email : idShort)+(a.plus?' \u00b7 Plus':' \u00b7 NOT Plus')) : 'NOT SIGNED IN';
-      const names=((info&&info.items)||[]).map(it=>String(it.name||'?')).join(', ');
-      el.innerHTML='<b style="color:#8B1A2B">ACCOUNT: '+who+'</b> \u00b7 '+used+'/'+cap+' synced'+(names?(' ('+names+')'):'')
-        +' \u00b7 <a href="#" onclick="trkClearAccount().then(()=>trkShowHome());return false" style="color:#8B1A2B;font-weight:700;text-decoration:none">Reset synced</a>';
-    }catch(e){} })();
+      +'<a href="#" onclick="trkImportPick();return false" style="font-family:inherit;font-size:.72rem;font-weight:700;color:var(--lp-red,#8B1A2B);text-decoration:none;margin-left:.6rem">\u2b06 Restore a backup</a>';
   }
   if(upGrid){
     trkRenderProjectCards(upGrid, uploadsLocal, false);
@@ -23764,15 +23749,11 @@ let _trkUpBusy=false, _trkUpT=null, _trkLastSyncedKey=null;
 async function trkUserPatternPush(){
   // Only for uploaded patterns (kits go through trkCloudPush). Needs a signed-in
   // account and a loaded project.
-  if(trkCloudSku || _trkUpBusy) return;   // kit open or a push already in flight — normal
-  if(!trackerLegend || !trackerGrid || !trackerColourMap){ if(window._trkSyncDebug&&typeof toast==='function') toast('sync skip: no pattern loaded'); return; }
-  if(typeof trkPlusOk==='function' && !trkPlusOk()){
-    if(typeof toast==='function') toast('\u26a0 Sync skipped \u2014 tracker sync needs a Plus account signed in on THIS device.', 6000);
-    console.warn('[tracker] sync skipped: not Plus / not signed in', (typeof lucasAuth==='function'?lucasAuth():null));
-    return;
-  }
+  if(trkCloudSku || _trkUpBusy) return;
+  if(!trackerLegend || !trackerGrid || !trackerColourMap) return;
+  if(typeof trkPlusOk==='function' && !trkPlusOk()) return;   // tracker is Plus-only anyway
   const id = trackerActiveProjectKey;
-  if(!id){ if(window._trkSyncDebug&&typeof toast==='function') toast('sync skip: no active pattern id'); return; }
+  if(!id) return;
   // Full project blob is already in localStorage from trkSaveProject.
   let blob;
   try{ blob = localStorage.getItem('patternly_trk_proj_'+id); }catch(e){}
@@ -23786,13 +23767,6 @@ async function trkUserPatternPush(){
   // Unique per-pattern sync id from the content, so same-named files never collide.
   const safeId = trkSyncIdFromBlob(blob, id);
   if(!safeId) return;
-  // Snapshot the mutable grid state NOW, synchronously. There is an await below
-  // (name de-dup lists the account), and closing the pattern tears the grid down
-  // DURING that await — so a mark made just before exit would be read as null and
-  // lost. Capturing here makes an immediate mark-then-exit sync reliably.
-  const _upCols=trackerGrid.cols, _upRows=trackerGrid.rows;
-  const _upThreads=Object.keys(trackerColourMap||{}).length;
-  const _upProgress = trackerStitched ? trackerStitched.map(r=>r.map(v=>v?'1':'0').join('')).join('|') : null;
   // Progress: fold the stitched grid into the blob-carrying payload so a new
   // device restores both the chart and how far along it is.
   let done=0;
@@ -23848,11 +23822,10 @@ async function trkUserPatternPush(){
         name: displayName,
         blob,
         done, total,
-        cols: _upCols, rows: _upRows,
-        threads: _upThreads,
-        // packed stitched state, snapshotted before the await so a mark made
-        // right before closing the pattern still reaches the account
-        progress: _upProgress,
+        cols: trackerGrid.cols, rows: trackerGrid.rows,
+        threads: Object.keys(trackerColourMap||{}).length,
+        // include the packed stitched state so progress restores exactly
+        progress: (trackerStitched ? trackerStitched.map(r=>r.map(v=>v?'1':'0').join('')).join('|') : null),
         timeMs: idxRec.timeMs|0, sessions: Object.keys(idxRec.sessions||{}).length
       })
     });
@@ -23867,12 +23840,9 @@ async function trkUserPatternPush(){
       if(typeof toast==='function') toast('Sign in on this device to sync this pattern to your account.');
       console.warn('[tracker] user-pattern push refused: not signed in (401)');
     } else if(!r.ok){
-      let detail=''; try{ detail=(await r.text()||'').slice(0,220); }catch(e){}
-      const _mb=(blob.length/1048576).toFixed(2);
-      if(typeof toast==='function') toast('Sync failed (server '+r.status+', pattern is '+_mb+' MB)'+(detail?': '+detail:''), 10000);
-      console.warn('[tracker] user-pattern push refused', r.status, 'blobMB='+_mb, detail);
+      if(typeof toast==='function') toast('Couldn\u2019t sync this pattern to your account (server '+r.status+').');
+      console.warn('[tracker] user-pattern push refused', r.status);
     } else {
-      if(typeof toast==='function') toast('\u2713 Synced this pattern to your account', 3500);
       console.log('[tracker] user-pattern synced ok', safeId);
     }
   }catch(e){ console.warn('[tracker] user-pattern push failed', e); }
@@ -23951,26 +23921,6 @@ async function trkUserPatternFetchProgress(id){
 async function trkUserPatternDelete(id){
   try{ await fetch(trkUserPatternUrl(id), {method:'DELETE', credentials:'include'}); }catch(e){}
 }
-// DIAGNOSTIC helpers — call from the console on the tracker page.
-window.trkDebugAccount=async function(){
-  try{
-    const info=await trkUserPatternList();
-    console.log('[account] used/cap:', (info&&info.used), '/', (info&&info.cap), 'full:', (info&&info.full));
-    ((info&&info.items)||[]).forEach(it=>console.log('  -', it.id, '|', it.name, '|', (it.cols+'x'+it.rows), '| done', it.done+'/'+it.total));
-    if(typeof toast==='function') toast('Account: '+((info&&info.used)||0)+'/'+((info&&info.cap)||5)+' synced patterns', 6000);
-    return info;
-  }catch(e){ console.warn(e); }
-};
-window.trkClearAccount=async function(){
-  try{
-    const info=await trkUserPatternList();
-    const items=(info&&info.items)||[];
-    for(const it of items){ try{ await trkUserPatternDelete(it.id); console.log('deleted', it.id, it.name); }catch(e){} }
-    if(typeof toast==='function') toast('Cleared '+items.length+' synced pattern(s) from your account', 6000);
-    console.log('[account] cleared', items.length, 'pattern(s)');
-    return items.length;
-  }catch(e){ console.warn(e); }
-};
 let _trkCapNoticeShown=false;
 function trkUserCapNotice(info){
   if(_trkCapNoticeShown) return; _trkCapNoticeShown=true;
