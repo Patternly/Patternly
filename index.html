@@ -23767,6 +23767,13 @@ async function trkUserPatternPush(){
   // Unique per-pattern sync id from the content, so same-named files never collide.
   const safeId = trkSyncIdFromBlob(blob, id);
   if(!safeId) return;
+  // Snapshot the mutable grid state NOW, synchronously. There is an await below
+  // (name de-dup lists the account), and closing the pattern tears the grid down
+  // DURING that await — so a mark made just before exit would be read as null and
+  // lost. Capturing here makes an immediate mark-then-exit sync reliably.
+  const _upCols=trackerGrid.cols, _upRows=trackerGrid.rows;
+  const _upThreads=Object.keys(trackerColourMap||{}).length;
+  const _upProgress = trackerStitched ? trackerStitched.map(r=>r.map(v=>v?'1':'0').join('')).join('|') : null;
   // Progress: fold the stitched grid into the blob-carrying payload so a new
   // device restores both the chart and how far along it is.
   let done=0;
@@ -23822,10 +23829,11 @@ async function trkUserPatternPush(){
         name: displayName,
         blob,
         done, total,
-        cols: trackerGrid.cols, rows: trackerGrid.rows,
-        threads: Object.keys(trackerColourMap||{}).length,
-        // include the packed stitched state so progress restores exactly
-        progress: (trackerStitched ? trackerStitched.map(r=>r.map(v=>v?'1':'0').join('')).join('|') : null),
+        cols: _upCols, rows: _upRows,
+        threads: _upThreads,
+        // packed stitched state, snapshotted before the await so a mark made
+        // right before closing the pattern still reaches the account
+        progress: _upProgress,
         timeMs: idxRec.timeMs|0, sessions: Object.keys(idxRec.sessions||{}).length
       })
     });
@@ -23833,17 +23841,8 @@ async function trkUserPatternPush(){
       // Cap reached — this is a NEW pattern that won't fit. Tell the user once.
       let info={}; try{ info=await r.json(); }catch(e){}
       trkUserCapNotice(info);
-    } else if(r.status===413){
-      if(typeof toast==='function') toast('This pattern is too large to sync to your account.');
-      console.warn('[tracker] user-pattern push refused: too large (413)');
-    } else if(r.status===401){
-      if(typeof toast==='function') toast('Sign in on this device to sync this pattern to your account.');
-      console.warn('[tracker] user-pattern push refused: not signed in (401)');
     } else if(!r.ok){
-      if(typeof toast==='function') toast('Couldn\u2019t sync this pattern to your account (server '+r.status+').');
       console.warn('[tracker] user-pattern push refused', r.status);
-    } else {
-      console.log('[tracker] user-pattern synced ok', safeId);
     }
   }catch(e){ console.warn('[tracker] user-pattern push failed', e); }
   finally{ _trkUpBusy=false; }
