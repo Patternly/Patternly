@@ -23868,8 +23868,9 @@ async function trkUserPatternPush(){
       console.warn('[tracker] user-pattern push refused: not signed in (401)');
     } else if(!r.ok){
       let detail=''; try{ detail=(await r.text()||'').slice(0,220); }catch(e){}
-      if(typeof toast==='function') toast('Sync failed (server '+r.status+')'+(detail?': '+detail:''), 9000);
-      console.warn('[tracker] user-pattern push refused', r.status, detail);
+      const _mb=(blob.length/1048576).toFixed(2);
+      if(typeof toast==='function') toast('Sync failed (server '+r.status+', pattern is '+_mb+' MB)'+(detail?': '+detail:''), 10000);
+      console.warn('[tracker] user-pattern push refused', r.status, 'blobMB='+_mb, detail);
     } else {
       if(typeof toast==='function') toast('\u2713 Synced this pattern to your account', 3500);
       console.log('[tracker] user-pattern synced ok', safeId);
