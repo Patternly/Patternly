@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v48";
+const MW_VERSION = "v49";
 
 const enc = new TextEncoder();
 
@@ -1773,7 +1773,7 @@ async function handleRequest(context) {
         try { body = await request.json(); } catch (e) { return bad("bad body", 400); }
         if (typeof body.blob !== "string" || !body.blob) return bad("bad blob", 400);
         // Guard the blob size — an uploaded chart is a few hundred KB at most.
-        if (body.blob.length > 3_000_000) return bad("too large", 413);
+        if (body.blob.length > 12_000_000) return bad("too large", 413);   // was 3MB — too low for a 200x200 chart with an embedded font
 
         // Cap check: only when this id is NEW. Updating an existing synced
         // pattern is always allowed (it doesn't consume a new slot).
