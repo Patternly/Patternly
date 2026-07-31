@@ -4884,7 +4884,10 @@ body.dark.app-mode #xp-preview-card{filter:invert(1) hue-rotate(180deg)}
 /* v374 #4 — iPad (touch pointer, ≥821px): slim the editor header and shrink the
    logo. Scoped to coarse pointers so laptops/desktops keep the full header. */
 @media (min-width:821px) and (pointer:coarse){
-  :root{ --toolbar:64px; }
+  /* #4 — The app adds padding-top:(inset+6px) to #topbar; with box-sizing:border-box a fixed
+     64px height leaves too little room and the action buttons clip out the bottom. Grow the
+     bar by the inset so the usable height stays constant (~58px) and everything fits. */
+  :root{ --toolbar: calc(64px + env(safe-area-inset-top, 0px)); }
   body.app-mode .topbar-logo img{ height:40px !important; }
   /* #4 — On any touch tablet (iPad etc.), the full desktop header overflows. Collapse the
      desktop nav to the hamburger and compact the action buttons so the header fits any width. */
@@ -5770,7 +5773,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
           <select id="trk-chart-fmt">
             <option value="pdf">PDF</option>
             <option value="patternly">Patternly (.Ptly)</option>
-            <option value="oxs">OXS</option>
+            <option value="oxs">OXS (Plus)</option>
 
           </select>
         </div>
@@ -7103,7 +7106,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
         <div id="cv-tabs">
           <button data-t="size" class="active">Size</button>
           <button data-t="adjust">🎨 Adjust colours</button>
-          <button data-t="confetti">✨ Confetti</button>
+          <button data-t="confetti">✨ Confetti <small>Plus</small></button>
         </div>
         <div id="cv-tab-size">
         <div class="cv-label">Pattern size (stitches wide) — <span id="cv-w-val">100</span></div>
@@ -7188,7 +7191,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       <div class="xp-label" data-i18n="xp.filetype">File type</div>
       <div class="xp-seg" id="xp-filetype">
         <button data-v="pdf" class="active">PDF <small data-i18n="xp.suggested">Suggested</small></button>
-        <button data-v="oxs">OXS</button>
+        <button data-v="oxs">OXS <small>Plus</small></button>
         <button data-v="png">PNG</button>
       </div>
       <div class="xp-desc" id="xp-filetype-desc">Print-ready multi-page chart with thread key.</div>
@@ -8702,6 +8705,11 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
       </div>
       <div style="padding:.6rem .75rem;border-top:1px solid #efe0e2;flex-shrink:0">
         <button id="clear-palette-btn" style="width:100%;padding:.45rem;border-radius:7px;background:#f8ecee;border:none;cursor:pointer;font-size:.78rem;font-weight:600;color:var(--muted);font-family:inherit;transition:background .15s,color .15s">🗑 <span data-i18n="pal.clear">Clear Palette</span></button>
+        <div style="display:flex;align-items:center;gap:.4rem;margin-top:.45rem">
+          <span style="font-size:.7rem;color:var(--muted);font-weight:600;white-space:nowrap">Shopping list</span>
+          <button id="pal-export-csv" onclick="palExport('csv')" style="flex:1;padding:.4rem;border-radius:7px;background:#f4eef7;border:none;cursor:pointer;font-size:.72rem;font-weight:700;color:#6b4a7a;font-family:inherit">CSV <small style="opacity:.7">Plus</small></button>
+          <button id="pal-export-pdf" onclick="palExport('pdf')" style="flex:1;padding:.4rem;border-radius:7px;background:#f4eef7;border:none;cursor:pointer;font-size:.72rem;font-weight:700;color:#6b4a7a;font-family:inherit">PDF <small style="opacity:.7">Plus</small></button>
+        </div>
       </div>
     </div>
 
@@ -9248,6 +9256,8 @@ let undoStack = [], redoStack = [];
 // the current references back, covering code paths that REASSIGN the globals
 // (undo, resize, imports). Compositing: topmost visible layer wins per cell.
 const LY_MAX=10;
+const LY_FREE=3;   // free-plan layer cap; Plus unlocks all LY_MAX
+function lyCap(){ return (typeof lucasAuth==='function' && lucasAuth() && lucasAuth().plus) ? LY_MAX : LY_FREE; }
 let layers=null, activeLayerIdx=0, _lyNextId=2;
 function lyEnsure(){
   if(!layers){
@@ -9308,7 +9318,11 @@ function lySetActive(i){
 }
 function lyAddLayer(){
   lyEnsure();
-  if(layers.length>=LY_MAX){ toast(`Maximum ${LY_MAX} layers`); return; }
+  if(layers.length>=lyCap()){
+    if(lyCap()<LY_MAX){ toast('Free plan: up to '+LY_FREE+' layers \u2014 upgrade to Plus for all '+LY_MAX); if(typeof openPricing==='function') openPricing(); }
+    else { toast(`Maximum ${LY_MAX} layers`); }
+    return;
+  }
   lySyncActive();
   const g=Array.from({length:ROWS},()=>Array(COLS).fill(null));
   const sg=Array.from({length:ROWS},()=>Array.from({length:COLS},()=>['full']));
@@ -9363,7 +9377,11 @@ function lyRenameActive(){
 }
 function lyDuplicateActive(){
   lyEnsure();
-  if(layers.length>=LY_MAX){ toast(`Maximum ${LY_MAX} layers`); return; }
+  if(layers.length>=lyCap()){
+    if(lyCap()<LY_MAX){ toast('Free plan: up to '+LY_FREE+' layers \u2014 upgrade to Plus for all '+LY_MAX); if(typeof openPricing==='function') openPricing(); }
+    else { toast(`Maximum ${LY_MAX} layers`); }
+    return;
+  }
   lySyncActive();
   const L=layers[activeLayerIdx];
   const copy={
@@ -9480,7 +9498,7 @@ function buildLayersPanel(){
     list.appendChild(row);
   }
   const cnt=document.getElementById('ly-count');
-  if(cnt) cnt.textContent=`${layers.length}/${LY_MAX} layers`;
+  if(cnt) cnt.textContent=`${layers.length}/${lyCap()} layers`;
 }
 let activeTool = 'draw';
 let stitchType = 'full';
@@ -10623,12 +10641,58 @@ function showConfirm(title, message, confirmLabel='Continue'){
   });
 }
 
+// Plus: convert the whole pattern to another thread brand by re-matching every
+// used colour to its nearest thread in the target brand — across ALL layers,
+// backstitch lines and knots. The stitches stay; only the thread codes change.
+// currentBrand isn't captured by the undo snapshot, so (like a brand switch or a
+// multi-layer edit already do) this clears the history to avoid a corrupt undo.
+async function edBrandRemap(brand){
+  if(!PALETTES[brand] || brand===currentBrand) return;
+  const _revert=()=>{ const sel=document.getElementById('brand-select'); if(sel) sel.value=currentBrand; const ib=document.getElementById('img-brand-select'); if(ib) ib.value=currentBrand; };
+  const ok=await showConfirm(
+    `Convert to ${PALETTES[brand].name}?`,
+    `Every colour is re-matched to its nearest ${PALETTES[brand].name} thread. Your stitches stay exactly where they are — only the thread codes change. This clears the undo history.`,
+    `Convert to ${PALETTES[brand].name}`
+  );
+  if(!ok){ _revert(); return; }
+  lyEnsure(); lySyncActive();
+  const srcCols=PALETTES[currentBrand].colours, dstCols=PALETTES[brand].colours;
+  const remap=new Map();
+  const mapIdx=(idx)=>{
+    if(idx===null||idx===undefined) return idx;
+    if(remap.has(idx)) return remap.get(idx);
+    const s=srcCols[idx]; let d=0;
+    if(s){ const {c}=thNearest(brand, thRgbToLab(s.r,s.g,s.b)); d=dstCols.indexOf(c); if(d<0) d=0; }
+    remap.set(idx,d); return d;
+  };
+  for(const L of (layers||[])){
+    if(L.grid){ for(let r=0;r<L.grid.length;r++){ const row=L.grid[r]; if(!row) continue; for(let c=0;c<row.length;c++){ const v=row[c]; if(v!==null && v!==undefined) row[c]=mapIdx(v); } } }
+    if(L.lines){ for(const ln of L.lines){ if(ln && ln.ci!=null) ln.ci=mapIdx(ln.ci); } }
+    if(L.knots){ for(const k of L.knots){ if(k && k.ci!=null) k.ci=mapIdx(k.ci); } }
+  }
+  if(workingPalette && workingPalette.size){ const w=new Set(); workingPalette.forEach(i=>w.add(mapIdx(i))); workingPalette=w; }
+  currentBrand=brand;
+  _lyFlatCache=null;
+  undoStack.length=0; redoStack.length=0;
+  const bl=document.getElementById('brand-label'); if(bl) bl.textContent=PALETTES[brand].name;
+  const sel=document.getElementById('brand-select'); if(sel) sel.value=brand;
+  const ib=document.getElementById('img-brand-select'); if(ib) ib.value=brand;
+  if(typeof setActiveColor==='function') setActiveColor(mapIdx(activeColorIdx)||0);
+  if(typeof buildPalette==='function') buildPalette();
+  if(typeof buildWorkingPalette==='function') buildWorkingPalette();
+  if(typeof render==='function') render();
+  if(typeof pjMarkDirty==='function') pjMarkDirty();
+  if(typeof toast==='function') toast(`Converted to ${PALETTES[brand].name} \u2014 ${remap.size} colour${remap.size!==1?'s':''} re-matched`);
+}
+
 async function switchBrand(brand){
   if(brand===currentBrand) return;
+  // Plus members keep their stitches: convert (re-match) instead of clearing.
+  if(patternHasColours() && typeof lucasAuth==='function' && lucasAuth() && lucasAuth().plus){ return edBrandRemap(brand); }
   if(patternHasColours()){
     const ok=await showConfirm(
       'Switch thread brand?',
-      `Switching to ${PALETTES[brand].name} will clear your current pattern, since colours can't be mixed between brands.`,
+      `Switching to ${PALETTES[brand].name} will clear your current pattern, since colours can't be mixed between brands. (Plus keeps your stitches \u2014 colours are re-matched to the new brand instead.)`,
       'Switch & clear pattern'
     );
     if(!ok){ const sel=document.getElementById('brand-select'); if(sel) sel.value=currentBrand; return; } // tab visuals untouched since we never changed them yet
@@ -12672,6 +12736,13 @@ function cvApplyAdjust(data){
 }
 let cvActiveTab='size';
 function cvSetTab(t){
+  // The Confetti tab holds the advanced cleanup arsenal (masking + confetti
+  // cleanup) — a Plus feature. Size + Adjust colours stay free.
+  if(t==='confetti' && !(typeof lucasAuth==='function' && lucasAuth() && lucasAuth().plus)){
+    if(typeof toast==='function') toast('Confetti cleanup & masking are Plus tools \u2014 opening Plus\u2026');
+    if(typeof openPricing==='function') openPricing();
+    return;
+  }
   cvActiveTab=t;
   document.querySelectorAll('#cv-tabs button').forEach(b=>b.classList.toggle('active',b.dataset.t===t));
   document.getElementById('cv-tab-size').style.display   = t==='size'?'':'none';
@@ -13319,7 +13390,7 @@ function saveToBrowser(){
         if(a && a.plus){
           toast('All '+cap+' pattern slots are full \u2014 delete one from My Patterns first');
         }else{
-          toast('Free plan holds '+cap+' patterns. Delete one, or upgrade to Plus for '+PJ_CAP_PLUS+'.');
+          toast('You can keep up to '+cap+' patterns \u2014 delete one from My Patterns to save another.');
         }
         return false;
       }
@@ -13349,6 +13420,7 @@ function saveToBrowser(){
         }
     pjMarkClean();
     trkSaveState('saved');
+    try{ if(typeof edpQueuePush==='function') edpQueuePush(currentProjectId); }catch(e){}
     return true;
   }catch(e){
     // Storage failed even after dropping the photo. Do NOT auto-download here:
@@ -13820,6 +13892,8 @@ function expBuildPdf(){
   const orient = L.pw>L.ph ? 'landscape':'portrait';
   const fmt = EXP.pagesize==='letter' ? 'letter' : EXP.pagesize;
   const pdf=new jsPDF({orientation:orient, unit:'mm', format:fmt});
+  // Plus PDFs: no footer mark + higher-resolution raster fallback.
+  const _pdfPlus = !!(typeof lucasAuth==='function' && lucasAuth().plus);
   // Embed the subset symbol font so glyph charts export as true vector text.
   let fontOk=false;
   try{
@@ -13850,7 +13924,7 @@ function expBuildPdf(){
         expDrawTileVector(pdf, c0,r0,nc,nr,uPalette, L, tileOpts);
       } else {
         const cv=expRenderTile(c0,r0,nc,nr,uPalette,{
-          px: Math.max(4, Math.min(26, Math.floor(6500/Math.max(nc,nr)))),
+          px: Math.max(4, Math.min(_pdfPlus?40:26, Math.floor((_pdfPlus?9000:6500)/Math.max(nc,nr)))),
           shadeL: tileOpts.shadeL, shadeT: tileOpts.shadeT
         });
         const imgW=(nc+1.15)*L.cellMM, imgH=(nr+1.15)*L.cellMM;
@@ -13931,6 +14005,17 @@ function expBuildPdf(){
     ].forEach(t=>{ pdf.text('• '+t, L.m+3, y); y+=5.4; });
   }
 
+  // Free-tier PDFs carry a small footer mark; Plus removes it entirely.
+  if(!_pdfPlus){
+    try{
+      const _tp=pdf.getNumberOfPages();
+      for(let _pi=1; _pi<=_tp; _pi++){
+        pdf.setPage(_pi);
+        pdf.setFont(undefined,'normal'); pdf.setFontSize(7); pdf.setTextColor(170,155,162);
+        pdf.text('Created with Patternly by Luca-S \u00b7 luca-s.com', L.pw-L.m, L.ph-4, {align:'right'});
+      }
+    }catch(e){ console.warn('[pdf] footer mark failed', e); }
+  }
   return {pdf, name, pages: (EXP.instr?1:0)+pageNo+keyPages};
 }
 
@@ -14053,6 +14138,75 @@ async function dlFile(blob, filename){
 }
 
 function expBlobDownload(blob, filename){ return dlFile(blob, filename); }
+// ── Palette shopping-list export (Plus) ─────────────────────────────────────
+// Read-only: reads the used colours + stitch counts (via the PDF engine's own
+// helpers, so it respects layers) and writes a CSV or PDF. Never mutates the
+// pattern, palette, or any sync data.
+function palExportRows(){
+  const used=(typeof expUsedColours==='function')?expUsedColours():[];
+  const counts=(typeof expCounts==='function')?expCounts():{};
+  const pal=(typeof activePalette==='function')?activePalette():[];
+  return used.map(i=>{
+    const t=pal[i]||{r:0,g:0,b:0};
+    const hex='#'+[t.r,t.g,t.b].map(x=>(x|0).toString(16).padStart(2,'0')).join('').toUpperCase();
+    return { code:(typeof colourLabel==='function'?colourLabel(i):('#'+i)),
+             sku:(typeof colourSku==='function'?(colourSku(i)||''):''),
+             hex, r:t.r|0,g:t.g|0,b:t.b|0, stitches:counts[i]||0 };
+  });
+}
+function _palDL(blob, filename){
+  try{
+    const u=URL.createObjectURL(blob); const a=document.createElement('a');
+    a.href=u; a.download=filename; document.body.appendChild(a); a.click();
+    setTimeout(()=>{ a.remove(); URL.revokeObjectURL(u); }, 1500);
+  }catch(e){ console.warn('[pal] download failed', e); }
+}
+function _palName(){ return (((document.getElementById('pattern-name')||{}).value||'pattern').trim())||'pattern'; }
+function palExportCSV(){
+  const rows=palExportRows(); if(!rows.length){ if(typeof toast==='function') toast('No colours used yet'); return; }
+  const brand=(PALETTES[currentBrand]&&PALETTES[currentBrand].name)||currentBrand;
+  const esc=s=>'"'+String(s).replace(/"/g,'""')+'"';
+  let csv='Brand,Colour,SKU,Hex,Stitches\n';
+  rows.forEach(r=>{ csv+=[esc(brand),esc(r.code),esc(r.sku),r.hex,r.stitches].join(',')+'\n'; });
+  csv+=[esc(brand),'TOTAL','','',rows.reduce((a,r)=>a+r.stitches,0)].join(',')+'\n';
+  _palDL(new Blob([csv],{type:'text/csv;charset=utf-8'}), _palName()+' - palette.csv');
+  if(typeof toast==='function') toast('Shopping list (CSV) saved');
+}
+function palExportPDF(){
+  const rows=palExportRows(); if(!rows.length){ if(typeof toast==='function') toast('No colours used yet'); return; }
+  const { jsPDF }=window.jspdf; const pdf=new jsPDF({unit:'mm',format:'a4'});
+  const brand=(PALETTES[currentBrand]&&PALETTES[currentBrand].name)||currentBrand;
+  const m=15; let y=m+2;
+  pdf.setFont(undefined,'bold'); pdf.setFontSize(15); pdf.setTextColor(30,25,32);
+  pdf.text(_palName()+' \u2014 thread shopping list', m, y); y+=7;
+  pdf.setFont(undefined,'normal'); pdf.setFontSize(9.5); pdf.setTextColor(120,105,112);
+  pdf.text(brand+'  \u00b7  '+rows.length+' colours  \u00b7  '+rows.reduce((a,r)=>a+r.stitches,0)+' stitches', m, y); y+=9;
+  pdf.setFontSize(8.5); pdf.setTextColor(90,80,86);
+  pdf.text('Colour', m+9, y); pdf.text('SKU', m+82, y); pdf.text('Hex', m+120, y); pdf.text('Stitches', m+150, y);
+  y+=1.5; pdf.setDrawColor(200,190,196); pdf.line(m,y,m+180,y); y+=5;
+  rows.forEach(r=>{
+    if(y>285){ pdf.addPage(); y=m; }
+    pdf.setFillColor(r.r,r.g,r.b); pdf.setDrawColor(120,110,116); pdf.rect(m,y-3.6,6,4.8,'FD');
+    pdf.setFontSize(9); pdf.setTextColor(40,34,40);
+    pdf.text(String(r.code).slice(0,46), m+9, y);
+    pdf.text(String(r.sku).slice(0,20), m+82, y);
+    pdf.text(r.hex, m+120, y);
+    pdf.text(String(r.stitches), m+150, y);
+    y+=6.4;
+  });
+  _palDL(pdf.output('blob'), _palName()+' - palette.pdf');
+  if(typeof toast==='function') toast('Shopping list (PDF) saved');
+}
+// Whole feature is Plus.
+function palExport(kind){
+  if(!(typeof lucasAuth==='function' && lucasAuth() && lucasAuth().plus)){
+    if(typeof toast==='function') toast('Palette shopping-list export is a Plus feature \u2014 opening Plus\u2026');
+    if(typeof openPricing==='function') openPricing();
+    return;
+  }
+  if(kind==='pdf') palExportPDF(); else palExportCSV();
+}
+
 
 // ── OXS (Open Cross Stitch XML) ──
 function expBuildOxs(){
@@ -14112,7 +14266,7 @@ var _xpSheetWasOpen=false; // #1 mobile: was the download sheet open when previe
 function xpPreviewOpen(){
   _xpPage=0;
   // Phone/app: the download sheet and the preview can't share the screen, so hide the sheet while previewing.
-  try{ if(window.innerWidth<=820){ var _sh=document.getElementById('export-panel'); if(_sh&&_sh.classList.contains('open')){ _sh.classList.remove('open'); _xpSheetWasOpen=true; } } }catch(e){}
+  try{ if(window.innerWidth<=820){ var _sh=document.getElementById('export-panel'); if(_sh&&_sh.classList.contains('open')){ _sh.classList.remove('open'); _xpSheetWasOpen=true; var _bd=document.getElementById('xp-backdrop'); if(_bd) _bd.classList.remove('show'); } } }catch(e){}
   document.getElementById('xp-preview-modal').classList.add('open');
   document.getElementById('xp-preview-btn').classList.add('active');
   xpPreviewRender();
@@ -14121,7 +14275,7 @@ function xpPreviewClose(){
   document.getElementById('xp-preview-modal').classList.remove('open');
   document.getElementById('xp-preview-btn').classList.remove('active');
   // Bring the download sheet back if we hid it to show the preview (mobile/app).
-  try{ if(_xpSheetWasOpen){ var _sh=document.getElementById('export-panel'); if(_sh) _sh.classList.add('open'); _xpSheetWasOpen=false; } }catch(e){}
+  try{ if(_xpSheetWasOpen){ var _sh=document.getElementById('export-panel'); if(_sh) _sh.classList.add('open'); var _bd=document.getElementById('xp-backdrop'); if(_bd) _bd.classList.add('show'); _xpSheetWasOpen=false; } }catch(e){}
 }
 function xpPreviewToggle(){
   document.getElementById('xp-preview-modal').classList.contains('open') ? xpPreviewClose() : xpPreviewOpen();
@@ -14290,6 +14444,15 @@ async function expDownload(){
       expBlobDownload(pdf.output('blob'), `${name}.pdf`);
       toast(`PDF saved — ${pages} page${pages!==1?'s':''}`);
     } else if(EXP.filetype==='oxs'){
+      // OXS (interchange export, for opening the pattern in other software) is a Plus feature.
+      // NOTE: this gates the DOWNLOAD only — the in-app Editor→Tracker handoff and the .Ptly
+      // feed build OXS internally and never reach here, so they stay open as before.
+      const _a=(typeof lucasAuth==='function')?lucasAuth():null;
+      if(!(_a && _a.plus)){
+        toast('OXS export is a Plus feature — opening Plus…');
+        if(typeof openPricing==='function') openPricing();
+        return;
+      }
       expBlobDownload(new Blob([expBuildOxs()],{type:'application/xml'}), `${name}.oxs`);
       toast('OXS pattern saved — opens in most cross stitch software');
     } else {
@@ -14328,7 +14491,7 @@ document.getElementById('download-btn').addEventListener('click', expOpen);
   segBind('xp-filetype','filetype',v=>{
     document.getElementById('xp-filetype-desc').innerHTML =
       v==='pdf' ? 'Print-ready multi-page chart with thread key.'
-      : v==='oxs' ? 'Open cross stitch XML — opens in most pattern software (full &amp; backstitches).<br><b style="color:#2E7D32">✓ Recommended for our Stitch Tracker</b>'
+      : v==='oxs' ? 'Open cross stitch XML — opens in most pattern software (full &amp; backstitches). <b style="color:#8B1A2B">Plus feature.</b><br><b style="color:#2E7D32">✓ Recommended for our Stitch Tracker</b>'
       : 'Single flat image of the whole chart.';
     // Page/instruction sections only apply to PDF
     document.querySelectorAll('.xp-sec[data-sec="pages"],.xp-sec[data-sec="instr"]').forEach(el=>
@@ -15533,12 +15696,145 @@ function statsBump(key){
 function pjLoadAll(){ try{ const v=JSON.parse(localStorage.getItem(PJ_KEY)); return Array.isArray(v)?v:[]; }catch(e){ return []; } }
 function pjSaveAll(list){ localStorage.setItem(PJ_KEY,JSON.stringify(list)); }
 
-// Saved-pattern cap: 10 on the free plan, 20 on Plus. This is the number the
+// ══════════════════════════════════════════════════════════════════════════
+//  EDITOR-PATTERN ACCOUNT SYNC (Plus) — deliberately SEPARATE from the tracker
+//  Talks ONLY to /editor-patterns (its own KV prefix + R2 bucket on the server).
+//  Uses no trk* state and shares no storage keys, so it can never disturb
+//  Stitch Tracker sync (Rule #1). Plus + signed-in only.
+// ══════════════════════════════════════════════════════════════════════════
+const EDP_TOMB_KEY='patternly_edp_tombstones';
+let _edpBusy=false, _edpPushT=null, _edpSyncedThisSession=false;
+function edpAuth(){ return (typeof lucasAuth==='function')?lucasAuth():null; }
+function edpEnabled(){ const a=edpAuth(); return !!(a && a.loggedIn && a.plus); }
+function edpUrl(id){
+  var base=(typeof TRK_KITS_BASE!=='undefined'?TRK_KITS_BASE:'').replace(/\/patterns$/,'');
+  var u=base+'/editor-patterns'+(id?'/'+encodeURIComponent(id):'');
+  try{ var t=localStorage.getItem('pl_session'); if(t) u+='?pl_session='+encodeURIComponent(t); }catch(e){}
+  return u;
+}
+// Push one Editor design to the account. Drops the embedded source photo if the
+// record would exceed the 5MB blob limit — the pattern always syncs, only the
+// re-conversion photo is left out in that rare oversized case.
+async function edpPush(id){
+  if(!edpEnabled() || !id || _edpBusy) return;
+  const rec=(typeof pjLoadAll==='function'?pjLoadAll():[]).find(p=>p.id===id);
+  if(!rec) return;
+  let payload={...rec};
+  let blob=JSON.stringify(payload);
+  const LIMIT=5000000-8192;                 // safety margin under the server cap
+  if(blob.length>LIMIT && payload.sourceImage){ delete payload.sourceImage; blob=JSON.stringify(payload); }
+  if(blob.length>LIMIT) return;             // still too big even without the photo — skip
+  _edpBusy=true;
+  try{
+    const r=await fetch(edpUrl(id),{
+      method:'PUT', credentials:'include', headers:{'content-type':'application/json'},
+      body: JSON.stringify({
+        name: rec.name || 'Untitled pattern', blob,
+        cols: rec.cols|0, rows: rec.rows|0,
+        threads: Array.isArray(rec.workingPalette)?rec.workingPalette.length:0,
+        savedAt: rec.savedAt|0
+      })
+    });
+    if(r.status===409){ let j={}; try{ j=await r.json(); }catch(e){} if(typeof toast==='function') toast((j&&j.message)||'Editor sync limit reached'); }
+    else if(r.status===402){ /* server says not Plus — ignore silently */ }
+    else if(!r.ok){ console.warn('[edp] push refused', r.status); }
+  }catch(e){ console.warn('[edp] push failed', e); }
+  finally{ _edpBusy=false; }
+}
+function edpQueuePush(id){ if(!edpEnabled()||!id) return; clearTimeout(_edpPushT); _edpPushT=setTimeout(()=>edpPush(id), 4000); }
+async function edpList(){
+  if(!edpEnabled()) return null;
+  try{ const r=await fetch(edpUrl(''),{credentials:'include',cache:'no-store'}); if(!r.ok) return null; return await r.json(); }
+  catch(e){ return null; }
+}
+async function edpDelete(id){
+  if(!edpEnabled() || !id) return;
+  try{ await fetch(edpUrl(id),{method:'DELETE',credentials:'include'}); }catch(e){}
+  // tombstone so a just-removed design can't reappear as a cloud card if the
+  // list was fetched a moment earlier.
+  try{ const t=JSON.parse(localStorage.getItem(EDP_TOMB_KEY)||'[]'); if(!t.includes(id)){ t.push(id); localStorage.setItem(EDP_TOMB_KEY, JSON.stringify(t.slice(-200))); } }catch(e){}
+}
+// Pull one account design into the local browser store (respects local cap).
+async function edpPullOne(id){
+  if(!edpEnabled()||!id) return false;
+  let txt=null;
+  try{ const r=await fetch(edpUrl(id),{credentials:'include',cache:'no-store'}); if(r.ok) txt=await r.text(); }catch(e){}
+  if(!txt) return false;
+  let rec; try{ rec=JSON.parse(txt); }catch(e){ return false; }
+  if(!rec || typeof rec!=='object') return false;
+  const list=pjLoadAll();
+  const idx=list.findIndex(p=>p.id===id);
+  if(idx<0 && list.length>=pjSlotCap()){ if(typeof toast==='function') toast('This device is full ('+pjSlotCap()+') — delete one to pull another'); return false; }
+  rec.id=id;
+  if(idx>=0) list[idx]=rec; else list.push(rec);
+  pjSaveAll(list);
+  return true;
+}
+// After a My-Patterns render: one silent session-merge (push newer local up,
+// pull newer account down), then append "continue on this device" cards for
+// designs that live on the account but not on this device.
+async function edpAfterRender(wrap){
+  if(!edpEnabled()){ _edpSyncedThisSession=false; return; }
+  if(!wrap) wrap=document.getElementById('pj-grid');
+  if(!wrap) return;
+  const info=await edpList();
+  if(!info || !Array.isArray(info.items)) return;
+
+  // reflect account sync in the subtitle
+  try{ const sub=document.querySelector('#projects-page .pj-sub'); if(sub) sub.innerHTML='Synced to your Luca-S account — your designs follow you across devices. <b><span id="pj-count">'+pjLoadAll().length+'</span> of <span id="pj-cap">'+pjSlotCap()+'</span></b> on this device.'; }catch(e){}
+
+  if(!_edpSyncedThisSession){
+    _edpSyncedThisSession=true;
+    const local=pjLoadAll();
+    const acctById=new Map(info.items.map(it=>[it.id,it]));
+    const localById=new Map(local.map(p=>[p.id,p]));
+    let changed=false;
+    for(const p of local){
+      const a=acctById.get(p.id);
+      // If the account copy is newer (edited on another device), pull it down
+      // FIRST so we never overwrite newer work with an older local copy.
+      if(a && (a.savedAt||0) > (p.savedAt||0)){ if(await edpPullOne(p.id)) changed=true; }
+      // Re-push the newest copy every session. This also refreshes the rolling
+      // 90-day expiry, so an ACTIVE member never loses their cloud copies; a
+      // lapsed member stops signing in, so theirs age out on schedule.
+      await edpPush(p.id);
+    }
+    if(changed && typeof renderProjectsPage==='function'){ renderProjectsPage(); return; }  // re-render re-appends
+  }
+
+  const localIds=new Set(pjLoadAll().map(p=>p.id));
+  let tomb=[]; try{ tomb=JSON.parse(localStorage.getItem(EDP_TOMB_KEY)||'[]'); }catch(e){}
+  const tombSet=new Set(tomb);
+  const missing=info.items.filter(it=>!localIds.has(it.id) && !tombSet.has(it.id));
+  if(!missing.length) return;
+
+  const hdr=document.createElement('div');
+  hdr.style.cssText='grid-column:1/-1;margin:1.3rem 0 .2rem;font-size:.8rem;font-weight:700;color:#8B1A2B';
+  hdr.textContent='On your account — tap to continue on this device';
+  wrap.appendChild(hdr);
+  for(const it of missing){
+    const card=document.createElement('div'); card.className='pj-card pj-cloud';
+    const thumb=document.createElement('div'); thumb.className='pj-thumb';
+    thumb.style.cssText='display:flex;align-items:center;justify-content:center;font-size:2rem;color:#c9aeb6'; thumb.textContent='\u2601';
+    const inf=document.createElement('div'); inf.className='pj-info';
+    const nm=document.createElement('div'); nm.className='pj-name'; nm.textContent=it.name||'Untitled';
+    const meta=document.createElement('div'); meta.className='pj-meta'; meta.textContent=(it.cols|0)+'\u00d7'+(it.rows|0)+' \u00b7 '+(it.threads|0)+' colours';
+    const btn=document.createElement('button'); btn.className='pr-cta ghost'; btn.textContent='Continue on this device';
+    btn.style.cssText='margin-top:.45rem;padding:.34rem .7rem;font-size:.76rem;width:auto';
+    btn.addEventListener('click', async ()=>{ btn.disabled=true; const ok=await edpPullOne(it.id); if(ok){ if(typeof toast==='function') toast('Added to this device'); if(typeof renderProjectsPage==='function') renderProjectsPage(); } else { btn.disabled=false; } });
+    inf.appendChild(nm); inf.appendChild(meta); inf.appendChild(btn);
+    card.appendChild(thumb); card.appendChild(inf);
+    wrap.appendChild(card);
+  }
+}
+
+
+// Saved-pattern cap: 10 patterns for everyone (free AND Plus). This is the number the
 // pricing page promises, so it lives in one place and both must agree. Plus is
 // read from the same auth object the tracker gate uses; if we cannot tell (not
 // signed in through the shop), the free cap applies — the safe default, and a
 // signed-in Plus member is re-checked the moment their status resolves.
-const PJ_CAP_FREE = 10, PJ_CAP_PLUS = 20;
+const PJ_CAP_FREE = 10, PJ_CAP_PLUS = 10;
 function pjSlotCap(){
   const a=(typeof lucasAuth==='function')?lucasAuth():null;
   return (a && a.plus) ? PJ_CAP_PLUS : PJ_CAP_FREE;
@@ -28014,6 +28310,7 @@ function pjDeleteProject(id,ev){
     danger:true,
     onConfirm(){
       pjSaveAll(pjLoadAll().filter(p=>p.id!==id));
+      try{ if(typeof edpDelete==='function') edpDelete(id); }catch(e){}
       if(currentProjectId===id) currentProjectId=null;
       renderProjectsPage();
       toast('Pattern deleted');
@@ -28167,6 +28464,7 @@ function pjBulkDelete(){
     onConfirm(){
       const kill=new Set(pjSelected);
       pjSaveAll(pjLoadAll().filter(p=>!kill.has(p.id)));
+      try{ if(typeof edpDelete==='function') kill.forEach(k=>edpDelete(k)); }catch(e){}
       if(kill.has(currentProjectId)) currentProjectId=null;
       pjExitSelect();
       toast(n+' pattern'+(n===1?'':'s')+' deleted');
@@ -28257,6 +28555,7 @@ function renderProjectsPage(){
   }
   const selBtn=document.getElementById('pj-select-btn');
   if(selBtn) selBtn.disabled = !list.length;
+  try{ if(typeof edpAfterRender==='function') edpAfterRender(wrap); }catch(e){}
 }
 
 // Reuse the topbar logo on the projects page header too
