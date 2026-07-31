@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v47";
+const MW_VERSION = "v48";
 
 const enc = new TextEncoder();
 
@@ -1794,21 +1794,13 @@ async function handleRequest(context) {
           }
         }
 
-        // Store the chart blob in R2, the summary in KV.
+        // Store the chart blob in R2, then the summary in KV. The KV record is
+        // what the pattern LIST is built from, so it must be written before the
+        // best-effort progress object below — otherwise a progress-write hiccup
+        // could stop the pattern appearing on another device at all.
         await env.USER_PATTERNS.put(blobKey, body.blob, {
           httpMetadata: { contentType: "application/json" }
         });
-        // Store the per-cell stitched progress as a SEPARATE R2 object so
-        // "Continue on this device" restores exact marks. Kept separate from the
-        // chart so the chart's content-hash sync id stays stable. Clearing it
-        // when absent avoids leaving stale marks behind.
-        if (typeof body.progress === "string" && body.progress) {
-          await env.USER_PATTERNS.put(blobKey + ".progress", body.progress, {
-            httpMetadata: { contentType: "text/plain" }
-          });
-        } else {
-          try { await env.USER_PATTERNS.delete(blobKey + ".progress"); } catch (e) {}
-        }
         const rec = {
           name: (typeof body.name === "string" ? body.name : "Untitled pattern").slice(0, 120),
           done: body.done | 0, total: body.total | 0,
@@ -1816,6 +1808,19 @@ async function handleRequest(context) {
           timeMs: body.timeMs | 0, sessions: body.sessions | 0, ts: Date.now()
         };
         await env.ENTITLEMENTS.put(metaKey, JSON.stringify(rec));
+        // Per-cell stitched progress: a SEPARATE R2 object so "Continue on this
+        // device" restores exact marks (kept apart from the chart so its
+        // content-hash sync id stays stable). Best-effort ONLY — never let a
+        // progress failure break pattern storage or listing.
+        try {
+          if (typeof body.progress === "string" && body.progress) {
+            await env.USER_PATTERNS.put(blobKey + ".progress", body.progress, {
+              httpMetadata: { contentType: "text/plain" }
+            });
+          } else {
+            await env.USER_PATTERNS.delete(blobKey + ".progress");
+          }
+        } catch (e) {}
         return new Response(JSON.stringify({ ok: true, id, ts: rec.ts }), {
           headers: { "content-type": "application/json", "cache-control": "no-store" }
         });
