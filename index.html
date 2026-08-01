@@ -15893,13 +15893,19 @@ async function edpAfterRender(wrap){
   // a design that merely never synced (or a failed fetch) is never touched. A
   // delete is a delete — removed even if this device has newer local edits.
   if(Array.isArray(info.deleted) && info.deleted.length){
-    const del=new Set(info.deleted);
+    // Map id -> deletion time. Prune ONLY when the delete is newer than this
+    // device's copy, so a design re-created after a delete (or created before
+    // its tombstone clears) is never wrongly removed. (Old-format string entries
+    // carry ts 0, so they can never out-date a real local copy.)
+    const del=new Map(info.deleted.map(d=> typeof d==='string' ? [d,0] : [d.id, d.ts||0]));
     const fresh=pjLoadAll();                 // fresh read; no await before the write below
-    const keep=fresh.filter(p=>!del.has(p.id));
+    const isGone=p=> del.has(p.id) && del.get(p.id) > (p.savedAt||0);
+    const keep=fresh.filter(p=>!isGone(p));
     if(keep.length!==fresh.length){
+      const goneIds=fresh.filter(isGone).map(p=>p.id);
       pjSaveAll(keep);
-      try{ const t=JSON.parse(localStorage.getItem(EDP_TOMB_KEY)||'[]'); for(const idd of info.deleted) if(!t.includes(idd)) t.push(idd); localStorage.setItem(EDP_TOMB_KEY, JSON.stringify(t.slice(-200))); }catch(e){}
-      if(typeof currentProjectId!=='undefined' && currentProjectId && del.has(currentProjectId)) currentProjectId=null;
+      try{ const t=JSON.parse(localStorage.getItem(EDP_TOMB_KEY)||'[]'); for(const idd of goneIds) if(!t.includes(idd)) t.push(idd); localStorage.setItem(EDP_TOMB_KEY, JSON.stringify(t.slice(-200))); }catch(e){}
+      if(typeof currentProjectId!=='undefined' && currentProjectId && goneIds.includes(currentProjectId)) currentProjectId=null;
       if(typeof renderProjectsPage==='function'){ renderProjectsPage(); return; }  // re-render without the pruned designs
     }
   }
@@ -20200,14 +20206,17 @@ async function trkRefreshCardProgress(){
 async function trkPruneAccountDeletes(){
   let info; try{ info = await trkUserPatternList(); }catch(e){ return; }
   if(!info || !Array.isArray(info.deleted) || !info.deleted.length) return;
-  const del = new Set(info.deleted);
+  // Map sync-id -> deletion time. Because sync ids are content hashes, a newly
+  // created pattern can reuse a previously-deleted id; prune ONLY when the delete
+  // is newer than this pattern's last local save, so fresh creations survive.
+  const del = new Map(info.deleted.map(d=> typeof d==='string' ? [d,0] : [d.id, d.ts||0]));
   let idx; try{ idx = trkIndex(); }catch(e){ return; }
   const removed = [];
   const keep = idx.filter(p=>{
     if(p.sku) return true;                                   // kits: not uploaded patterns
     let sid=null;
     try{ const blob=localStorage.getItem('patternly_trk_proj_'+p.id); if(blob) sid=trkSyncIdFromBlob(blob,p.id); }catch(e){}
-    if(sid && del.has(sid)){ removed.push({id:p.id, sid}); return false; }
+    if(sid && del.has(sid) && del.get(sid) > (p.ts||0)){ removed.push({id:p.id, sid}); return false; }
     return true;
   });
   if(!removed.length) return;
