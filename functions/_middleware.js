@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v52";
+const MW_VERSION = "v53";
 
 const enc = new TextEncoder();
 
@@ -1969,7 +1969,7 @@ async function handleRequest(context) {
         const rec = {
           name: (typeof body.name === "string" ? body.name : "Untitled pattern").slice(0, 120),
           cols: body.cols | 0, rows: body.rows | 0, threads: body.threads | 0,
-          savedAt: body.savedAt | 0, ts: Date.now()
+          savedAt: Number(body.savedAt) || 0, ts: Date.now()
         };
         await env.ENTITLEMENTS.put(metaKey, JSON.stringify(rec), { expirationTtl: EDITOR_PATTERN_TTL_SEC });
         return new Response(JSON.stringify({ ok: true, id, ts: rec.ts }), {
