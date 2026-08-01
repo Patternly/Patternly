@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v51";
+const MW_VERSION = "v52";
 
 const enc = new TextEncoder();
 
@@ -1732,7 +1732,8 @@ async function handleRequest(context) {
                 name: rec.name || "Untitled pattern",
                 done: rec.done | 0, total: rec.total | 0,
                 cols: rec.cols | 0, rows: rec.rows | 0, threads: rec.threads | 0,
-                timeMs: rec.timeMs | 0, sessions: rec.sessions | 0, ts: rec.ts || 0
+                timeMs: rec.timeMs | 0, sessions: rec.sessions | 0, ts: rec.ts || 0,
+                thumb: (typeof rec.thumb === "string" ? rec.thumb : null)
               });
             } catch (e) {}
           }
@@ -1806,7 +1807,12 @@ async function handleRequest(context) {
             name: (typeof body.name === "string" ? body.name : "Untitled pattern").slice(0, 120),
             done: body.done | 0, total: body.total | 0,
             cols: body.cols | 0, rows: body.rows | 0, threads: body.threads | 0,
-            timeMs: body.timeMs | 0, sessions: body.sessions | 0, ts: Date.now()
+            timeMs: body.timeMs | 0, sessions: body.sessions | 0, ts: Date.now(),
+            // A small preview thumbnail (data URL) so another device can show the
+            // pattern's photo on its "on your account" card before the blob is
+            // pulled. Additive only — never read by the sync/merge path. Size-
+            // capped so a large thumb can't bloat the record or list reads.
+            thumb: (typeof body.thumb === "string" && body.thumb.length <= 200000) ? body.thumb : null
           };
           await env.ENTITLEMENTS.put(metaKey, JSON.stringify(rec));
           try {
