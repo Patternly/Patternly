@@ -15888,6 +15888,21 @@ async function edpAfterRender(wrap){
   const info=await edpList();
   if(!info || !Array.isArray(info.items)) return;
 
+  // Prune local designs deleted on another device. The account returns a
+  // tombstone list; a design is removed ONLY if its id is explicitly on it, so
+  // a design that merely never synced (or a failed fetch) is never touched. A
+  // delete is a delete — removed even if this device has newer local edits.
+  if(Array.isArray(info.deleted) && info.deleted.length){
+    const del=new Set(info.deleted);
+    const fresh=pjLoadAll();                 // fresh read; no await before the write below
+    const keep=fresh.filter(p=>!del.has(p.id));
+    if(keep.length!==fresh.length){
+      pjSaveAll(keep);
+      try{ const t=JSON.parse(localStorage.getItem(EDP_TOMB_KEY)||'[]'); for(const idd of info.deleted) if(!t.includes(idd)) t.push(idd); localStorage.setItem(EDP_TOMB_KEY, JSON.stringify(t.slice(-200))); }catch(e){}
+      if(typeof currentProjectId!=='undefined' && currentProjectId && del.has(currentProjectId)) currentProjectId=null;
+      if(typeof renderProjectsPage==='function'){ renderProjectsPage(); return; }  // re-render without the pruned designs
+    }
+  }
   // reflect account sync in the subtitle
   try{ const sub=document.querySelector('#projects-page .pj-sub'); if(sub) sub.innerHTML='Synced to your Luca-S account — your designs follow you across devices. <b><span id="pj-count">'+pjLoadAll().length+'</span> of <span id="pj-cap">'+pjSlotCap()+'</span></b> on this device.'; }catch(e){}
 
@@ -20134,6 +20149,7 @@ function trkShowHomeInner(list){
   // card + its index entry so progress marked on another device shows without
   // opening. Display-only — see trkRefreshCardProgress.
   try{ trkRefreshCardProgress(); }catch(e){}
+  try{ trkPruneAccountDeletes(); }catch(e){}
 }
 // Refresh the done/total shown on LOCAL pattern cards from the account summaries.
 // DOM-ONLY: it patches what the card displays and NEVER writes the index back.
@@ -20175,7 +20191,42 @@ async function trkRefreshCardProgress(){
     const btn = card.querySelector('.open'); if(btn) btn.textContent = 'Open \u00b7 '+pct+'%';
   }
 }
-// Per-section grid/list view. Default (no modifier) is the horizontal slider;
+// Remove local UPLOADED patterns that were deleted on another device. The account
+// returns a tombstone list; a pattern is pruned ONLY if its content-hash sync id
+// is explicitly on it — so a pattern that never synced, or a failed/empty fetch,
+// is never touched. Kits are not /user-patterns and are never pruned here. Reads
+// the index fresh right before writing (no await between), so it can't clobber a
+// pattern created during the fetch. A delete is a delete (removes local progress).
+async function trkPruneAccountDeletes(){
+  let info; try{ info = await trkUserPatternList(); }catch(e){ return; }
+  if(!info || !Array.isArray(info.deleted) || !info.deleted.length) return;
+  const del = new Set(info.deleted);
+  let idx; try{ idx = trkIndex(); }catch(e){ return; }
+  const removed = [];
+  const keep = idx.filter(p=>{
+    if(p.sku) return true;                                   // kits: not uploaded patterns
+    let sid=null;
+    try{ const blob=localStorage.getItem('patternly_trk_proj_'+p.id); if(blob) sid=trkSyncIdFromBlob(blob,p.id); }catch(e){}
+    if(sid && del.has(sid)){ removed.push({id:p.id, sid}); return false; }
+    return true;
+  });
+  if(!removed.length) return;
+  for(const r of removed){
+    try{ localStorage.removeItem('patternly_trk_proj_'+r.id); localStorage.removeItem('patternly_tracker_'+r.id); }catch(e){}
+  }
+  try{
+    const tomb=JSON.parse(localStorage.getItem('patternly_trk_tombstones')||'[]');
+    for(const r of removed) tomb.push({syncId:r.sid, ts:Date.now()});
+    localStorage.setItem('patternly_trk_tombstones', JSON.stringify(tomb.slice(-60)));
+  }catch(e){}
+  trkIndexWrite(keep);
+  // Re-render the tracker home if it is the visible view (the pruned pass will
+  // then find nothing left to remove, so this terminates).
+  try{
+    const wrap=document.getElementById('trk-projects');
+    if(wrap && wrap.style.display!=='none' && typeof trkShowHomeInner==='function') trkShowHomeInner(trkIndex());
+  }catch(e){}
+}
 // 'list' stacks compact rows. The choice is remembered in localStorage.
 // ── Generic list pagination (My Luca-S Patterns) ──────────────────────────
 // Hides all but the current page's cards and renders a compact pager below the
