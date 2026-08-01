@@ -22698,6 +22698,11 @@ async function tryBuildTracker(){
   // stay on the upload screen with the files still attached (re-attaching a file
   // asks again), and never build or save the project.
   if(await trkAskProjectName()===false) return;
+  // The format handlers set trackerProjectName from trkPendingName BEFORE the
+  // name modal ran (trkPendingName was still empty then), so it holds only the
+  // placeholder default. Now that the user has committed a name, apply it so the
+  // saved index entry and the account push use the title they actually typed.
+  if(trkPendingName) trackerProjectName = trkPendingName;
   // Crops FIRST — normalization uses shapes as evidence. Pre-normalization the
   // chart pass keys sprites by RAW glyph (the mapping is still empty).
   trkRawSprites={}; trkLegendSprites={};
