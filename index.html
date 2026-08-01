@@ -13500,10 +13500,14 @@ function trkSaveState(kind){
   else el.textContent='';
 }
 let _autosaveRunning=false;
-function autosaveTick(force){
+async function autosaveTick(force){
   if(_autosaveRunning) return;
   if(!document.body.classList.contains('app-mode')) return;
   if(typeof pjIsDirty!=='function' || (!force && !pjIsDirty())) return;
+  // Ensure the design array is fully loaded from IndexedDB before any save, so a
+  // read-modify-write can never persist an incomplete list. (pjSaveAll also
+  // refuses to write until ready — this makes the first save land promptly.)
+  if(!_pjReady){ await pjHydrate(); if(!document.body.classList.contains('app-mode')) return; }
   // No currentProjectId guard: saveToBrowser mints one on first save, and the
   // first save is precisely the one worth not losing.
   _autosaveRunning=true;
@@ -15795,8 +15799,72 @@ const STATS={
 function statsBump(key){
   try{ fetch(`${STATS.endpoint}/hit/${STATS.ns}/${key}`,{keepalive:true}).catch(()=>{}); }catch(e){}
 }
-function pjLoadAll(){ try{ const v=JSON.parse(localStorage.getItem(PJ_KEY)); return Array.isArray(v)?v:[]; }catch(e){ return []; } }
-function pjSaveAll(list){ localStorage.setItem(PJ_KEY,JSON.stringify(list)); }
+// ── Editor design store ──────────────────────────────────────────────────────
+// All designs used to live in ONE localStorage key as a JSON array, capped at
+// ~5 MB — a single photo-to-pattern design can be 1–3 MB. The array now lives in
+// IndexedDB (large quota), mirrored synchronously in memory so pjLoadAll/pjSaveAll
+// stay synchronous. CRITICAL GUARD: pjSaveAll refuses to persist until hydration
+// finishes, so a save based on a pre-hydration (incomplete) read can never
+// overwrite — and thus never wipe — the real array on a migrated device.
+const PJ_IDB_NAME='patternly_editor', PJ_IDB_STORE='designs', PJ_IDB_ALLKEY='all';
+let _pjMem=null, _pjReady=false, _pjHydrating=null, _pjIdb=null, _pjRenderQueued=false;
+function _pjIdbOpen(){
+  return new Promise((resolve)=>{
+    try{
+      if(!window.indexedDB){ resolve(null); return; }
+      const req=indexedDB.open(PJ_IDB_NAME, 1);
+      req.onupgradeneeded=()=>{ try{ req.result.createObjectStore(PJ_IDB_STORE); }catch(e){} };
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>resolve(null);
+      req.onblocked=()=>resolve(null);
+    }catch(e){ resolve(null); }
+  });
+}
+function _pjIdbGet(key){
+  if(!_pjIdb) return Promise.resolve(null);
+  return new Promise((resolve)=>{ try{ const tx=_pjIdb.transaction(PJ_IDB_STORE,'readonly'); const r=tx.objectStore(PJ_IDB_STORE).get(key); r.onsuccess=()=>resolve(r.result); r.onerror=()=>resolve(null); }catch(e){ resolve(null); } });
+}
+function _pjIdbPut(key, val){
+  if(!_pjIdb) return Promise.resolve();
+  return new Promise((resolve)=>{ try{ const tx=_pjIdb.transaction(PJ_IDB_STORE,'readwrite'); tx.objectStore(PJ_IDB_STORE).put(val, key); tx.oncomplete=()=>resolve(); tx.onerror=()=>resolve(); tx.onabort=()=>resolve(); }catch(e){ resolve(); } });
+}
+function pjHydrate(){
+  if(_pjReady) return Promise.resolve();
+  if(_pjHydrating) return _pjHydrating;
+  _pjHydrating=(async()=>{
+    try{ _pjIdb = await _pjIdbOpen(); }catch(e){ _pjIdb=null; }
+    let arr=null;
+    if(_pjIdb){ try{ arr = await _pjIdbGet(PJ_IDB_ALLKEY); }catch(e){} }
+    if(!Array.isArray(arr)){
+      // One-time migration from localStorage (or first-ever run -> []).
+      try{ const v=JSON.parse(localStorage.getItem(PJ_KEY)); arr=Array.isArray(v)?v:[]; }catch(e){ arr=[]; }
+      if(_pjIdb){ await _pjIdbPut(PJ_IDB_ALLKEY, arr); try{ localStorage.removeItem(PJ_KEY); }catch(e){} }
+    }
+    _pjMem=arr; _pjReady=true;
+  })();
+  return _pjHydrating;
+}
+function pjLoadAll(){
+  if(_pjReady && Array.isArray(_pjMem)) return _pjMem;
+  pjHydrate();   // kick (idempotent)
+  // Pre-hydration read: fall back to localStorage. Correct on first load; on a
+  // migrated device it returns [] briefly — safe for DISPLAY only, because
+  // pjSaveAll below refuses to persist until hydrated, so it can't be written back.
+  try{ const v=JSON.parse(localStorage.getItem(PJ_KEY)); return Array.isArray(v)?v:[]; }catch(e){ return []; }
+}
+function pjSaveAll(list){
+  if(!_pjReady){
+    // NEVER overwrite before hydration — a pre-hydration list is incomplete on a
+    // migrated device, so writing it back would drop designs. Kick hydration; the
+    // autosave (which awaits hydration) then persists the real, complete list.
+    pjHydrate();
+    return;
+  }
+  _pjMem=list;
+  _pjIdbPut(PJ_IDB_ALLKEY, list);
+  try{ localStorage.removeItem(PJ_KEY); }catch(e){}
+}
+pjHydrate();   // kick migration early so localStorage frees ASAP
 
 // ══════════════════════════════════════════════════════════════════════════
 //  EDITOR-PATTERN ACCOUNT SYNC (Plus) — deliberately SEPARATE from the tracker
@@ -15882,6 +15950,7 @@ async function edpPullOne(id){
 // pull newer account down), then append "continue on this device" cards for
 // designs that live on the account but not on this device.
 async function edpAfterRender(wrap){
+  await pjHydrate();   // ensure the design array is complete before merge/prune
   if(!edpEnabled()){ _edpSyncedThisSession=false; return; }
   if(!wrap) wrap=document.getElementById('pj-grid');
   if(!wrap) return;
@@ -19957,6 +20026,7 @@ function trkDeleteCloudProject(kit, c){
 // pulls it down. Matched by content-hash sync id so we never double-show one that
 // already exists locally.
 async function trkAppendUserPatternCards(grid){
+  await trkBlobHydrate();
   let info;
   try{ info = await trkUserPatternList(); }catch(e){ return; }
   if(!info || !Array.isArray(info.items) || !info.items.length) return;
@@ -20183,10 +20253,10 @@ function trkRenderProjectCards(grid, list, withAdd){
   };
 }
 function trkShowHome(){
-  // Blobs live in IndexedDB — hydrate the mirror (and run the one-time migration
-  // that frees localStorage) in the background; re-render once ready so cloud-card
-  // matching is exact. Local cards render fine meanwhile (they use the index).
-  if(!_trkBlobReady){ trkBlobHydrate().then(()=>{ const w=document.getElementById('trk-projects'); if(w && w.style.display!=='none'){ try{ trkShowHomeInner(trkIndex()); }catch(e){} } }); }
+  // Kick IndexedDB hydration + the one-time migration in the background. The async
+  // account functions (append/refresh/prune) await it themselves, so NO full
+  // re-render is needed — re-rendering double-appended the async cloud cards.
+  trkBlobHydrate();
   // Get the final marks up to the account BEFORE the grid is torn down below.
   try{ trkFlushProgress(); }catch(e){}
   // Combined page: the source chooser (Luca-S Patterns / Upload) sits at the top,
@@ -20271,6 +20341,7 @@ function trkShowHomeInner(list){
 // It never touches stitch data, the content-hash sync id, the stored progress,
 // or the union-merge. The merge on open remains the single source of truth.
 async function trkRefreshCardProgress(){
+  await trkBlobHydrate();
   const kitBySku = {}, upById = {};
   try{ const kl = await trkCloudProjects();
        if(Array.isArray(kl)) for(const k of kl) if(k && k.sku) kitBySku[String(k.sku).toUpperCase()] = k; }catch(e){}
@@ -20308,6 +20379,7 @@ async function trkRefreshCardProgress(){
 // the index fresh right before writing (no await between), so it can't clobber a
 // pattern created during the fetch. A delete is a delete (removes local progress).
 async function trkPruneAccountDeletes(){
+  await trkBlobHydrate();
   let info; try{ info = await trkUserPatternList(); }catch(e){ return; }
   if(!info || !Array.isArray(info.deleted) || !info.deleted.length) return;
   // Map sync-id -> deletion time. Because sync ids are content hashes, a newly
@@ -28840,6 +28912,7 @@ async function pjOpenProject(id){
   // BEFORE opening — you always continue from the latest, never a stale local
   // copy. (Only pulls when the account is genuinely newer, so unsaved local work
   // is never clobbered.)
+  await pjHydrate();   // designs live in IndexedDB — ensure the mirror is loaded
   try{
     if(typeof edpEnabled==='function' && edpEnabled()){
       const info=await edpList();
@@ -29044,6 +29117,13 @@ function pjBulkDelete(){
   if(l) l.classList.toggle('active', pjView==='list');
 })();
 function renderProjectsPage(){
+  // Designs live in IndexedDB. If the mirror isn't hydrated yet, render exactly
+  // ONCE when it is — scheduled a single time so the async cloud-card append can't
+  // run twice (the double-card bug we fixed in the tracker).
+  if(!_pjReady){
+    if(!_pjRenderQueued){ _pjRenderQueued=true; pjHydrate().then(()=>{ _pjRenderQueued=false; renderProjectsPage(); }); }
+    return;
+  }
   const wrap=document.getElementById('pj-grid');
   const list=pjLoadAll().slice().sort((a,b)=>(b.savedAt||0)-(a.savedAt||0));
   const cap=pjSlotCap();
