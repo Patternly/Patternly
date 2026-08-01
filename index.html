@@ -15834,7 +15834,7 @@ async function edpPush(id){
         name: rec.name || 'Untitled pattern', blob,
         cols: rec.cols|0, rows: rec.rows|0,
         threads: Array.isArray(rec.workingPalette)?rec.workingPalette.length:0,
-        savedAt: rec.savedAt|0
+        savedAt: rec.savedAt||0
       })
     });
     if(r.status===409){ let j={}; try{ j=await r.json(); }catch(e){} if(typeof toast==='function') toast((j&&j.message)||'Editor sync limit reached'); }
