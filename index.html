@@ -18701,6 +18701,86 @@ document.getElementById('lp-photo-input').addEventListener('change',function(){
 const TRK_INDEX='patternly_trk_index';
 function trkIndex(){ try{ return JSON.parse(localStorage.getItem(TRK_INDEX)||'[]'); }catch(e){ return []; } }
 function trkIndexWrite(list){ try{ localStorage.setItem(TRK_INDEX, JSON.stringify(list)); }catch(e){} }
+// ── Uploaded-pattern blob store ──────────────────────────────────────────────
+// Chart blobs (0.5–1 MB each) used to live in localStorage, which caps at ~5 MB
+// per origin — a device couldn't hold even five patterns. They now live in
+// IndexedDB (quota in the hundreds of MB), mirrored in a synchronous in-memory
+// Map so every existing call site stays synchronous (no sync/push/pull function
+// had to become async). Kits are unaffected — they re-download from R2 and store
+// no blob here; only 'patternly_trk_proj_*' blobs moved. Progress
+// ('patternly_tracker_*') and the small index stay in localStorage.
+const TRK_IDB_NAME='patternly_trk', TRK_IDB_STORE='proj';
+let _trkBlobMem=new Map(), _trkBlobReady=false, _trkBlobHydrating=null, _trkIdb=null;
+function _trkIdbOpen(){
+  return new Promise((resolve)=>{
+    try{
+      if(!window.indexedDB){ resolve(null); return; }
+      const req=indexedDB.open(TRK_IDB_NAME, 1);
+      req.onupgradeneeded=()=>{ try{ req.result.createObjectStore(TRK_IDB_STORE); }catch(e){} };
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>resolve(null);
+      req.onblocked=()=>resolve(null);
+    }catch(e){ resolve(null); }
+  });
+}
+function _trkIdbPut(id, blob){
+  if(!_trkIdb) return Promise.resolve();
+  return new Promise((resolve)=>{ try{ const tx=_trkIdb.transaction(TRK_IDB_STORE,'readwrite'); tx.objectStore(TRK_IDB_STORE).put(blob, id); tx.oncomplete=()=>resolve(); tx.onerror=()=>resolve(); tx.onabort=()=>resolve(); }catch(e){ resolve(); } });
+}
+function _trkIdbDel(id){
+  if(!_trkIdb) return Promise.resolve();
+  return new Promise((resolve)=>{ try{ const tx=_trkIdb.transaction(TRK_IDB_STORE,'readwrite'); tx.objectStore(TRK_IDB_STORE).delete(id); tx.oncomplete=()=>resolve(); tx.onerror=()=>resolve(); tx.onabort=()=>resolve(); }catch(e){ resolve(); } });
+}
+// Hydrate the in-memory mirror from IndexedDB, then one-time migrate any blobs
+// still in localStorage (freeing the ~5 MB). Idempotent; safe to call often.
+function trkBlobHydrate(){
+  if(_trkBlobReady) return Promise.resolve();
+  if(_trkBlobHydrating) return _trkBlobHydrating;
+  _trkBlobHydrating=(async()=>{
+    try{ _trkIdb = await _trkIdbOpen(); }catch(e){ _trkIdb=null; }
+    // Load everything already in IndexedDB into the mirror.
+    if(_trkIdb){
+      await new Promise((resolve)=>{
+        try{
+          const tx=_trkIdb.transaction(TRK_IDB_STORE,'readonly');
+          const req=tx.objectStore(TRK_IDB_STORE).openCursor();
+          req.onsuccess=()=>{ const c=req.result; if(c){ _trkBlobMem.set(c.key, c.value); c.continue(); } else resolve(); };
+          req.onerror=()=>resolve();
+        }catch(e){ resolve(); }
+      });
+    }
+    // One-time migration of any leftover localStorage blobs into IDB + mirror.
+    try{
+      const keys=[];
+      for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k && k.indexOf('patternly_trk_proj_')===0) keys.push(k); }
+      for(const k of keys){
+        const id=k.slice('patternly_trk_proj_'.length);
+        const blob=localStorage.getItem(k);
+        if(blob!=null){ _trkBlobMem.set(id, blob); await _trkIdbPut(id, blob); }
+      }
+      // Drop from localStorage only AFTER a successful IDB write, so a failure
+      // (e.g. IndexedDB unavailable) never loses data — the mirror still has it.
+      if(_trkIdb){ for(const k of keys){ try{ localStorage.removeItem(k); }catch(e){} } }
+    }catch(e){}
+    _trkBlobReady=true;
+  })();
+  return _trkBlobHydrating;
+}
+function trkBlobGet(id){
+  if(_trkBlobMem.has(id)) return _trkBlobMem.get(id);
+  // Not yet hydrated/migrated — fall back to the legacy localStorage copy.
+  try{ return localStorage.getItem('patternly_trk_proj_'+id); }catch(e){ return null; }
+}
+function trkBlobSet(id, blob){
+  _trkBlobMem.set(id, blob);
+  _trkIdbPut(id, blob);                                        // background persist
+  try{ localStorage.removeItem('patternly_trk_proj_'+id); }catch(e){}   // clear any legacy copy
+}
+function trkBlobDel(id){
+  _trkBlobMem.delete(id);
+  _trkIdbDel(id);
+  try{ localStorage.removeItem('patternly_trk_proj_'+id); }catch(e){}
+}
 // A stable, unique id for syncing a project to the account. Local project keys
 // are derived from filenames and collide when two patterns share a legend name
 // ("legend.pdf"). This mints a random id ONCE per project, stores it on the
@@ -18761,7 +18841,7 @@ function trkSyncIdFromBlob(blob, localId){
 function trkAccountId(p){
   if(!p) return null;
   if(p.syncId) return p.syncId;
-  try{ const blob=localStorage.getItem('patternly_trk_proj_'+p.id); if(blob) return trkSyncIdFromBlob(blob, p.id); }catch(e){}
+  try{ const blob=trkBlobGet(p.id); if(blob) return trkSyncIdFromBlob(blob, p.id); }catch(e){}
   return null;
 }
 
@@ -18798,7 +18878,7 @@ function trkSaveProject(){
         if(missSet.has(gch) && trackerSprites[sym]) fontModeSprites[sym]=trackerSprites[sym].url;
       }
     }
-    localStorage.setItem('patternly_trk_proj_'+id, JSON.stringify({
+    trkBlobSet(id, JSON.stringify({
       legend:{bySymbol:trackerLegend.bySymbol, colours:trackerLegend.colours,
               fabricCount:trackerLegend.fabricCount, stitchesSize:trackerLegend.stitchesSize,
               rowCount:trackerLegend.rowCount, pending:[]},
@@ -18833,7 +18913,7 @@ function trkSaveProject(){
     const list=trkIndex().filter(p=>{
       if(p.id===id) return false;
       if(curSku && p.sku && String(p.sku).toUpperCase()===String(curSku).toUpperCase()){
-        try{ localStorage.removeItem('patternly_trk_proj_'+p.id); localStorage.removeItem('patternly_tracker_'+p.id); }catch(e){}
+        try{ trkBlobDel(p.id); localStorage.removeItem('patternly_tracker_'+p.id); }catch(e){}
         return false;
       }
       return true;
@@ -18855,7 +18935,7 @@ function trkSaveProject(){
     if(list.length>8){
       for(const gone of list.slice(8)){
         try{
-          localStorage.removeItem('patternly_trk_proj_'+gone.id);
+          trkBlobDel(gone.id);
           localStorage.removeItem('patternly_tracker_'+gone.id);
         }catch(e){}
       }
@@ -18917,7 +18997,7 @@ async function trkCheckStillOwned(id){
   }catch(e){ return true; }
   // Positively not owned AND no code: remove the cached pattern and its progress.
   try{
-    localStorage.removeItem('patternly_trk_proj_'+id);
+    trkBlobDel(id);
     localStorage.removeItem('patternly_tracker_'+id);
     trkIndexWrite(trkIndex().filter(p=>p.id!==id));
   }catch(e){}
@@ -18933,8 +19013,11 @@ async function trkCheckStillOwned(id){
 async function trkOpenProject(id){
   // Ownership first: a cached kit that has been refunded should not open.
   if(!(await trkCheckStillOwned(id))) return;
+  // Blobs live in IndexedDB now — ensure the in-memory mirror is populated before
+  // reading, or a pattern would look "not found" on a fresh page load.
+  await trkBlobHydrate();
   try{
-    const raw=localStorage.getItem('patternly_trk_proj_'+id);
+    const raw=trkBlobGet(id);
     if(!raw){ toast('Saved pattern not found'); return; }
     const s=JSON.parse(raw);
     trackerActiveProjectKey=id;
@@ -19077,7 +19160,7 @@ function trkExportBackup(){
   if(!trackerGrid || !trackerActiveProjectKey){ toast('Open a pattern first'); return; }
   trkSaveProject(); // flush latest chart/legend/sprites + index entry to storage
   const id=trackerActiveProjectKey;
-  const projRaw=localStorage.getItem('patternly_trk_proj_'+id);
+  const projRaw=trkBlobGet(id);
   if(!projRaw){ toast('Nothing to back up yet'); return; }
   const progress={ cols:trackerGrid.cols, rows:trackerGrid.rows,
     data:trackerStitched.map(r=>r.map(v=>v?'1':'0').join('')).join('|') };
@@ -19107,7 +19190,7 @@ async function trkImportBackup(file){
   try{
     const proj=b.project;
     const newId='imp_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-    localStorage.setItem('patternly_trk_proj_'+newId, JSON.stringify(proj));
+    trkBlobSet(newId, JSON.stringify(proj));
     if(b.progress && b.progress.data) localStorage.setItem('patternly_tracker_'+newId, JSON.stringify(b.progress));
     const idx=b.index||{};
     let total=0; for(const line of (proj.cells||'').split('\n')) for(const ch of line.split('\u0001')) if(ch!==' ') total++;
@@ -19166,7 +19249,7 @@ function trkDeleteProject(id, name){
         tomb.push({syncId, name:name||p.name||'', cols:p.cols, rows:p.rows, ts:Date.now()});
         localStorage.setItem('patternly_trk_tombstones', JSON.stringify(tomb.slice(-60)));
       }catch(e){}
-      localStorage.removeItem('patternly_trk_proj_'+id);
+      trkBlobDel(id);
       localStorage.removeItem('patternly_tracker_'+id);
       trkIndexWrite(trkIndex().filter(p=>p.id!==id));
       if(syncId && typeof trkUserPatternDelete==='function') trkUserPatternDelete(syncId);
@@ -19633,7 +19716,7 @@ async function trkOpenKit(kit){
         const _before=trkIndex(), _kept=_before.filter(p=>{
           if(p.id===_canon) return true;
           if(String(p.sku||'').toUpperCase()===_sku){
-            try{ localStorage.removeItem('patternly_trk_proj_'+p.id); localStorage.removeItem('patternly_tracker_'+p.id); }catch(e){}
+            try{ trkBlobDel(p.id); localStorage.removeItem('patternly_tracker_'+p.id); }catch(e){}
             return false;
           }
           return true;
@@ -19859,7 +19942,7 @@ function trkDeleteCloudProject(kit, c){
       try{
         for(const p of trkIndex()){
           if(p.sku && String(p.sku).toUpperCase()===String(kit.sku).toUpperCase()){
-            localStorage.removeItem('patternly_trk_proj_'+p.id);
+            trkBlobDel(p.id);
             localStorage.removeItem('patternly_tracker_'+p.id);
           }
         }
@@ -19949,7 +20032,7 @@ async function trkContinueFromAccount(it, card){
   // 2) Store the blob. localStorage can be full on a device that already holds
   //    several patterns (including, when testing, the copy this was pushed from).
   try{
-    localStorage.setItem('patternly_trk_proj_'+localId, blob);
+    trkBlobSet(localId, blob);
   }catch(e){
     console.error('[trk] continue: setItem quota', e);
     setS('Not enough space on this device to open this pattern. Remove another tracked pattern, then try again.');
@@ -19967,7 +20050,7 @@ async function trkContinueFromAccount(it, card){
     trkIndexWrite(list);
   }catch(e){
     console.error('[trk] continue: index write failed', e);
-    try{ localStorage.removeItem('patternly_trk_proj_'+localId); }catch(_){}
+    try{ trkBlobDel(localId); }catch(_){}
     setS('Couldn\u2019t save this pattern on this device. Try again.');
     return;
   }
@@ -19988,7 +20071,7 @@ async function trkContinueFromAccount(it, card){
   const opened = ws && ws.style.display!=='none' && trackerActiveProjectKey===localId;
   if(!opened){
     console.error('[trk] continue: open did not complete for', localId);
-    try{ localStorage.removeItem('patternly_trk_proj_'+localId);
+    try{ trkBlobDel(localId);
          trkIndexWrite(trkIndex().filter(p=>p.id!==localId)); }catch(_){}
     setS('Downloaded fine, but this device couldn\u2019t open it. If it keeps happening, let us know \u2014 the copy on your account is safe.');
   }
@@ -20035,7 +20118,7 @@ function trkDeleteUserPattern(it, card){
       // Also remove a matching local copy so the count and view stay in step.
       try{
         for(const p of trkIndex()){ if(!p.sku){ if(trkAccountId(p)===it.id){
-            localStorage.removeItem('patternly_trk_proj_'+p.id);
+            trkBlobDel(p.id);
             localStorage.removeItem('patternly_tracker_'+p.id);
             trkIndexWrite(trkIndex().filter(x=>x.id!==p.id));
           } } }
@@ -20100,6 +20183,10 @@ function trkRenderProjectCards(grid, list, withAdd){
   };
 }
 function trkShowHome(){
+  // Blobs live in IndexedDB — hydrate the mirror (and run the one-time migration
+  // that frees localStorage) in the background; re-render once ready so cloud-card
+  // matching is exact. Local cards render fine meanwhile (they use the index).
+  if(!_trkBlobReady){ trkBlobHydrate().then(()=>{ const w=document.getElementById('trk-projects'); if(w && w.style.display!=='none'){ try{ trkShowHomeInner(trkIndex()); }catch(e){} } }); }
   // Get the final marks up to the account BEFORE the grid is torn down below.
   try{ trkFlushProgress(); }catch(e){}
   // Combined page: the source chooser (Luca-S Patterns / Upload) sits at the top,
@@ -20238,7 +20325,7 @@ async function trkPruneAccountDeletes(){
   });
   if(!removed.length) return;
   for(const r of removed){
-    try{ localStorage.removeItem('patternly_trk_proj_'+r.id); localStorage.removeItem('patternly_tracker_'+r.id); }catch(e){}
+    try{ trkBlobDel(r.id); localStorage.removeItem('patternly_tracker_'+r.id); }catch(e){}
   }
   try{
     const tomb=JSON.parse(localStorage.getItem('patternly_trk_tombstones')||'[]');
@@ -23887,7 +23974,7 @@ function trkUserPatternPush(){
   const id = trackerActiveProjectKey;
   if(!id) return;
   let blob;
-  try{ blob = localStorage.getItem('patternly_trk_proj_'+id); }catch(e){}
+  try{ blob = trkBlobGet(id); }catch(e){}
   if(!blob) return;
   // Don't sync a half-loaded pattern: require a real grid with stitches.
   let total=0;
@@ -24134,7 +24221,7 @@ async function trkCloudPull(){
 async function trkUserPatternPull(){
   if(trkCloudSku || !trackerGrid || !trackerActiveProjectKey) return;   // kits use trkCloudPull
   try{
-    const blob=localStorage.getItem('patternly_trk_proj_'+trackerActiveProjectKey);
+    const blob=trkBlobGet(trackerActiveProjectKey);
     if(!blob) return;
     const _pr=(typeof trkIndex==='function'?trkIndex():[]).find(p=>p.id===trackerActiveProjectKey);
     const safeId=trkAccountId(_pr) || trkSyncIdFromBlob(blob, trackerActiveProjectKey);
@@ -26211,7 +26298,7 @@ async function acctRenderPatterns(){
     const stale=trkIndex().filter(p=>p.sku && !ownedSet.has(String(p.sku).toUpperCase()));
     if(stale.length){
       for(const p of stale){
-        localStorage.removeItem('patternly_trk_proj_'+p.id);
+        trkBlobDel(p.id);
         localStorage.removeItem('patternly_tracker_'+p.id);
       }
       trkIndexWrite(trkIndex().filter(p=>!stale.some(x=>x.id===p.id)));
