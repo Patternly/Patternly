@@ -20020,6 +20020,7 @@ function trkRenderProjectCards(grid, list, withAdd){
   for(const p of list){
     const pct=p.total?Math.round(p.done/p.total*100):0;
     const card=document.createElement('div'); card.className='trk-pcard';
+    card.dataset.id=String(p.id);
     if(p.sku) card.dataset.sku=String(p.sku).toUpperCase();
     const nSess=Object.keys(p.sessions||{}).length;
     const fmtT=ms=>{ if(!ms||ms<60000) return nSess? '<1m' : '—'; const m=Math.round(ms/60000); return m<60? m+'m' : Math.floor(m/60)+'h '+(m%60)+'m'; };
@@ -20127,6 +20128,51 @@ function trkShowHomeInner(list){
   // Slider prev/next arrows for each section.
   trkWireSlider('trk-slider-kits','trk-mykits-grid');
   trkWireSlider('trk-slider-uploads','trk-proj-grid');
+  // Local cards draw their done/% from the local index, which only refreshes
+  // when THIS device opens the pattern. Pull the account's summary counts (the
+  // same ones already fetched for the cloud/account cards) and patch each local
+  // card + its index entry so progress marked on another device shows without
+  // opening. Display-only — see trkRefreshCardProgress.
+  try{ trkRefreshCardProgress(); }catch(e){}
+}
+// Refresh the done/total shown on LOCAL pattern cards from the account summaries.
+// This NEVER touches stitch data, the content-hash sync id, the stored progress,
+// or the union-merge — it only reads counts the account already exposes and, when
+// they are strictly newer than this device last saved, updates what the card
+// displays (and mirrors that into the local index so it persists). The merge on
+// open remains the single source of truth; this just keeps the card preview level.
+async function trkRefreshCardProgress(){
+  let idx; try{ idx = trkIndex(); }catch(e){ return; }
+  if(!idx || !idx.length) return;
+  const kitBySku = {}, upById = {};
+  try{ const kl = await trkCloudProjects();
+       if(Array.isArray(kl)) for(const k of kl) if(k && k.sku) kitBySku[String(k.sku).toUpperCase()] = k; }catch(e){}
+  try{ const info = await trkUserPatternList();
+       if(info && Array.isArray(info.items)) for(const it of info.items) upById[it.id] = it; }catch(e){}
+  let changed = false;
+  for(const p of idx){
+    let acc = null;
+    if(p.sku){ acc = kitBySku[String(p.sku).toUpperCase()]; }
+    else{
+      try{ const blob = localStorage.getItem('patternly_trk_proj_'+p.id);
+           if(blob){ const sid = trkSyncIdFromBlob(blob, p.id); if(sid) acc = upById[sid]; } }catch(e){}
+    }
+    if(!acc) continue;
+    // Only adopt the account's count when it is strictly newer than what this
+    // device last saved — never regress a fresh local mark that hasn't pushed yet.
+    if((acc.ts|0) <= (p.ts|0)) continue;
+    if((acc.done|0) === (p.done|0) && (!acc.total || (acc.total|0) === (p.total|0))) continue;
+    p.done = acc.done|0; if(acc.total) p.total = acc.total|0; p.ts = acc.ts|0; changed = true;
+    let card=null; try{ card = document.querySelector('.trk-pcard[data-id="'+(window.CSS&&CSS.escape?CSS.escape(String(p.id)):String(p.id))+'"]'); }catch(e){}
+    if(card){
+      const pct = p.total ? Math.round(p.done/p.total*100) : 0;
+      const bar = card.querySelector('.trk-pbar>div'); if(bar) bar.style.width = pct+'%';
+      const prog = card.querySelector('[title="Progress"]');
+      if(prog) prog.textContent = '\u2714 '+(p.done||0).toLocaleString()+' / '+(p.total||0).toLocaleString();
+      const btn = card.querySelector('.open'); if(btn) btn.textContent = 'Open \u00b7 '+pct+'%';
+    }
+  }
+  if(changed){ try{ trkIndexWrite(idx); }catch(e){} }
 }
 // Per-section grid/list view. Default (no modifier) is the horizontal slider;
 // 'list' stacks compact rows. The choice is remembered in localStorage.
