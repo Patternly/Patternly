@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v53";
+const MW_VERSION = "v54";
 
 const enc = new TextEncoder();
 
@@ -1740,7 +1740,19 @@ async function handleRequest(context) {
           if (!listed.list_complete) cursor = listed.cursor; else break;
         }
         items.sort((a, b) => b.ts - a.ts);
-        return new Response(JSON.stringify({ items, cap: USER_PATTERN_CAP, used: items.length }), {
+        // Account-side tombstones: ids deleted on any device, so other devices can
+        // remove their local copies (a delete is a delete). Kept for a while via TTL.
+        const deleted = [];
+        {
+          const delPrefix = "updel:" + auth.customerId + ":";
+          let dcur;
+          for (let dp = 0; dp < 5; dp++) {
+            const dl = await env.ENTITLEMENTS.list({ prefix: delPrefix, limit: 1000, cursor: dcur });
+            for (const k of dl.keys) deleted.push(k.name.slice(delPrefix.length));
+            if (!dl.list_complete) dcur = dl.cursor; else break;
+          }
+        }
+        return new Response(JSON.stringify({ items, cap: USER_PATTERN_CAP, used: items.length, deleted }), {
           headers: { "content-type": "application/json", "cache-control": "no-store" }
         });
       }
@@ -1815,6 +1827,8 @@ async function handleRequest(context) {
             thumb: (typeof body.thumb === "string" && body.thumb.length <= 200000) ? body.thumb : null
           };
           await env.ENTITLEMENTS.put(metaKey, JSON.stringify(rec));
+          // Re-creating an id clears its tombstone so other devices don't prune it.
+          try { await env.ENTITLEMENTS.delete("updel:" + auth.customerId + ":" + id); } catch (e) {}
           try {
             if (typeof body.progress === "string" && body.progress) {
               await env.USER_PATTERNS.put(blobKey + ".progress", body.progress, {
@@ -1841,6 +1855,8 @@ async function handleRequest(context) {
         await env.USER_PATTERNS.delete(blobKey);
         try { await env.USER_PATTERNS.delete(blobKey + ".progress"); } catch (e) {}
         await env.ENTITLEMENTS.delete(metaKey);
+        // Tombstone the deletion so other devices prune their local copy. TTL ~90d.
+        try { await env.ENTITLEMENTS.put("updel:" + auth.customerId + ":" + id, JSON.stringify({ ts: Date.now() }), { expirationTtl: 7776000 }); } catch (e) {}
         return new Response(JSON.stringify({ ok: true }), {
           headers: { "content-type": "application/json", "cache-control": "no-store" }
         });
@@ -1916,7 +1932,18 @@ async function handleRequest(context) {
           if (!listed.list_complete) cursor = listed.cursor; else break;
         }
         items.sort((a, b) => b.ts - a.ts);
-        return new Response(JSON.stringify({ items, cap: EDITOR_PATTERN_CAP, used: items.length }), {
+        // Account-side tombstones for Editor designs deleted on any device.
+        const deleted = [];
+        {
+          const delPrefix = "edpdel:" + auth.customerId + ":";
+          let dcur;
+          for (let dp = 0; dp < 5; dp++) {
+            const dl = await env.ENTITLEMENTS.list({ prefix: delPrefix, limit: 1000, cursor: dcur });
+            for (const k of dl.keys) deleted.push(k.name.slice(delPrefix.length));
+            if (!dl.list_complete) dcur = dl.cursor; else break;
+          }
+        }
+        return new Response(JSON.stringify({ items, cap: EDITOR_PATTERN_CAP, used: items.length, deleted }), {
           headers: { "content-type": "application/json", "cache-control": "no-store" }
         });
       }
@@ -1972,6 +1999,8 @@ async function handleRequest(context) {
           savedAt: Number(body.savedAt) || 0, ts: Date.now()
         };
         await env.ENTITLEMENTS.put(metaKey, JSON.stringify(rec), { expirationTtl: EDITOR_PATTERN_TTL_SEC });
+        // Re-creating an id clears its tombstone so other devices don't prune it.
+        try { await env.ENTITLEMENTS.delete("edpdel:" + auth.customerId + ":" + id); } catch (e) {}
         return new Response(JSON.stringify({ ok: true, id, ts: rec.ts }), {
           headers: { "content-type": "application/json", "cache-control": "no-store" }
         });
@@ -1981,6 +2010,8 @@ async function handleRequest(context) {
       if (request.method === "DELETE") {
         await env.EDITOR_PATTERNS.delete(blobKey);
         await env.ENTITLEMENTS.delete(metaKey);
+        // Tombstone the deletion so other devices prune their local copy. TTL ~90d.
+        try { await env.ENTITLEMENTS.put("edpdel:" + auth.customerId + ":" + id, JSON.stringify({ ts: Date.now() }), { expirationTtl: 7776000 }); } catch (e) {}
         return new Response(JSON.stringify({ ok: true }), {
           headers: { "content-type": "application/json", "cache-control": "no-store" }
         });
