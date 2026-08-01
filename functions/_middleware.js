@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v55";
+const MW_VERSION = "v56";
 
 const enc = new TextEncoder();
 
@@ -1925,7 +1925,8 @@ async function handleRequest(context) {
                 id: k.name.slice(metaPrefix.length),
                 name: rec.name || "Untitled pattern",
                 cols: rec.cols | 0, rows: rec.rows | 0, threads: rec.threads | 0,
-                savedAt: rec.savedAt || 0, ts: rec.ts || 0
+                savedAt: rec.savedAt || 0, ts: rec.ts || 0,
+                thumb: (typeof rec.thumb === "string" ? rec.thumb : null)
               });
             } catch (e) {}
           }
@@ -1996,7 +1997,10 @@ async function handleRequest(context) {
         const rec = {
           name: (typeof body.name === "string" ? body.name : "Untitled pattern").slice(0, 120),
           cols: body.cols | 0, rows: body.rows | 0, threads: body.threads | 0,
-          savedAt: Number(body.savedAt) || 0, ts: Date.now()
+          savedAt: Number(body.savedAt) || 0, ts: Date.now(),
+          // Small preview so another device can show the design's photo on its
+          // "on your account" card before the blob is pulled. Size-capped.
+          thumb: (typeof body.thumb === "string" && body.thumb.length <= 200000) ? body.thumb : null
         };
         await env.ENTITLEMENTS.put(metaKey, JSON.stringify(rec), { expirationTtl: EDITOR_PATTERN_TTL_SEC });
         // Re-creating an id clears its tombstone so other devices don't prune it.
