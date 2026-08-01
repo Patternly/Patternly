@@ -19869,7 +19869,7 @@ async function trkAppendUserPatternCards(grid){
     const pct = it.total ? Math.round(it.done/it.total*100) : 0;
     const card=document.createElement('div');
     card.className='trk-pcard trk-pcard-cloud';
-    card.innerHTML=`<div class="body">
+    card.innerHTML=`${it.thumb?`<img class="thumb" src="${esc(it.thumb)}" alt="">`:''}<div class="body">
       <h4>${esc(it.name||'My pattern')}</h4>
       <div class="meta">${it.cols}\u00d7${it.rows} \u00b7 On your account \u00b7 ${rel(it.ts||Date.now())}</div>
       <div class="trk-pbar"><div style="width:${pct}%"></div></div>
@@ -19878,7 +19878,7 @@ async function trkAppendUserPatternCards(grid){
         <span title="Colours">\ud83e\uddf5 ${it.threads||0} colours</span>
       </div>
       <div class="row">
-        <button class="open cont" style="flex:1">Continue on this device</button>
+        <button class="open cont" style="flex:1">Open</button>
         <button class="ren" title="Rename">\u270e</button>
         <button class="del" title="Remove from account">\ud83d\uddd1</button>
       </div>
@@ -23831,6 +23831,9 @@ async function trkUserPatternPush(){
         done, total,
         cols: _upCols, rows: _upRows,
         threads: _upThreads,
+        // preview thumbnail so another device can show this pattern's photo on
+        // its "on your account" card before the blob is pulled (additive only)
+        thumb: (idxRec.thumb || null),
         // packed stitched state, snapshotted before the await so a mark made
         // right before closing the pattern still reaches the account
         progress: _upProgress,
