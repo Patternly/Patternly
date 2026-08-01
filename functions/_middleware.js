@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v54";
+const MW_VERSION = "v55";
 
 const enc = new TextEncoder();
 
@@ -1748,7 +1748,7 @@ async function handleRequest(context) {
           let dcur;
           for (let dp = 0; dp < 5; dp++) {
             const dl = await env.ENTITLEMENTS.list({ prefix: delPrefix, limit: 1000, cursor: dcur });
-            for (const k of dl.keys) deleted.push(k.name.slice(delPrefix.length));
+            for (const k of dl.keys) deleted.push({ id: k.name.slice(delPrefix.length), ts: (k.metadata && k.metadata.ts) || 0 });
             if (!dl.list_complete) dcur = dl.cursor; else break;
           }
         }
@@ -1856,7 +1856,7 @@ async function handleRequest(context) {
         try { await env.USER_PATTERNS.delete(blobKey + ".progress"); } catch (e) {}
         await env.ENTITLEMENTS.delete(metaKey);
         // Tombstone the deletion so other devices prune their local copy. TTL ~90d.
-        try { await env.ENTITLEMENTS.put("updel:" + auth.customerId + ":" + id, JSON.stringify({ ts: Date.now() }), { expirationTtl: 7776000 }); } catch (e) {}
+        try { const _t = Date.now(); await env.ENTITLEMENTS.put("updel:" + auth.customerId + ":" + id, JSON.stringify({ ts: _t }), { expirationTtl: 7776000, metadata: { ts: _t } }); } catch (e) {}
         return new Response(JSON.stringify({ ok: true }), {
           headers: { "content-type": "application/json", "cache-control": "no-store" }
         });
@@ -1939,7 +1939,7 @@ async function handleRequest(context) {
           let dcur;
           for (let dp = 0; dp < 5; dp++) {
             const dl = await env.ENTITLEMENTS.list({ prefix: delPrefix, limit: 1000, cursor: dcur });
-            for (const k of dl.keys) deleted.push(k.name.slice(delPrefix.length));
+            for (const k of dl.keys) deleted.push({ id: k.name.slice(delPrefix.length), ts: (k.metadata && k.metadata.ts) || 0 });
             if (!dl.list_complete) dcur = dl.cursor; else break;
           }
         }
@@ -2011,7 +2011,7 @@ async function handleRequest(context) {
         await env.EDITOR_PATTERNS.delete(blobKey);
         await env.ENTITLEMENTS.delete(metaKey);
         // Tombstone the deletion so other devices prune their local copy. TTL ~90d.
-        try { await env.ENTITLEMENTS.put("edpdel:" + auth.customerId + ":" + id, JSON.stringify({ ts: Date.now() }), { expirationTtl: 7776000 }); } catch (e) {}
+        try { const _t = Date.now(); await env.ENTITLEMENTS.put("edpdel:" + auth.customerId + ":" + id, JSON.stringify({ ts: _t }), { expirationTtl: 7776000, metadata: { ts: _t } }); } catch (e) {}
         return new Response(JSON.stringify({ ok: true }), {
           headers: { "content-type": "application/json", "cache-control": "no-store" }
         });
