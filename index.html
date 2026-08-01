@@ -18752,6 +18752,18 @@ function trkSyncIdFromBlob(blob, localId){
     return 'up_'+trkHashString(blob.length+'|'+head+'|'+tail);
   }catch(e){ return 'up_'+String(localId||'x').replace(/[^A-Za-z0-9_-]/g,'_').slice(0,40); }
 }
+// The single source of truth for which ACCOUNT record a local uploaded pattern
+// maps to. Prefer the stable id minted once at creation (p.syncId) — two patterns
+// with identical content then never collide, and edits keep the same id. Fall
+// back to the old content-hash for patterns created before stable ids, so their
+// existing account entry carries over. Push, pull, prune and delete all use this
+// so they always agree on the id.
+function trkAccountId(p){
+  if(!p) return null;
+  if(p.syncId) return p.syncId;
+  try{ const blob=localStorage.getItem('patternly_trk_proj_'+p.id); if(blob) return trkSyncIdFromBlob(blob, p.id); }catch(e){}
+  return null;
+}
 
 
 function trkMakeThumb(){
@@ -18827,10 +18839,15 @@ function trkSaveProject(){
       return true;
     });
     let total=0; for(const row of trackerGrid.cells) for(const ch of row) if(ch!==' ') total++;
+    // Stable per-pattern account id, minted ONCE at creation and kept forever, so
+    // identical-content patterns never collide on the account and edits keep the
+    // same id. Kits sync by SKU, not here. Patterns created before stable ids have
+    // no syncId; the push migrates them (adopts their content-hash id).
+    const _upSyncId = prev ? prev.syncId : (curSku ? undefined : ('up_'+Date.now().toString(36)+Math.random().toString(36).slice(2,10)));
     list.unshift({id, name:trackerProjectName||id, cols:trackerGrid.cols, rows:trackerGrid.rows, total,
       done:prev?prev.done:0, ts:Date.now(), thumb:trkMakeThumb(), sku:curSku,
       threads:(trackerLegend.rowCount||Object.keys(trackerColourMap).length),
-      sessions:(prev&&prev.sessions)||{}});
+      sessions:(prev&&prev.sessions)||{}, syncId:_upSyncId});
     trkPendingName='';
     // Trimming to the slot limit used to silently discard the oldest project
     // and its progress. Tell the person, and clear the orphaned data properly
@@ -19131,12 +19148,12 @@ function trkDeleteProject(id, name){
     requireCheck:'Yes, permanently delete this pattern and its progress',
     confirmLabel:'Delete', danger:true,
     onConfirm(){
-      // Compute the same content-hash sync id used when pushing (from the stored
-      // blob) BEFORE removing it, so the account copy is found and its slot freed.
+      // Resolve the SAME account id used when pushing (stable syncId, or the old
+      // content-hash for migrated patterns) so the account copy is found and freed.
       let syncId=null;
       try{
-        const blob=localStorage.getItem('patternly_trk_proj_'+id);
-        if(blob && typeof trkSyncIdFromBlob==='function') syncId=trkSyncIdFromBlob(blob, id);
+        const rec=(typeof trkIndex==='function'?trkIndex():[]).find(p=>p.id===id);
+        syncId=trkAccountId(rec);
       }catch(e){}
       // Tombstone the pattern's identity. The account id is a content hash that
       // can drift from what was pushed, so the server delete below may miss a
@@ -19866,8 +19883,8 @@ async function trkAppendUserPatternCards(grid){
   try{
     for(const p of trkIndex()){
       if(p.sku) continue;                    // kits aren't user-patterns
-      const blob = localStorage.getItem('patternly_trk_proj_'+p.id);
-      if(blob) localSyncIds.add(trkSyncIdFromBlob(blob, p.id));
+      const aid = trkAccountId(p);
+      if(aid) localSyncIds.add(aid);
     }
   }catch(e){}
   let missing = info.items.filter(it=>!localSyncIds.has(it.id));
@@ -19943,7 +19960,10 @@ async function trkContinueFromAccount(it, card){
     const list=trkIndex().filter(p=>p.id!==localId);
     list.unshift({id:localId, name:it.name||'My pattern', cols:it.cols, rows:it.rows,
       total:it.total, done:it.done, ts:Date.now(), sku:null,
-      threads:it.threads, sessions:it.sessions||{}});
+      threads:it.threads, sessions:it.sessions||{},
+      // Adopt the account id so this device maps back to the SAME account record
+      // (its pushes update in place instead of minting a duplicate).
+      syncId: it.id});
     trkIndexWrite(list);
   }catch(e){
     console.error('[trk] continue: index write failed', e);
@@ -19996,8 +20016,7 @@ function trkRenameUserPattern(it, card){
       // Update any local copy's index name too.
       try{
         const idx=trkIndex(); let changed=false;
-        for(const p of idx){ if(!p.sku){ const blob=localStorage.getItem('patternly_trk_proj_'+p.id);
-          if(blob && trkSyncIdFromBlob(blob,p.id)===it.id){ p.name=name; changed=true; } } }
+        for(const p of idx){ if(!p.sku){ if(trkAccountId(p)===it.id){ p.name=name; changed=true; } } }
         if(changed) trkIndexWrite(idx);
       }catch(e){}
       trkShowHome();
@@ -20015,8 +20034,7 @@ function trkDeleteUserPattern(it, card){
       try{ await trkUserPatternDelete(it.id); }catch(e){}
       // Also remove a matching local copy so the count and view stay in step.
       try{
-        for(const p of trkIndex()){ if(!p.sku){ const blob=localStorage.getItem('patternly_trk_proj_'+p.id);
-          if(blob && trkSyncIdFromBlob(blob,p.id)===it.id){
+        for(const p of trkIndex()){ if(!p.sku){ if(trkAccountId(p)===it.id){
             localStorage.removeItem('patternly_trk_proj_'+p.id);
             localStorage.removeItem('patternly_tracker_'+p.id);
             trkIndexWrite(trkIndex().filter(x=>x.id!==p.id));
@@ -20179,8 +20197,7 @@ async function trkRefreshCardProgress(){
     let acc = null;
     if(p.sku){ acc = kitBySku[String(p.sku).toUpperCase()]; }
     else{
-      try{ const blob = localStorage.getItem('patternly_trk_proj_'+p.id);
-           if(blob){ const sid = trkSyncIdFromBlob(blob, p.id); if(sid) acc = upById[sid]; } }catch(e){}
+      try{ const sid = trkAccountId(p); if(sid) acc = upById[sid]; }catch(e){}
     }
     if(!acc) continue;
     // Only adopt the account's count when it is strictly newer than what this
@@ -20215,7 +20232,7 @@ async function trkPruneAccountDeletes(){
   const keep = idx.filter(p=>{
     if(p.sku) return true;                                   // kits: not uploaded patterns
     let sid=null;
-    try{ const blob=localStorage.getItem('patternly_trk_proj_'+p.id); if(blob) sid=trkSyncIdFromBlob(blob,p.id); }catch(e){}
+    try{ sid=trkAccountId(p); }catch(e){}
     if(sid && del.has(sid) && del.get(sid) > (p.ts||0)){ removed.push({id:p.id, sid}); return false; }
     return true;
   });
@@ -23857,47 +23874,44 @@ function trkUserPatternUrl(id){
   try{ var t=localStorage.getItem('pl_session'); if(t) u += '?pl_session='+encodeURIComponent(t); }catch(e){}
   return u;
 }
-let _trkUpBusy=false, _trkUpT=null, _trkLastSyncedKey=null;
-async function trkUserPatternPush(){
-  // Only for uploaded patterns (kits go through trkCloudPush). Needs a signed-in
-  // account and a loaded project.
-  if(trkCloudSku || _trkUpBusy) return;
+let _trkUpQueue=[], _trkUpDraining=false, _trkUpT=null, _trkLastSyncedKey=null;
+// Snapshot the currently-loaded uploaded pattern synchronously and queue it for
+// push. Never dropped on a busy lock and never tied to "whatever is active when
+// the fetch runs" — so creating or editing several patterns in quick succession
+// pushes EACH of them (the old single-flight, active-only push silently dropped
+// all but whichever won the timing).
+function trkUserPatternPush(){
+  if(trkCloudSku) return;                 // kits go through trkCloudPush
   if(!trackerLegend || !trackerGrid || !trackerColourMap) return;
   if(typeof trkPlusOk==='function' && !trkPlusOk()) return;   // tracker is Plus-only anyway
   const id = trackerActiveProjectKey;
   if(!id) return;
-  // Full project blob is already in localStorage from trkSaveProject.
   let blob;
   try{ blob = localStorage.getItem('patternly_trk_proj_'+id); }catch(e){}
   if(!blob) return;
-  // Don't sync a half-loaded pattern: require a real grid with stitches. This
-  // prevents empty "total:0" entries from an immediate push that fired before
-  // the chart finished parsing.
+  // Don't sync a half-loaded pattern: require a real grid with stitches.
   let total=0;
   try{ for(const row of trackerGrid.cells) for(const ch of row) if(ch!==' ') total++; }catch(e){}
   if(!total) return;
-  // Unique per-pattern sync id from the content, so same-named files never collide.
-  const safeId = trkSyncIdFromBlob(blob, id);
-  if(!safeId) return;
-  // Snapshot the mutable grid state NOW, synchronously. There is an await below
-  // (name de-dup lists the account), and closing the pattern tears the grid down
-  // DURING that await — so a mark made just before exit would be read as null and
-  // lost. Capturing here makes an immediate mark-then-exit sync reliably.
+  const idxList = (typeof trkIndex==='function'?trkIndex():[]);
+  const idxRec = idxList.find(p=>p.id===id) || {};
+  // Stable account id. Migrate a pre-stable pattern by adopting its content-hash
+  // id and persisting it, so its existing account entry carries over and future
+  // edits keep the same id.
+  let safeId = idxRec.syncId;
+  if(!safeId){
+    safeId = trkSyncIdFromBlob(blob, id);
+    if(!safeId) return;
+    try{ const e=idxList.find(p=>p.id===id); if(e){ e.syncId=safeId; trkIndexWrite(idxList); } }catch(e){}
+  }
+  // Snapshot the mutable grid state NOW, synchronously — closing the pattern tears
+  // the grid down, so a mark made just before exit must be captured here.
   const _upCols=trackerGrid.cols, _upRows=trackerGrid.rows;
   const _upThreads=Object.keys(trackerColourMap||{}).length;
   const _upProgress = trackerStitched ? trackerStitched.map(r=>r.map(v=>v?'1':'0').join('')).join('|') : null;
-  // Progress: fold the stitched grid into the blob-carrying payload so a new
-  // device restores both the chart and how far along it is.
   let done=0;
   try{ done=trkCountDone(); }catch(e){}
-  const idxRec = (typeof trkIndex==='function'?trkIndex():[]).find(p=>p.id===id) || {};
-  // Choose a name a human will recognise on another device. Filenames for PDF
-  // patterns are often the legend/instruction sheet ("legend", "InstructiuneB706"),
-  // which is meaningless in a list. Strategy:
-  //   1. an explicit, non-generic project name the user gave
-  //   2. a Luca-S SKU pulled from any of the filenames (e.g. B706 -> "Pattern B706")
-  //   3. the chart filename, cleaned of instruction/legend words
-  //   4. a generic fallback
+  // Choose a name a human will recognise on another device (unchanged logic).
   const cleanFileName = (n)=> n ? n.replace(/\.[^.]+$/,'')
       .replace(/instruc[tţ]iun[ei]*/ig,'')       // Romanian "instructiune"
       .replace(/instruction[s]?/ig,'')
@@ -23906,7 +23920,6 @@ async function trkUserPatternPush(){
       .replace(/[_\-\s]+/g,' ').trim() : '';
   const chartRaw = (trackerLastChartFile && trackerLastChartFile.name) ? trackerLastChartFile.name : '';
   const nameSources = [trackerProjectName, chartRaw, idxRec.name, id];
-  // Look for a Luca-S-style SKU (letter(s) + digits) in any source.
   let sku='';
   for(const s of nameSources){ const m=String(s||'').match(/\b([A-Z]{1,3}\d{3,5})\b/i); if(m){ sku=m[1].toUpperCase(); break; } }
   const isGeneric = (n)=> !n || /^(legend|chart|tracked pattern|my pattern|pattern|manual|symbols)$/i.test(n.trim())
@@ -23919,48 +23932,57 @@ async function trkUserPatternPush(){
                 : (idxRec.name && !isGeneric(idxRec.name)) ? idxRec.name
                 : 'My pattern');
   }
-  // De-duplicate the name against other synced patterns so the list never shows
-  // two identical titles: "legend", "legend (2)", "legend (3)"…  A pattern keeps
-  // its own name on re-sync (matched by id), only OTHERS force a suffix.
+  const payload = {
+    safeId, name: displayName, blob, done, total,
+    cols: _upCols, rows: _upRows, threads: _upThreads,
+    thumb: (idxRec.thumb || null), progress: _upProgress,
+    timeMs: idxRec.timeMs|0, sessions: Object.keys(idxRec.sessions||{}).length
+  };
+  // Coalesce: only the latest snapshot per pattern stays queued.
+  _trkUpQueue = _trkUpQueue.filter(q=>q.safeId!==safeId);
+  _trkUpQueue.push(payload);
+  trkDrainUpQueue();
+}
+// Drain the push queue one at a time. Serialising (rather than a global busy flag
+// that DROPS overlapping pushes) means every queued pattern is sent.
+async function trkDrainUpQueue(){
+  if(_trkUpDraining) return;
+  _trkUpDraining=true;
   try{
-    const listInfo = await trkUserPatternList();
-    const taken = (listInfo && Array.isArray(listInfo.items))
-      ? listInfo.items.filter(it=>it.id!==safeId).map(it=>String(it.name||'').toLowerCase())
-      : [];
-    if(taken.includes(displayName.toLowerCase())){
-      let n=2, cand;
-      do{ cand=displayName+' ('+n+')'; n++; }while(taken.includes(cand.toLowerCase()) && n<999);
-      displayName=cand;
+    while(_trkUpQueue.length){
+      const p=_trkUpQueue.shift();
+      // De-duplicate the display name against OTHER synced patterns.
+      let name=p.name;
+      try{
+        const listInfo = await trkUserPatternList();
+        const taken = (listInfo && Array.isArray(listInfo.items))
+          ? listInfo.items.filter(it=>it.id!==p.safeId).map(it=>String(it.name||'').toLowerCase())
+          : [];
+        if(taken.includes(name.toLowerCase())){
+          let n=2, cand;
+          do{ cand=p.name+' ('+n+')'; n++; }while(taken.includes(cand.toLowerCase()) && n<999);
+          name=cand;
+        }
+      }catch(e){ /* offline — send the base name, the server still stores it */ }
+      try{
+        const r = await fetch(trkUserPatternUrl(p.safeId), {
+          method:'PUT', credentials:'include', headers:{'content-type':'application/json'},
+          body: JSON.stringify({
+            name, blob:p.blob, done:p.done, total:p.total,
+            cols:p.cols, rows:p.rows, threads:p.threads,
+            thumb:p.thumb, progress:p.progress,
+            timeMs:p.timeMs, sessions:p.sessions
+          })
+        });
+        if(r.status===409){
+          let info={}; try{ info=await r.json(); }catch(e){}
+          trkUserCapNotice(info);
+        } else if(!r.ok){
+          console.warn('[tracker] user-pattern push refused', r.status);
+        }
+      }catch(e){ console.warn('[tracker] user-pattern push failed', e); }
     }
-  }catch(e){ /* offline — send the base name, the server still stores it */ }
-  _trkUpBusy=true;
-  try{
-    const r = await fetch(trkUserPatternUrl(safeId), {
-      method:'PUT', credentials:'include', headers:{'content-type':'application/json'},
-      body: JSON.stringify({
-        name: displayName,
-        blob,
-        done, total,
-        cols: _upCols, rows: _upRows,
-        threads: _upThreads,
-        // preview thumbnail so another device can show this pattern's photo on
-        // its "on your account" card before the blob is pulled (additive only)
-        thumb: (idxRec.thumb || null),
-        // packed stitched state, snapshotted before the await so a mark made
-        // right before closing the pattern still reaches the account
-        progress: _upProgress,
-        timeMs: idxRec.timeMs|0, sessions: Object.keys(idxRec.sessions||{}).length
-      })
-    });
-    if(r.status===409){
-      // Cap reached — this is a NEW pattern that won't fit. Tell the user once.
-      let info={}; try{ info=await r.json(); }catch(e){}
-      trkUserCapNotice(info);
-    } else if(!r.ok){
-      console.warn('[tracker] user-pattern push refused', r.status);
-    }
-  }catch(e){ console.warn('[tracker] user-pattern push failed', e); }
-  finally{ _trkUpBusy=false; }
+  } finally { _trkUpDraining=false; }
 }
 function trkQueueUserPatternPush(){
   if(trkCloudSku) return;                 // kits use trkCloudPush
@@ -24114,7 +24136,8 @@ async function trkUserPatternPull(){
   try{
     const blob=localStorage.getItem('patternly_trk_proj_'+trackerActiveProjectKey);
     if(!blob) return;
-    const safeId=trkSyncIdFromBlob(blob, trackerActiveProjectKey);
+    const _pr=(typeof trkIndex==='function'?trkIndex():[]).find(p=>p.id===trackerActiveProjectKey);
+    const safeId=trkAccountId(_pr) || trkSyncIdFromBlob(blob, trackerActiveProjectKey);
     if(!safeId) return;
     const data=await trkUserPatternFetchProgress(safeId);
     if(!data || typeof data!=='string' || data.indexOf('|')<0) return;
