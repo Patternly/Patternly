@@ -15920,21 +15920,22 @@ function edpQueuePush(id){ if(!edpEnabled()||!id) return; clearTimeout(_edpPushT
 // (otherwise the 4s debounce can miss it and the other device pulls nothing new).
 function edpFlushNow(){ try{ if(_edpPushT){ clearTimeout(_edpPushT); _edpPushT=null; } if(typeof currentProjectId!=='undefined' && currentProjectId && typeof edpPush==='function') edpPush(currentProjectId); }catch(e){} }
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden) edpFlushNow(); });
-// Returning to the tab: re-render My Patterns if it's the visible view, so a
-// design created or deleted on ANOTHER device shows up promptly (the account list
-// is otherwise only re-fetched when you navigate to the page). Throttled, and only
-// when the page is actually visible; renderProjectsPage/edpAfterRender are
-// idempotent so this can't stack cards.
+// Returning to the tab OR a periodic tick: re-sync My Patterns from the account
+// so a design created or deleted on ANOTHER device shows up. Focus alone isn't
+// enough — a second device kept open side by side never regains focus — so we
+// also poll while the page is visible. Uses edpAfterRender (prune/pull/cloud),
+// which only does a full re-render when something actually changed, so it's quiet.
 let _edpLastRefresh=0;
 function edpMaybeRefresh(){
   try{
     const now=Date.now(); if(now-_edpLastRefresh<3000) return;
     const pg=document.getElementById('projects-page');
-    if(pg && pg.offsetParent!==null && typeof renderProjectsPage==='function'){ _edpLastRefresh=now; renderProjectsPage(); }
+    if(pg && pg.offsetParent!==null && typeof edpAfterRender==='function'){ _edpLastRefresh=now; edpAfterRender(); }
   }catch(e){}
 }
 window.addEventListener('focus', edpMaybeRefresh);
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) edpMaybeRefresh(); });
+setInterval(()=>{ if(!document.hidden) edpMaybeRefresh(); }, 12000);
 window.addEventListener('pagehide', edpFlushNow);
 async function edpList(){
   if(!edpEnabled()) return null;
@@ -15943,10 +15944,11 @@ async function edpList(){
 }
 async function edpDelete(id){
   if(!edpEnabled() || !id) return;
-  try{ await fetch(edpUrl(id),{method:'DELETE',credentials:'include'}); }catch(e){}
-  // tombstone so a just-removed design can't reappear as a cloud card if the
-  // list was fetched a moment earlier.
+  // Tombstone FIRST (synchronously) so an immediate re-render can't show the
+  // just-deleted design as an "Open" cloud card while the account DELETE is still
+  // in flight. (Previously written after the fetch, causing that flash.)
   try{ const t=JSON.parse(localStorage.getItem(EDP_TOMB_KEY)||'[]'); if(!t.includes(id)){ t.push(id); localStorage.setItem(EDP_TOMB_KEY, JSON.stringify(t.slice(-200))); } }catch(e){}
+  try{ await fetch(edpUrl(id),{method:'DELETE',credentials:'include'}); }catch(e){}
 }
 // Pull one account design into the local browser store (respects local cap).
 async function edpPullOne(id){
