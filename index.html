@@ -15982,13 +15982,13 @@ async function edpAfterRender(wrap){
   // a design that merely never synced (or a failed fetch) is never touched. A
   // delete is a delete — removed even if this device has newer local edits.
   if(Array.isArray(info.deleted) && info.deleted.length){
-    // Map id -> deletion time. Prune ONLY when the delete is newer than this
-    // device's copy, so a design re-created after a delete (or created before
-    // its tombstone clears) is never wrongly removed. (Old-format string entries
-    // carry ts 0, so they can never out-date a real local copy.)
-    const del=new Map(info.deleted.map(d=> typeof d==='string' ? [d,0] : [d.id, d.ts||0]));
+    // Editor design ids are UNIQUE (minted once, never reused), so a tombstone
+    // for an id always means "this exact design was deleted" — prune it, no
+    // timestamp comparison. (The tracker needs a timestamp guard because its ids
+    // are content hashes that a re-created pattern can reuse; the editor doesn't.)
+    const delIds=new Set(info.deleted.map(d=> typeof d==='string' ? d : d.id));
     const fresh=pjLoadAll();                 // fresh read; no await before the write below
-    const isGone=p=> del.has(p.id) && del.get(p.id) > (p.savedAt||0);
+    const isGone=p=> delIds.has(p.id);
     const keep=fresh.filter(p=>!isGone(p));
     if(keep.length!==fresh.length){
       const goneIds=fresh.filter(isGone).map(p=>p.id);
@@ -16023,7 +16023,14 @@ async function edpAfterRender(wrap){
   if(!_edpSyncedThisSession){
     _edpSyncedThisSession=true;
     const acctById=new Map(info.items.map(it=>[it.id,it]));
+    // Never re-push a DELETED design — doing so re-creates it on the account and
+    // clears its tombstone, resurrecting what another device just deleted. Skip
+    // anything tombstoned on the account or locally.
+    const delIds=new Set((info.deleted||[]).map(d=> typeof d==='string' ? d : d.id));
+    let ltomb=[]; try{ ltomb=JSON.parse(localStorage.getItem(EDP_TOMB_KEY)||'[]'); }catch(e){}
+    const ltombSet=new Set(ltomb);
     for(const p of pjLoadAll()){
+      if(delIds.has(p.id) || ltombSet.has(p.id)) continue;   // deleted — don't resurrect
       const a=acctById.get(p.id);
       // CLOBBER-GUARD: never overwrite a NEWER account copy (edited on another
       // device) with an older local one — that would roll the other device's
