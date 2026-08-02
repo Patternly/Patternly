@@ -297,17 +297,25 @@ async function buildCatalogue(env) {
 // folder is uploaded.
 async function readySkus(env) {
   if (!env.PATTERNS) return null;
-  const ready = new Set();
+  // sku -> the pattern.ptly object key when the folder has one, else "" (ready
+  // via chart.pdf only). A .ptly always wins over a chart PDF, so a folder may
+  // carry both while A/B testing which representation stitches best. Map, not
+  // Set, so callers still get .has() for the readiness gate AND .get() for the
+  // exact .ptly key.
+  const ready = new Map();
   let cursor;
   for (let page = 0; page < 10; page++) {          // up to 10k objects
     const listed = await env.PATTERNS.list({ limit: 1000, cursor });
     for (const obj of listed.objects) {
       const slash = obj.key.indexOf("/");
       if (slash <= 0) continue;                    // root files aren't kits
+      const sku = obj.key.slice(0, slash);
       const leaf = obj.key.slice(slash + 1).toLowerCase();
       // A kit is openable when it has a chart — either a .Ptly or a chart PDF.
-      if (leaf === "chart.pdf" || leaf === "pattern.ptly") {
-        ready.add(obj.key.slice(0, slash));
+      if (leaf === "pattern.ptly") {
+        ready.set(sku, obj.key);                   // exact key preserves real casing
+      } else if (leaf === "chart.pdf") {
+        if (!ready.has(sku)) ready.set(sku, "");   // ready via chart; no .ptly seen yet
       }
     }
     if (!listed.truncated) break;
@@ -334,6 +342,17 @@ async function serveCatalogue(auth, request, url, env) {
           console.log("catalogue: tagged but no files yet — " + hidden.join(", "));
         }
         listed = kits.filter(k => ready.has(k.sku));
+        // Tell the client which kits carry a single pattern.ptly, so it fetches
+        // that exact-data file directly (no legend needed) instead of the
+        // chart+legend PDFs. Kits without one keep the two-file flow untouched,
+        // so both routes coexist and can be chosen per design.
+        for (const k of listed) {
+          const ptlyKey = ready.get(k.sku);
+          if (ptlyKey) {
+            k.ptly = true;
+            k.files = Object.assign({}, k.files, { ptly: ptlyKey });
+          }
+        }
       }
     } catch (e) {
       // If the bucket can't be listed, show everything rather than nothing —
