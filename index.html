@@ -24900,6 +24900,24 @@ async function trkHandleChartOxs(file, preText){
         console.log('[tracker] OXS declares CrossStitch3 — vector symbols enabled');
       }
     }catch(e){ console.warn('[tracker] CrossStitch3 font registration failed — text symbols kept', e); }
+    // Backstitch overlay — outline segments the converter carries in <backstitch>.
+    // Display-only: this fills trackerGrid.backstitch (already rendered + saved),
+    // and never touches the positional progress bitmap. Coords are 0-based cell
+    // units (same origin as the stitch grid); colour comes from the palette.
+    try{
+      const bsEls=doc.querySelectorAll('backstitch');
+      if(bsEls.length){
+        const bs=[];
+        bsEls.forEach(el=>{
+          const x1=parseFloat(el.getAttribute('x1')), y1=parseFloat(el.getAttribute('y1'));
+          const x2=parseFloat(el.getAttribute('x2')), y2=parseFloat(el.getAttribute('y2'));
+          const p=pal[+el.getAttribute('palindex')];
+          if(p && isFinite(x1)&&isFinite(y1)&&isFinite(x2)&&isFinite(y2))
+            bs.push({x1,y1,x2,y2, r:p.r, g:p.g, b:p.b, code:p.number});
+        });
+        if(bs.length){ trackerGrid.backstitch=bs; console.log('[tracker] '+bs.length+' backstitch segments imported'); }
+      }
+    }catch(e){ console.warn('[tracker] backstitch parse failed', e); }
     trackerLastChartFile=null;
     // build the complete legend directly — codes, colours and counts are all explicit
     const counts={};
