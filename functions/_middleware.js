@@ -8,7 +8,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v56";
+const MW_VERSION = "v58";
 
 const enc = new TextEncoder();
 
@@ -312,8 +312,8 @@ async function readySkus(env) {
       const sku = obj.key.slice(0, slash);
       const leaf = obj.key.slice(slash + 1).toLowerCase();
       // A kit is openable when it has a chart — either a .Ptly or a chart PDF.
-      if (leaf === "pattern.ptly") {
-        ready.set(sku, obj.key);                   // exact key preserves real casing
+      if (leaf.endsWith(".ptly")) {                // any *.ptly (kit.ptly, pattern.ptly, <sku>.ptly ...)
+        ready.set(sku, obj.key);                   // store the real key so the client fetches this exact file
       } else if (leaf === "chart.pdf") {
         if (!ready.has(sku)) ready.set(sku, "");   // ready via chart; no .ptly seen yet
       }
