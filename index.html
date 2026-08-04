@@ -22167,20 +22167,23 @@ function assembleChartGrid(pages, expectedWidth, pageRulers, pageOrigins){
   // agree. A single misread ruler (evidence B1440: band 1's right tile read 2
   // rows low, and its left tile read 1 column off from bands 2-3) otherwise
   // shears the design at the page seam — the visible "cut" across a title band.
-  // Snap each page to its band's / column's median offset so one outlier can't
-  // step a seam. Only touches placement offsets; no cell moves within a tile.
+  // Snap each page to its band's / column's median offset ONLY when the tiles
+  // cluster within 3 cells (a genuine ruler misread). A larger spread is a real
+  // ragged crop — Luca-S crops each page to its own content, so e.g. B1445's top
+  // tile legitimately starts 8 columns right of its bottom tile — and must be
+  // left alone. Only touches placement offsets; no cell moves within a tile.
   if(pagesPerBand>=1 && pagesPerBand<origins.length){
     const bandCount=Math.ceil(origins.length/pagesPerBand);
     const med=arr=>{ const a=arr.filter(v=>v!==null&&v!==undefined).slice().sort((x,y)=>x-y); return a.length?a[Math.floor((a.length-1)/2)]:null; };
     for(let b=0;b<bandCount;b++){
       const idx=[]; for(let k=0;k<pagesPerBand;k++){ const i=b*pagesPerBand+k; if(i<origins.length&&origins[i]) idx.push(i); }
       const rows=idx.map(i=>origins[i].row).filter(v=>v!==null&&v!==undefined);
-      if(rows.length>=2){ const m=med(rows); idx.forEach(i=>{ if(origins[i].row!==null) origins[i].row=m; }); }
+      if(rows.length>=2 && (Math.max(...rows)-Math.min(...rows))<=3){ const m=med(rows); idx.forEach(i=>{ if(origins[i].row!==null) origins[i].row=m; }); }
     }
     for(let c=0;c<pagesPerBand;c++){
       const idx=[]; for(let b=0;b<bandCount;b++){ const i=b*pagesPerBand+c; if(i<origins.length&&origins[i]) idx.push(i); }
       const cols=idx.map(i=>origins[i].col).filter(v=>v!==null&&v!==undefined);
-      if(cols.length>=2){ const m=med(cols); idx.forEach(i=>{ if(origins[i].col!==null) origins[i].col=m; }); }
+      if(cols.length>=2 && (Math.max(...cols)-Math.min(...cols))<=3){ const m=med(cols); idx.forEach(i=>{ if(origins[i].col!==null) origins[i].col=m; }); }
     }
   }
   // ── Absolute placement ────────────────────────────────────────────────
