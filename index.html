@@ -20733,20 +20733,79 @@ async function parseLegendPdf(file){
     if(codeXs.length>=4){
       codeXs.sort((a,b)=>a-b);
       const colX = codeXs[codeXs.length>>1];           // median code-column x
+      // Symbol-column x, taken from symbols that already matched. Blend rows put
+      // the code far to the right (past strands + "Nr.x-1" refs), so "nearest
+      // blank to the left of the code" lands on the wrong box; targeting the real
+      // symbol column recovers the actual glyph.
+      const symXs=[]; for(const kk in trackerLegendGlyphs){ const gg=trackerLegendGlyphs[kk]; if(gg && typeof gg.x==='number') symXs.push(gg.x); }
+      symXs.sort((a,b)=>a-b);
+      const symX = symXs.length ? symXs[symXs.length>>1] : null;
+      // A code already parsed in ANY case must never be re-synthesized: a Luca-S
+      // legend stores its 'Black'/'White' single mixed-case in byCode, but this
+      // recovery uppercases codes, so a bare byCode[ckey] miss would mint a
+      // phantom '§BLACK (not found)' duplicate on every such legend. Dedup CI.
+      const haveCodeCI = new Set(Object.keys(legend.byCode).map(k=>String(k).toUpperCase()));
       for(let li=0; li<lineItems.length; li++){
         const its=lineItems[li]; if(!its || !its.length) continue;
         for(const ci of its){
-          const code=(ci.str||'').trim().toUpperCase();
-          if(!(/^\d{1,4}$/.test(code) || /^(WHITE|BLACK)$/.test(code))) continue;
-          if(legend.byCode[code]) continue;             // already matched
+          const codeRaw=(ci.str||'').trim();
+          const code=codeRaw.toUpperCase();
+          // Blends ("337+331", "Black+456") are real codes too — the original
+          // recovery skipped them, so on un-mapped-font legends every blend lost
+          // its glyph and never entered the legend. Accept them and flag as blend
+          // so resolveTrackerColours averages the two component threads.
+          const isBlend=/^(\d{1,4}|WHITE|BLACK)\+(\d{1,4}|WHITE|BLACK)$/.test(code);
+          if(!(/^\d{1,4}$/.test(code) || /^(WHITE|BLACK)$/.test(code) || isBlend)) continue;
+          const ckey = isBlend ? codeRaw : code;   // blends keep original case (component lookup is case-sensitive)
+          if(legend.byCode[ckey] || haveCodeCI.has(String(ckey).toUpperCase())) continue;             // already matched (case-insensitive)
           if(Math.abs(ci.x-colX)>18) continue;          // must sit in the code column, not the count/note
-          const sym=its
-            .filter(it=> it.x < ci.x-1 && (it.str||'').trim()==='' && it.w>0)
-            .sort((a,b)=> b.x-a.x)[0];                  // nearest empty glyph box to the left
+          // ── Decoded glyph baseline-split (evidence: B711 row 28 code 338).
+          //    The symbol IS decoded, but the Y-bucketer put it on a neighbour
+          //    line — a tall blend row, or a single whose glyph baseline sits
+          //    within tolerance of an interleaving sidebar-prose line — so the
+          //    code row is left as "Nr X 2 Code Count" with no symbol. The glyph
+          //    is still a real drawn character to the LEFT of the code (sidebar
+          //    prose and notes are to the RIGHT, so x cleanly separates them).
+          //    Recover the nearest such glyph across adjacent bucketed lines,
+          //    key the entry by its REAL char (the chart shares it, so cells
+          //    match directly) and read the stitch count from the code row.
+          //    General: fixes any single/blend whose symbol baseline-split,
+          //    independent of kit. A real glyph beats the blank-box path below.
+          {
+            let best=null, bestDY=1e9;
+            for(let lj=Math.max(0,li-2); lj<=Math.min(lineItems.length-1,li+2); lj++){
+              for(const g of (lineItems[lj]||[])){
+                const gs=(g.str||'').trim();
+                if(!gs || [...gs].length>2) continue;                 // single glyph only
+                if(/^\d+$/.test(gs)||/^X\d?$/i.test(gs)||/^Nr\.?/i.test(gs)||/^[-\u2013\u2212.]+$/.test(gs)) continue;
+                if(g.x >= ci.x-20) continue;                          // symbol sits LEFT of the code
+                const dy=Math.abs(g.y-ci.y);
+                if(dy>12) continue;                                    // this row's baseline or an adjacent split
+                if(dy<bestDY && !legend.bySymbol[gs]){ bestDY=dy; best=g; }
+              }
+            }
+            if(best){
+              const gs=best.str.trim();
+              let cnt=0; const after=its.filter(it=>it.x>ci.x && /^\d{1,6}(?:\/\d{1,6})?$/.test((it.str||'').trim())).sort((a,b)=>a.x-b.x)[0];
+              if(after) cnt=parseInt(after.str,10);
+              const entry={nr:Object.keys(legend.byCode).length+1, symbol:gs, code:ckey, stitches:cnt, li, synthetic:true};
+              if(isBlend) entry.blend=true;
+              legend.byCode[ckey]=entry; legend.bySymbol[gs]=entry;
+              trackerLegendGlyphs[gs]={page:best.page, x:best.x, y:best.y, h:best.h, w:best.w, alt:null};
+              continue;                                                // recovered the real glyph — skip blank-box fallback
+            }
+          }
+          const empties=its.filter(it=> it.x < ci.x-1 && (it.str||'').trim()==='' && it.w>0);
+          // Singles: nearest blank to the left of the code. Blends: the blank that
+          // sits in the symbol column (their code is far from the symbol).
+          const sym = (isBlend && symX!=null)
+            ? empties.slice().sort((a,b)=> Math.abs(a.x-symX)-Math.abs(b.x-symX))[0]
+            : empties.slice().sort((a,b)=> b.x-a.x)[0];   // nearest empty glyph box to the left
           if(!sym) continue;
-          const key='\u00A7'+code;                       // '§code' — cannot collide with a real glyph char
-          const entry={nr:Object.keys(legend.byCode).length+1, symbol:key, code, stitches:0, li, synthetic:true};
-          legend.byCode[code]=entry; legend.bySymbol[key]=entry;
+          const key='\u00A7'+ckey;                       // '§code' — cannot collide with a real glyph char
+          const entry={nr:Object.keys(legend.byCode).length+1, symbol:key, code:ckey, stitches:0, li, synthetic:true};
+          if(isBlend) entry.blend=true;
+          legend.byCode[ckey]=entry; legend.bySymbol[key]=entry;
           trackerLegendGlyphs[key]={page:sym.page, x:sym.x, y:sym.y, h:sym.h, w:sym.w, alt:null};
         }
       }
@@ -20860,7 +20919,7 @@ function parseLegendText(text){
     const wordRunAt = k=>{ let j=k, w=''; while(j<toks.length && isAlphaTok(toks[j]) && w.length<12){ w+=toks[j]; j++; if(LABEL_WORD.test(w)) break; } return {word:w, end:j}; };
     const run1 = wordRunAt(1);
     if(blendPair || LABEL_WORD.test(run1.word)){
-      let sym=null;
+      let sym=null, symLi=li;
       // Labelled layout: the symbol is the token right after the (possibly
       // fragmented) 'Blend' label — even a digit ("73 Blend 4 Nr.60-1 450+449
       // 875"), which the structural scan below must skip.
@@ -20879,13 +20938,40 @@ function parseLegendText(text){
       // Chart symbols are single glyphs — a multi-character word can only be
       // leaked label text, whatever the layout. Reject rather than mislabel.
       if(sym && [...sym].length>2) sym=null;
+      // ── Baseline-split blend symbol (evidence: BU5081 rows 63-65). A blend
+      //    row is TALLER than a normal row — it carries the multi-line 'Nr.x-1'
+      //    component references — so its chart-symbol glyph is centred on a
+      //    baseline that buckets to a NEIGHBOURING line and never lands on the
+      //    code's own line: "V X 2" / "Blend O X 2" sit on the line just above
+      //    " 63 Blend Nr.58-1 337+331 766". The on-row scan above then finds no
+      //    symbol and the blend is dropped — it renders grey with 0 stitches.
+      //    Recover the lone glyph from an adjacent line (as symbolAt() already
+      //    does for split regular rows), tolerating a leading 'Blend' label and
+      //    the X-strands marker, and key the entry by the REAL decoded char so
+      //    the chart (which decodes the same glyph to the same char) matches it
+      //    directly; point li at the symbol's line so its glyph box is cropped.
+      //    General: applies to any Luca-S blend legend, not just this kit.
+      if(!sym){
+        const blendSymAt = j => {
+          if(j<0||j>=lines.length) return null;
+          const ts = lines[j].trim().split(/\s+/).filter(t=> t &&
+            !/^[-\u2013\u2212]+$/.test(t) && !/^fr\.?knot$/i.test(t) &&
+            !/^X\d?$/i.test(t) && !/^\d+$/.test(t) && !/^Nr\.?/i.test(t) &&
+            !LABEL_WORD.test(t) && !/^[.]$/.test(t));
+          return (ts.length===1 && [...ts[0]].length<=2) ? ts[0] : null;
+        };
+        for(const dj of [-1,1,-2,2]){
+          const s2=blendSymAt(li+dj);
+          if(s2 && !bySymbol[s2]){ sym=s2; symLi=li+dj; break; }
+        }
+      }
       let code=null, stitches=null;
       for(let j=li; j<Math.min(lines.length, li+5) && code===null; j++){
         const m2 = lines[j].match(/(\d{1,4}|Black|White)\s*\+\s*(\d{1,4}|Black|White)\s+(\d{1,6})\b/i);
         if(m2){ code=m2[1]+'+'+m2[2]; stitches=parseInt(m2[3]); }
       }
       if(sym && code && stitches!==null && !bySymbol[sym]){
-        const entry={nr, symbol:sym, code, stitches, blend:true, li};
+        const entry={nr, symbol:sym, code, stitches, blend:true, li:symLi};
         bySymbol[sym]=entry; if(!byCode[code]) byCode[code]=entry;
       }
       continue;
@@ -21493,8 +21579,42 @@ async function parseChartPdf(file, expectedWidth){
       }
       const ds=[]; for(const r of longRows.slice(0,20)) for(let i=1;i<r.length;i++){ const d=r[i].x-r[i-1].x; if(d>1&&d<60) ds.push(d); } ds.sort((a,b)=>a-b); return ds[ds.length>>1]||8;
     })();
-    const zoneL = gx0!==null ? gx0 - pMed*0.55 : -Infinity;
-    const zoneR = gx1!==null ? gx1 + pMed*0.55 : Infinity;
+    // ── Anchor the grid to the pattern's printed column ruler ──────────────
+    // The dense rows can span fewer columns than the chart is wide when the
+    // design fades at an edge (evidence B1446: rows cover cols ~7..155 but the
+    // ruler runs 1..170). A zone taken only from those rows clips the sparse
+    // edge columns — 386 real stitches — and builds a 149-wide canvas for a
+    // 170-wide chart. On a single-page chart, take the left/right edge and the
+    // column-0 anchor from the ruler itself; multi-page tiles keep their own
+    // per-page geometry (their colOffset already places them absolutely).
+    const singlePage = pdf.numPages===1;
+    let rulerX0=null, rulerCols=null;
+    for(const r of rowsIt){
+      const ns=r.filter(it=>/^\d+$/.test((it.str||'').trim()) && +it.str%10===0 && +it.str>=10);
+      if(ns.length<5 || ns.length<r.length*0.5) continue;
+      ns.sort((a,b)=>a.x-b.x);
+      let ok=true; for(let i=1;i<ns.length;i++) if(+ns[i].str-+ns[i-1].str!==10){ ok=false; break; }
+      if(!ok) continue;
+      const f=ns[0], l=ns[ns.length-1], cxF=f.x+(f.w||0)/2, cxL=l.x+(l.w||0)/2, pp=(cxL-cxF)/(+l.str-+f.str);
+      if(!(pp>1 && pp<60)) continue;
+      rulerX0 = cxF - (+f.str-1)*pp;   // x-centre of absolute column 1 (extrapolated)
+      rulerCols = +l.str;              // rightmost printed column label on this page
+      break;
+    }
+    const gridX0 = (singlePage && rulerX0!==null) ? rulerX0 : gx0;   // single page re-anchors to the ruler; a tile keeps its local geometry (colOffset places it)
+    let zoneL = gx0!==null ? gx0 - pMed*0.55 : -Infinity;
+    let zoneR = gx1!==null ? gx1 + pMed*0.55 : Infinity;
+    if(rulerX0!==null && rulerCols!==null){
+      // Extend the RIGHT edge to the ruler's rightmost printed column so a tile
+      // whose design fades before its dense rows do is not clipped (evidence
+      // B1440 page 2: dense rows end ~col 147, design runs to 154, ruler to 160).
+      // Dense-safe: on a fully-stitched tile the ruler edge coincides with the
+      // dense edge, so this does not move. Re-extend the LEFT edge only on a
+      // single-page chart — on a tile the extrapolated column 1 lands far to the
+      // left and would swallow that tile's own row-number labels.
+      zoneR = Math.max(zoneR, rulerX0 + (rulerCols-1)*pMed + pMed*0.55);
+      if(singlePage) zoneL = Math.min(zoneL, rulerX0 - pMed*0.55);
+    }
     // ── Row de-fragmentation ──────────────────────────────────────────────
     // bucketRowsByY splits rows on a 2pt tolerance, but a mark printed a
     // shade off the glyph baseline (half-stitch strokes, stray fragments)
@@ -21651,7 +21771,7 @@ async function parseChartPdf(file, expectedWidth){
     // glued onto edge cells), then emit string rows + pitch/glyph capture
     const lines=[]; const rowRulerLabels=[];
     for(const r of rowsIt){
-      const out=[]; let prevX=null; let rowLabel=null; const nums=[];
+      const out=[]; let prevX=null; let rowLabel=null; const nums=[]; let emitCol=0;
       let onLat=0, offLat=0;
       r.forEach((it,idx)=>{
         let s=it.str;
@@ -21693,8 +21813,21 @@ async function parseChartPdf(file, expectedWidth){
           const f = Math.abs(((it.x - gx0)/pMed) % 1);
           if(Math.min(f, 1-f) < 0.25) onLat++; else offLat++;
         }
+        // Place each cell at its TRUE column on the measured lattice, padding
+        // blank cells for the gaps. A not-fully-stitched design has ragged rows
+        // and interior holes; emitting cells densely collapsed them leftward and
+        // let the modal-width step below truncate the wide rows (evidence B1446:
+        // built 120x116 / 10562 cells, losing the shape and ~1100 stitches). A
+        // fully-stitched row advances one column per cell, so nothing is padded
+        // and this is a no-op for it.
+        if(gx0!==null && pMed>0){
+          let col=Math.round((it.x-gridX0)/pMed);
+          if(col<emitCol) col=emitCol;            // never step back (left edge / rounding collision)
+          while(emitCol<col){ out.push(' '); emitCol++; }
+        }
         // sentinel + quadrant mask ride through band assembly with the cell
         out.push(it.half ? '\u0001'+String.fromCharCode(0x30+(it.mask||6))+s : s);
+        emitCol++;
         if(!it.half){
           // Keep the first occurrence as the sprite anchor plus an ALTERNATE a
           // few rows deeper. Edge cells sit beside ruler labels, and when cell
@@ -21708,6 +21841,11 @@ async function parseChartPdf(file, expectedWidth){
         if(prevX!==null){ const d=it.x-prevX; if(d>1 && d<60) pitches.push(d); }
         prevX=it.x;
       });
+      // A column-ruler line is all numbers; keep it DENSE so the all-numeric
+      // tests that detect and drop it still fire — the blank padding above would
+      // otherwise hide it and it would survive into the grid as stray digits.
+      { const nb=out.filter(c=>typeof c==='string' && c!==' ' && c.charCodeAt(0)!==1);
+        if(nb.length>=3 && nb.every(c=>/^\d+$/.test(c))){ out.length=0; for(const c of nb) out.push(c); } }
       if(rowLabel!==null) out.rowLabel=rowLabel;
       if(onLat+offLat > 0) out.latticeFrac = onLat/(onLat+offLat);
       if(r.length===1 && r[0].blank) out.blankRow = true;   // reconstructed empty chart row
@@ -21784,6 +21922,35 @@ async function parseChartPdf(file, expectedWidth){
     pages.push(lines);
   }
   const grid = assembleChartGrid(pages, expectedWidth, pageRulers, pageOrigins);
+  // Trim trailing fully-blank rows/columns so the canvas is the design's own
+  // bounding box (= the legend's stated stitch count) instead of the ruler's
+  // rounded-up extent. A chart ruler runs to the next 10-mark, leaving a strip
+  // of empty cells past a full design (evidence B711: 234 wide, ruler to 240) —
+  // professional charts show the design, not that margin. Cosmetic only: no
+  // stitch or backstitch moves, only empty right/bottom border is dropped, so
+  // not-full designs still render every stitch exactly where it was.
+  if(grid && grid.cells && grid.cells.length){
+    let maxC=-1, maxR=-1, filled=0;
+    for(let r=0;r<grid.cells.length;r++){ const row=grid.cells[r]||[]; let has=false;
+      for(let c=0;c<row.length;c++){ const v=row[c]; if(typeof v==='string' && v.trim().length){ filled++; has=true; if(c>maxC) maxC=c; } }
+      if(has && r>maxR) maxR=r;
+    }
+    // Only a "full" design (solid background filling its bounding box — B711 and
+    // BU5081 ~100%, B1440 81%) gets the ruler margin trimmed: that trailing
+    // blank is just the ruler rounding up to the next 10-mark. A "not-full"
+    // design on bare fabric (B1446 — bears on white, 57%) keeps the whole ruler
+    // canvas, because its blank margin is part of the chart, not rounding waste.
+    // Fill density inside the design's own bounding box separates the two, and
+    // this only resizes the empty border — no stitch or backstitch ever moves.
+    if(maxC>=0 && maxR>=0){
+      const dens = filled/((maxC+1)*(maxR+1));
+      if(dens>=0.70 && (maxC+1<grid.cols || maxR+1<grid.rows)){
+        const nW=maxC+1, nH=maxR+1;
+        grid.cells = grid.cells.slice(0,nH).map(row=>row.slice(0,nW));
+        grid.cols=nW; grid.rows=nH;
+      }
+    }
+  }
   // Unwrap half-stitch sentinels into a positional set — legends count a half
   // stitch as ½, so verification and progress need to know which cells they are.
   grid.halfCells = new Set();      // cells that are not a whole cross
@@ -21827,7 +21994,13 @@ function assembleChartGrid(pages, expectedWidth, pageRulers, pageOrigins){
         if(tens.length >= Math.max(2, l.length*0.6)) return false;
       }
       // headers/watermarks: short lines carrying real words ("Page 7", "©Luca-S")
-      if(l.length < 8 && l.some(c=>c.length>2 && /[A-Za-z©]/.test(c))) return false;
+      // Count REAL cells, not padded length. The lattice padding blank-fills a
+      // header/watermark line ("Page 7  B_G711  ©Luca-S") across the full width,
+      // so l.length no longer reads as short — yet it still carries only a few
+      // word tokens. Weigh it by those, or the caption survives as a phantom grid
+      // row (evidence B711: 8 page headers kept, shearing the whole assembly).
+      const _cells = l.reduce((n,c)=> n + ((typeof c==='string' && c!==' ' && c.length)?1:0), 0);
+      if(_cells < 8 && l.some(c=>c.length>2 && /[A-Za-z©]/.test(c))) return false;
       // single stray token: keep only if it looks like a symbol cell
       if(l.length===1) return l[0].length<=2 && !/^\d+$/.test(l[0]);
       return true;
@@ -21903,9 +22076,8 @@ function assembleChartGrid(pages, expectedWidth, pageRulers, pageOrigins){
   origins.forEach((o,i)=>{
     if(!o) return;
     o.height = pageGrids[i].length;
-    const counts={}; let w=0, wb=-1;
-    for(const r of pageGrids[i]){ counts[r.length]=(counts[r.length]||0)+1; if(counts[r.length]>wb){ wb=counts[r.length]; w=r.length; } }
-    o.width = w;
+    let w=0; for(const r of pageGrids[i]){ if(r.length>w) w=r.length; }
+    o.width = w;   // widest row = true page width; ragged pages no longer under-size the canvas
   });
   // The row-label baseline is offset from the row it marks by a constant on
   // every page, so the raw offsets are all shifted by the same amount. The
@@ -21949,7 +22121,8 @@ function assembleChartGrid(pages, expectedWidth, pageRulers, pageOrigins){
       : '—').join(' | '));
   }
 
-  if(pageGrids.length === 1) return normalizeGrid(pageGrids[0]);
+  if(pageGrids.length === 1) return normalizeGrid(pageGrids[0],
+    (pageRulers&&pageRulers[0])||0, (origins&&origins[0]&&origins[0].maxRowLabel)||0);
 
   const pageWidths = pageGrids.map(g=>{
     const counts = {};
@@ -21979,6 +22152,27 @@ function assembleChartGrid(pages, expectedWidth, pageRulers, pageOrigins){
     pagesPerBand = 1;
   }
 
+  // Pages in one band are the same horizontal slice of the chart, and pages in
+  // one column are the same vertical slice — their row/column offsets MUST
+  // agree. A single misread ruler (evidence B1440: band 1's right tile read 2
+  // rows low, and its left tile read 1 column off from bands 2-3) otherwise
+  // shears the design at the page seam — the visible "cut" across a title band.
+  // Snap each page to its band's / column's median offset so one outlier can't
+  // step a seam. Only touches placement offsets; no cell moves within a tile.
+  if(pagesPerBand>=1 && pagesPerBand<origins.length){
+    const bandCount=Math.ceil(origins.length/pagesPerBand);
+    const med=arr=>{ const a=arr.filter(v=>v!==null&&v!==undefined).slice().sort((x,y)=>x-y); return a.length?a[Math.floor((a.length-1)/2)]:null; };
+    for(let b=0;b<bandCount;b++){
+      const idx=[]; for(let k=0;k<pagesPerBand;k++){ const i=b*pagesPerBand+k; if(i<origins.length&&origins[i]) idx.push(i); }
+      const rows=idx.map(i=>origins[i].row).filter(v=>v!==null&&v!==undefined);
+      if(rows.length>=2){ const m=med(rows); idx.forEach(i=>{ if(origins[i].row!==null) origins[i].row=m; }); }
+    }
+    for(let c=0;c<pagesPerBand;c++){
+      const idx=[]; for(let b=0;b<bandCount;b++){ const i=b*pagesPerBand+c; if(i<origins.length&&origins[i]) idx.push(i); }
+      const cols=idx.map(i=>origins[i].col).filter(v=>v!==null&&v!==undefined);
+      if(cols.length>=2){ const m=med(cols); idx.forEach(i=>{ if(origins[i].col!==null) origins[i].col=m; }); }
+    }
+  }
   // ── Absolute placement ────────────────────────────────────────────────
   // Each tile knows from its own printed rulers exactly which absolute column
   // and row it starts at, so it is written where it belongs rather than
@@ -21994,6 +22188,24 @@ function assembleChartGrid(pages, expectedWidth, pageRulers, pageOrigins){
     // A legend-declared width wins when it agrees to within a couple of
     // cells: the final tile's ruler can print past the end of the lattice.
     if(expectedWidth && Math.abs(expectedWidth-W)<=5) W=expectedWidth;
+    // Extend the canvas to the chart's full printed grid, not just the stitched
+    // bounding box: the rulers state the true width/height and a design that
+    // fades before the border leaves blank margin that is still part of the grid
+    // (evidence B1440: stitched 154x150, chart drawn 160x160). Only ever grows
+    // the canvas, so a design that fills its grid is unaffected.
+    // Size to the chart's printed grid. Luca-S grids are drawn to a 10-stitch
+    // ruler, so the true canvas is a multiple of 10. The rulers give that
+    // extent — but a TILED export splits the ruler across pages and the parser
+    // can read the rightmost/bottom edge label one tick low (evidence: 4-page
+    // B1446 reads ruler max 160 on its right tiles though 170 is printed, so the
+    // placed design lands at 165). Rule: if the placed design fits inside the
+    // read ruler max, that max IS the grid; if it runs past it, the real grid is
+    // the next 10-label out. A design that fills its grid reads placed==ruler, so
+    // neither branch grows it (B1440 stays 160×160, BU5081 300×200).
+    const rulerW = pageRulers ? Math.max(0, ...pageRulers) : 0;
+    const rulerH = Math.max(0, ...origins.map(o=>(o&&o.maxRowLabel)||0));
+    if(rulerW) W = (W > rulerW) ? Math.ceil(W/10)*10 : rulerW;
+    if(rulerH) H = (H > rulerH) ? Math.ceil(H/10)*10 : rulerH;
     const cells=[];
     for(let r=0;r<H;r++){ const row=new Array(W); row.fill(' '); cells.push(row); }
     let stitchesIn=0, clipped=0;
@@ -22042,18 +22254,26 @@ function assembleChartGrid(pages, expectedWidth, pageRulers, pageOrigins){
   return ng;
 }
 
-function normalizeGrid(rows){
-  const counts = {};
-  for(const r of rows){ counts[r.length] = (counts[r.length]||0) + 1; }
-  let width = rows.length ? rows[0].length : 0, bestCount = -1;
-  for(const len in counts){
-    if(counts[len] > bestCount){ bestCount = counts[len]; width = parseInt(len); }
-  }
+function normalizeGrid(rows, minW, minH){
+  // Generate the FULL grid at the chart's own dimensions, padding empty cells,
+  // rather than trimming to the stitched design. Rows carry their true column
+  // span (blank-padded during parsing); taking the widest keeps every cell (a
+  // not-fully-stitched design has rows of many lengths — the mode truncated the
+  // wider ones). Beyond that, a chart's blank margins are part of its printed
+  // grid (evidence B1446: stitched 163x124 but the ruler runs 170x130), so pad
+  // out to the ruler maxima too. A fully-stitched chart reaches its own ruler, so
+  // max==ruler and nothing is added.
+  let width = 0;
+  for(const r of rows){ if(r.length > width) width = r.length; }
+  if(minW && minW > width) width = minW;
   const cells = rows.map(r=>{
-    const row = r.slice(0, width);
+    const row = r.slice();
     while(row.length < width) row.push(' ');
     return row;
   });
+  if(minH && minH > cells.length){
+    while(cells.length < minH){ cells.push(new Array(width).fill(' ')); }
+  }
   return {cols: width, rows: cells.length, cells};
 }
 
@@ -23785,7 +24005,7 @@ function updateTrackerProgressUI(){
     if(fT>0&&fD===fT) row.style.opacity='0.45';
     row.innerHTML=`<span class="sw" style="background:rgb(${col.r},${col.g},${col.b})"></span>`+
       symHtml(e.symbol, 17)+
-      `<span class="lb">${label}</span>`+
+      `<span class="lb">${label}${col.half?'<span style="display:block;font-size:.62rem;opacity:.7;font-weight:600">Half stitch</span>':''}</span>`+
       `<span class="ct">${fD}/${fT}</span>`;
     list.appendChild(row);
     // Same thread, same glyph, worked as a fractional stitch — a row per
@@ -23882,6 +24102,7 @@ function updateTrackerProgressUI(){
       infoTop = (pcol.label||'Symbol').replace(/</g,'&lt;');
       infoBot = `${(done[primary]||0).toLocaleString()} / ${(total[primary]||0).toLocaleString()} stitched`
         + ` · ${pcol.strands||2} strand${(pcol.strands||2)>1?'s':''}`
+        + (pcol.half?' · half stitch':'')
         + ` · ≈ ${trkFmtM(trkMetrage(total[primary]||0))}`;
     } else {
       infoTop = `${(pcol.label||'Symbol').replace(/</g,'&lt;')} <span class="mm">+${selArr.length-1} more</span>`;
@@ -24855,7 +25076,9 @@ async function trkHandleChartOxs(file, preText){
       pal[idx]={
         number:p.getAttribute('number')||String(idx),
         name:p.getAttribute('name')||p.getAttribute('number')||('Colour '+idx),
-        r:parseInt(hex.slice(0,2),16), g:parseInt(hex.slice(2,4),16), b:parseInt(hex.slice(4,6),16)
+        r:parseInt(hex.slice(0,2),16), g:parseInt(hex.slice(2,4),16), b:parseInt(hex.slice(4,6),16),
+        strands:parseInt(p.getAttribute('strands'),10)||2,
+        half:(p.getAttribute('stitchtype')||'').toLowerCase()==='half'   // legend-only flag; no per-cell geometry
       };
     });
     // symbols: prefer what the OXS itself declares (Editor handoff, other
@@ -24928,7 +25151,7 @@ async function trkHandleChartOxs(file, preText){
       if(!counts[s]) return;
       const e={nr:i+1, symbol:s, code:p.number, stitches:counts[s]};
       bySymbol[s]=e; if(!byCode[p.number]) byCode[p.number]=e;
-      map[s]={r:p.r,g:p.g,b:p.b, code:p.number, stitches:counts[s], label:p.name};
+      map[s]={r:p.r,g:p.g,b:p.b, code:p.number, stitches:counts[s], label:p.name, strands:p.strands, half:p.half};
     });
     trackerLegend={bySymbol, byCode, pending:[], colours:Object.keys(bySymbol).length,
       fabricCount:+props.getAttribute('stitchesperinch')||null,
@@ -25345,10 +25568,19 @@ async function trkExtractPdfBackstitch(buf, grid){
   const cx=calib(vx), cy=calib(hy);
   if(!cx || !cy) continue;                       // no lattice on this page
   lattices++;
-  // Map the remaining segments to stitch space; PDF y is up ⇒ row 0 is at TOP
-  // boundary = max clustered y
+  // Map to stitch space using the SAME per-page anchor the stitch parser used
+  // (gx0/pitch), not the self-derived grid-line origin. The grid-line origin
+  // sits at a cell boundary and, on a tile with a blank margin, several cells
+  // from the stitch anchor — and the page origin's col offset was measured to
+  // gx0 — so mixing the two double-anchors the overlay and garbles seams
+  // (evidence B1440: the backstitch 'Music House' title slid across the p1|p2
+  // seam). Fall back to the grid-line origin only when the anchor is absent.
+  const _org = (pdf.numPages>1) ? pageOrigins.find(o=>o&&o.page===pg) : (pageOrigins&&pageOrigins[0]);
+  const sgx0 = (_org && typeof _org.gx0==='number') ? _org.gx0 : cx.o;
+  const spitch = (_org && _org.pitch>0) ? _org.pitch : cx.pitch;
+  // PDF y is up ⇒ row 0 is at TOP boundary = max clustered y
   const yTop=cy.o + (cy.n-1)*cy.pitch;
-  const toCol=x=>(x-cx.o)/cx.pitch, toRow=y=>(yTop-y)/cy.pitch;
+  const toCol=x=>(x-sgx0)/spitch, toRow=y=>(yTop-y)/cy.pitch;
   const snap=v=>{ const s=Math.round(v*2)/2; return Math.abs(v-s)<0.22 ? s : v; };
   const out=[];
   for(const s of rest){
