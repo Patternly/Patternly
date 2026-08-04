@@ -247,6 +247,7 @@ query Kits($handle: String!, $cursor: String) {
         title
         featuredImage { url }
         pattern: metafield(namespace: "patternly", key: "pattern") { value }
+        canvasSize: metafield(namespace: "patternly", key: "canvas_size") { value }
       }
     }
   }
@@ -281,6 +282,12 @@ async function buildCatalogue(env) {
       const kit = { sku };
       if (p.title) kit.title = p.title;
       if (p.featuredImage && p.featuredImage.url) kit.image = p.featuredImage.url;
+      // Optional authoritative canvas size ("<width>x<height>") set per product
+      // in Shopify. When present the app uses it verbatim instead of guessing;
+      // only a clean digits-x-digits value is forwarded so a typo can't poison
+      // the client (a bad value just falls back to auto-detect).
+      const cs = p.canvasSize && p.canvasSize.value && p.canvasSize.value.trim();
+      if (cs && /^\d{1,4}x\d{1,4}$/i.test(cs)) kit.canvasSize = cs.toLowerCase();
       kits.push(kit);
     }
     if (!coll.products.pageInfo.hasNextPage) break;
