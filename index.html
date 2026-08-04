@@ -19422,7 +19422,7 @@ async function trkChooseSource(kind){
   // Only an upload starts a project with no SKU. Clearing it inside the legend
   // handler wiped the value trkOpenKit had just set, so catalogue kits never
   // synced at all.
-  if(kind!=='lucas') trkCloudSku=null;
+  if(kind!=='lucas'){ trkCloudSku=null; trkKitCanvasSize=null; }
   // Cap gate FIRST for uploads: if the account is at its synced-pattern cap, just
   // show the modal over the current page — never strip the home layout to do it.
   if(kind==='other'){
@@ -19805,6 +19805,7 @@ async function trkOpenKit(kit){
   try{
     trkPendingName = kit.title || kit.sku;
     trkCloudSku = kit.sku;                       // enables account-side progress
+    trkKitCanvasSize = (kit && typeof kit.canvasSize==='string') ? kit.canvasSize : null; // authoritative canvas from Shopify metafield
     trackerActiveProjectKey = trkForcedKitKey() || trackerActiveProjectKey;   // stable per-SKU key → no duplicate cards on reopen
     // Collapse any earlier duplicates of this kit down to its one stable card.
     // (Cards created before the stable-key era carry the SKU under a different
@@ -21479,7 +21480,7 @@ async function trkRegisterChartFontFromB64(b64){
     return true;
   }catch(e){ console.warn('[Patternly] restore chart font failed', e); return false; }
 }
-async function parseChartPdf(file, expectedWidth){
+async function parseChartPdf(file, expectedWidth, forcedCanvas){
   const buf = await file.arrayBuffer();
   trackerChartBuf = buf;
   await trkRegisterChartFont(buf);
@@ -21942,7 +21943,16 @@ async function parseChartPdf(file, expectedWidth){
     // canvas, because its blank margin is part of the chart, not rounding waste.
     // Fill density inside the design's own bounding box separates the two, and
     // this only resizes the empty border — no stitch or backstitch ever moves.
-    if(maxC>=0 && maxR>=0){
+    const _fc = (typeof forcedCanvas==='string') ? /^(\d{1,4})x(\d{1,4})$/i.exec(forcedCanvas.trim()) : null;
+    if(_fc && maxC>=0 && maxR>=0){
+      // Authoritative canvas size from the kit's Shopify metafield ("WxH"): size
+      // the grid to exactly that, but never below the design's own bounding box,
+      // so a wrong metafield can pad an empty border yet can never clip a stitch.
+      const W=Math.max(+_fc[1], maxC+1), H=Math.max(+_fc[2], maxR+1);
+      grid.cells = grid.cells.slice(0,H).map(row=>{ const r=row.slice(0,W); while(r.length<W) r.push(''); return r; });
+      while(grid.cells.length<H) grid.cells.push(new Array(W).fill(''));
+      grid.cols=W; grid.rows=H;
+    } else if(maxC>=0 && maxR>=0){
       const dens = filled/((maxC+1)*(maxR+1));
       if(dens>=0.70 && (maxC+1<grid.cols || maxR+1<grid.rows)){
         const nW=maxC+1, nH=maxR+1;
@@ -24256,6 +24266,7 @@ let _trkSaveT=null;
 // sync: the chart re-downloads from R2 by SKU, so only the stitched bits
 // travel. An uploaded pattern has no such anchor and stays local.
 let trkCloudSku=null;          // set when a catalogue kit is opened
+let trkKitCanvasSize=null;     // "WxH" from the kit's Shopify metafield, when present
 let _trkCloudT=null, _trkCloudBusy=false;
 
 function trkProgressUrl(sku){
@@ -25699,7 +25710,7 @@ async function trkHandleChart(file){
       trkErrorPopup('chart','This file looks like the LEGEND (colour key) — please upload it in step 2, and put the chart pages here.');
       return;
     }
-    trackerGrid = await parseChartPdf(file, expectedWidth);
+    trackerGrid = await parseChartPdf(file, expectedWidth, trkCloudSku ? trkKitCanvasSize : null);
     // Plausibility gate: a real chart is at least a few hundred cells. Random
     // documents (statements, invoices…) survive the vector check and "parse"
     // into a degenerate 1×2-style grid — catch that and say so plainly.
