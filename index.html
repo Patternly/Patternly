@@ -3310,6 +3310,12 @@ body.tracker-mode{overflow:auto}
 body.dark #trk-kits-sort{background:#221b2d;border-color:#4a3d55;color:#e7dcea}
 #tracker-page .trk-cards{display:flex}
 #tracker-page #trk-verify{margin-bottom:1rem}
+#trk-verify .trk-fold summary{list-style:none;cursor:pointer;outline:none;display:block}
+#trk-verify .trk-fold summary::-webkit-details-marker{display:none}
+#trk-verify .trk-fold summary::after{content:'\25B8';float:right;margin-left:.5rem;color:var(--lp-muted,#7d6b72);transition:transform .15s}
+#trk-verify .trk-fold[open] summary::after{transform:rotate(90deg)}
+#trk-verify .trk-fold-sub{color:var(--lp-muted,#7d6b72);font-weight:400}
+#trk-verify .trk-fold-body{margin-top:.6rem}
 .trk-cards{display:flex;gap:1.4rem;flex-wrap:wrap;margin:1.6rem 0}
 .trk-card{flex:1;min-width:290px;min-height:230px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff;border:2px dashed #d9c8ce;border-radius:18px;padding:2rem 1.6rem;text-align:center;cursor:pointer;transition:border-color .15s,background .15s,box-shadow .15s}
 .trk-card:hover{border-color:var(--lp-red,#8B1A2B);background:#fdf4f6;box-shadow:0 4px 18px rgba(139,26,43,.08)}
@@ -3335,6 +3341,10 @@ body.dark #trk-kits-sort{background:#221b2d;border-color:#4a3d55;color:#e7dcea}
 #trk-legend-brand:focus{outline:none;border-color:var(--lp-red,#8B1A2B)}
 #trk-skip-btn{border:1.5px solid #d9c8ce;background:#fff;color:var(--lp-ink,#2b2226)}
 #trk-skip-btn:hover:not(:disabled){border-color:var(--lp-red,#8B1A2B);color:var(--lp-red,#8B1A2B)}
+.trk-advisory{flex:0 0 100%;margin:.2rem 0 0;background:#fbf6ee;border:1.5px solid #ecdfc9;border-radius:12px;padding:.8rem 1rem;font-size:.76rem;line-height:1.55;color:#6b5d52}
+.trk-advisory b:first-child{color:#8a6d3b}
+body.dark .trk-advisory{background:#241f14;border-color:#463c26;color:#c9bda8}
+body.dark .trk-advisory b:first-child{color:#d8b878}
 #trk-manual{max-width:760px;margin:0 auto 1rem;background:#fff;border:1.5px solid #e6d9dd;border-radius:12px;padding:1rem}
 #trk-manual h3{font-size:.95rem;margin:0 0 .2rem;color:var(--lp-ink,#2b2226)}
 #trk-manual .sub{font-size:.72rem;color:var(--lp-muted,#7d6b72);margin-bottom:.7rem}
@@ -4844,6 +4854,10 @@ body.app-mode:has(#modal-overlay.show) .pj-selbar{display:none !important}
 }
 body.dark.app-mode #cv-modal{background:rgba(232,237,227,.5)}
 body.dark.app-mode #cv-card{filter:invert(1) hue-rotate(180deg)}
+/* The card is inverted to dark-theme its chrome, but the preview canvas shows a
+   real photo/pattern and must keep true colours — counter-invert it back, the
+   same double-invert trick used for #app-wrapper canvases. */
+body.dark.app-mode #cv-card canvas{filter:invert(1) hue-rotate(180deg)}
 /* ── Download preview modal: centered, grey backdrop, leaves the panel clickable ── */
 #xp-preview-modal{display:none;position:fixed;inset:0;z-index:650;background:rgba(23,18,32,.48)}
 #xp-preview-modal.open{display:flex;align-items:center;justify-content:center;padding:24px 370px 24px 24px}
@@ -5145,6 +5159,16 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 </style>
 </head>
 <body>
+<script>
+/* Build stamp — lets us confirm which editor build is actually running, since a
+   Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
+   or type PATTERNLY_BUILD, or read it from the Account page footer. */
+window.PATTERNLY_BUILD='v524';
+try{ console.log('%c[Patternly] editor build '+window.PATTERNLY_BUILD,'color:#2E7D32;font-weight:700'); }catch(e){}
+window.addEventListener('DOMContentLoaded',function(){
+  try{ document.title = document.title + ' · '+window.PATTERNLY_BUILD; }catch(e){}
+});
+</script>
 
 
 <script>
@@ -5802,6 +5826,10 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
         <button id="trk-exact-continue" onclick="event.stopPropagation();trkExactContinue()" style="display:none">➡ Continue with generic symbols</button>
         <button id="trk-manual-btn" onclick="event.stopPropagation();trkManualOpen()" disabled>✍️ <span data-i18n="trk.nolegend">No legend? Assign colours manually</span></button>
         <button id="trk-skip-btn" onclick="event.stopPropagation();trkSkipOpen()" disabled>⏭ <span data-i18n="trk.skipcolours">Skip colours — stitch based on symbols</span></button>
+      </div>
+      <div class="trk-advisory">
+        <b>📄 About PDF chart reading</b><br>
+        Patternly reads your chart automatically, so please give the pattern a quick look before you start stitching. For the most reliable result, we recommend using a full pattern page in black and white. If anything doesn't look right, use <b>&ldquo;No legend? Assign colours manually&rdquo;</b> to set it straight. Automated reading can occasionally misinterpret a chart &mdash; your printed kit chart is always the definitive version, so please check against it before stitching.
       </div>
     </div>
     <div id="trk-manual" style="display:none"></div>
@@ -20699,6 +20727,71 @@ async function parseLegendPdf(file){
     fullText += lines.join('\n') + '\n';
   }
   const legend = parseLegendText(fullText);
+  // Per-colour backstitch strand variants: the "------- 1" / "------- 2" markers
+  // in the Strands column stack across sub-lines of a colour's row, so attribute
+  // each marker to the nearest backstitch entry by vertical position rather than
+  // from its own line (validated B1446: 455→[1,2], 277→[1,2], 55→[1]). Kits with
+  // an unusual legend layout may need the window tuned.
+  (function(){
+    const backEntries = [...Object.values(legend.bySymbol), ...(legend.pending||[])].filter(e=>(e.back||0)>0);
+    if(!backEntries.length) return;
+    for(const e of backEntries){ const its=lineItems[e.li]; e._y=(its&&its[0])?its[0].y:null; e.backStrands=new Set(); }
+    const marks=[];
+    for(const its of lineItems){ if(!its) continue;
+      for(const it of its){ if(!/^[-\u2013\u2212]{3,}$/.test((it.str||'').trim())) continue;
+        // The strand number ("1"/"2") prints just to the RIGHT of the dash sample
+        // in the same Strands column; grab the nearest such digit, ignoring the
+        // "2 strands" note far to the right. (Row order in a line isn't x-sorted,
+        // so match by position, not array adjacency.)
+        let best=null,bd=1e9;
+        for(const j of its){ const t=(j.str||'').trim(); if(/^[12]$/.test(t) && j.x>it.x){ const dx=j.x-it.x; if(dx<bd){bd=dx;best=+t;} } }
+        if(best!=null && bd<45) marks.push({y:it.y, d:best});
+      }
+    }
+    for(const mk of marks){ let best=null,bd=1e9; for(const e of backEntries){ if(e._y==null)continue; const dy=Math.abs(e._y-mk.y); if(dy<bd){bd=dy;best=e;} } if(best&&bd<20) best.backStrands.add(mk.d); }
+    for(const e of backEntries){ e.backStrands=[...e.backStrands].sort((a,b)=>a-b); }
+  })();
+  // Legend backstitch LINE COLOUR. Each backstitch row draws its outline sample
+  // in a distinct colour that is usually NOT the thread's RGB (e.g. B1421 500's
+  // line is neon green, 444's is cyan). Read those colours from the legend's
+  // vector layer and attach to each backstitch entry so the outline list shows
+  // the line as the chart actually draws it. Best-effort; falls back to the
+  // thread colour if unavailable.
+  try {
+    const backEnts = [...Object.values(legend.bySymbol), ...(legend.pending||[])].filter(e=>(e.back||0)>0 && e._y!=null);
+  try{ window.__trkBackstitchDeclared = backEnts.length; }catch(_e){}
+    if(backEnts.length){
+      const OP=pdfjsLib.OPS;
+      const page1=await pdf.getPage(1);
+      const oplist=await page1.getOperatorList();
+      const mul=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
+      const ap=(m,x,y)=>[m[1]*x+m[3]*y+m[5]];  // only need transformed Y
+      const rgb=a=>[Math.round(a[0]||0),Math.round(a[1]||0),Math.round(a[2]||0)];
+      const vivid=c=>{const mx=Math.max(c[0],c[1],c[2]),mn=Math.min(c[0],c[1],c[2]);return mx>80 && (mx-mn)>40;};
+      let ctm=[1,0,0,1,0,0]; const stk=[]; let fcol=[0,0,0], scol=[0,0,0]; const pts=[];
+      for(let i=0;i<oplist.fnArray.length;i++){ const fn=oplist.fnArray[i], a=oplist.argsArray[i];
+        if(fn===OP.save) stk.push(ctm.slice());
+        else if(fn===OP.restore) ctm=stk.pop()||[1,0,0,1,0,0];
+        else if(fn===OP.transform) ctm=mul(ctm,a);
+        else if(fn===OP.setFillRGBColor) fcol=rgb(a);
+        else if(fn===OP.setStrokeRGBColor) scol=rgb(a);
+        else if(fn===OP.constructPath){ const pf=a[0], pa=a[1]; let j=0; const ys=[];
+          for(let k=0;k<pf.length;k++){ const op=pf[k];
+            if(op===OP.moveTo||op===OP.lineTo){ ys.push(ap(ctm,pa[j],pa[j+1])[0]); j+=2; }
+            else if(op===OP.curveTo) j+=6;
+            else if(op===OP.rectangle){ ys.push(ap(ctm,pa[j],pa[j+1])[0], ap(ctm,pa[j]+pa[j+2],pa[j+1]+pa[j+3])[0]); j+=4; } }
+          const c = vivid(fcol)?fcol : (vivid(scol)?scol:null);
+          if(c && ys.length){ pts.push({y:ys.reduce((s,v)=>s+v,0)/ys.length, k:c[0]+','+c[1]+','+c[2]}); } }
+      }
+      for(const e of backEnts){
+        const near=pts.filter(p=>Math.abs(p.y-e._y)<7);
+        if(!near.length) continue;
+        const h={}; for(const p of near) h[p.k]=(h[p.k]||0)+1;
+        const best=Object.entries(h).sort((x,y)=>y[1]-x[1])[0];
+        if(best){ const [r,g,b]=best[0].split(',').map(Number); e.lineColor={r,g,b}; }
+      }
+    }
+  } catch(_e){}
   // Symbol glyph positions come from the EXACT table row the parser matched —
   // never from a document-wide character search (plain letters like 'B' or '2'
   // also appear in body text, which is not where the symbol lives).
@@ -20812,6 +20905,13 @@ async function parseLegendPdf(file){
       }
     }
   }
+  // Drop spurious 0-cross/0-backstitch entries — including any the un-mapped-glyph
+  // recovery above minted for a code with no real count (evidence B1421 "§436",
+  // "§WHITE"). They otherwise land in the outline list and, keyed by a real code,
+  // hide that colour. A backstitch-only row keeps back>0 and survives; a colour
+  // with a genuine count survives too.
+  for(const sym of Object.keys(legend.bySymbol)){ const e=legend.bySymbol[sym];
+    if((e.stitches||0)===0 && !(e.back>0)){ if(legend.byCode[e.code]===e) delete legend.byCode[e.code]; delete legend.bySymbol[sym]; } }
   return legend;
 }
 
@@ -20876,6 +20976,7 @@ function parseLegendText(text){
     // Stitch counts arrive as "678" or "678/203" (crosses/backstitches) — the
     // cross-stitch count is the first number.
     const countOf = t => { const m=/^(\d{1,6})(?:\/\d{1,6})?$/.exec(t||''); return m?parseInt(m[1],10):null; };
+    const backOf = t => { const m=/^\d{1,6}\/(\d{1,6})$/.exec(t||''); return m?parseInt(m[1],10):0; };  // backstitch count = the Y in "X/Y"
     // ── Nr-less full row (evidence BU5060 row 23): the row number can drift to
     //    a NEIGHBOURING baseline bucket while the rest of the row stays whole:
     //    "T T X 2 400 791 …". Accept when the complete strict structure is
@@ -20894,7 +20995,7 @@ function parseLegendText(text){
           const symbol=syms[syms.length-1];
           const k=/^X\d$/i.test(toks[oxi]) ? oxi+1 : oxi+2;
           if(k<toks.length && isCode(toks[k]) && countOf(toks[k+1])!==null && !bySymbol[symbol] && !byCode[toks[k]]){
-            const entry={nr:null, symbol, code:toks[k], stitches:countOf(toks[k+1]), li};
+            const entry={nr:null, symbol, code:toks[k], stitches:countOf(toks[k+1]), back:backOf(toks[k+1]), li};
             bySymbol[symbol]=entry; byCode[entry.code]=entry;
           }
         }
@@ -21005,7 +21106,7 @@ function parseLegendText(text){
         if(isCode(ts[k]) && countOf(ts[k+1])!==null){
           if(k>1) return null;
           if(k===1 && ts[0]!==wantSym) return null;
-          return {code:ts[k], stitches:countOf(ts[k+1])};
+          return {code:ts[k], stitches:countOf(ts[k+1]), back:backOf(ts[k+1])};
         }
       }
       return null;
@@ -21028,19 +21129,19 @@ function parseLegendText(text){
       if(symsOk){
         const symbol=syms[syms.length-1]; // chart-symbol column is the last one
         let k=/^X\d$/i.test(toks[xi]) ? xi+1 : xi+2;
-        let code=null, stitches=null;
+        let code=null, stitches=null, back=0;
         if(k<toks.length && isCode(toks[k]) && countOf(toks[k+1])!==null){
-          code=toks[k]; stitches=countOf(toks[k+1]);
+          code=toks[k]; stitches=countOf(toks[k+1]); back=backOf(toks[k+1]);
         } else if(k>=toks.length){
           // "23 T X 2" — code+count drifted to their own baseline nearby
           for(const dj of [1,-1,2,-2,3]){
             const cc=codeCountAt(li+dj, symbol);
-            if(cc && !byCode[cc.code]){ code=cc.code; stitches=cc.stitches; break; }
+            if(cc && !byCode[cc.code]){ code=cc.code; stitches=cc.stitches; back=cc.back||0; break; }
           }
         }
         if(code!==null){
           if(!bySymbol[symbol]){
-            const entry={nr, symbol, code, stitches, li, strands};
+            const entry={nr, symbol, code, stitches, back, li, strands};
             bySymbol[symbol]=entry; if(!byCode[code]) byCode[code]=entry;
           }
           continue;
@@ -21048,6 +21149,18 @@ function parseLegendText(text){
       }
       // an anchor that fails validation is metadata fused onto the row
       // ("13 118 86/98 X 2 Cruciuliţă…") — fall through to the other layouts
+    }
+
+    // French-knot / special rows print the count with a lone strand digit, no
+    // inline X-anchor and no glyph on the line (evidence B1421 row 24:
+    // "24 1 White 350/2" — the chart symbol is a "Fr.Knot" label and the X2 sits
+    // on its own baseline). Recognise Nr + strand-digit + code + count and defer
+    // to count/shape binding. Its "/N" is French knots, not backstitch, so it
+    // carries no backstitch line (back:0).
+    if(toks.length===4 && /^[12]$/.test(toks[1]) && SPECIAL.test(toks[2]) && countOf(toks[3])!==null
+       && !bySymbol[toks[2]] && !byCode[toks[2]]){
+      pending.push({nr, code:toks[2], stitches:countOf(toks[3]), back:0, li});
+      continue;
     }
 
     // ── Dual-column layout, anchor drifted (evidence BU5102 rows 13/34/48):
@@ -21058,7 +21171,7 @@ function parseLegendText(text){
     if(toks.length>=5 && toks[1]===toks[2] && !/^X\d$/i.test(toks[1]) &&
        isCode(toks[3]) && countOf(toks[4])!==null){
       if(!bySymbol[toks[1]] && !byCode[toks[3]]){
-        const entry={nr, symbol:toks[1], code:toks[3], stitches:countOf(toks[4]), li};
+        const entry={nr, symbol:toks[1], code:toks[3], stitches:countOf(toks[4]), back:backOf(toks[4]), li};
         bySymbol[entry.symbol]=entry; byCode[entry.code]=entry;
         continue;
       }
@@ -21077,7 +21190,7 @@ function parseLegendText(text){
         if(!isCode(code) || cnt===null) continue;
         const symbol=syms[sc-1];
         if(!bySymbol[symbol]){
-          const entry={nr, symbol, code, stitches:cnt, li};
+          const entry={nr, symbol, code, stitches:cnt, back:backOf(toks[2+sc]), li};
           bySymbol[symbol]=entry; if(!byCode[code]) byCode[code]=entry;
         }
         break;
@@ -21090,15 +21203,15 @@ function parseLegendText(text){
     // layer entirely. Marry the neighbour when one exists; otherwise keep as
     // pending for count/shape binding from the chart.
     if(isCode(toks[1]) && countOf(toks[2])!==null){
-      const code=toks[1], stitches=countOf(toks[2]);
+      const code=toks[1], stitches=countOf(toks[2]), back=backOf(toks[2]);
       if(!byCode[code]){
         let sym=null;
         for(const dj of [1,-1,2,-2]){ const s=symbolAt(li+dj); if(s && !bySymbol[s]){ sym=s; break; } }
         if(sym){
-          const entry={nr, symbol:sym, code, stitches, li};
+          const entry={nr, symbol:sym, code, stitches, back, li};
           bySymbol[sym]=entry; byCode[code]=entry;
         } else {
-          pending.push({nr, code, stitches});
+          pending.push({nr, code, stitches, back, li});
         }
       }
     }
@@ -21115,6 +21228,7 @@ function parseLegendText(text){
   //    after the main handlers and ONLY adds codes+symbols they didn't already
   //    capture, so rows that parsed correctly are never altered.
   const recCountOf = t => { const m=/^(\d{1,6})(?:\/\d{1,6})?$/.exec(t||''); return m?parseInt(m[1],10):null; };
+  const recBackOf = t => { const m=/^\d{1,6}\/(\d{1,6})$/.exec(t||''); return m?parseInt(m[1],10):0; };
   for(let li=0; li<lines.length; li++){
     const ts = lines[li].trim().split(/\s+/).filter(Boolean);
     if(ts.length<5 || !/^\d{1,3}$/.test(ts[0])) continue; // "Nr S S code count …"
@@ -21125,7 +21239,7 @@ function parseLegendText(text){
          isCode(ts[i+2]) && recCountOf(ts[i+3])!==null){
         const code=ts[i+2];
         if(!byCode[code] && !bySymbol[s]){
-          const entry={nr, symbol:s, code, stitches:recCountOf(ts[i+3]), li};
+          const entry={nr, symbol:s, code, stitches:recCountOf(ts[i+3]), back:recBackOf(ts[i+3]), li};
           bySymbol[s]=entry; byCode[code]=entry;
         }
         break;
@@ -21155,6 +21269,21 @@ function parseLegendText(text){
     console.warn('[tracker] legend rows found without symbols — deferring to count/shape binding:', pending.length);
     return {bySymbol, byCode, pending, colours, fabricCount, stitchesSize, finishedSize, rowCount:0};
   }
+  // A colour can be parsed by two different handlers — one that captured its
+  // backstitch count and one that didn't (evidence B1421 453, B1446 277/451: a
+  // bySymbol entry with no back plus a pending row carrying it). Backfill the
+  // count by code so the colour is recognised as backstitch and gets its line.
+  for(const p of pending){ if(!(p.back>0)) continue;
+    const e = Object.values(bySymbol).find(x=>String(x.code)===String(p.code));
+    if(e && !(e.back>0)) e.back=p.back; }
+  // Drop spurious entries that are neither stitched nor backstitched — a note or
+  // continuation line misparsed into a fake colour (evidence B1421 "§436",
+  // "§WHITE": 0 cross, 0 back). They otherwise land in the outline list and, when
+  // they shadow a real code, hide that colour's true stitch count. Real colours
+  // always have crosses or backstitch; synthesized backstitch-only rows keep
+  // their back>0 and survive.
+  for(const sym of Object.keys(bySymbol)){ const e=bySymbol[sym];
+    if((e.stitches||0)===0 && !(e.back>0)){ if(byCode[e.code]===e) delete byCode[e.code]; delete bySymbol[sym]; } }
   const blends = Object.values(bySymbol).filter(e=>e.blend).length;
   if(colours && rowCount - blends < colours){
     const gotNrs = new Set(Object.values(bySymbol).map(e=>e.nr));
@@ -21480,6 +21609,133 @@ async function trkRegisterChartFontFromB64(b64){
     return true;
   }catch(e){ console.warn('[Patternly] restore chart font failed', e); return false; }
 }
+// Detect the printed VERTICAL grid lattice on a page — the actual column grid
+// lines the chart is drawn on — and return {o, pitch, n} in the same coordinate
+// frame as the text items' x. Grid lines are printed for every column whether or
+// not its cell is stitched, so they anchor column placement exactly where glyph
+// spacing cannot on a no-background (sparse) design. Same detection the backstitch
+// extractor uses. Returns null when there is no clean lattice (caller falls back).
+// Bold decade lines: every 10th grid line is printed thick, and thick lines sit
+// at ABSOLUTE columns/rows that are multiples of 10. That makes them a printed,
+// text-free statement of each tile's absolute position — used to resolve the
+// ±1 ambiguity the label vote is prone to (its rounding sits on a sub-cell
+// knife-edge: B7063 tipped its left pages one column right, B7064 its right
+// pages, BU5059/b1437 a top page one row down). Returns thick vertical (x) and
+// horizontal (y) line positions, or null when widths are indistinguishable.
+async function _detectThickLines(page){
+  try{
+    const O=pdfjsLib.OPS;
+    const ops=await page.getOperatorList();
+    const mul=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
+    const ap=(m,x,y)=>[m[0]*x+m[2]*y+m[4],m[1]*x+m[3]*y+m[5]];
+    let ctm=[1,0,0,1,0,0], lw=1; const st=[]; let pend=null; const segs=[];
+    for(let i=0;i<ops.fnArray.length;i++){ const f=ops.fnArray[i], a=ops.argsArray[i];
+      if(f===O.save) st.push([ctm.slice(),lw]);
+      else if(f===O.restore){ const s=st.pop(); if(s){ ctm=s[0]; lw=s[1]; } else { ctm=[1,0,0,1,0,0]; lw=1; } }
+      else if(f===O.transform) ctm=mul(ctm,a);
+      else if(f===O.setLineWidth) lw=a[0];
+      else if(f===O.constructPath){ const sub=a[0], co=a[1]; let p=0, cur=null, list=[];
+        for(const op of sub){
+          if(op===O.moveTo){ cur=ap(ctm,co[p],co[p+1]); p+=2; }
+          else if(op===O.lineTo){ const nx=ap(ctm,co[p],co[p+1]); p+=2; if(cur) list.push({x1:cur[0],y1:cur[1],x2:nx[0],y2:nx[1],w:null}); cur=nx; }
+          else if(op===O.curveTo){ p+=6; cur=ap(ctm,co[p-2],co[p-1]); }
+          else if(op===O.rectangle){ const x=co[p],y=co[p+1],w=co[p+2],h=co[p+3]; p+=4;
+            const c0=ap(ctm,x,y),c1=ap(ctm,x+w,y),c2=ap(ctm,x,y+h);
+            const wT=Math.hypot(c1[0]-c0[0],c1[1]-c0[1]),hT=Math.hypot(c2[0]-c0[0],c2[1]-c0[1]);
+            if(Math.min(wT,hT)<2.5&&Math.max(wT,hT)>2.5){
+              if(wT>=hT) list.push({x1:c0[0],y1:(c0[1]+c2[1])/2,x2:c1[0],y2:(c1[1]+c2[1]+(c1[1]-c0[1]))/2,w:hT,rect:1});
+              else list.push({x1:(c0[0]+c1[0])/2,y1:c0[1],x2:(c2[0]+c1[0]+(c2[0]-c0[0]))/2,y2:c2[1],w:wT,rect:1});
+            } }
+          else break;
+        }
+        pend=list;
+      }
+      else if(f===O.stroke||f===O.fillStroke||f===O.eoFillStroke){
+        if(pend){ const sc=Math.sqrt(Math.abs(ctm[0]*ctm[3]-ctm[1]*ctm[2]))||1;
+          for(const s of pend) segs.push(s.w===null?{...s,w:lw*sc}:s); }
+        pend=null;
+      }
+      else if(f===O.fill||f===O.eoFill){
+        if(pend) for(const s of pend) if(s.rect) segs.push(s);   // rect-drawn lines land via fill
+        pend=null;
+      }
+      else if(f===O.endPath) pend=null;
+    }
+    if(!segs.length) return null;
+    let minY=1e9,maxY=-1e9,minX=1e9,maxX=-1e9;
+    for(const s of segs){ minY=Math.min(minY,s.y1,s.y2); maxY=Math.max(maxY,s.y1,s.y2);
+                          minX=Math.min(minX,s.x1,s.x2); maxX=Math.max(maxX,s.x1,s.x2); }
+    const spanY=maxY-minY, spanX=maxX-minX;
+    const vert=segs.filter(s=>Math.abs(s.x2-s.x1)<0.8 && Math.abs(s.y2-s.y1)>spanY*0.5 && s.w>0);
+    const hori=segs.filter(s=>Math.abs(s.y2-s.y1)<0.8 && Math.abs(s.x2-s.x1)>spanX*0.5 && s.w>0);
+    const pick=(list,axis)=>{
+      if(list.length<6) return [];
+      const ws=list.map(s=>s.w).sort((a,b)=>a-b);
+      const medW=ws[Math.floor(ws.length/2)];
+      const thick=list.filter(s=>s.w>medW*1.6);
+      if(!thick.length || thick.length>list.length*0.6) return [];   // no distinction / all thick
+      return thick.map(s=> axis==='v' ? (s.x1+s.x2)/2 : (s.y1+s.y2)/2);
+    };
+    // Horizontal lattice (top line + pitch) so thick rows can be indexed from
+    // the tile's top edge — the parser has no row lattice of its own.
+    const hys=hori.map(s=>(s.y1+s.y2)/2).sort((a,b)=>b-a);
+    const hcl=[]; for(const v of hys){ if(!hcl.length || hcl[hcl.length-1]-v>0.6) hcl.push(v); }
+    let hLat=null;
+    if(hcl.length>=8){
+      const difs=[]; for(let i=1;i<hcl.length;i++) difs.push(hcl[i-1]-hcl[i]);
+      const med=difs.slice().sort((a,b)=>a-b)[Math.floor(difs.length/2)];
+      if(med>=1.5){
+        let bS=0,bL=1,s0=0,l=1;
+        for(let i=0;i<difs.length;i++){ if(Math.abs(difs[i]-med)<med*0.25) l++; else { if(l>bL){bL=l;bS=s0;} s0=i+1; l=1; } }
+        if(l>bL){bL=l;bS=s0;}
+        if(bL>=8){ const run=hcl.slice(bS,bS+bL); hLat={oTop:run[0], pitch:(run[0]-run[run.length-1])/(run.length-1), n:run.length}; }
+      }
+    }
+    return { thickX: pick(vert,'v'), thickY: pick(hori,'h'), hLat };
+  }catch(_e){ return null; }
+}
+async function _detectColLattice(page){
+  try{
+    const O=pdfjsLib.OPS;
+    const ops=await page.getOperatorList();
+    const mul=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
+    const ap=(m,x,y)=>[m[0]*x+m[2]*y+m[4],m[1]*x+m[3]*y+m[5]];
+    let ctm=[1,0,0,1,0,0]; const st=[]; let pend=null; const segs=[];
+    for(let i=0;i<ops.fnArray.length;i++){ const f=ops.fnArray[i], a=ops.argsArray[i];
+      if(f===O.save) st.push(ctm.slice()); else if(f===O.restore) ctm=st.pop()||[1,0,0,1,0,0];
+      else if(f===O.transform) ctm=mul(ctm,a);
+      else if(f===O.constructPath){ const sub=a[0], co=a[1]; let p=0, cur=null, list=[];
+        for(const op of sub){
+          if(op===O.moveTo){ cur=ap(ctm,co[p],co[p+1]); p+=2; }
+          else if(op===O.lineTo){ const nx=ap(ctm,co[p],co[p+1]); p+=2; if(cur) list.push([cur[0],cur[1],nx[0],nx[1]]); cur=nx; }
+          else if(op===O.curveTo){ p+=6; cur=ap(ctm,co[p-2],co[p-1]); }
+          else if(op===O.rectangle){ const x=co[p],y=co[p+1],w=co[p+2],h=co[p+3]; p+=4; const c0=ap(ctm,x,y),c1=ap(ctm,x+w,y),c2=ap(ctm,x,y+h); const wT=Math.hypot(c1[0]-c0[0],c1[1]-c0[1]),hT=Math.hypot(c2[0]-c0[0],c2[1]-c0[1]); if(Math.min(wT,hT)<2&&Math.max(wT,hT)>2.5){ if(wT>=hT) list.push([(c0[0]+c2[0])/2,(c0[1]+c2[1])/2,(c1[0]+c2[0]+(c1[0]-c0[0]))/2,(c1[1]+c2[1]+(c1[1]-c0[1]))/2]); else list.push([(c0[0]+c1[0])/2,(c0[1]+c1[1])/2,(c2[0]+c1[0]+(c2[0]-c0[0]))/2,(c2[1]+c1[1]+(c2[1]-c0[1]))/2]); } }
+          else break;
+        }
+        pend=list;
+      }
+      else if(f===O.stroke||f===O.fillStroke||f===O.eoFillStroke){ if(pend) for(const s of pend) segs.push(s); pend=null; }
+      else if(f===O.endPath||f===O.fill||f===O.eoFill) pend=null;
+    }
+    if(!segs.length) return null;
+    const AX=0.8; const vx=[]; let minY=1e9,maxY=-1e9;
+    for(const s of segs){ minY=Math.min(minY,s[1],s[3]); maxY=Math.max(maxY,s[1],s[3]); }
+    const spanY=maxY-minY;
+    for(const s of segs){ const dx=Math.abs(s[2]-s[0]), dy=Math.abs(s[3]-s[1]); if(dx<AX && dy>spanY*0.5) vx.push((s[0]+s[2])/2); }
+    if(vx.length<8) return null;
+    vx.sort((a,b)=>a-b); const cl=[vx[0]]; for(const v of vx) if(v-cl[cl.length-1]>0.6) cl.push(v);
+    if(cl.length<8) return null;
+    const difs=[]; for(let i=1;i<cl.length;i++) difs.push(cl[i]-cl[i-1]);
+    const med=difs.slice().sort((a,b)=>a-b)[Math.floor(difs.length/2)];
+    if(!(med>=1.5)) return null;
+    let bS=0,bL=1,s0=0,l=1;
+    for(let i=0;i<difs.length;i++){ if(Math.abs(difs[i]-med)<med*0.25) l++; else { if(l>bL){bL=l;bS=s0;} s0=i+1; l=1; } }
+    if(l>bL){bL=l;bS=s0;}
+    if(bL<8) return null;
+    const run=cl.slice(bS,bS+bL);
+    return {o:run[0], pitch:(run[run.length-1]-run[0])/(run.length-1), n:run.length};
+  }catch(_e){ return null; }
+}
 async function parseChartPdf(file, expectedWidth, forcedCanvas){
   const buf = await file.arrayBuffer();
   trackerChartBuf = buf;
@@ -21487,9 +21743,42 @@ async function parseChartPdf(file, expectedWidth, forcedCanvas){
   const pdf = await pdfjsLib.getDocument({data: new Uint8Array(buf.slice(0))}).promise;
   const glyphPos = {}; const pitches = []; const pageRulers = []; const pageOrigins = [];
   const pages = [];
+  // ── Exclude embedded legend / instruction pages from grid assembly ────────
+  // A chart PDF sometimes carries the symbol key (and backstitch list, fabric
+  // info, copyright) as a final TEXT page, or the user uploads a combined
+  // chart+legend PDF. That page is prose+table, not a grid; pulled into
+  // assembly it parses as a stray sparse tile and shears the layout (evidence
+  // B1425: a 100×111 chart rendered 188×71 because the key page was laid BESIDE
+  // the two chart pages, adding ~32 phantom stitches). Pre-classify pages: a
+  // legend page carries the key wording AND a high word-item density, whereas a
+  // real chart page is thousands of single glyphs with only a title/watermark
+  // word or two. Only exclude when at least one chart page remains, so a
+  // legend-only upload still parses rather than vanishing.
+  const _legendPage = {};
+  {
+    let _charts = 0;
+    for(let _p=1; _p<=pdf.numPages; _p++){
+      const _c = await (await pdf.getPage(_p)).getTextContent();
+      const _txt = _c.items.map(i=>i.str).join(' ');
+      const _kw = /Instructions|Symbol Key|Colour Name|Strands|Fabric|Backstitch|Half Cross|Cross Stitch|Produced using|Copyright|www\./i.test(_txt);
+      const _long = _c.items.filter(i=>/[A-Za-z]{4,}/.test(i.str)).length;
+      if(_kw && _long / Math.max(1,_c.items.length) > 0.05) _legendPage[_p] = true; else _charts++;
+    }
+    if(_charts === 0){ for(const k in _legendPage) delete _legendPage[k]; }
+    const _sk = Object.keys(_legendPage);
+    // Publish which pages were treated as the legend so the chart handler can
+    // tell the user it detected a combined chart+legend PDF and used only the
+    // chart pages. Freshly set every parse (empty when none were excluded).
+    try{ window.__trkLegendPagesExcluded = _sk.slice(); }catch(_e){}
+    if(_sk.length) console.log('[tracker] excluded embedded legend/instruction page(s) from chart assembly: '+_sk.join(', '));
+  }
   for(let p=1; p<=pdf.numPages; p++){
+    if(_legendPage[p]) continue;
     const page = await pdf.getPage(p);
     const content = await page.getTextContent();
+    // The printed column lattice for this page (grid lines), used to place each
+    // glyph in its true column regardless of how many empty cells precede it.
+    const _colLat = await _detectColLattice(page);
     // In CrossStitch3 font mode we keep each cell's ORIGINAL character so it can
     // be drawn with the embedded font itself; otherwise fall back to the legacy
     // alias-normalisation used by the shape-matching path.
@@ -21541,9 +21830,19 @@ async function parseChartPdf(file, expectedWidth, forcedCanvas){
       findRuns('y','x');   // column ruler — shared baseline, values rising across the page
       findRuns('x','y');   // row ruler    — shared left edge, values rising down the page
     })();
-    const smallClass = rawItems0.filter(it=>it.str.trim() && it.h>3 && it.h < hMode*0.85 && !rulerSet.has(it));
+    // Half-stitch glyphs print smaller and TWICE per cell; they must be dropped
+    // from row formation or each cell becomes two rows. Keying the size cut on
+    // the modal height fails on a half-stitch-heavy tile, where the small glyph
+    // IS the mode (B1431 p3/p4: h6 outnumbers h9, so hMode=6 and nothing gets
+    // cut — the tile then reads ~2x its rows and its row anchor never resolves).
+    // The full stitch is always the TALLEST recurring class, so cut on that.
+    const hFull=(()=>{ const f={}; for(const it of rawItems0){ if(!it.str.trim()||it.h<=3)continue; const k=Math.round(it.h*4)/4; f[k]=(f[k]||0)+1; }
+      const ks=Object.keys(f).map(Number); if(!ks.length) return hMode;
+      const topc=Math.max(...ks.map(k=>f[k])); const sub=ks.filter(k=>f[k] >= topc*0.25);
+      return sub.length ? Math.max(...sub) : hMode; })();
+    const smallClass = rawItems0.filter(it=>it.str.trim() && it.h>3 && it.h < hFull*0.85 && !rulerSet.has(it));
     const smallItems = smallClass.length>=10 ? smallClass : [];
-    const rawItems = smallItems.length ? rawItems0.filter(it=>rulerSet.has(it) || !(it.h>3 && it.h < hMode*0.85)) : rawItems0;
+    const rawItems = smallItems.length ? rawItems0.filter(it=>rulerSet.has(it) || !(it.h>3 && it.h < hFull*0.85)) : rawItems0;
     const items = bucketRowsByY(rawItems, 2);
     // Phase 1: group items into rows, keeping positions
     let lastRowY=null, rowIts=[]; const rowsIt=[];
@@ -21568,7 +21867,7 @@ async function parseChartPdf(file, expectedWidth, forcedCanvas){
     // alignment test silently degrades back into the old cell-count test.
     // The span between the modal left and right edges divided by the modal
     // cell count has no such drift — it is one measurement, not a sum of many.
-    const pMed=(()=>{
+    let pMed=(()=>{
       if(gx0!==null && gx1!==null && gx1>gx0){
         const lc={}; let wide=0, wb=-1;
         for(const r of longRows){
@@ -21589,7 +21888,7 @@ async function parseChartPdf(file, expectedWidth, forcedCanvas){
     // column-0 anchor from the ruler itself; multi-page tiles keep their own
     // per-page geometry (their colOffset already places them absolutely).
     const singlePage = pdf.numPages===1;
-    let rulerX0=null, rulerCols=null;
+    let rulerX0=null, rulerCols=null, rulerFirst=null, rulerPitch=null;
     for(const r of rowsIt){
       const ns=r.filter(it=>/^\d+$/.test((it.str||'').trim()) && +it.str%10===0 && +it.str>=10);
       if(ns.length<5 || ns.length<r.length*0.5) continue;
@@ -21600,9 +21899,79 @@ async function parseChartPdf(file, expectedWidth, forcedCanvas){
       if(!(pp>1 && pp<60)) continue;
       rulerX0 = cxF - (+f.str-1)*pp;   // x-centre of absolute column 1 (extrapolated)
       rulerCols = +l.str;              // rightmost printed column label on this page
+      rulerFirst = +f.str;             // leftmost printed column label — small => col 1 is on THIS page
+      rulerPitch = pp;                 // ground-truth column pitch from the evenly-spaced labels
       break;
     }
-    const gridX0 = (singlePage && rulerX0!==null) ? rulerX0 : gx0;   // single page re-anchors to the ruler; a tile keeps its local geometry (colOffset places it)
+    // Re-anchor to the ruler's column 1 whenever col 1 is actually on this page —
+    // a single page, a full-width top/bottom split page, or a left tile (all have a
+    // small first ruler label). This stops the sparse left edge (faint background
+    // columns) being clipped to the dense content's edge. A right tile's first label
+    // is large (its col 1 is off-page), so it keeps gx0 and its row labels are safe.
+    const leftAnchored = rulerX0!==null && (singlePage || (rulerFirst!==null && rulerFirst<=25));
+    const gridX0 = leftAnchored ? rulerX0 : gx0;
+    // The ruler's printed labels are evenly spaced by design, so their pitch is
+    // ground truth. The cell-spacing pMed can inflate on a sparse tile where row
+    // gaps make the cell COUNT under-read the column span (evidence B1431 p2:
+    // 11.47 vs the ruler's 10.26 — that inflated pitch drifted the column vote so
+    // no offset won AND it squashed the tile's own content). When they disagree
+    // by more than a few percent, trust the ruler.
+    if(rulerPitch!==null && pMed>0 && Math.abs(rulerPitch-pMed) > pMed*0.04) pMed = rulerPitch;
+    // Calibrate the lattice's column numbering to the parser's. The detected grid
+    // lattice is exact in SPACING but its origin can sit a whole cell off the
+    // parser's column 0 (its first clustered line need not be the true left edge),
+    // so lattice-col and parser-col differ by a per-page constant. Take the MODE of
+    // that difference over all in-grid glyphs — the correctly-placed majority pins
+    // it — and subtract it, so lattice placement equals the parser where they agree
+    // and only overrides where the parser drifted (sparse-row first cells). Without
+    // this a kit whose lattice is a column off loses one cell per row (B1426).
+    let _latColOff = 0;
+    if(_colLat && pMed>0){
+      // Calibrate the lattice's numbering against the printed COLUMN LABELS,
+      // not against the parser's own frame. Label V is centred over true column
+      // V-1, so (latticeColOfLabel - (V-1)) measures how far the clustered run's
+      // numbering sits from the truth directly — mod 10 for right-hand tiles,
+      // where V-1 is absolute but the offset is still small. The old
+      // calibration took mode(latticeCol - parserCol), which merely forced the
+      // lattice to AGREE with the parser: when the parser's own frame was the
+      // one that was off (B7064: wide glyphs put x-left rounding on a knife
+      // edge, shifting the whole left tile one column left, losing true column
+      // 0 and blanking column 91 for the seam-closure to eat) the calibration
+      // faithfully corrupted the good lattice to match. Labels are the printed
+      // ground truth both frames must answer to. Falls back to the old
+      // parser-mode calibration when fewer than 2 clean labels exist.
+      const _lo={}; let _ln=0;
+      const _latEnd=_colLat.o+_colLat.n*_colLat.pitch;
+      for(const it of rawItems0){
+        const _s=(it.str||'').trim();
+        if(!/^\d+$/.test(_s)) continue;
+        const _v=+_s; if(_v<10||_v>4000||_v%10!==0) continue;
+        const _cx=it.x+(it.w||0)/2;
+        if(_cx<_colLat.o-_colLat.pitch*0.2 || _cx>_latEnd+_colLat.pitch*0.2) continue;
+        const _flo=Math.floor((_cx-_colLat.o)/_colLat.pitch);
+        let _m=((_flo-(_v-1))%10+10)%10; if(_m>5) _m-=10;
+        if(Math.abs(_m)<=2){ _lo[_m]=(_lo[_m]||0)+1; _ln++; }
+      }
+      let _lb=null,_lc2=0; for(const k in _lo) if(_lo[k]>_lc2){ _lc2=_lo[k]; _lb=+k; }
+      // Label calibration is only sound on a leftAnchored page, whose tile
+      // starts at absolute column 0 so (latticeCol - (V-1)) isolates the
+      // lattice error. On a right-hand tile the same difference also carries
+      // -(tileStart mod 10) — B7064's right tiles start at column 92, which
+      // masqueraded as a -2 lattice error and shoved their content two columns
+      // right. Non-left pages keep the parser-mode calibration, whose frame is
+      // the same one their origin vote is measured in (self-consistent, and
+      // validated by the vector and rare-glyph checks).
+      if(_lb!==null && _lc2>=2 && leftAnchored){ _latColOff=_lb; }
+      else if(gridX0!==null){
+        const _dc={};
+        for(const it of rawItems0){ if(!it.str.trim()) continue; if(it.x<gridX0-pMed || it.x>gridX0+400*pMed) continue;
+          const lc=Math.floor((it.x + (it.w||0)/2 - _colLat.o)/_colLat.pitch);
+          const pc=Math.round((it.x - gridX0)/pMed);
+          const d=lc-pc; _dc[d]=(_dc[d]||0)+1; }
+        let _bd=0,_bc=-1; for(const k in _dc){ if(_dc[k]>_bc){ _bc=_dc[k]; _bd=+k; } }
+        _latColOff=_bd;
+      }
+    }
     let zoneL = gx0!==null ? gx0 - pMed*0.55 : -Infinity;
     let zoneR = gx1!==null ? gx1 + pMed*0.55 : Infinity;
     if(rulerX0!==null && rulerCols!==null){
@@ -21614,7 +21983,7 @@ async function parseChartPdf(file, expectedWidth, forcedCanvas){
       // single-page chart — on a tile the extrapolated column 1 lands far to the
       // left and would swallow that tile's own row-number labels.
       zoneR = Math.max(zoneR, rulerX0 + (rulerCols-1)*pMed + pMed*0.55);
-      if(singlePage) zoneL = Math.min(zoneL, rulerX0 - pMed*0.55);
+      if(leftAnchored) zoneL = Math.min(zoneL, rulerX0 - pMed*0.55);
     }
     // ── Row de-fragmentation ──────────────────────────────────────────────
     // bucketRowsByY splits rows on a 2pt tolerance, but a mark printed a
@@ -21739,6 +22108,43 @@ async function parseChartPdf(file, expectedWidth, forcedCanvas){
           cellMarks.get(k).push(m);
         }
       }
+      // Reunite the two marks of a split diagonal half. A \ or / half stitch
+      // prints TWO marks (its diagonal ends); when they straddle the cell baseline
+      // the nearest-row match can drop one into the row above and one into the row
+      // below, leaving two lone corner marks that each misread as a QUARTER
+      // (evidence B1421 444: 21 TL + 21 BR lone marks that are really 21 \ halves;
+      // 2-mark halves are all TL+BR / TR+BL diagonals). Pair a lone mark with a
+      // lone mark one row off in the same column whose x sits on the OTHER side
+      // (so the pair forms a diagonal, not a vertical coincidence), and merge them
+      // into one two-mark cell seated on the baseline nearer their midpoint. A
+      // genuinely isolated single mark (a true quarter/petite) has no diagonal
+      // partner and is left as-is.
+      {
+        const _lone=[...cellMarks].filter(e=>e[1].length===1);
+        const _done=new Set();
+        const _OFF=[[1,0],[-1,0],[1,-1],[-1,1],[1,1],[-1,-1]];
+        for(const [k,ms] of _lone){
+          if(_done.has(k)) continue;
+          const i=k.indexOf(':'), ri=+k.slice(0,i), col=+k.slice(i+1);
+          for(const off of _OFF){
+            const r2=ri+off[0], c2=col+off[1], k2=r2+':'+c2;
+            if(_done.has(k2)) continue;
+            const ms2=cellMarks.get(k2);
+            // partner must be a lone mark offset in BOTH x and y (a true diagonal
+            // pair, not a vertical/horizontal coincidence or a neighbouring stitch)
+            if(ms2 && ms2.length===1 && Math.abs(ms[0].x-ms2[0].x) > pMed*0.15 && Math.abs(ms[0].y-ms2[0].y) > pMed*0.05){
+              const midY=(ms[0].y+ms2[0].y)/2, midX=(ms[0].x+ms2[0].x)/2;
+              let seatCol=Math.round((midX-gx0)/pMed), seatRi=ri, bd=(rowYs[ri]!=null?Math.abs(rowYs[ri]-midY):1e9);
+              for(const rr of [ri-1,ri+1,r2]){ if(rowYs[rr]!=null && Math.abs(rowYs[rr]-midY)<bd){ bd=Math.abs(rowYs[rr]-midY); seatRi=rr; } }
+              const seatK=seatRi+':'+seatCol;
+              cellMarks.delete(k); cellMarks.delete(k2);
+              cellMarks.set(seatK, [ms[0], ms2[0]]);
+              _done.add(k); _done.add(k2); _done.add(seatK);
+              break;
+            }
+          }
+        }
+      }
       // The row lattice holds glyph BASELINES, which are not cell centres. A
       // two-mark cell straddles its own centre, so the median of those
       // midpoints recovers the offset — and then single marks can be placed too.
@@ -21760,6 +22166,12 @@ async function parseChartPdf(file, expectedWidth, forcedCanvas){
           mask |= right ? (top?Q_TR:Q_BR) : (top?Q_TL:Q_BL);
         }
         if(!mask) continue;
+        // Any single mark left after the diagonal-pair merge is a half stitch
+        // whose second diagonal mark was never detected, NOT a quarter (the chart
+        // has none). Expand a lone quadrant to its full diagonal so it renders as
+        // a half: TL/BR → the \ diagonal, TR/BL → the / diagonal.
+        if(mask===Q_TL||mask===Q_BR) mask = Q_TL|Q_BR;
+        else if(mask===Q_TR||mask===Q_BL) mask = Q_TR|Q_BL;
         const row = rowsIt[ri];
         let occupied=false;
         for(const it of row){ if(Math.abs(it.x - snapX) < pMed*0.45){ occupied=true; break; } }
@@ -21822,8 +22234,41 @@ async function parseChartPdf(file, expectedWidth, forcedCanvas){
         // fully-stitched row advances one column per cell, so nothing is padded
         // and this is a no-op for it.
         if(gx0!==null && pMed>0){
-          let col=Math.round((it.x-gridX0)/pMed);
-          if(col<emitCol) col=emitCol;            // never step back (left edge / rounding collision)
+          // Advance from the PREVIOUS placed cell by the measured stitch-to-stitch
+          // gap rather than an absolute ruler-anchored round. The printed ruler
+          // sits on a lattice a fraction of a cell off from the stitch glyphs;
+          // where that offset crosses half a cell an absolute round jumps one
+          // column, and because emit never steps back the whole run downstream
+          // shifts right by one — opening a diagonal empty streak and colliding
+          // at the far edge (evidence B1425 ear, B1426 body). Stitch-to-stitch
+          // Δx is an exact multiple of the true pitch, so this follows the real
+          // lattice; a genuine interior hole still reads Δx≈2·pMed → +2 and is
+          // preserved. The first cell of the row keeps the absolute anchor so the
+          // row still starts at its true column.
+          let col;
+          const _abs = _colLat ? (Math.floor((it.x + (it.w||0)/2 - _colLat.o)/_colLat.pitch) - _latColOff) : Math.round((it.x-gridX0)/pMed);
+          if(prevX===null){ col = _abs;
+            // An item whose true column is LEFT of the grid is not a stitch —
+            // it is a row-ruler label sitting beside the chart. The step-back
+            // clamp below would manufacture it into column 0 (evidence B1442:
+            // labels 10…90 rendered as phantom stitches down the left edge).
+            if(col<0) return; }
+          else {
+            const _dx = it.x - prevX;
+            if(_dx > 1.5*pMed){
+              // A gap of empty cells. Delta placement is exact within a contiguous
+              // run but accumulates rounding drift across a long row, so by the
+              // time it reaches a far-right motif it can sit a whole column off
+              // (evidence B1421 row 87). After a gap, re-anchor to the absolute
+              // position — from the calibrated lattice when available, else the
+              // grid origin — which is drift-free.
+              col = _abs;
+              if(col < emitCol) col = emitCol;
+            } else {
+              col = (emitCol-1) + Math.max(1, Math.round(_dx/pMed));
+            }
+          }
+          if(col<emitCol) col=emitCol;            // safety: never step back
           while(emitCol<col){ out.push(' '); emitCol++; }
         }
         // sentinel + quadrant mask ride through band assembly with the cell
@@ -21877,7 +22322,7 @@ async function parseChartPdf(file, expectedWidth, forcedCanvas){
       if(tens.length<2) continue;
       const votes={};
       for(const n of tens){
-        const i=Math.round((n.cx - (gx0 + pMed/2))/pMed); // local column, 0-based
+        const i=Math.round((n.cx - (gridX0 + pMed/2))/pMed); // local column, 0-based (same anchor as item placement)
         const off=n.v - 1 - i;                            // absolute column of local 0
         votes[off]=(votes[off]||0)+1;
         colSamples++;
@@ -21890,12 +22335,26 @@ async function parseChartPdf(file, expectedWidth, forcedCanvas){
     // marks (it is centred on the cell band, the glyphs sit on a baseline),
     // which biases every label on every page by the SAME amount — so the
     // bias cancels during assembly, where the topmost band is pinned to row 0.
-    const gridRowYs=[];
+    // Anchor rows by the SAME grid-row set that gets placed (mirror the pageGrid
+    // junk filter, interpolating a Y for reconstructed blank rows) so the matched
+    // index equals the true grid-row number. The previous list used a different
+    // filter — it kept the title/ruler line and dropped sparse rows — so the index
+    // no longer equalled the row number and any page with a sparse top (e.g.
+    // B1432's cat ear) anchored several rows too low, losing stitches at the seam.
+    const _isGridRow=(l)=>{
+      if(!l.length) return !!l.blankRow;
+      if(l.length>=3 && l.every(c=>/^\d+$/.test(c))){ const tens=l.map(Number).filter(v=>v%10===0&&v>=10); if(tens.length>=Math.max(2,l.length*0.6)) return false; }
+      const cells=l.reduce((n,c)=> n + ((typeof c==='string'&&c!==' '&&c.length)?1:0), 0);
+      if(cells<8 && l.some(c=>c.length>2 && /[A-Za-z©]/.test(c))) return false;
+      if(l.length===1) return l[0].length<=2 && !/^\d+$/.test(l[0]);
+      return true;
+    };
+    const gridRowYs=[]; let _prevY=null;
     for(let i=0;i<lines.length;i++){
-      const l=lines[i];
-      if(l.length < 8) continue;
-      if(l.every(c=>/^\d+$/.test(c))) continue;   // the column ruler line itself
-      gridRowYs.push(rowsIt[i][0].rowY);
+      if(!_isGridRow(lines[i])) continue;
+      let y = (rowsIt[i] && rowsIt[i][0]) ? rowsIt[i][0].rowY : (_prevY!==null && pMed>0 ? _prevY - pMed : null);
+      gridRowYs.push(y);
+      if(y!==null) _prevY=y;
     }
     let rowRaw=null, rowVotes=0;
     if(rowRulerLabels.length && gridRowYs.length){
@@ -21903,24 +22362,129 @@ async function parseChartPdf(file, expectedWidth, forcedCanvas){
       for(const L of rowRulerLabels){
         let bi=-1, bd=Infinity;
         for(let i=0;i<gridRowYs.length;i++){
+          if(gridRowYs[i]===null) continue;
           const d=Math.abs(gridRowYs[i]-L.y);
           if(d<bd){ bd=d; bi=i; }
         }
         if(bi<0) continue;
-        const off=L.v-1-bi;
+        const off=L.v-1-bi;                          // bi is now the TRUE grid-row index
         votes[off]=(votes[off]||0)+1;
         if(votes[off]>rowVotes){ rowVotes=votes[off]; rowRaw=off; }
       }
     }
-    const origin={page:p, col: colVotes>=2 ? colOffset : null, colVotes, colSamples,
-                  rowRaw: rowVotes>=2 ? rowRaw : null, rowVotes, gridRowYs: gridRowYs.length,
+    // ── Decade-line snap ──────────────────────────────────────────────────
+    // The label votes are correct to ±1-2 but sit on a sub-cell rounding
+    // knife-edge (evidence: B7064 right pages voted col 91-92 where the left
+    // tile is 90 wide; BU5059 p2 and b1437 p1 voted one row below their band).
+    // The printed chart itself states each tile's absolute position: every 10th
+    // grid line is drawn THICK, and thick lines sit at absolute columns/rows
+    // that are multiples of 10.
+    let _thk=null; try{ _thk = await _detectThickLines(page); }catch(_e){}
+    // COLUMNS (non-left pages): absolute test. The vote lives in the gx0 frame
+    // (gridX0===gx0 for right tiles): content col c <-> global origin+c, and
+    // gx0 itself is the left edge of global column 'origin' — so a thick line
+    // t line-pitches from gx0 sits at absolute column origin+t, and the true
+    // origin satisfies (origin+t)%10===0 for EVERY thick line regardless of
+    // which physical line gx0 is. (Anchoring t on the clustered-lattice run
+    // start instead mixes frames — the run's first line is not a defined
+    // column — and mis-snapped B7064 on the first attempt.) Window ±4: a
+    // 9-wide window holds at most one mod-10 solution.
+    let _decSc=null;
+    let _colBase = colVotes>=2 ? colOffset : null;
+    if(!leftAnchored && _colBase!==null && gx0!==null && pMed>0 && _thk && _thk.thickX && _thk.thickX.length>=3){
+      const _cIdx=[]; for(const pos of _thk.thickX){ const r=(pos-gx0)/pMed; const t=Math.round(r); if(Math.abs(r-t)<=0.3) _cIdx.push(t); }
+      if(_cIdx.length>=3){
+        const _score=c=>{ let sc=0; for(const t of _cIdx) if(((c+t)%10+10)%10===0) sc++; return sc; };
+        let _best=_colBase, _bs=_score(_colBase), _2nd=-1;
+        for(let _d=-4; _d<=4; _d++){ if(!_d) continue; const c=_colBase+_d; if(c<0) continue;
+          const sc=_score(c); if(sc>_bs){ _2nd=_bs; _bs=sc; _best=c; } else if(sc>_2nd) _2nd=sc; }
+        if(_best!==_colBase && _bs>=3 && _bs>=_cIdx.length*0.6 && _bs>_2nd){
+          console.log('[tracker] page '+p+' column origin snapped '+_colBase+' -> '+_best+' (decade-line evidence '+_bs+'/'+_cIdx.length+')');
+          _colBase=_best;
+        }
+        // Publish how strongly the printed decade lines endorse this page's
+        // final column origin — the tile-group reconciler uses it to pick the
+        // RIGHT member when same-column tiles disagree (a majority median
+        // picks the wrong side when two of three pages drifted: B7065).
+        _decSc = _cIdx.length ? (function(){ let sc=0; for(const t of _cIdx) if(((_colBase+t)%10+10)%10===0) sc++; return sc/_cIdx.length; })() : null;
+      }
+    }
+    // ROWS: relative evidence only. rowRaw carries a bias shared by every page
+    // (the label-baseline offset that assembly later cancels by pinning the top
+    // band), so an absolute mod-10 test fails whenever that bias isn't 0
+    // (b1437: bias 2). Record this page's thick-row indices in the SAME frame
+    // as the vote (index into gridRowYs, whose slot i is absolute row rowRaw+i
+    // in the biased frame); a post-loop pass finds the residue most pages agree
+    // on and shifts only the odd page(s) out.
+    let _rowBase = rowVotes>=2 ? rowRaw : null;
+    let _thkRowIdx = null;
+    if(_rowBase!==null && _thk && _thk.thickY && _thk.thickY.length && gridRowYs.length){
+      _thkRowIdx=[];
+      for(const _y of _thk.thickY){
+        let _bi=-1, _bd=Infinity;                 // first grid row BELOW the line (PDF y grows upward)
+        for(let _i=0;_i<gridRowYs.length;_i++){
+          if(gridRowYs[_i]===null) continue;
+          const _dd=_y-gridRowYs[_i];
+          if(_dd>0 && _dd<_bd){ _bd=_dd; _bi=_i; }
+        }
+        if(_bi>=0 && pMed>0 && _bd<pMed*1.6) _thkRowIdx.push(_bi);
+      }
+      if(_thkRowIdx.length<3) _thkRowIdx=null;
+    }
+    // A leftAnchored page contains printed column 1 (rulerFirst<=25) and its
+    // gridX0 is the ruler-extrapolated centre of that column — so its LOCAL
+    // columns are already ABSOLUTE columns and the page's origin is 0 by
+    // construction. The label vote must not apply: rulerX0 sits ~0.6 cell right
+    // of the true edge (it is a cell CENTRE), which puts the vote on a rounding
+    // knife-edge — B7062 landed on 0, B7063 tipped to 1, shifting all left pages
+    // one column right and losing the design's entire first column (empty col 0,
+    // seam collision at the right tile). Right tiles keep the vote, where it has
+    // been reliable (dense-edge anchored).
+    const origin={page:p, col: leftAnchored ? 0 : _colBase, _decSc, colVotes, colSamples,
+                  rowRaw: _rowBase, _thkRowIdx, latRowTop:(_thk&&_thk.hLat)?_thk.hLat.oTop:null, latRowPitch:(_thk&&_thk.hLat)?_thk.hLat.pitch:null, latRowN:(_thk&&_thk.hLat)?_thk.hLat.n:null, rowVotes, gridRowYs: gridRowYs.length,
+                  rowLabels: rowRulerLabels.map(L=>({y:L.y, v:L.v})),
+                  latO: _colLat ? _colLat.o : null, latPitch: _colLat ? _colLat.pitch : null, latColOff: _latColOff,
                   maxRowLabel: rowRulerLabels.length ? Math.max(...rowRulerLabels.map(L=>L.v)) : 0,
-                  pitch:pMed, gx0};
+                  pitch:pMed, gx0, gridX0};
     pageOrigins.push(origin);
     console.log('[tracker] page '+p+' origin — column '+(origin.col===null?'UNRESOLVED':origin.col)
       +' ('+colVotes+'/'+colSamples+' labels agree) · row raw '+(origin.rowRaw===null?'UNRESOLVED':origin.rowRaw)
       +' ('+rowVotes+'/'+rowRulerLabels.length+') · ruler max '+rulerMax+' · pitch '+(pMed?pMed.toFixed(2):'?'));
     pages.push(lines);
+  }
+  // ── Decade-row residue reconciliation ───────────────────────────────────
+  // Companion to the per-page snap above: pages vote rows in a shared-bias
+  // frame, so all pages' thick decade rows must show the SAME residue
+  // (rowRaw+i) mod 10. Find the residue the majority shows and shift any
+  // disagreeing page by the smallest step (±1, then ±2) that joins it —
+  // decisively (≥60% of that page's thick rows) or not at all. This is what
+  // catches one page of a band anchoring a row below its neighbours
+  // (BU5059 p2, b1437 p1) without touching kits where every page agrees.
+  {
+    const _withEv = pageOrigins.filter(o=>o && o.rowRaw!==null && Array.isArray(o._thkRowIdx) && o._thkRowIdx.length>=3);
+    const _resOf=(o,delta)=>{ const h={}; let tot=0;
+      for(const i of o._thkRowIdx){ const r=(((o.rowRaw+delta+i)%10)+10)%10; h[r]=(h[r]||0)+1; tot++; }
+      let br=null,bc=0; for(const k in h) if(h[k]>bc){bc=h[k];br=+k;}
+      return {r:br,c:bc,tot}; };
+    if(_withEv.length>=2){
+      const _kh={};
+      for(const o of _withEv){ const e=_resOf(o,0); if(e.c>=e.tot*0.6) _kh[e.r]=(_kh[e.r]||0)+1; }
+      let _K=null,_kc=0; for(const k in _kh) if(_kh[k]>_kc){_kc=_kh[k];_K=+k;}
+      if(_K!==null && _kc>=2){
+        for(const o of _withEv){
+          const e0=_resOf(o,0);
+          if(e0.r===_K && e0.c>=e0.tot*0.6) continue;
+          for(const d of [-1,1,-2,2]){
+            if(o.rowRaw+d<0) continue;
+            const e=_resOf(o,d);
+            if(e.r===_K && e.c>=e.tot*0.6){
+              console.log('[tracker] page '+o.page+' row origin snapped '+o.rowRaw+' -> '+(o.rowRaw+d)+' (decade-row residue '+e.c+'/'+e.tot+')');
+              o.rowRaw+=d; break;
+            }
+          }
+        }
+      }
+    }
   }
   const grid = assembleChartGrid(pages, expectedWidth, pageRulers, pageOrigins);
   // Trim trailing fully-blank rows/columns so the canvas is the design's own
@@ -22131,8 +22695,18 @@ function assembleChartGrid(pages, expectedWidth, pageRulers, pageOrigins){
       : '—').join(' | '));
   }
 
-  if(pageGrids.length === 1) return normalizeGrid(pageGrids[0],
-    (pageRulers&&pageRulers[0])||0, (origins&&origins[0]&&origins[0].maxRowLabel)||0);
+  if(pageGrids.length === 1){
+    // A single-page chart must still publish its page origin: the backstitch
+    // extractor maps every line endpoint through pageOrigins (page lattice +
+    // absolute offset), so returning without it silently produced ZERO
+    // backstitch on EVERY single-page chart (evidence B1442: four backstitch
+    // threads in the legend, none rendered) — the long-reported "full PDF
+    // missing backstitch" bug. The lone page starts at 0,0 by definition.
+    const _g1 = normalizeGrid(pageGrids[0],
+      (pageRulers&&pageRulers[0])||0, (origins&&origins[0]&&origins[0].maxRowLabel)||0);
+    if(origins && origins[0]){ const _o=origins[0]; if(_o.col===null)_o.col=0; if(_o.row===null||_o.row===undefined)_o.row=0; _g1.pageOrigins=[_o]; }
+    return _g1;
+  }
 
   const pageWidths = pageGrids.map(g=>{
     const counts = {};
@@ -22143,12 +22717,23 @@ function assembleChartGrid(pages, expectedWidth, pageRulers, pageOrigins){
   });
 
   let pagesPerBand = pageGrids.length;
+  let _bandFromRulers = false;   // ruler-reset fallback: trusted for COLUMN groups only
   if(expectedWidth){
     let sum = 0;
     for(let i=0;i<pageWidths.length;i++){
       sum += pageWidths[i];
       if(sum === expectedWidth){ pagesPerBand = i+1; break; }
       if(sum > expectedWidth){ pagesPerBand = pageGrids.length; break; }
+    }
+    // Content widths under-report on tiles with sparse edges, so the sum can
+    // miss expectedWidth entirely (B7065: 106+88 != 210) — leaving all pages in
+    // one "band" and disabling the tile-group reconciler below. The printed
+    // column rulers state the layout directly: they grow across a band and
+    // RESET at the next one.
+    if(pagesPerBand===pageGrids.length && rulers.filter(v=>v>0).length>=2){
+      for(let i=1;i<rulers.length;i++){
+        if(rulers[i]>0 && rulers[i-1]>0 && rulers[i] <= rulers[i-1]){ pagesPerBand=i; _bandFromRulers=true; break; }
+      }
     }
   } else if(rulers.filter(v=>v>0).length >= 2){
     // No legend: infer the band width from the printed column rulers.
@@ -22178,12 +22763,26 @@ function assembleChartGrid(pages, expectedWidth, pageRulers, pageOrigins){
     for(let b=0;b<bandCount;b++){
       const idx=[]; for(let k=0;k<pagesPerBand;k++){ const i=b*pagesPerBand+k; if(i<origins.length&&origins[i]) idx.push(i); }
       const rows=idx.map(i=>origins[i].row).filter(v=>v!==null&&v!==undefined);
-      if(rows.length>=2 && (Math.max(...rows)-Math.min(...rows))<=3){ const m=med(rows); idx.forEach(i=>{ if(origins[i].row!==null) origins[i].row=m; }); }
+      // Row offsets are CONTENT-anchored (a sparse-top tile legitimately starts
+      // rows below its band partner — B1446 p2 starts at row 3), so band
+      // unification of rows is only trusted on the layout the width-sum proved,
+      // never on the ruler-reset fallback added for columns.
+      if(!_bandFromRulers && rows.length>=2 && (Math.max(...rows)-Math.min(...rows))<=3){ const m=med(rows); idx.forEach(i=>{ if(origins[i].row!==null) origins[i].row=m; }); }
     }
     for(let c=0;c<pagesPerBand;c++){
       const idx=[]; for(let b=0;b<bandCount;b++){ const i=b*pagesPerBand+c; if(i<origins.length&&origins[i]) idx.push(i); }
       const cols=idx.map(i=>origins[i].col).filter(v=>v!==null&&v!==undefined);
-      if(cols.length>=2 && (Math.max(...cols)-Math.min(...cols))<=3){ const m=med(cols); idx.forEach(i=>{ if(origins[i].col!==null) origins[i].col=m; }); }
+      if(cols.length>=2 && (Math.max(...cols)-Math.min(...cols))<=3){
+        // Same-column tiles must share one origin, but the MAJORITY is not the
+        // truth-maker: on B7065 two of three right tiles drifted +1 and the
+        // median endorsed the drift. The printed decade lines are the ground
+        // truth — take the value from the member they endorse most strongly.
+        let m=med(cols), bestSc=-1;
+        idx.forEach(i=>{ const o=origins[i];
+          if(o.col!==null && typeof o._decSc==='number' && o._decSc>bestSc){ bestSc=o._decSc; m=o.col; } });
+        if(bestSc<0.75) m=med(cols);   // no decisive endorsement -> keep median
+        idx.forEach(i=>{ if(origins[i].col!==null) origins[i].col=m; });
+      }
     }
   }
   // ── Absolute placement ────────────────────────────────────────────────
@@ -22245,23 +22844,103 @@ function assembleChartGrid(pages, expectedWidth, pageRulers, pageOrigins){
       +' · stitches in '+stitchesIn+' → out '+stitchesOut
       +(clipped?(' · '+clipped+' clipped past the chart edge'):'')
       +((stitchesOut+clipped)===stitchesIn?' · conserved ✓':' · ⚠ MISMATCH'));
+    // ── Close phantom seam gaps ────────────────────────────────────────
+    // A tiled export can leave a blank — or NEAR-blank — line BETWEEN two pages:
+    // page 1's content ends at col 90, page 2 starts at 92, so col 91 belongs to
+    // no page (row seams behave the same between stacked pages). Two independent
+    // tests, both gated so a genuine in-design gap is never touched:
+    //   (a) fully blank AND a whole page sits to its left and another to its right;
+    //   (b) a sharp fill-dip flanked by DENSE content on both sides, at a page
+    //       boundary — this catches a seam that carries a few stray edge marks and
+    //       so is not perfectly empty. Real gaps sit in SPARSE areas (sparse
+    //       neighbours) and are not near a page edge, so they match neither.
+    {
+      const colFill=new Array(W).fill(0), rowFill=new Array(H).fill(0);
+      for(let r=0;r<H;r++)for(let c=0;c<W;c++) if(cells[r][c]!==' '){ colFill[c]++; rowFill[r]++; }
+      const spanC=[], spanR=[], boundC=[], boundR=[];
+      origins.forEach((o,i)=>{ const g=pageGrids[i]||[];
+        let cmn=1/0,cmx=-1/0,rmn=1/0,rmx=-1/0, wPage=0;
+        for(let r=0;r<g.length;r++){ const line=g[r]||[]; if(line.length>wPage) wPage=line.length;
+          for(let c=0;c<line.length;c++){ const v=line[c]; if(v===undefined||v===' ') continue;
+            const C=o.col+c, R=o.row+r; if(C<cmn)cmn=C; if(C>cmx)cmx=C; if(R<rmn)rmn=R; if(R>rmx)rmx=R; } }
+        if(cmn<=cmx) spanC.push([cmn,cmx]); if(rmn<=rmx) spanR.push([rmn,rmx]);
+        boundC.push(o.col, o.col+wPage); boundR.push(o.row, o.row+g.length); });
+      const maxCF=Math.max(1,...colFill), maxRF=Math.max(1,...rowFill);
+      const near=(bs,p)=>bs.some(b=>Math.abs(b-p)<=2);
+      const between=(spans,fill,p)=> fill[p]===0 && spans.some(s=>s[1]<p) && spans.some(s=>s[0]>p);
+      const sharp=(fill,maxF,bounds,p,n)=>{ if(p<2||p>n-3) return false;
+        const L=Math.max(fill[p-1],fill[p-2]), R=Math.max(fill[p+1],fill[p+2]);
+        return fill[p] < 0.15*maxF && fill[p] < 0.25*Math.min(L,R) && L>0.30*maxF && R>0.30*maxF && near(bounds,p); };
+      const dropC=[]; for(let c=0;c<W;c++) if(between(spanC,colFill,c) || sharp(colFill,maxCF,boundC,c,W)) dropC.push(c);
+      const dropR=[]; for(let r=0;r<H;r++) if(between(spanR,rowFill,r) || sharp(rowFill,maxRF,boundR,r,H)) dropR.push(r);
+      if(dropC.length||dropR.length){
+        const dc=new Set(dropC), dr=new Set(dropR);
+        const nc=[]; for(let r=0;r<H;r++){ if(dr.has(r)) continue; const row=[]; for(let c=0;c<W;c++){ if(dc.has(c)) continue; row.push(cells[r][c]); } nc.push(row); }
+        const shC=x=>{ let n=0; for(const g of dropC) if(g<x) n++; return x-n; };
+        const shR=x=>{ let n=0; for(const g of dropR) if(g<x) n++; return x-n; };
+        origins.forEach(o=>{ o.col=shC(o.col); o.row=shR(o.row); });
+        cells.length=0; for(const row of nc) cells.push(row);
+        W-=dropC.length; H-=dropR.length;
+        console.log('[tracker] closed '+dropC.length+' seam column gap(s), '+dropR.length+' row gap(s)');
+      }
+    }
     return {cols:W, rows:H, cells, pageOrigins:origins};
   }
 
   const bands = [];
   for(let i=0;i<pageGrids.length;i+=pagesPerBand) bands.push(pageGrids.slice(i, i+pagesPerBand));
-  const bandGrids = bands.map(bandPages=>{
+  const bandKeptRows = [];
+  const bandGrids = bands.map((bandPages, bi)=>{
+    // A Luca-S band's pages are horizontal slices of ONE row range, so they
+    // print the SAME number of rows. A page reading MORE is a sparse-tile
+    // over-read (evidence B709: the col-unresolved right-edge tiles 4/8 carry
+    // a stray near-blank LEADING row, reading 91 vs their band-mates' 90).
+    // Re-register such a page to the band's dominant height by dropping its
+    // near-BLANK edge row(s) only — dense rows (real stitches) are never
+    // touched, so no stitch is lost (naive row-dropping punched ~40 holes and
+    // failed the legend conservation check). Then pad short rows to the page's
+    // own width so a shorter page can't shift a taller page's cells to col 0.
+    const heights = bandPages.map(g=>g.length);
+    const hc={}; for(const h of heights) hc[h]=(hc[h]||0)+1;
+    let modalRows=1, best=0; for(const h in hc){ const c=hc[h]; if(c>best || (c===best && +h>modalRows)){ best=c; modalRows=+h; } }
+    const fillOf=line=> (line||[]).reduce((n,c)=> n + ((c && c!==' ')?1:0), 0);
+    bandPages = bandPages.map(g=>{
+      if(g.length<=modalRows) return g;
+      g = g.slice();
+      const wide = Math.max(1, ...g.map(fillOf));
+      while(g.length>modalRows){
+        const headBlank = fillOf(g[0])          < 0.15*wide;
+        const tailBlank = fillOf(g[g.length-1]) < 0.15*wide;
+        if(headBlank)      g.shift();
+        else if(tailBlank) g.pop();
+        else break;                     // both edges dense — leave it, never corrupt
+      }
+      return g;
+    });
     const rows = Math.max(...bandPages.map(g=>g.length));
     const merged = [];
     for(let r=0;r<rows;r++){
       let row = [];
-      for(const g of bandPages){ row = row.concat(g[r] || []); }
+      for(const g of bandPages){
+        const w = g.__w || (g.__w = Math.max(0, ...g.map(l=>l?l.length:0)));
+        const line = g[r];
+        if(line && line.length===w) row = row.concat(line);
+        else { const pad=(line||[]).slice(); while(pad.length<w) pad.push(' '); row = row.concat(pad); }
+      }
       merged.push(row);
     }
+    bandKeptRows.push(merged.length);
     return merged;
   });
   let fullGrid = [];
   for(const bg of bandGrids){ fullGrid = fullGrid.concat(bg); }
+  // Keep page origins consistent with the re-registered band stack — backstitch
+  // reads origins.row (RULE #1: alignment must hold).
+  let _cursor=0;
+  bands.forEach((bandPages, bi)=>{
+    for(let k=0;k<bandPages.length;k++){ const o=origins[bi*pagesPerBand+k]; if(o) o.row=_cursor; }
+    _cursor += bandKeptRows[bi];
+  });
   const ng = normalizeGrid(fullGrid);
   ng.pageOrigins = origins;
   return ng;
@@ -22293,6 +22972,14 @@ function normalizeGrid(rows, minW, minH){
 function trkFindLucas(code){
   let found = LUCAS_RAW.find(c=>c.label===code);
   if(!found && /^\d+$/.test(code)) found = LUCAS_RAW.find(c=>c.label===code.padStart(3,'0'));
+  // Named threads (Black/White/Gold/Silver) are stored mixed-case, but legends —
+  // and the un-mapped-font glyph recovery especially — surface them uppercased
+  // ("BLACK"). Fall back to a case-insensitive match so they resolve to their real
+  // RGB instead of grey "not found".
+  if(!found && code && !/^\d+$/.test(code)){
+    const lc = String(code).toLowerCase();
+    found = LUCAS_RAW.find(c=>String(c.label).toLowerCase()===lc);
+  }
   return found || null;
 }
 // Brand-aware thread lookup for the manual palette wizard. Returns a unified
@@ -22335,11 +23022,13 @@ function resolveTrackerColours(legend){
       // Blend "a+b": show the average of the two component threads
       const [a,b] = code.split('+').map(find);
       if(a && b){
+        // “Blend” moves out of the label into a sub-line under the name,
+        // matching how “Half stitch” is shown in the colour list.
         map[sym] = {r:Math.round((a.r+b.r)/2), g:Math.round((a.g+b.g)/2), b:Math.round((a.b+b.b)/2),
-                    code, stitches:entry.stitches, label:name+' '+code+' (blend)'};
+                    code, stitches:entry.stitches, blend:true, label:name+' '+code};
       } else {
         missing.push(code);
-        map[sym] = {r:160,g:160,b:160, code, stitches:entry.stitches, label:name+' '+code+' (blend, not found)'};
+        map[sym] = {r:160,g:160,b:160, code, stitches:entry.stitches, blend:true, blendMissing:true, label:name+' '+code};
       }
       continue;
     }
@@ -22462,7 +23151,21 @@ function trackerShowVerification(){
       return true;
     }
   }
-  let msg = `<b style="color:#b25f10">⚠ Verification found discrepancies</b> — the tracker will not silently show a wrong chart.<br>`;
+  let msg = '';
+  // Backstitch honesty check: the legend is the contract. If it declares
+  // backstitch threads and chart extraction produced (almost) nothing, the
+  // chart draws its backstitch in a form the extractor cannot read yet —
+  // e.g. B1442 flattens the coloured backstitch into a full-page image layer
+  // (no vectors, no glyphs). Silently rendering no backstitch let that pass
+  // as “verified”; it must be said out loud instead.
+  try{
+    var _bsDecl = (typeof trackerLegend==='object' && trackerLegend && Array.isArray(trackerLegend.backstitch)) ? trackerLegend.backstitch.length
+                : (window.__trkBackstitchDeclared|0);
+    var _bsGot = (window.__trkBackstitchSegs|0);
+    if(_bsDecl>0 && _bsGot < _bsDecl*3){
+      msg += `<br><b style="color:#a33">Backstitch could not be read from this chart:</b> the legend declares ${_bsDecl} backstitch/outline thread${_bsDecl===1?'':'s'} but only ${_bsGot} line segment${_bsGot===1?'':'s'} could be extracted. This chart appears to store its backstitch as a flattened image layer, which the reader does not decode yet — cross‑stitches are unaffected.`;
+    }
+  }catch(_e){}
   msg += `Grid: ${trackerGrid.cols}×${trackerGrid.rows}` + (dims?` (legend declares ${dims.w}×${dims.h})`:'') + ` · stitches parsed: ${v.totalGrid.toLocaleString()} vs legend total ${v.totalLegend.toLocaleString()}.`;
   if(v.unknown){
     const ub = Object.entries(v.unknownBy||{}).sort((a,b)=>b[1]-a[1]);
@@ -22477,7 +23180,8 @@ function trackerShowVerification(){
     if(v.mismatches.length>8) msg += ` · and ${v.mismatches.length-8} more`;
   }
   msg += '<br><span style="color:var(--lp-muted,#7d6b72)">Double-check the legend and chart are from the same pattern. If they are, please report this file so parsing can be fixed.</span>';
-  box.innerHTML = msg;
+  box.style.borderColor='#e0a44e';
+  box.innerHTML = `<details class="trk-fold"><summary><b style="color:#b25f10">⚠ Verification found discrepancies</b> <span class="trk-fold-sub">— the tracker won\u2019t show a wrong chart · tap for details</span></summary><div class="trk-fold-body">${msg}</div></details>`;
   return false;
 }
 
@@ -22623,9 +23327,9 @@ function trkBindPending(){
   const remaining = [];
   for(const p of trackerLegend.pending){
     const matches = Object.keys(counts).filter(s=>counts[s]===p.stitches);
-    if(matches.length===1){
+    if(p.stitches>0 && matches.length===1){
       const sym = matches[0];
-      const entry = {nr:p.nr, symbol:sym, code:p.code, stitches:p.stitches};
+      const entry = {nr:p.nr, symbol:sym, code:p.code, stitches:p.stitches, back:p.back||0, backStrands:p.backStrands, lineColor:p.lineColor};
       trackerLegend.bySymbol[sym] = entry;
       if(!trackerLegend.byCode[p.code]) trackerLegend.byCode[p.code] = entry;
       trackerLegend.rowCount++;
@@ -22638,6 +23342,21 @@ function trkBindPending(){
     } else {
       remaining.push(p);
     }
+  }
+  // Backstitch-only colours (0 cross-stitches, e.g. B1446 277/451) never match a
+  // chart symbol by stitch count, so they'd vanish. Surface them as backstitch
+  // entries keyed by a synthetic symbol, using the thread's own colour — they are
+  // listed as outline threads and never counted in progress.
+  for(const p of remaining){
+    if(!(p.back>0)) continue;
+    const key='\u0002bs_'+p.code;
+    if(trackerLegend.bySymbol[key]) continue;
+    trackerLegend.bySymbol[key]={nr:p.nr, symbol:key, code:p.code, stitches:0, back:p.back, backStrands:p.backStrands, lineColor:p.lineColor, backOnly:true};
+    const found=trkFindLucas(p.code);
+    trackerColourMap[key]=found
+      ? {r:found.r, g:found.g, b:found.b, code:p.code, stitches:0, label:'Luca-S '+p.code}
+      : {r:160, g:160, b:160, code:p.code, stitches:0, label:'Luca-S '+p.code+' (not found)'};
+    console.log('[tracker] backstitch-only colour '+p.code+' ('+p.back+' backstitch) added as outline thread');
   }
   trackerLegend.pending = remaining;
 }
@@ -23999,8 +24718,22 @@ function updateTrackerProgressUI(){
     }
     return a.nr-b.nr;
   });
+  // Backstitch-only threads: the legend declares 0 cross stitches (e.g. an
+  // outline black "0/2710") and the chart has no cells for them, so there is
+  // nothing to tap off — they would otherwise sit in the list as 0/0. Split them
+  // into a reference group below, out of the progress list and the % / to-go
+  // count. total===0 alone could be a parse miss, so also require the legend's
+  // own cross count to be 0 — that is what makes it genuinely outline-only.
+  const _isOutline = e => (total[e.symbol]||0)===0 && e.stitches===0;
+  // A thread belongs in the backstitch/outline list if the legend gives it a
+  // backstitch count (the Y in "X/Y") OR it is a pure 0-cross outline colour. A
+  // colour used for BOTH (e.g. 455 "8/319") therefore shows in the cross list
+  // for its stitches AND here for its outlines.
+  const _hasBack = e => (e.back||0) > 0 || _isOutline(e);
+  const outlineEntries = entries.filter(_hasBack);
+  const mainEntries = entries.filter(e=>!_isOutline(e));
   let totalAll=0, totalDone=0;
-  for(const e of entries){
+  for(const e of mainEntries){
     const col=trackerColourMap[e.symbol], t=total[e.symbol]||0, d=done[e.symbol]||0;
     const pT=partTotal[e.symbol]||{}, pD=partDone[e.symbol]||{};
     let sumPT=0, sumPD=0;
@@ -24018,7 +24751,7 @@ function updateTrackerProgressUI(){
     if(fT>0&&fD===fT) row.style.opacity='0.45';
     row.innerHTML=`<span class="sw" style="background:rgb(${col.r},${col.g},${col.b})"></span>`+
       symHtml(e.symbol, 17)+
-      `<span class="lb">${label}${col.half?'<span style="display:block;font-size:.62rem;opacity:.7;font-weight:600">Half stitch</span>':''}</span>`+
+      `<span class="lb">${label}${col.half?'<span style="display:block;font-size:.62rem;opacity:.7;font-weight:600">Half stitch</span>':''}${col.blend?'<span style="display:block;font-size:.62rem;opacity:.7;font-weight:600">Blend'+(col.blendMissing?' \u00b7 colour not found':'')+'</span>':''}</span>`+
       `<span class="ct">${fD}/${fT}</span>`;
     list.appendChild(row);
     // Same thread, same glyph, worked as a fractional stitch — a row per
@@ -24039,6 +24772,39 @@ function updateTrackerProgressUI(){
         `<span class="lb">${label}<span style="display:block;font-size:.62rem;opacity:.7;font-weight:600">${FRACNAME[n]||'Part stitch'}</span></span>`+
         `<span class="ct">${nD}/${nT}</span>`;
       list.appendChild(prow);
+    }
+  }
+  // Backstitch / outline threads — listed for reference, never counted.
+  if(outlineEntries.length){
+    const oh=document.createElement('div');
+    oh.style.cssText='font-size:.64rem;font-weight:700;color:var(--lp-muted,#7d6b72);text-transform:uppercase;letter-spacing:.04em;margin:.8rem 0 .35rem;padding-top:.6rem;border-top:1px solid #ecdfe2';
+    oh.textContent='Backstitch / outline threads';
+    list.appendChild(oh);
+    for(const e of outlineEntries){
+      const col=trackerColourMap[e.symbol]||{r:80,g:80,b:80,label:''};
+      const label=(col.label||'').replace(/</g,'&lt;')||('Symbol '+e.nr);
+      const _cross=(total[e.symbol]||0);
+      const _rgb=`rgb(${col.r},${col.g},${col.b})`;
+      // Draw the line in the colour the LEGEND uses for this backstitch (often not
+      // the thread's RGB — e.g. a neon-green line for 500); fall back to the thread
+      // colour if the legend line colour wasn't captured. The square swatch stays
+      // the thread colour so the thread is still identifiable.
+      const _lc = e.lineColor ? `rgb(${e.lineColor.r},${e.lineColor.g},${e.lineColor.b})` : _rgb;
+      // A backstitch entry is an outline drawn ON the chart, not a symbol to find,
+      // so show it as a LINE in the thread's own colour. Emit one line per strand
+      // variant the colour uses (thin for 1 strand, thicker for 2) — e.g. 455 as a
+      // 1-strand and a 2-strand line. Never a stitch count: backstitch isn't
+      // counted in progress.
+      const strands=(e.backStrands&&e.backStrands.length)?e.backStrands:[null];
+      for(const st of strands){
+        const _w = st===2 ? 3.4 : 2.2;
+        const _sub = st ? `Backstitch \u00b7 ${st} strand${st>1?'s':''}` : `Backstitch${_cross?' (also stitched)':''}`;
+        const row=document.createElement('div'); row.className='trk-crow'; row.style.opacity='0.9';
+        row.innerHTML=`<span class="sw" style="background:${_rgb}"></span>`+
+          `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;flex:none" aria-hidden="true"><svg width="20" height="16" viewBox="0 0 20 16"><line x1="1.5" y1="8" x2="18.5" y2="8" stroke="${_lc}" stroke-width="${_w}" stroke-linecap="round"/></svg></span>`+
+          `<span class="lb">${label}<span style="display:block;font-size:.62rem;opacity:.7;font-weight:600">${_sub}</span></span>`;
+        list.appendChild(row);
+      }
     }
   }
   // ── Full-View colour sheet: opens from the Colours tab (hidden by default).
@@ -24637,6 +25403,7 @@ function trkManualOpen(){
   // Wizard state: one symbol at a time — comfortable on mobile
   let mi=0;
   const codes=syms.map(()=>'');
+  const stitchTypes=syms.map(()=>'full');  // per-symbol Full/Half — a thread the kit stitches as half
   const hexAuto=syms.map((s,i)=>hex(auto(i))); // used only as fallback render colours on finish
 
   box.innerHTML=`<h3>Assign colours manually</h3>
@@ -24655,6 +25422,12 @@ function trkManualOpen(){
         <div id="trk-wiz-count"></div>
         <input type="text" id="trk-wiz-code" placeholder="Luca-S code, e.g. 312" autocomplete="off">
         <div id="trk-wiz-feedback"></div>
+        <div style="margin-top:.7rem;font-size:.74rem;color:var(--lp-muted,#7d6b72)">Stitch type
+          <select id="trk-wiz-stitch" style="height:32px;border:1.5px solid #e6d9dd;border-radius:8px;padding:0 .5rem;font-size:.78rem;font-family:inherit;margin-left:.35rem;color:var(--lp-ink,#2b2226)">
+            <option value="full">Full stitch</option>
+            <option value="half">Half stitch</option>
+          </select>
+        </div>
       </div>
       <div id="trk-wiz-nav">
         <button id="trk-wiz-back">‹ Back</button>
@@ -24700,6 +25473,7 @@ function trkManualOpen(){
     }
     el('trk-wiz-count').textContent=counts[s].toLocaleString()+' stitches';
     el('trk-wiz-code').value=codes[mi];
+    { const ss=el('trk-wiz-stitch'); if(ss) ss.value=stitchTypes[mi]; }
     el('trk-wiz-back').disabled=mi===0;
     el('trk-wiz-next').textContent=mi===syms.length-1?'Done':'Next ›';
     wizFeedback();
@@ -24707,6 +25481,7 @@ function trkManualOpen(){
   }
   el('trk-wiz-code').addEventListener('input',function(){ codes[mi]=this.value; wizFeedback(); el('trk-wiz-done').textContent=codes.filter(c=>c.trim()&&trkFindBrandCode(wizBrand,c)).length+' assigned'; });
   el('trk-wiz-code').addEventListener('keydown',e=>{ if(e.key==='Enter') el('trk-wiz-next').click(); });
+  { const ss=el('trk-wiz-stitch'); if(ss) ss.addEventListener('change',function(){ stitchTypes[mi]=this.value; }); }
   el('trk-wiz-back').addEventListener('click',()=>{ if(mi>0){ mi--; wizShow(); } });
   el('trk-wiz-next').addEventListener('click',()=>{ if(mi<syms.length-1){ mi++; wizShow(); } else el('trk-manual-apply').focus(); });
   wizShow();
@@ -24725,15 +25500,16 @@ function trkManualOpen(){
     syms.forEach((s,i)=>{
       const code=codes[i].trim();
       const f=code?trkFindBrandCode(wizBrand,code):null;
+      const isHalf = stitchTypes[i]==='half';
       if(f){
-        bySymbol[s]={nr:i+1, symbol:s, code:f.label, stitches:counts[s]};
-        map[s]={r:f.r,g:f.g,b:f.b, code:f.label, stitches:counts[s], label:bn+' '+f.label};
+        bySymbol[s]={nr:i+1, symbol:s, code:f.label, stitches:counts[s], half:isHalf};
+        map[s]={r:f.r,g:f.g,b:f.b, code:f.label, stitches:counts[s], label:bn+' '+f.label, half:isHalf};
       } else {
         if(code) unknown++;
         const v=hexAuto[i];
         const r=parseInt(v.slice(1,3),16), g=parseInt(v.slice(3,5),16), b=parseInt(v.slice(5,7),16);
-        bySymbol[s]={nr:i+1, symbol:s, code:code||'—', stitches:counts[s]};
-        map[s]={r,g,b, code:code||'—', stitches:counts[s], label:code?('Unknown '+code):'Unassigned'};
+        bySymbol[s]={nr:i+1, symbol:s, code:code||'—', stitches:counts[s], half:isHalf};
+        map[s]={r,g,b, code:code||'—', stitches:counts[s], label:code?('Unknown '+code):'Unassigned', half:isHalf};
       }
     });
     if(unknown) toast(unknown+' code(s) not recognised — kept as placeholder colours');
@@ -25480,18 +26256,52 @@ async function trkExtractPdfBackstitch(buf, grid){
   // space. Without origins a multi-page scan cannot be positioned, so it is
   // skipped rather than guessed.
   const pageOrigins = (grid && grid.pageOrigins) || null;
+  // Legend backstitch line colours — the ONLY colours that are real backstitch.
+  // A Luca-S chart also draws colour-region outlines (and other decoration) in
+  // vivid colours that vary by kit, so a fixed colour blacklist is wrong: the
+  // same purple is a region outline in one kit and colour 28's backstitch in
+  // another. Instead, keep a drawn line only if its colour matches a colour the
+  // legend actually assigns to a backstitch thread; drop everything else. If no
+  // legend colours are available, keep all lines (never blank the overlay).
+  const _legBackCols = [];
+  try {
+    if(typeof trackerLegend==='object' && trackerLegend){
+      const ents=[...Object.values(trackerLegend.bySymbol||{}), ...((trackerLegend.pending)||[])];
+      for(const e of ents){ if((e.back||0)>0 && e.lineColor) _legBackCols.push([e.lineColor.r,e.lineColor.g,e.lineColor.b]); }
+    }
+  } catch(_e){}
+  const _keepColour = (r,g,b) => {
+    if(!_legBackCols.length) return true;               // no reference → keep all
+    for(const c of _legBackCols){ if(Math.abs(r-c[0])<=28 && Math.abs(g-c[1])<=28 && Math.abs(b-c[2])<=28) return true; }
+    return false;
+  };
   if(pdf.numPages>1 && !pageOrigins){
     console.log('[Patternly] backstitch scan: multi-page chart without page origins — skipped');
     return null;
   }
   const merged=[], seenSeg=new Set();
   let lattices=0;
+  // Band row-snapping: tiles in the same horizontal band share a top row, but a
+  // page whose ruler labels read noisily (phantom/lost rows) can land a few rows
+  // off its band-mates and slide its whole backstitch overlay with it (evidence
+  // B1446 p2: row origin 3 at 3/6 agreement vs p1's 0 at 6/6 — its top-right
+  // details sat ~3 rows low). Cluster the page row origins and snap each to its
+  // band's topmost value so the overlay matches the reconciled grid.
+  const _rowSnap = (()=>{
+    const m=new Map();
+    if(!pageOrigins || pageOrigins.length<2) return m;
+    const rows=pageOrigins.filter(o=>o&&o.row!=null).map(o=>o.row).sort((a,b)=>a-b);
+    const clusters=[];
+    for(const r of rows){ const c=clusters.find(c=>Math.abs(c[c.length-1]-r)<=6); if(c) c.push(r); else clusters.push([r]); }
+    for(const c of clusters){ const top=Math.min(...c); for(const r of c) m.set(r, top); }
+    return m;
+  })();
   for(let pg=1; pg<=pdf.numPages; pg++){
   let colOff=0, rowOff=0;
   if(pdf.numPages>1){
     const org=pageOrigins.find(o=>o && o.page===pg);
     if(!org || org.col===null || org.row===null) continue;   // duplicate or unreadable page
-    colOff=org.col; rowOff=org.row;
+    colOff=org.col; rowOff=_rowSnap.has(org.row)?_rowSnap.get(org.row):org.row;
   }
   const page=await pdf.getPage(pg);
   const ops=await page.getOperatorList();
@@ -25580,6 +26390,15 @@ async function trkExtractPdfBackstitch(buf, grid){
     return {o:run[0], pitch, n:run.length};
   };
   const cx=calib(vx), cy=calib(hy);
+  const _orgPre = (pdf.numPages>1) ? pageOrigins.find(o=>o&&o.page===pg) : (pageOrigins&&pageOrigins[0]);
+  // A chart whose grid is drawn as FILLED rectangles (not stroked lines) yields
+  // no stroked-line lattice at all — B1442's entire backstitch vanished this
+  // way on every single-page render. The parser already measured this page's
+  // lattice from the operator list (columns) and the thick-line walk (rows):
+  // fall back to those before giving up on the page.
+  if(!cx && _orgPre && _orgPre.latO!=null && _orgPre.latPitch>0) cx={o:_orgPre.latO, pitch:_orgPre.latPitch, n:2};
+  if(!cy && _orgPre && _orgPre.latRowTop!=null && _orgPre.latRowPitch>0 && _orgPre.latRowN>1)
+    cy={o:_orgPre.latRowTop-(_orgPre.latRowN-1)*_orgPre.latRowPitch, pitch:_orgPre.latRowPitch, n:_orgPre.latRowN};
   if(!cx || !cy) continue;                       // no lattice on this page
   lattices++;
   // Map to stitch space using the SAME per-page anchor the stitch parser used
@@ -25590,11 +26409,40 @@ async function trkExtractPdfBackstitch(buf, grid){
   // (evidence B1440: the backstitch 'Music House' title slid across the p1|p2
   // seam). Fall back to the grid-line origin only when the anchor is absent.
   const _org = (pdf.numPages>1) ? pageOrigins.find(o=>o&&o.page===pg) : (pageOrigins&&pageOrigins[0]);
-  const sgx0 = (_org && typeof _org.gx0==='number') ? _org.gx0 : cx.o;
+  const sgx0 = (_org && typeof _org.gridX0==='number') ? _org.gridX0
+             : (_org && typeof _org.gx0==='number') ? _org.gx0 : cx.o;
   const spitch = (_org && _org.pitch>0) ? _org.pitch : cx.pitch;
   // PDF y is up ⇒ row 0 is at TOP boundary = max clustered y
   const yTop=cy.o + (cy.n-1)*cy.pitch;
-  const toCol=x=>(x-sgx0)/spitch, toRow=y=>(yTop-y)/cy.pitch;
+  // Prefer the printed row numbers as this page's row origin. rowRaw derives the
+  // origin by VOTING printed labels against the detected lattice, which misfires
+  // on sparse pages (evidence B1446 p2: rowRaw voted 3 while its printed labels
+  // are identical to p1's 0, and only _rowSnap rescued the seam). The labels are
+  // the chart's own coordinates, so anchor straight to them: for label {v,y} the
+  // page-origin row is v - (yTop - y)/pitch. Take the median, and only when the
+  // labels agree tightly (a genuine ruler, not stray digits); else keep rowRaw.
+  if(_org && Array.isArray(_org.rowLabels) && _org.rowLabels.length>=2){
+    const _est=_org.rowLabels.map(L=>L.v-(yTop-L.y)/cy.pitch).sort((a,b)=>a-b);
+    if(_est[_est.length-1]-_est[0] < 1.0) rowOff = Math.round(_est[_est.length>>1]);
+  }
+  // Columns must share the STITCH lattice, not gridX0. v513 moved stitch columns
+  // onto the printed grid-line lattice (_colLat); the backstitch stayed on gridX0,
+  // which sits ~0.5-0.6 cell to the side of the lattice origin (evidence B1421:
+  // gridX0 36.76 vs latO 31.44 = 0.62 cell), so every backstitch rendered half a
+  // cell to the left — the render is corner-based (coordinate c -> pixel c*cell).
+  // Do NOT subtract latColOff here: that offset corrects glyph-CENTER overshoot
+  // (it.x + w/2 spilling into the next lattice cell) in the stitch pipeline, so
+  // final stitch columns equal the true lattice columns. Backstitch vectors have
+  // no width — (x - latO)/pitch is already the true column, and subtracting the
+  // glyph correction shifted the backstitch a whole cell left on every page where
+  // latColOff=1 (evidence B7062 p1/p4, B1426 p1: PDF vector endpoints sit on
+  // integer lattice columns; stitches verified in the same frame by rare-glyph
+  // placement, d=0 on all pages).
+  const _useLat = _org && typeof _org.latO==='number' && _org.latPitch>0;
+  const toCol = _useLat
+    ? (x=> (x - _org.latO)/_org.latPitch)
+    : (x=> (x - sgx0)/spitch);
+  const toRow=y=>(yTop-y)/cy.pitch;
   const snap=v=>{ const s=Math.round(v*2)/2; return Math.abs(v-s)<0.22 ? s : v; };
   const out=[];
   for(const s of rest){
@@ -25607,13 +26455,18 @@ async function trkExtractPdfBackstitch(buf, grid){
     // an axis-aligned segment sitting exactly ON a grid line is lattice debris
     if((c1===c2 && Number.isInteger(c1) && Math.abs(r2-r1)>=3) ||
        (r1===r2 && Number.isInteger(r1) && Math.abs(c2-c1)>=3)) continue;
-    out.push({x1:c1,y1:r1,x2:c2,y2:r2,
-      r:Math.round((s.col[0]<=1?s.col[0]*255:s.col[0])), g:Math.round((s.col[1]<=1?s.col[1]*255:s.col[1])), b:Math.round((s.col[2]<=1?s.col[2]*255:s.col[2])), code:''});
+    const _R=Math.round((s.col[0]<=1?s.col[0]*255:s.col[0])), _G=Math.round((s.col[1]<=1?s.col[1]*255:s.col[1])), _B=Math.round((s.col[2]<=1?s.col[2]*255:s.col[2]));
+    // Keep only lines whose colour the legend assigns to a backstitch thread;
+    // everything else (region outlines, decoration) is dropped. This keeps colour
+    // 28's purple in one kit while dropping the same hue where it's a region
+    // outline — driven by the legend, not a fixed blacklist.
+    if(!_keepColour(_R,_G,_B)) continue;
+    out.push({x1:c1,y1:r1,x2:c2,y2:r2, r:_R, g:_G, b:_B, code:''});
   }
   // Decoration filter: charts print small vector markers (evidence B_G734:
   // a centre-arrow triangle at the bottom edge read as 3 segments). Connected
   // clusters of 3+ segments confined to a tiny box are markers, not stitching.
-  if(out.length){
+  if(out.length && !_legBackCols.length){  /* only when no legend-colour reference; else the colour filter already removed markers, and this would drop real isolated backstitch (small hearts) */
     const par=out.map((_,i)=>i);
     const find=i=>{ while(par[i]!==i) i=par[i]=par[par[i]]; return i; };
     const near=(a,b)=>Math.abs(a-b)<0.16;
@@ -25660,6 +26513,29 @@ async function trkExtractPdfBackstitch(buf, grid){
     seenSeg.add(key);
     merged.push(sgm);
   }
+  }
+  // Drop isolated decoration clusters marooned in blank chart areas. Real
+  // backstitch traces the edge of a stitched region, so it always has filled
+  // cells around it; a tiny motif sitting in empty fabric (e.g. B1431's
+  // falling-snowflake marks) does not. Gated on BOTH a small connected size and
+  // a near-empty neighbourhood, so it can never touch the design's own linework.
+  if(!_legBackCols.length && merged.length && merged.length<=4000 && grid && grid.cells){  /* skip when legend colours drive keep/drop; small isolated hearts are real backstitch */
+    const _fill=(c,r)=>{ if(r<0||r>=grid.rows||c<0||c>=grid.cols) return false; const v=grid.cells[r]&&grid.cells[r][c]; return typeof v==='string'&&v.trim().length>0; };
+    const M=merged.length, par=[]; for(let i=0;i<M;i++) par[i]=i;
+    const find=i=>{ while(par[i]!==i) i=par[i]=par[par[i]]; return i; };
+    const _nr=(a,b)=>Math.abs(a-b)<0.4;
+    for(let i=0;i<M;i++)for(let j=i+1;j<M;j++){ const A=merged[i],B=merged[j];
+      if([[A.x1,A.y1],[A.x2,A.y2]].some(([x,y])=>(_nr(x,B.x1)&&_nr(y,B.y1))||(_nr(x,B.x2)&&_nr(y,B.y2)))) par[find(i)]=find(j); }
+    const comp={}; merged.forEach((s,i)=>{ (comp[find(i)]=comp[find(i)]||[]).push(s); });
+    const drop=new Set();
+    for(const k in comp){ const c=comp[k]; if(c.length>12) continue;
+      let mnx=1e9,mxx=-1e9,mny=1e9,mxy=-1e9;
+      for(const s of c){ mnx=Math.min(mnx,s.x1,s.x2); mxx=Math.max(mxx,s.x1,s.x2); mny=Math.min(mny,s.y1,s.y2); mxy=Math.max(mxy,s.y1,s.y2); }
+      const c0=Math.floor(mnx)-2,c1=Math.ceil(mxx)+2,r0=Math.floor(mny)-2,r1=Math.ceil(mxy)+2;
+      let fillN=0,area=0; for(let r=r0;r<=r1;r++)for(let cc=c0;cc<=c1;cc++){ area++; if(_fill(cc,r)) fillN++; }
+      if(fillN/Math.max(1,area) < 0.18) for(const s of c) drop.add(s);
+    }
+    if(drop.size){ const kept=merged.filter(s=>!drop.has(s)); merged.length=0; for(const s of kept) merged.push(s); }
   }
   console.log('[Patternly] backstitch scan: '+pdf.numPages+' page(s) · '+lattices+' with a vector lattice · '+merged.length+' backstitch');
   return merged.length?merged:null;
@@ -25728,10 +26604,16 @@ async function trkHandleChart(file){
       if(trackerChartBuf){
         const bs=await trkExtractPdfBackstitch(trackerChartBuf, trackerGrid);
         if(bs) trackerGrid.backstitch=bs;
+        // Publish extraction size for the verification banner's honesty check
+        try{ window.__trkBackstitchSegs = Array.isArray(bs)?bs.length:0; }catch(_e){}
       }
     }catch(e){ console.warn('[Patternly] backstitch scan failed (ignored)', e); }
     card.classList.add('done');
     let status = `✅ ${file.name} — ${trackerGrid.cols}×${trackerGrid.rows} stitches detected` + (trackerGrid.chartFont ? ' · vector symbols ✓' : ' · bitmap symbols'+(trackerChartFontReason?' ['+trackerChartFontReason+']':''));
+    // Combined chart+legend PDF: parseChartPdf auto-excluded the legend page(s)
+    // so the design renders correctly. Surface it (the user asked to be told).
+    const _legPagesExcluded = (window.__trkLegendPagesExcluded || []);
+    if(_legPagesExcluded.length) status += ` · legend page skipped`;
     // The grid itself is exact; only the symbol thumbnails are reconstructed
     // from page pixels when the PDF doesn't carry a usable symbol font.
     if(!trackerGrid.chartFont && !window._trkBitmapNoticeShown){
@@ -25744,6 +26626,43 @@ async function trkHandleChart(file){
         confirmLabel:'Got it',
         onConfirm(){}
       }), 400);
+    }
+    // We found a legend inside the chart PDF and used only the chart pages. Let
+    // the user choose: keep this render, or upload the legend as its own file
+    // (jumps to step 2). Gated to the vector-symbol case so it can't clobber the
+    // bitmap-symbol modal above (both share one overlay); the inline status note
+    // covers the other case.
+    const _cnKey = file.name+':'+(file.size||0);
+    if(_legPagesExcluded.length && trackerGrid.chartFont && window._trkCombinedNoticeShown !== _cnKey){
+      // One-shot PER CHART FILE, keyed on the file identity: the legend upload
+      // re-runs trkHandleChart on the SAME chart (re-parse with the legend's
+      // declared width), so any reset placed at function entry re-armed the
+      // modal — the exact re-popup reported twice. The key survives re-parses
+      // and only a genuinely different chart file shows the notice again.
+      window._trkCombinedNoticeShown = _cnKey;
+      setTimeout(()=>pjShowModal({
+        title:'This PDF has the chart and the legend together',
+        body:'We detected the colour legend / symbol key inside your chart PDF '
+           +'(page'+(_legPagesExcluded.length>1?'s ':' ')+_legPagesExcluded.join(', ')+') and used '
+           +'<b>only the chart pages</b> to build the design, so it renders correctly.<br><br>'
+           +'You can continue with this, or upload the legend as a separate file '
+           +'(recommended for exact thread names and stitch counts).',
+        confirmLabel:'Continue with this render',
+        hideCancel:true,
+        onConfirm(){
+          // “Continue” must produce a visible chart, not just close the modal:
+          // without a legend the tracker build is still waiting, so continue
+          // down the symbol-based path (same as the “Skip colours” button).
+          const skip=document.getElementById('trk-skip-btn');
+          if(skip && !skip.disabled) skip.click(); else tryBuildTracker();
+        },
+        secondaryLabel:'Upload legend separately',
+        onSecondary(){
+          const card=document.getElementById('trk-legend-card');
+          if(card){ card.scrollIntoView({behavior:'smooth', block:'center'});
+            setTimeout(()=>{ const inp=document.getElementById('trk-legend-input'); if(inp) inp.click(); }, 350); }
+        }
+      }), 450);
     }
     if(trackerGrid.backstitch && trackerGrid.backstitch.length) status += ` · ${trackerGrid.backstitch.length} backstitch`;
     document.getElementById('trk-manual-btn').disabled=false;
@@ -28911,6 +29830,7 @@ function pjShowModal(o){
   // modal hangs forever when the user backs out — which would stall the
   // tracker build behind an unresolved promise.
   const bail=()=>{ pjHideModal(); if(o.onCancel) o.onCancel(); };
+  cancelBtn.style.display = o.hideCancel ? 'none' : '';
   cancelBtn.onclick=bail;
   ov.onclick=e=>{ if(e.target===ov) bail(); };
   ov.classList.add('show');
