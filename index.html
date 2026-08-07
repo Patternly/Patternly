@@ -5163,7 +5163,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v524';
+window.PATTERNLY_BUILD='v529';
 try{ console.log('%c[Patternly] editor build '+window.PATTERNLY_BUILD,'color:#2E7D32;font-weight:700'); }catch(e){}
 window.addEventListener('DOMContentLoaded',function(){
   try{ document.title = document.title + ' · '+window.PATTERNLY_BUILD; }catch(e){}
@@ -22001,12 +22001,89 @@ async function parseChartPdf(file, expectedWidth, forcedCanvas){
         const merged=[];
         for(const r of rowsIt){
           const prev = merged[merged.length-1];
-          if(prev && Math.abs(r[0].rowY - prev[0].rowY) < rPitch*0.5){
+          if(prev && Math.abs(r[0].rowY - prev._anchorY) < rPitch*0.5){
+            // Fold, anchored to the MAJORITY row's baseline. A fragment (a few
+            // marks a shade off baseline) sorts BEFORE its real row, so the old
+            // merge folded the 170-glyph real row into the 3-glyph fragment and
+            // the merged row inherited the FRAGMENT's rowY — half a row off. At
+            // a large print scale that error is a small fraction of the row
+            // pitch and downstream snapping recovers; at A3's 4.56px pitch it is
+            // ~0.47 of a row, right on the snap boundary, and rows 132-145
+            // seated one row wrong (1,370 garbled cells, +374 phantom stitches,
+            // the visible pale band). Anchoring to the bigger row's baseline —
+            // and re-tagging every folded item's rowY to it — keeps the true
+            // glyph lattice for every later stage that reads rowY.
+            const big = (r.length > prev.length) ? r[0].rowY : prev._anchorY;
             for(const it of r) prev.push(it);
             prev.sort((a,b)=>a.x-b.x);
-          } else merged.push(r);
+            prev._anchorY = big;
+            for(const it of prev) it.rowY = big;
+          } else { r._anchorY = r[0].rowY; merged.push(r); }
         }
         rowsIt.length=0; for(const r of merged) rowsIt.push(r);
+        // ── Row-lattice snap (printed row-ruler labels) ────────────────
+        // The chart's rows sit on an exact lattice, but bucketRowsByY's fixed
+        // 2px tolerance can SPLIT one real row into two buckets when its marks
+        // print on scattered baselines (A3_7064 shadow band), and the 0.5-pitch
+        // fold above cannot rejoin them — a phantom row is born and every row
+        // below shifts one, garbling a 13-row window (1,370 wrong cells). The
+        // printed row-ruler labels (10, 20, … at the grid's left edge) ARE the
+        // row lattice, stated by the chart itself: a least-squares line through
+        // them gives every row's exact baseline with no accumulated pitch error
+        // (labels span the whole chart, so this interpolates, never
+        // extrapolates). Snap each bucket to its nearest lattice row and merge
+        // buckets sharing a row. Rows already on the lattice are unmoved, so a
+        // correctly-parsed chart is untouched; charts without ≥4 readable
+        // labels skip the snap entirely.
+        {
+          const _lblX = (gx0!==null ? gx0 : (rulerX0!==null ? rulerX0 : null));
+          const _lbls=[];
+          if(_lblX!==null && pMed>0){
+            for(const it of rawItems0){
+              const t=(it.str||'').trim();
+              // Small print scales fuse the label with the row's first stitch
+              // glyph into one text item ("10✦…"), so match leading digits —
+              // the left-of-grid x filter keeps stitch digits out.
+              const m=t.match(/^(\d{1,4})(?!\d)/);
+              if(!m) continue;
+              const v=+m[1]; if(v<10 || v%10!==0) continue;
+              if(it.x < _lblX - pMed*0.5) _lbls.push({v, y:it.y});
+            }
+          }
+          if(_lbls.length>=4){
+            // The leftmost COLUMN-ruler labels ("10","20" over columns 10/20)
+            // can pass the x filter; they all share the top ruler row's y,
+            // while true row labels each have a distinct y. Drop any label
+            // whose y coincides with a different-valued label's y.
+            const _drop=new Set();
+            for(const L of _lbls){ if(_lbls.some(o=>o!==L && o.v!==L.v && Math.abs(o.y-L.y)<1)) _drop.add(L); }
+            if(_drop.size) for(let i=_lbls.length-1;i>=0;i--){ if(_drop.has(_lbls[i])) _lbls.splice(i,1); }
+          }
+          if(_lbls.length>=4){
+            let sv=0,sy=0,svv=0,svy=0; const N=_lbls.length;
+            for(const L of _lbls){ sv+=L.v; sy+=L.y; svv+=L.v*L.v; svy+=L.v*L.y; }
+            const den=N*svv-sv*sv;
+            if(den!==0){
+              const b=(N*svy-sv*sy)/den, a=(sy-b*sv)/N;   // y ≈ a + b·row
+              let maxRes=0; for(const L of _lbls){ const res=Math.abs(a+b*L.v-L.y); if(res>maxRes) maxRes=res; }
+              if(Math.abs(b)>1 && Math.abs(b)<60 && maxRes<Math.abs(b)*0.35){
+                const slot=new Map();
+                for(const r of rowsIt){
+                  const k=Math.round((r[0].rowY-a)/b);
+                  if(!slot.has(k)) slot.set(k,{ty:a+b*k, items:[]});
+                  for(const it of r) slot.get(k).items.push(it);
+                }
+                const rebuilt=[...slot.keys()].sort((x,y2)=> (a+b*y2)-(a+b*x)).map(k=>{
+                  const s=slot.get(k);
+                  const row=s.items.slice().sort((p,q)=>p.x-q.x);
+                  for(const it of row) it.rowY=s.ty;
+                  return row;
+                });
+                rowsIt.length=0; for(const r of rebuilt) rowsIt.push(r);
+              }
+            }
+          }
+        }
         // ── Blank-row reconstruction ──────────────────────────────────────
         // A row with no stitches at all prints no glyphs, so the text layer
         // simply has no line for it and every row below silently shifts up.
@@ -22184,7 +22261,7 @@ async function parseChartPdf(file, expectedWidth, forcedCanvas){
     // glued onto edge cells), then emit string rows + pitch/glyph capture
     const lines=[]; const rowRulerLabels=[];
     for(const r of rowsIt){
-      const out=[]; let prevX=null; let rowLabel=null; const nums=[]; let emitCol=0;
+      const out=[]; let prevX=null; let rowLabel=null; const nums=[]; let emitCol=0; let lastAbs=null;
       let onLat=0, offLat=0;
       r.forEach((it,idx)=>{
         let s=it.str;
@@ -22253,6 +22330,19 @@ async function parseChartPdf(file, expectedWidth, forcedCanvas){
             // clamp below would manufacture it into column 0 (evidence B1442:
             // labels 10…90 rendered as phantom stitches down the left edge).
             if(col<0) return; }
+          else if(_colLat){
+            // When the exact printed column lattice is known, place EVERY glyph at
+            // its true lattice column (_abs) — it is drift-free. The delta path
+            // below forced a minimum +1 advance per glyph; a sub-cell step (the two
+            // marks of a split half stitch, or any pair sharing a cell, dxp~0.5)
+            // therefore pushed the row one column right, and with a fully dense row
+            // (no gap to trigger the re-anchor above) the error accumulated across
+            // the row — inflating a 180-wide chart to 195 at small print scale
+            // (evidence A3_7064: true col 167 emitted at 194). Anchoring to _abs
+            // removes the accumulation entirely.
+            col = _abs;
+            if(col < emitCol) col = emitCol;      // never step back past emitted cells
+          }
           else {
             const _dx = it.x - prevX;
             if(_dx > 1.5*pMed){
@@ -22268,8 +22358,13 @@ async function parseChartPdf(file, expectedWidth, forcedCanvas){
               col = (emitCol-1) + Math.max(1, Math.round(_dx/pMed));
             }
           }
+          // Same-cell duplicate on the exact lattice: the second of two marks that
+          // share one cell (a split half stitch's diagonal ends) must not mint a
+          // phantom column. Keep the first, skip the second's advance.
+          if(_colLat && lastAbs!==null && _abs===lastAbs){ prevX=it.x; return; }
           if(col<emitCol) col=emitCol;            // safety: never step back
           while(emitCol<col){ out.push(' '); emitCol++; }
+          lastAbs=_abs;
         }
         // sentinel + quadrant mask ride through band assembly with the cell
         out.push(it.half ? '\u0001'+String.fromCharCode(0x30+(it.mask||6))+s : s);
@@ -22517,10 +22612,30 @@ async function parseChartPdf(file, expectedWidth, forcedCanvas){
       while(grid.cells.length<H) grid.cells.push(new Array(W).fill(''));
       grid.cols=W; grid.rows=H;
     } else if(maxC>=0 && maxR>=0){
+      // The PDF's own printed ruler is the authoritative canvas size — the chart
+      // is exactly as wide and tall as its ruler says (A3_7064: 180×150). The
+      // margin trim must therefore never shrink the grid BELOW the printed ruler;
+      // trailing blank rows/cols inside the ruler's extent are part of the chart
+      // (the design's blank border), not rounding waste to be cropped. Only trim
+      // away area that lies OUTSIDE the printed ruler (a ruler that rounds up past
+      // its own last label). Floor = printed ruler maxima captured at parse time.
+      const rulerW = (pageRulers && pageRulers.length) ? Math.max(0, ...pageRulers) : 0;
+      const rulerH = (pageOrigins && pageOrigins.length) ? Math.max(0, ...pageOrigins.map(o=>(o&&o.maxRowLabel)||0)) : 0;
       const dens = filled/((maxC+1)*(maxR+1));
       if(dens>=0.70 && (maxC+1<grid.cols || maxR+1<grid.rows)){
-        const nW=maxC+1, nH=maxR+1;
-        grid.cells = grid.cells.slice(0,nH).map(row=>row.slice(0,nW));
+        // Never crop below the printed ruler, and never below the design box.
+        const nW=Math.max(maxC+1, rulerW||0);
+        const nH=Math.max(maxR+1, rulerH||0);
+        if(nW<grid.cols || nH<grid.rows){
+          grid.cells = grid.cells.slice(0,nH).map(row=>{ const r=row.slice(0,nW); while(r.length<nW) r.push(' '); return r; });
+          while(grid.cells.length<nH) grid.cells.push(new Array(nW).fill(' '));
+          grid.cols=nW; grid.rows=nH;
+        }
+      } else if(rulerW && rulerH && (rulerW>grid.cols || rulerH>grid.rows)){
+        // Sparse design: make sure the canvas still reaches the printed ruler.
+        const nW=Math.max(grid.cols, rulerW), nH=Math.max(grid.rows, rulerH);
+        grid.cells = grid.cells.slice(0,nH).map(row=>{ const r=row.slice(0,nW); while(r.length<nW) r.push(' '); return r; });
+        while(grid.cells.length<nH) grid.cells.push(new Array(nW).fill(' '));
         grid.cols=nW; grid.rows=nH;
       }
     }
@@ -24313,15 +24428,32 @@ function renderTracker(){
   // low-key toggle; a colour highlight dims the overlay so symbols stay legible.
   if(trkShowBackstitch && trackerGrid.backstitch && trackerGrid.backstitch.length){
     const bwMode=trackerViewMode==='bw';
-    const dim=trkSelActive()?0.22:1;
+    // Selection-aware backstitch: when the user selects an outline thread from the
+    // colour list, its segments light up bright and everything else dims — the same
+    // focus behaviour as cross-stitch colours. Resolve the selected symbols to thread
+    // codes (outline entries key by \u0002bs_<code>); a segment is "lit" when its code
+    // is in that set. If a selection is active but contains no backstitch thread (a
+    // cross-stitch colour is selected), no segment is lit → all backstitch dims.
+    const _selActive=trkSelActive();
+    const _litCodes=new Set();
+    if(_selActive){
+      const _bsNorm=c=>String(c==null?'':c).replace(/\s*bs\s*$/i,'').trim();
+      for(const sym of trkSelectedSyms){
+        const cm=trackerColourMap[sym];
+        if(cm && cm.code!=null) _litCodes.add(_bsNorm(cm.code));
+      }
+    }
+    const dimBase=_selActive?0.22:1;
     trkCtx.save();
     trkCtx.lineCap='round';
     trkCtx.lineWidth=Math.max(1.4, cell*0.16);
-    trkCtx.globalAlpha=dim;
     for(const l of trackerGrid.backstitch){
       const x1=(l.x1-vp.c0)*cell, y1=(l.y1-vp.r0)*cell, x2=(l.x2-vp.c0)*cell, y2=(l.y2-vp.r0)*cell;
       if(Math.max(x1,x2)<trkView.sx || Math.min(x1,x2)>trkView.sx+trkView.viewW) continue;
       if(Math.max(y1,y2)<trkView.sy || Math.min(y1,y2)>trkView.sy+trkView.viewH) continue;
+      const lit = _selActive && _litCodes.size && _litCodes.has(String(l.code==null?'':l.code).replace(/\s*bs\s*$/i,'').trim());
+      trkCtx.globalAlpha = lit ? 1 : dimBase;
+      trkCtx.lineWidth = lit ? Math.max(1.8, cell*0.2) : Math.max(1.4, cell*0.16);
       trkCtx.strokeStyle=bwMode?'#000':`rgb(${l.r},${l.g},${l.b})`;
       trkCtx.beginPath(); trkCtx.moveTo(x1,y1); trkCtx.lineTo(x2,y2); trkCtx.stroke();
     }
@@ -24796,10 +24928,16 @@ function updateTrackerProgressUI(){
       // 1-strand and a 2-strand line. Never a stitch count: backstitch isn't
       // counted in progress.
       const strands=(e.backStrands&&e.backStrands.length)?e.backStrands:[null];
+      const _isSel=trkSelHas(e.symbol);
       for(const st of strands){
         const _w = st===2 ? 3.4 : 2.2;
         const _sub = st ? `Backstitch \u00b7 ${st} strand${st>1?'s':''}` : `Backstitch${_cross?' (also stitched)':''}`;
-        const row=document.createElement('div'); row.className='trk-crow'; row.style.opacity='0.9';
+        const row=document.createElement('div'); row.className='trk-crow'+(_isSel?' sel':'');
+        row.style.opacity='0.9'; row.style.cursor='pointer';
+        row.dataset.sym=e.symbol;
+        // Tapping an outline thread lights up its lines on the chart and dims the
+        // rest — same focus behaviour as picking a cross-stitch colour.
+        row.onclick=()=>{ trkSelToggle(e.symbol); renderTracker(); updateTrackerProgressUI(); };
         row.innerHTML=`<span class="sw" style="background:${_rgb}"></span>`+
           `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;flex:none" aria-hidden="true"><svg width="20" height="16" viewBox="0 0 20 16"><line x1="1.5" y1="8" x2="18.5" y2="8" stroke="${_lc}" stroke-width="${_w}" stroke-linecap="round"/></svg></span>`+
           `<span class="lb">${label}<span style="display:block;font-size:.62rem;opacity:.7;font-weight:600">${_sub}</span></span>`;
@@ -25924,9 +26062,10 @@ async function trkHandleChartOxs(file, preText){
         bsEls.forEach(el=>{
           const x1=parseFloat(el.getAttribute('x1')), y1=parseFloat(el.getAttribute('y1'));
           const x2=parseFloat(el.getAttribute('x2')), y2=parseFloat(el.getAttribute('y2'));
-          const p=pal[+el.getAttribute('palindex')];
+          const pidx=+el.getAttribute('palindex');
+          const p=pal[pidx];
           if(p && isFinite(x1)&&isFinite(y1)&&isFinite(x2)&&isFinite(y2))
-            bs.push({x1,y1,x2,y2, r:p.r, g:p.g, b:p.b, code:p.number});
+            bs.push({x1,y1,x2,y2, r:p.r, g:p.g, b:p.b, code:p.number, palindex:pidx, strands:p.strands});
         });
         if(bs.length){ trackerGrid.backstitch=bs; console.log('[tracker] '+bs.length+' backstitch segments imported'); }
       }
@@ -25943,6 +26082,53 @@ async function trkHandleChartOxs(file, preText){
       bySymbol[s]=e; if(!byCode[p.number]) byCode[p.number]=e;
       map[s]={r:p.r,g:p.g,b:p.b, code:p.number, stitches:counts[s], label:p.name, strands:p.strands, half:p.half};
     });
+    // Backstitch → legend, so the "Backstitch / outline threads" reference section
+    // shows for OXS/.ptly imports just like it does for PDF charts. The imported
+    // segments (trackerGrid.backstitch) carry a thread code + strands + colour.
+    // Match them to threads by code; a converter's dedicated line colour is named
+    // "<num> bs", so normalise that back to "<num>". A thread used ONLY for
+    // backstitch has no full stitches, so add a synthetic backOnly entry (mirrors
+    // the PDF path). Display-only: never touches counts, progress, or sync.
+    try{
+      const bsSegs = (trackerGrid && Array.isArray(trackerGrid.backstitch)) ? trackerGrid.backstitch : [];
+      if(bsSegs.length){
+        const bsNorm = c => String(c==null?'':c).replace(/\s*bs\s*$/i,'').trim();
+        // per normalised code: segment count, strand variants seen, and a line colour
+        const bsInfo={};
+        for(const seg of bsSegs){
+          const code=bsNorm(seg.code);
+          if(!code) continue;
+          const st = (seg.strands===1||seg.strands===2) ? seg.strands : null;
+          const info = bsInfo[code] || (bsInfo[code]={n:0, strands:new Set(), lc:null});
+          info.n++;
+          if(st) info.strands.add(st);
+          if(!info.lc && isFinite(seg.r)) info.lc={r:seg.r, g:seg.g, b:seg.b};
+        }
+        let nrMax=idxList.length;
+        for(const code in bsInfo){
+          const info=bsInfo[code];
+          const strandsArr=[...info.strands].sort();
+          const existing=byCode[code];
+          if(existing){
+            // thread already in the cross list (used for both) — tag it so it also
+            // appears in the outline section; its stitch count and tracking stay intact.
+            existing.back=info.n;
+            if(strandsArr.length) existing.backStrands=strandsArr;
+            if(info.lc) existing.lineColor=info.lc;
+          } else {
+            // backstitch-only thread (no cross-stitches) — synthetic outline entry.
+            const key='\u0002bs_'+code;
+            if(bySymbol[key]) continue;
+            bySymbol[key]={nr:++nrMax, symbol:key, code:code, stitches:0,
+              back:info.n, backStrands:strandsArr.length?strandsArr:undefined,
+              lineColor:info.lc||undefined, backOnly:true};
+            const lc=info.lc||{r:120,g:120,b:120};
+            trackerColourMap[key]={r:lc.r, g:lc.g, b:lc.b, code:code, stitches:0, label:(code?('Luca-S '+code):'Backstitch')};
+          }
+        }
+        console.log('[tracker] backstitch legend: '+Object.keys(bsInfo).length+' outline thread(s) surfaced from '+bsSegs.length+' segments');
+      }
+    }catch(e){ console.warn('[tracker] backstitch legend build failed', e); }
     trackerLegend={bySymbol, byCode, pending:[], colours:Object.keys(bySymbol).length,
       fabricCount:+props.getAttribute('stitchesperinch')||null,
       stitchesSize:{w:W,h:H}, finishedSize:null, rowCount:Object.keys(bySymbol).length};
@@ -30659,6 +30845,81 @@ document.querySelectorAll('#lp-nav a[href^="#"]').forEach(a=>{
     document.querySelectorAll('.ifsize-opt').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-sz')===sz); });
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', ifApply); else ifApply();
+})();
+</script>
+
+<script>
+/* ── Patternly app promo ─────────────────────────────────────────────────
+   Fill these in when the apps are live in the stores; empty = the store
+   button / banner for that platform simply doesn't show.
+   ios: full App Store URL, e.g. 'https://apps.apple.com/app/id6451234567'
+   android: full Play URL or just the package name, e.g. 'com.lucas.patternly' */
+window.PATTERNLY_APP = { scheme:'patternly', ios:'', android:'' };
+(function(){
+  var CFG=window.PATTERNLY_APP||{};
+  var ua=navigator.userAgent||'';
+  var isIOS=/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints>1); // iPadOS masquerades as Mac
+  var isAndroid=/Android/.test(ua);
+  if(!isIOS && !isAndroid) return;                                   // desktop: nothing
+  try{ if(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()){
+    // Inside the app: no promo — but DO consume patternly:// deep links so a
+    // scanned QR that opened the app lands on its kit. Requires the scheme to
+    // be registered natively (AndroidManifest intent-filter / iOS URL type).
+    var AppPl=(Capacitor.Plugins&&Capacitor.Plugins.App);
+    if(AppPl && AppPl.addListener) AppPl.addListener('appUrlOpen', function(ev){
+      try{
+        var u=new URL(ev.url);                                       // patternly://open?sku=..&code=..
+        var sku=u.searchParams.get('sku')||'', code=u.searchParams.get('code')||'';
+        if(code||sku) location.href=location.pathname+'?sku='+encodeURIComponent(sku)+'&code='+encodeURIComponent(code)+'#tracker';
+      }catch(_e){}
+    });
+    return;
+  } }catch(_e){}
+  var storeUrl = isIOS ? (CFG.ios||'')
+    : (CFG.android ? (/^https?:/i.test(CFG.android)?CFG.android:'https://play.google.com/store/apps/details?id='+CFG.android) : '');
+  var q=new URLSearchParams(location.search);
+  var fromQr=q.has('code');
+  var KEY='pl_app_promo_dismissed';
+  var dismissed=false;
+  try{ var t=+localStorage.getItem(KEY)||0; dismissed = t && (Date.now()-t < 30*24*3600*1000); }catch(_e){}
+  function openInApp(){
+    // Try the app via its URL scheme; if nothing grabs it within ~1.4s the
+    // page is still visible → fall through to the store (when configured).
+    var deep=CFG.scheme+'://open?sku='+encodeURIComponent(q.get('sku')||'')+'&code='+encodeURIComponent(q.get('code')||'');
+    var t=setTimeout(function(){ if(!document.hidden && storeUrl) location.href=storeUrl; }, 1400);
+    document.addEventListener('visibilitychange', function(){ if(document.hidden) clearTimeout(t); }, {once:true});
+    location.href=deep;
+  }
+  function dismiss(el){ try{ localStorage.setItem(KEY, String(Date.now())); }catch(_e){} el.remove(); }
+  function sheet(){
+    var d=document.createElement('div');
+    d.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(30,20,25,.45);display:flex;align-items:flex-end;justify-content:center';
+    var inner='<div style="background:#fff;border-radius:18px 18px 0 0;padding:1.2rem 1.2rem 1.4rem;width:100%;max-width:520px;box-shadow:0 -8px 30px rgba(0,0,0,.18);font-family:inherit">'+
+      '<div style="font-weight:800;font-size:1.05rem;margin-bottom:.3rem">Stitch this kit in the Patternly app</div>'+
+      '<div style="font-size:.85rem;color:#7d6b72;margin-bottom:.9rem">Full-screen chart, pinch zoom, and your progress synced \u2014 the nicest way to track on a phone or tablet.</div>'+
+      '<button id="pl-app-open" style="display:block;width:100%;padding:.75rem;border:0;border-radius:12px;background:#8B1A2B;color:#fff;font-weight:700;font-size:.95rem;font-family:inherit;cursor:pointer">Open in the app</button>'+
+      '<button id="pl-app-web" style="display:block;width:100%;padding:.65rem;border:0;background:none;color:#7d6b72;font-size:.85rem;font-family:inherit;cursor:pointer;margin-top:.35rem">Continue in browser</button></div>';
+    d.innerHTML=inner;
+    document.body.appendChild(d);
+    d.querySelector('#pl-app-open').onclick=function(){ openInApp(); };
+    d.querySelector('#pl-app-web').onclick=function(){ dismiss(d); };
+    d.addEventListener('click', function(e){ if(e.target===d) dismiss(d); });
+  }
+  function banner(){
+    var b=document.createElement('div');
+    b.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99990;background:#fff;border-top:1px solid #efe0e2;box-shadow:0 -4px 18px rgba(0,0,0,.08);padding:.6rem .9rem;display:flex;align-items:center;gap:.7rem;font-family:inherit';
+    b.innerHTML='<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.85rem">Patternly is nicer in the app</div>'+
+      '<div style="font-size:.72rem;color:#7d6b72">Track your stitching full screen, synced across devices.</div></div>'+
+      '<a id="pl-app-get" href="'+storeUrl+'" style="flex:none;background:#8B1A2B;color:#fff;text-decoration:none;font-weight:700;font-size:.8rem;padding:.5rem .9rem;border-radius:10px">Get the app</a>'+
+      '<button id="pl-app-x" style="flex:none;border:0;background:none;color:#b9a8ae;font-size:1.1rem;cursor:pointer;padding:.2rem" aria-label="Dismiss">\u2715</button>';
+    document.body.appendChild(b);
+    b.querySelector('#pl-app-x').onclick=function(){ dismiss(b); };
+  }
+  function go(){
+    if(fromQr){ sheet(); }                        // QR scan: always offer the app first
+    else if(!dismissed && storeUrl){ banner(); }  // plain mobile visit: slim banner, only when a store link exists
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', go); else go();
 })();
 </script>
 
