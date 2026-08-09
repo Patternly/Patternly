@@ -5163,7 +5163,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v533';
+window.PATTERNLY_BUILD='v536';
 try{ console.log('%c[Patternly] editor build '+window.PATTERNLY_BUILD,'color:#2E7D32;font-weight:700'); }catch(e){}
 window.addEventListener('DOMContentLoaded',function(){
   try{ document.title = document.title + ' · '+window.PATTERNLY_BUILD; }catch(e){}
@@ -7315,6 +7315,14 @@ window.addEventListener('DOMContentLoaded',function(){
       <div class="xp-sec-body">
         <label class="xp-check"><input type="checkbox" id="xp-instr" checked><span>Include instructions page</span></label>
         <div class="xp-desc">Adds a page with general stitching instructions</div>
+      </div>
+    </div>
+
+    <div class="xp-sec closed" data-sec="brand">
+      <button class="xp-sec-head"><span>Patternly footer</span> <span class="xp-chev">▾</span></button>
+      <div class="xp-sec-body">
+        <label class="xp-check"><input type="checkbox" id="xp-brand" checked><span>"Created with Patternly" on each page</span> <span class="plus-badge" id="xp-brand-plus" style="display:none">Plus</span></label>
+        <div class="xp-desc" id="xp-brand-desc">A small credit line in the page footer.</div>
       </div>
     </div>
 
@@ -14080,8 +14088,11 @@ function expBuildPdf(){
     ].forEach(t=>{ pdf.text('• '+t, L.m+3, y); y+=5.4; });
   }
 
-  // Free-tier PDFs carry a small footer mark; Plus removes it entirely.
-  if(!_pdfPlus){
+  // Free-tier PDFs always carry a small footer mark; Plus users may untick
+  // it in the Download dialog (persisted). The checkbox is disabled for free
+  // accounts, so the localStorage flag can only have been set while Plus.
+  const _brandOff = _pdfPlus && (function(){ try{ return localStorage.getItem('pl_pdf_brand_off')==='1'; }catch(_e){ return false; } })();
+  if(!_brandOff){
     try{
       const _tp=pdf.getNumberOfPages();
       for(let _pi=1; _pi<=_tp; _pi++){
@@ -19275,6 +19286,25 @@ async function trkViewLegend(){
       const cssW=Math.round(base.width*cssScale);
       cv.style.cssText='width:'+cssW+'px;max-width:100%;height:auto;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.15);margin-bottom:1rem;border-radius:4px';
       await page.render({canvasContext:cv.getContext('2d'), viewport:vp}).promise;
+      // Ownership watermark on the rendered legend page (into the pixels,
+      // same rationale as the chart canvas watermark). Luca-S kits ONLY — a
+      // legend the user uploaded for another brand's kit is their own
+      // document and is never marked.
+      try{
+        const _isKit = !!(typeof trkCloudSku!=='undefined' && trkCloudSku)
+          || /^kit_/i.test(String(trackerActiveProjectKey||''));
+        if(!_isKit) throw 0;
+        let who=''; try{ const a=lucasAuth(); who=(a&&a.email)?String(a.email):''; }catch(_e){}
+        const label='Luca-S \u00b7 '+(who?'Licensed to '+who:'licensed copy');
+        const c2=cv.getContext('2d');
+        c2.save(); c2.globalAlpha=0.06; c2.fillStyle='#43303a';
+        c2.font='600 '+Math.round(cv.width*0.022)+'px system-ui, sans-serif';
+        c2.textAlign='center'; c2.textBaseline='middle';
+        c2.translate(cv.width/2, cv.height/2); c2.rotate(-Math.PI/7);
+        const sy2=Math.max(140, cv.height/6);
+        for(let y=-cv.height; y<=cv.height; y+=sy2) c2.fillText(label, 0, y);
+        c2.restore();
+      }catch(_e){}
       host.appendChild(cv);
     }
     host.dataset.done='1';
@@ -24548,6 +24578,37 @@ function renderTracker(){
       trkCtx.fillStyle=ink; trkCtx.fillText(String(gr), gut/2, y);
     }
     trkCtx.restore();
+  })();
+  // ── Ownership watermark (kit charts only) ────────────────────────────
+  // Drawn INTO the canvas pixels — part of the chart itself, so every
+  // screenshot, screen photo or recording carries it. Screen-space tiling
+  // keeps it present at any pan/zoom. User-created patterns are never
+  // marked; this applies only to Luca-S kit charts.
+  (function(){
+    try{
+      const isKit = !!(typeof trkCloudSku!=='undefined' && trkCloudSku)
+        || /^kit_/i.test(String(trackerActiveProjectKey||''));
+      if(!isKit) return;
+      let who=''; try{ const a=lucasAuth(); who=(a&&a.email)?String(a.email):''; }catch(_e){}
+      const label = 'Luca-S \u00b7 ' + (who ? 'Licensed to '+who : 'licensed copy');
+      trkCtx.save();
+      trkCtx.globalAlpha = 0.07;
+      trkCtx.fillStyle = '#43303a';
+      trkCtx.font = '600 15px system-ui, sans-serif';
+      trkCtx.textAlign='left'; trkCtx.textBaseline='middle';
+      trkCtx.translate(trkView.viewW/2, trkView.viewH/2);
+      trkCtx.rotate(-Math.PI/7);
+      const stepX = Math.max(280, trkCtx.measureText(label).width + 120);
+      const stepY = 170;
+      const spanX = trkView.viewW + trkView.viewH, spanY = spanX;
+      for(let y=-spanY/2, row=0; y<=spanY/2; y+=stepY, row++){
+        const off = (row%2) ? stepX/2 : 0;
+        for(let x=-spanX/2 - off; x<=spanX/2; x+=stepX){
+          trkCtx.fillText(label, x, y);
+        }
+      }
+      trkCtx.restore();
+    }catch(_e){}
   })();
 }
 
@@ -30951,6 +31012,40 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'', android:'com.luca
     else if(!dismissed && storeUrl){ banner(); }  // plain mobile visit: slim banner, only when a store link exists
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', go); else go();
+})();
+</script>
+<script>
+/* Patternly footer toggle in the Download dialog: free users see it locked ON
+   (with a Plus badge); Plus users can untick, persisted for future exports. */
+(function(){
+  function sync(){
+    var cb=document.getElementById('xp-brand'); if(!cb) return;
+    var plus=false; try{ plus=!!(typeof lucasAuth==='function' && lucasAuth().plus); }catch(_e){}
+    var badge=document.getElementById('xp-brand-plus'), desc=document.getElementById('xp-brand-desc');
+    if(plus){
+      cb.disabled=false; if(badge) badge.style.display='none';
+      var off=false; try{ off=localStorage.getItem('pl_pdf_brand_off')==='1'; }catch(_e){}
+      cb.checked=!off;
+      if(desc) desc.textContent='A small credit line in the page footer. Untick to remove it from your PDFs.';
+      cb.onchange=function(){ try{ localStorage.setItem('pl_pdf_brand_off', cb.checked?'0':'1'); }catch(_e){} };
+    }else{
+      cb.checked=true; cb.disabled=true; if(badge) badge.style.display='';
+      if(desc) desc.textContent='A small credit line in the page footer. Plus members can remove it.';
+      cb.onchange=null;
+    }
+  }
+  // Re-check whenever the export dialog is opened (covers sign-in/out between
+  // opens): the editor's Download button, plus programmatic expOpen() callers.
+  document.addEventListener('click', function(e){
+    if(e.target && (e.target.id==='download-btn' || (e.target.closest && e.target.closest('#download-btn')))) setTimeout(sync, 50);
+  }, true);
+  try{
+    if(typeof window.expOpen==='function'){
+      var _eo=window.expOpen;
+      window.expOpen=function(){ var r=_eo.apply(this,arguments); setTimeout(sync,50); return r; };
+    }
+  }catch(_e){}
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', sync); else sync();
 })();
 </script>
 
