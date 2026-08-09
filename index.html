@@ -5163,7 +5163,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v530';
+window.PATTERNLY_BUILD='v533';
 try{ console.log('%c[Patternly] editor build '+window.PATTERNLY_BUILD,'color:#2E7D32;font-weight:700'); }catch(e){}
 window.addEventListener('DOMContentLoaded',function(){
   try{ document.title = document.title + ' · '+window.PATTERNLY_BUILD; }catch(e){}
@@ -19854,7 +19854,32 @@ async function trkOpenKit(kit){
     }catch(e){}
     const bsel=document.getElementById('trk-legend-brand'); if(bsel) bsel.value='lucas';
     if(kit.ptly || (kit.files && kit.files.ptly)){
+      // A .Ptly kit carries its own exact legend. Clear any legend left in
+      // memory by a PREVIOUSLY opened PDF kit, or trkExactAfterLoad would
+      // apply that other kit's symbols to this one.
+      window.trkPdfLegendParsed=false; window.trkPdfLegend=null;
       await trkHandleChart(await grab('ptly', kit.sku+'.Ptly'));   // exact data, no legend needed
+      // The exact-import path ends on an "add optional legend — or Continue"
+      // pause built for the manual upload page, where that button is visible.
+      // Opening from a kit card leaves the user on the kit list, so the pause
+      // just looks like nothing happened (the kit only appears later under
+      // saved patterns). Auto-continue whenever the pause engaged.
+      const _cont=document.getElementById('trk-exact-continue');
+      if(_cont && _cont.style.display!=='none') await trkExactContinue();
+      // View-only kit legend: when a printed legend PDF is uploaded alongside
+      // the .Ptly, fetch it purely for the 📋 Legend button. It is NEVER fed
+      // to the legend parser — the .Ptly stays the only source of symbols,
+      // colours and counts — so it cannot interfere with the pattern. If the
+      // kit has no legend file, the fetch 404s and the button stays hidden.
+      trackerLegendBuf=null; trkSyncLegendBtn();
+      try{
+        const lr=await trkKitFetch(trkKitFileUrl(kit,'legend'), kit.sku);
+        if(lr.ok && /pdf/i.test(lr.headers.get('content-type')||'')){
+          trackerLegendBuf=await lr.arrayBuffer();
+          const _lp=document.getElementById('trk-legend-pages'); if(_lp) _lp.dataset.done='';   // clear viewer cache from any previous kit
+          trkSyncLegendBtn();
+        }
+      }catch(_e){}
     }else{
       trkKitBusy(true, 'Loading the colour key\u2026');
       // The legend goes first: the chart parser uses its declared width, and
@@ -20702,6 +20727,10 @@ let trackerLegendBuf=null, trackerLegendGlyphs=null;
 async function parseLegendPdf(file){
   const buf = await file.arrayBuffer();
   trackerLegendBuf = buf;
+  // A NEW legend replaces whatever the 📋 viewer rendered for the previous
+  // kit — without this, opening kit B after viewing kit A's legend showed
+  // A's cached pages.
+  try{ const _lp=document.getElementById('trk-legend-pages'); if(_lp) _lp.dataset.done=''; }catch(_e){}
   trackerLegendGlyphs = {};
   const pdf = await pdfjsLib.getDocument({data: new Uint8Array(buf.slice(0))}).promise;
   let fullText = '';
@@ -30854,7 +30883,7 @@ document.querySelectorAll('#lp-nav a[href^="#"]').forEach(a=>{
    button / banner for that platform simply doesn't show.
    ios: full App Store URL, e.g. 'https://apps.apple.com/app/id6451234567'
    android: full Play URL or just the package name, e.g. 'com.lucas.patternly' */
-window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'', android:'' };
+window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'', android:'com.lucas.patternly' };
 (function(){
   var CFG=window.PATTERNLY_APP||{};
   var ua=navigator.userAgent||'';
