@@ -3476,6 +3476,12 @@ body.dark .trk-group{background:#221b2d;border-color:#4a3d55}
   #trk-backupgroup{display:none!important}
 }
 body.dark .trk-group button.active{background:#3a2130!important}
+/* Press-and-hold on the chart is OUR gesture (colour highlight). Without these,
+   iOS Safari treats the hold as text selection and pops the Copy / Look Up
+   callout over the chart, and desktop Safari starts selecting the page. */
+#trk-canvas-wrap, #trk-canvas-wrap canvas{
+  -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
+}
 #trk-zoom-label{min-width:42px;text-align:center;font-weight:700;color:var(--lp-ink,#2b2226);font-size:.72rem}
 #trk-zoom-out,#trk-zoom-in{min-width:26px}
 #trk-fit{border-left:1.5px solid #e6d9dd!important;border-radius:0 8px 8px 0!important;margin-left:2px;padding-left:.6rem!important}
@@ -5163,7 +5169,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v536';
+window.PATTERNLY_BUILD='v545';
 try{ console.log('%c[Patternly] editor build '+window.PATTERNLY_BUILD,'color:#2E7D32;font-weight:700'); }catch(e){}
 window.addEventListener('DOMContentLoaded',function(){
   try{ document.title = document.title + ' · '+window.PATTERNLY_BUILD; }catch(e){}
@@ -5726,8 +5732,31 @@ window.addEventListener('DOMContentLoaded',function(){
       </div>
       <a href="#" onclick="openTrackerGuide();return false" style="flex-shrink:0;display:inline-block;background:var(--lp-red,#8B1A2B);color:#fff;text-decoration:none;font-weight:700;font-size:.92rem;padding:.75rem 1.6rem;border-radius:11px;white-space:nowrap">Full Tracker Guide →</a>
     </div>
-    <!-- Step 0 · where is this pattern coming from -->
-    <div id="trk-source" class="trk-cards">
+    <!-- Step 0a · ONE entry point on the tracker home: a "New Pattern" row.
+         The three source options (Luca-S / Upload / Restore Backup) live one
+         level in, shown by trkNewPatChoices(true). Saved-pattern lists below
+         are untouched. -->
+    <div id="trk-newpat" class="trk-cards">
+      <!-- Slim single row: .trk-card normally stacks content vertically and
+           centres it, so row direction, left alignment and the reduced padding
+           are forced inline. -->
+      <div class="trk-card" role="button" tabindex="0"
+           style="display:flex;flex-direction:row;align-items:center;text-align:left;gap:1rem;width:100%;cursor:pointer;padding:.85rem 1.2rem;min-height:0"
+           onclick="trkNewPatChoices(true)"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();trkNewPatChoices(true);}">
+        <div class="trk-card-icon" style="margin:0;flex-shrink:0;font-size:1.35rem;line-height:1">➕</div>
+        <div style="flex:1;min-width:0">
+          <h3 style="margin:0;font-size:1.02rem">New Pattern</h3>
+          <p style="color:#6a626f;font-size:.82rem;line-height:1.4;margin:.2rem 0 0">Start something new — a Luca-S kit, your own uploaded chart, or a backup file.</p>
+        </div>
+        <span style="flex-shrink:0;display:inline-block;background:var(--lp-red,#8B1A2B);color:#fff;font-weight:700;font-size:.88rem;padding:.6rem 1.3rem;border-radius:10px;white-space:nowrap">＋ New Pattern</span>
+      </div>
+    </div>
+    <!-- Step 0b · where is this pattern coming from (opens from New Pattern) -->
+    <div id="trk-source-back" style="display:none;max-width:1000px;margin:.2rem auto 0">
+      <a href="#" onclick="trkNewPatChoices(false);return false" style="font-size:.85rem;font-weight:700;color:var(--lp-muted,#6a626f);text-decoration:none">← Back</a>
+    </div>
+    <div id="trk-source" class="trk-cards" style="display:none">
       <div class="trk-card" id="trk-src-lucas" role="button" tabindex="0">
         <div class="trk-card-icon">🧶</div>
         <h3 data-i18n="trk.lucaspatterns">Luca-S Patterns</h3>
@@ -5737,6 +5766,13 @@ window.addEventListener('DOMContentLoaded',function(){
         <div class="trk-card-icon">📄</div>
         <h3 data-i18n="trk.uploadpattern">Upload Your Pattern</h3>
         <p style="color:#6a626f;font-size:.86rem;line-height:1.5;margin:.35rem 0 0" data-i18n="trk.descupload">Upload the chart and legend from any brand — PDF, OXS, .pat or .Ptly.</p>
+      </div>
+      <div class="trk-card" id="trk-src-restore" role="button" tabindex="0"
+           onclick="trkImportPick()"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();trkImportPick();}">
+        <div class="trk-card-icon">💾</div>
+        <h3>Restore Backup</h3>
+        <p style="color:#6a626f;font-size:.86rem;line-height:1.5;margin:.35rem 0 0">Bring back a project from a backup file — chart, colours, symbols and your stitched progress, all in one.</p>
       </div>
     </div>
     <!-- Saved patterns sit directly under the source chooser: My Luca-S Patterns,
@@ -14095,10 +14131,20 @@ function expBuildPdf(){
   if(!_brandOff){
     try{
       const _tp=pdf.getNumberOfPages();
+      const _lg='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFQAAABICAYAAABof9IhAAAA8UlEQVR4nO3a0QnCMBhG0dYxXMH5nML5XME1dIYfbjDQc55bCJe8fJDzGHrdH9/pPxPPz/ucfL/beW6rDnJVgsYEjQkaEzQmaEzQmKAxQWOCxgSNnau38NW4oTFBY4LGBI0JGhM0JmhM0JigMUFjgsYEjQkaEzQmaEzQmKAxQWOCxgSNCRoTNCZobPR+/DjWv2nfjTf2fyZoTNCYoDFBY4LGBI0JGhM0JmhM0Nh4y0/ttv2n23zKDY0JGhM0JmhM0JigMUFjgsYEjQkaEzS2fMtPTbf/6m0+5YbGBI0JGhM0JmhM0JigMUFjgsYEjQka+wEQHxZb4pBsxAAAAABJRU5ErkJggg==';
       for(let _pi=1; _pi<=_tp; _pi++){
         pdf.setPage(_pi);
-        pdf.setFont(undefined,'normal'); pdf.setFontSize(7); pdf.setTextColor(170,155,162);
-        pdf.text('Created with Patternly by Luca-S \u00b7 luca-s.com', L.pw-L.m, L.ph-4, {align:'right'});
+        // Brand block, bottom-right: pixel-heart logo + two-line credit.
+        const _bx=L.pw-L.m, _by=L.ph-4;
+        pdf.setFont(undefined,'bold'); pdf.setFontSize(9); pdf.setTextColor(139,26,43);
+        const _t1='Created with Patternly by Luca-S';
+        pdf.text(_t1, _bx, _by-3.6, {align:'right'});
+        pdf.setFont(undefined,'normal'); pdf.setFontSize(6.8); pdf.setTextColor(150,135,142);
+        pdf.text('Free cross stitch pattern editor \u00b7 luca-s.com/apps/patternly', _bx, _by, {align:'right'});
+        try{
+          const _tw=pdf.getTextWidth ? pdf.getTextWidth(_t1) : 46;
+          pdf.addImage(_lg, 'PNG', _bx-_tw-8.2, _by-8.6, 6.4, 5.5);
+        }catch(_le){}
       }
     }catch(e){ console.warn('[pdf] footer mark failed', e); }
   }
@@ -19331,6 +19377,16 @@ function trkExportBackup(){
   expBlobDownload(blob, safe+'.patternly.json');
   toast('Backup downloaded \uD83E\uDDF5');
 }
+// Tracker home is two stages: the "New Pattern" row (stage 1) and the
+// three-source chooser (stage 2). Saved-pattern lists render below either.
+function trkNewPatChoices(open){
+  const np=document.getElementById('trk-newpat');
+  const back=document.getElementById('trk-source-back');
+  const src=document.getElementById('trk-source');
+  if(np)   np.style.display  = open?'none':'';
+  if(back) back.style.display= open?'':'none';
+  if(src)  src.style.display = open?'':'none';
+}
 function trkImportPick(){
   const inp=document.createElement('input');
   inp.type='file'; inp.accept='.json,application/json';
@@ -19427,9 +19483,11 @@ function trkShowUpload(){
   document.getElementById('trk-workspace').style.display='none';
   document.getElementById('trk-upload').style.display='';
   document.getElementById('trk-back-home').style.display='none';   // list is inline now
-  const cards=document.querySelector('#trk-upload .trk-cards:not(#trk-source)');
+  const cards=document.querySelector('#trk-upload .trk-cards:not(#trk-source):not(#trk-newpat)');
   const src=document.getElementById('trk-source'), kits=document.getElementById('trk-kits');
   const soon=trkPdfSoonPanel();
+  { const np=document.getElementById('trk-newpat'); if(np) np.style.display='none';
+    const sb=document.getElementById('trk-source-back'); if(sb) sb.style.display='none'; }
   if(window.TRACKER_PDF_COMING_SOON){
     if(cards) cards.style.display='none';
     if(src) src.style.display='none';
@@ -19487,9 +19545,11 @@ async function trkChooseSource(kind){
     const capInfo = await trkUserPatternCapCheck();
     if(capInfo.full){ trkUserCapModal(capInfo.cap); return; }
   }
-  const cards=document.querySelector('#trk-upload .trk-cards:not(#trk-source)');
+  const cards=document.querySelector('#trk-upload .trk-cards:not(#trk-source):not(#trk-newpat)');
   const src=document.getElementById('trk-source'), kits=document.getElementById('trk-kits');
   if(src) src.style.display='none';
+  { const np=document.getElementById('trk-newpat'); if(np) np.style.display='none';
+    const sb=document.getElementById('trk-source-back'); if(sb) sb.style.display='none'; }
   // Hide the saved-pattern sections while a sub-flow (catalogue / file pickers) is
   // open, so the sub-view stands alone. The back-link returns to the combined home.
   const proj=document.getElementById('trk-projects'); if(proj) proj.style.display='none';
@@ -19989,7 +20049,7 @@ function trkPdfSoonPanel(){
     if(imp) imp.addEventListener('click', e=>{ e.preventDefault(); trkImportPick(); });
   }
   return el;
-  function cardsAnchor(){ return document.querySelector('#trk-upload .trk-cards'); }
+  function cardsAnchor(){ return document.getElementById('trk-source'); } // was first .trk-cards, which IS #trk-source; pinned so the New Pattern row can't shadow it
 }
 // Fills a grid with the saved-project cards. `withAdd` draws the "Track New
 // Pattern" tile, which only makes sense on the standalone page — inline under
@@ -20383,9 +20443,13 @@ function trkShowHome(){
   // Show the upload container but ONLY its Step-0 source cards (not the catalogue,
   // file pickers, or coming-soon panel — those belong to the sub-flows).
   const up=document.getElementById('trk-upload'); if(up) up.style.display='';
-  const src=document.getElementById('trk-source'); if(src) src.style.display='';
+  // Home shows the single "New Pattern" row; the three-source chooser only
+  // opens from it (trkNewPatChoices).
+  const src=document.getElementById('trk-source'); if(src) src.style.display='none';
+  { const np=document.getElementById('trk-newpat'); if(np) np.style.display='';
+    const sb=document.getElementById('trk-source-back'); if(sb) sb.style.display='none'; }
   const kits=document.getElementById('trk-kits'); if(kits) kits.style.display='none';
-  const cards=document.querySelector('#trk-upload .trk-cards:not(#trk-source)'); if(cards) cards.style.display='none';
+  const cards=document.querySelector('#trk-upload .trk-cards:not(#trk-source):not(#trk-newpat)'); if(cards) cards.style.display='none';
   const bh=document.getElementById('trk-back-home'); if(bh) bh.style.display='none';
   const kb=document.getElementById('trk-kits-back'); if(kb) kb.style.display='none';
   const ub=document.getElementById('trk-upload-back'); if(ub) ub.style.display='none';
@@ -24592,18 +24656,21 @@ function renderTracker(){
       let who=''; try{ const a=lucasAuth(); who=(a&&a.email)?String(a.email):''; }catch(_e){}
       const label = 'Luca-S \u00b7 ' + (who ? 'Licensed to '+who : 'licensed copy');
       trkCtx.save();
-      trkCtx.globalAlpha = 0.07;
-      trkCtx.fillStyle = '#43303a';
-      trkCtx.font = '600 15px system-ui, sans-serif';
+      trkCtx.font = '700 16px system-ui, sans-serif';
       trkCtx.textAlign='left'; trkCtx.textBaseline='middle';
       trkCtx.translate(trkView.viewW/2, trkView.viewH/2);
       trkCtx.rotate(-Math.PI/7);
-      const stepX = Math.max(280, trkCtx.measureText(label).width + 120);
-      const stepY = 170;
+      const stepX = Math.max(300, trkCtx.measureText(label).width + 130);
+      const stepY = 150;
       const spanX = trkView.viewW + trkView.viewH, spanY = spanX;
       for(let y=-spanY/2, row=0; y<=spanY/2; y+=stepY, row++){
         const off = (row%2) ? stepX/2 : 0;
         for(let x=-spanX/2 - off; x<=spanX/2; x+=stepX){
+          // Dual-tone: pale relief behind dark text, so the mark stays
+          // readable over dark cells AND over pale fabric alike.
+          trkCtx.globalAlpha = 0.12; trkCtx.fillStyle = '#ffffff';
+          trkCtx.fillText(label, x+1, y+1);
+          trkCtx.globalAlpha = 0.11; trkCtx.fillStyle = '#3a2830';
           trkCtx.fillText(label, x, y);
         }
       }
@@ -24629,6 +24696,13 @@ let trkMarking=null; // true=marking, false=unmarking, null=idle
 let trkMode='pan';   // 'pan': touch scrolls, taps mark · 'mark': touch drags mark
 const trkPtrs=new Map();
 let trkPinch=null, trkTap=null, trkDragScroll=null, trkLongT=null;
+let trkLongDone=0; // when a press-and-hold was last handled. One hold can arrive
+                   // TWICE — our 500ms timer AND the platform's native
+                   // contextmenu event (Android/webview fires it for long-press)
+                   // — and the second call found the colour already selected and
+                   // toggled the highlight straight back off: toast shown,
+                   // nothing highlighted. Whichever path runs first wins; the
+                   // other is ignored for the rest of the gesture.
 function trkSetCell(r,c,state){
   const sym=trackerGrid.cells[r][c];
   if(sym===' ') return;
@@ -24642,13 +24716,24 @@ function trkSelectSymbolAt(cell){
   // Building a multi-colour selection is done by tapping rows in the colour list.
   if(trkSelectedSyms.size===1 && trkSelHas(sym)) trkSelClear();
   else { trkSelClear(); trkSelectedSyms.add(sym); }
-  renderTracker(); updateTrackerProgressUI();
+  // Feedback FIRST, heavy work after: the toast confirms the press instantly,
+  // then the chart repaint and the whole-grid progress tally run on the next
+  // frame. On phones the tally over a big chart was what made the press feel
+  // laggy — the toast appeared but the highlight arrived visibly late.
   if(trkSelHas(sym)){
     const col=trackerColourMap[sym];
     if(col) toast(col.label+' highlighted');
-    const target=[...document.querySelectorAll('#trk-colors .trk-crow')].find(r=>r.dataset.sym===sym);
-    if(target) target.scrollIntoView({block:'nearest'});
   }
+  requestAnimationFrame(()=>{
+    renderTracker(); updateTrackerProgressUI();
+    if(trkSelHas(sym)){
+      // Scroll the colour list to the highlighted row only when that list is
+      // actually on screen — in fullscreen it lives in a closed sheet, and
+      // forcing layout on hidden rows was wasted jank.
+      const target=[...document.querySelectorAll('#trk-colors .trk-crow')].find(r=>r.dataset.sym===sym);
+      if(target && target.offsetParent) target.scrollIntoView({block:'nearest'});
+    }
+  });
 }
 function trkCancelLong(){ if(trkLongT){ clearTimeout(trkLongT); trkLongT=null; } }
 
@@ -24739,7 +24824,7 @@ trkCanvas.addEventListener('pointerdown', e=>{
     const wrap0=document.getElementById('trk-canvas-wrap');
     trkTap={x:e.clientX, y:e.clientY, cell, sl:wrap0.scrollLeft, st:wrap0.scrollTop};
     trkCancelLong();
-    trkLongT=setTimeout(()=>{ trkLongT=null; trkTap=null; trkDragScroll=null; trkSelectSymbolAt(cell); },500);
+    trkLongT=setTimeout(()=>{ trkLongT=null; trkTap=null; trkDragScroll=null; trkLongDone=Date.now(); trkSelectSymbolAt(cell); },500);
     if(e.pointerType!=='touch'){
       const wrap=document.getElementById('trk-canvas-wrap');
       trkDragScroll={x:e.clientX, y:e.clientY, sl:wrap.scrollLeft, st:wrap.scrollTop};
@@ -24777,6 +24862,13 @@ trkCanvas.addEventListener('pointermove', e=>{
         if(wrap){
           wrap.scrollLeft = g + (mx-g)*k - ((pts[0].x+pts[1].x)/2-rect.left);
           wrap.scrollTop  = g + (my-g)*k - ((pts[0].y+pts[1].y)/2-rect.top);
+          // trkSetZoomPx rendered BEFORE the anchored scroll above was applied,
+          // i.e. at the old scroll position — the frame the user saw was pinned
+          // to the top-left, and correcting it depended on a scroll-event
+          // re-render winning a race it loses in the app webview. Redraw now
+          // that the scroll matches the anchor; the canvas only paints the
+          // visible window, so the second pass is cheap.
+          renderTracker();
         }
         // keep +/- sensible afterwards
         let best=0;
@@ -24817,12 +24909,14 @@ trkCanvas.addEventListener('pointercancel', trkPointerEnd);
 // wobble and made the pinch drop out (forcing a lift-and-re-touch to resume).
 trkCanvas.addEventListener('touchmove', e=>{ if(e.touches && e.touches.length>=2) e.preventDefault(); }, {passive:false});
 window.addEventListener('pointerup', ()=>{ if(trkMarking!==null){ trkMarking=null; updateTrackerProgressUI(); saveTrackerProgress(); } });
+trkCanvas.addEventListener('selectstart', e=>e.preventDefault());
 // Right-click a stitch: highlight its colour (both modes)
 trkCanvas.addEventListener('contextmenu', e=>{
   if(!trackerGrid) return;
   e.preventDefault();
+  if(Date.now()-trkLongDone<800) return;   // this hold was already handled by the timer
   const cell=trkCellAt(e);
-  if(cell) trkSelectSymbolAt(cell);
+  if(cell){ trkLongDone=Date.now(); trkSelectSymbolAt(cell); }
 });
 // Desktop: ctrl+wheel zooms the chart
 document.getElementById('trk-canvas-wrap').addEventListener('wheel', e=>{
@@ -26160,6 +26254,35 @@ async function trkHandleChartOxs(file, preText){
         if(bs.length){ trackerGrid.backstitch=bs; console.log('[tracker] '+bs.length+' backstitch segments imported'); }
       }
     }catch(e){ console.warn('[tracker] backstitch parse failed', e); }
+    // Half stitches — <partstitch> records written by the converter (Tools v4+).
+    // direction 1 = the "\" diagonal (TL+BR quadrants, mask 9); 2 = "/" (TR+BL,
+    // mask 6). App-compat exports also carry these cells in <fullstitches>; the
+    // mask then simply annotates the existing cell, so charts published with the
+    // compat toggle render correctly WITHOUT re-exporting. Non-compat exports
+    // have no full stitch at these cells, so the symbol is placed here too.
+    // Reuses the SAME halfCells/partMask structures the PDF chart path fills —
+    // rendering, per-colour legend counts, progress weighting and pattern
+    // save/load all work unchanged. The positional progress bitmap (RULE #1)
+    // is not touched: a half-stitch cell is still one cell of the progress grid.
+    try{
+      const psEls=doc.querySelectorAll('partstitch');
+      if(psEls.length){
+        trackerGrid.halfCells = trackerGrid.halfCells || new Set();
+        trackerGrid.partMask  = trackerGrid.partMask  || new Map();
+        let nHalf=0;
+        psEls.forEach(el=>{
+          const x=+el.getAttribute('x')-1, y=+el.getAttribute('y')-1, pi=+el.getAttribute('palindex');
+          const dir=+el.getAttribute('direction');
+          if(!(x>=0&&x<W&&y>=0&&y<H) || !symOf[pi]) return;
+          if(cells[y][x]===' '){ cells[y][x]=symOf[pi]; if(trackerGrid.fontCells) trackerGrid.fontCells[y][x]=symOf[pi]; }
+          const k=y+':'+x;
+          trackerGrid.halfCells.add(k);
+          trackerGrid.partMask.set(k, dir===1 ? 9 : 6);
+          nHalf++;
+        });
+        if(nHalf) console.log('[tracker] '+nHalf+' half stitches imported');
+      }
+    }catch(e){ console.warn('[tracker] partstitch parse failed', e); }
     trackerLastChartFile=null;
     // build the complete legend directly — codes, colours and counts are all explicit
     const counts={};
@@ -28212,7 +28335,67 @@ function plOpenExt(url){
   }catch(e){}
   try{ window.open(url,'_blank','noopener'); }catch(e){}
 }
+// ── Sign in with Apple (iOS only — App Review guideline 4.8) ───────────────
+// The Shopify hosted login offers Shop/Google (third-party logins), so on iOS
+// an equivalent private option must be offered with equal prominence. Every
+// sign-in button funnels through acctOpenLogin, so intercepting it here puts
+// the Apple option in front of ALL of them. Web and Android are untouched.
+function plIsIOS(){ try{ var C=window.Capacitor; return !!(C&&C.getPlatform&&C.getPlatform()==='ios'); }catch(e){ return false; } }
+function plLoginChoiceClose(){ var d=document.getElementById('pl-login-choice'); if(d) d.remove(); }
+function plLoginChoice(){
+  plLoginChoiceClose();
+  var d=document.createElement('div');
+  d.id='pl-login-choice';
+  d.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(30,20,24,.45);display:flex;align-items:flex-end;justify-content:center';
+  d.innerHTML=
+    '<div style="background:#fff;border-radius:18px 18px 0 0;padding:1.2rem 1.2rem calc(1.2rem + env(safe-area-inset-bottom));width:100%;max-width:480px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">'
+    +'<b style="font-size:1.05rem">Sign in</b>'
+    +'<a href="#" onclick="plLoginChoiceClose();return false" style="font-size:1.2rem;color:#7d6b72;text-decoration:none;padding:.2rem .5rem">✕</a></div>'
+    // Apple HIG: the Apple option must not be less prominent than others — it goes first, full width, standard black.
+    +'<button onclick="plAppleSignIn()" style="display:block;width:100%;background:#000;color:#fff;border:0;border-radius:12px;font-size:1rem;font-weight:600;padding:.9rem;margin-bottom:.6rem;cursor:pointer">\uF8FF Sign in with Apple</button>'
+    +'<button onclick="window._plSkipAppleChoice=true;try{plLoginChoiceClose();acctOpenLogin();}finally{window._plSkipAppleChoice=false;}" style="display:block;width:100%;background:var(--lp-red,#8B1A2B);color:#fff;border:0;border-radius:12px;font-size:1rem;font-weight:600;padding:.9rem;cursor:pointer">Sign in with your Luca-S account</button>'
+    +'<p style="font-size:.72rem;color:#7d6b72;margin:.8rem 0 0;line-height:1.45">Kits bought on luca-s.com are linked to your order email — sign in with that address to see them.</p>'
+    +'</div>';
+  d.addEventListener('click', function(e){ if(e.target===d) plLoginChoiceClose(); });
+  document.body.appendChild(d);
+}
+async function plAppleSignIn(){
+  var P=window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SignInWithApple;
+  if(!P || !P.authorize){ toast('Apple sign-in is not available in this build'); return; }
+  var res;
+  try{ res=await P.authorize({ scopes:'email name' }); }
+  catch(e){ var m=String(e&&e.message||e||''); if(!/cancel/i.test(m)) toast('Apple sign-in didn\u2019t complete'); return; }
+  var r=(res&&(res.response||res))||{};
+  var idt=r.identityToken||r.identity_token;
+  if(!idt){ toast('Apple sign-in didn\u2019t complete (no token)'); return; }
+  try{
+    var base=(window.PATTERNLY_API_BASE||'/apps/patternly');
+    var body='identity_token='+encodeURIComponent(idt)
+           +'&first_name='+encodeURIComponent(r.givenName||'')
+           +'&last_name='+encodeURIComponent(r.familyName||'');
+    var resp=await fetch(base+'/auth/apple',{ method:'POST', headers:{'content-type':'application/x-www-form-urlencoded'}, body:body });
+    var j=null; try{ j=await resp.json(); }catch(e){}
+    if(!j || !j.ok || !j.pl_session){ toast('Sign-in failed: '+((j&&j.msg)||('HTTP '+resp.status))); return; }
+    try{ localStorage.setItem('pl_session', j.pl_session); }catch(e){}
+    plLoginChoiceClose();
+    if(typeof acctRefresh==='function') await acctRefresh();
+    var li=(typeof lucasAuth==='function' && lucasAuth().loggedIn);
+    if(li){
+      if(typeof acctModalSuccess==='function') acctModalSuccess();
+      toast('\u2713 Signed in with Apple');
+      // Hide-My-Email relay: their luca-s.com orders live under the real email,
+      // so purchases won't auto-appear — say so once, gently.
+      if(j.relay) setTimeout(function(){ toast('Kits bought on luca-s.com appear when you sign in with your order email'); }, 2600);
+    } else {
+      toast('Signed in, but the account didn\u2019t load \u2014 pull to refresh');
+    }
+  }catch(e){ toast('Sign-in failed: '+(e&&e.message||e)); }
+}
 async function acctOpenLogin(forceSwitch){
+  // iOS: present the private-login chooser first (guideline 4.8). The Luca-S
+  // button inside it sets _plSkipAppleChoice and re-enters this function.
+  if(plIsIOS() && !forceSwitch && !window._plSkipAppleChoice){ plLoginChoice(); return; }
   acctCloseAll();
   if(forceSwitch){
     // Switching accounts: drop our token so the auto-detect below can't short-
@@ -29075,7 +29258,12 @@ function trkFsPanel(kind){
       actions.appendChild(mkBtn('💡 Gestures & tips', ()=>trkShowTips()));
       const hasLegend=!!(document.getElementById('trk-legend-btn') && document.getElementById('trk-legend-btn').style.display!=='none');
       if(hasLegend) actions.appendChild(mkBtn('📋 View legend', ()=>trkViewLegend()));
-      actions.appendChild(mkBtn('⬇ Back up progress', ()=>trkExportBackup()));
+      // Backup files exist for USER-uploaded patterns. Luca-S kits are excluded
+      // everywhere else (their chart is licensed content and progress already
+      // syncs through the account) — this sheet was the one spot missing the gate.
+      const _isKit = !!(typeof trkCloudSku!=='undefined' && trkCloudSku)
+        || /^kit_/i.test(String(trackerActiveProjectKey||''));
+      if(!_isKit) actions.appendChild(mkBtn('⬇ Back up progress', ()=>trkExportBackup()));
       body.appendChild(actions);
     }
     const btn=document.getElementById('fsb-settings'); if(btn) btn.classList.add('active');
