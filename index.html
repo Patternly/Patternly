@@ -19346,8 +19346,8 @@ async function trkViewLegend(){
         const _isKit = !!(typeof trkCloudSku!=='undefined' && trkCloudSku)
           || /^kit_/i.test(String(trackerActiveProjectKey||''));
         if(!_isKit) throw 0;
-        let who=''; try{ const a=lucasAuth(); who=(a&&a.email)?String(a.email):''; }catch(_e){}
-        const label='Luca-S \u00b7 '+(who?'Licensed to '+who:'licensed copy');
+        // Brand wordmark only — no customer email in the mark (v554).
+        const label='LUCA-S';
         const c2=cv.getContext('2d');
         c2.save(); c2.globalAlpha=0.06; c2.fillStyle='#43303a';
         c2.font='600 '+Math.round(cv.width*0.022)+'px system-ui, sans-serif';
@@ -21136,7 +21136,7 @@ function parseLegendText(text){
         if(okSyms){
           const symbol=syms[syms.length-1];
           const k=/^X\d$/i.test(toks[oxi]) ? oxi+1 : oxi+2;
-          if(k<toks.length && isCode(toks[k]) && countOf(toks[k+1])!==null && !bySymbol[symbol] && !byCode[toks[k]]){
+          if(k<toks.length && isCode(toks[k]) && countOf(toks[k+1])!==null && !bySymbol[symbol] && (!byCode[toks[k]] || byCode[toks[k]].symbol!==symbol)){   // v557: same code, different symbol = strand variant, keep
             const entry={nr:null, symbol, code:toks[k], stitches:countOf(toks[k+1]), back:backOf(toks[k+1]), li};
             bySymbol[symbol]=entry; byCode[entry.code]=entry;
           }
@@ -21300,7 +21300,7 @@ function parseLegendText(text){
     // to count/shape binding. Its "/N" is French knots, not backstitch, so it
     // carries no backstitch line (back:0).
     if(toks.length===4 && /^[12]$/.test(toks[1]) && SPECIAL.test(toks[2]) && countOf(toks[3])!==null
-       && !bySymbol[toks[2]] && !byCode[toks[2]]){
+       && !bySymbol[toks[2]] && (!byCode[toks[2]] || (byCode[toks[2]].stitches!==countOf(toks[3])))){   // v557: allow a second variant row of a known code
       pending.push({nr, code:toks[2], stitches:countOf(toks[3]), back:0, li});
       continue;
     }
@@ -21312,7 +21312,7 @@ function parseLegendText(text){
     //    here ("34 2 2 448 866", "13 X X 471 218/128", "48 i i White 5434").
     if(toks.length>=5 && toks[1]===toks[2] && !/^X\d$/i.test(toks[1]) &&
        isCode(toks[3]) && countOf(toks[4])!==null){
-      if(!bySymbol[toks[1]] && !byCode[toks[3]]){
+      if(!bySymbol[toks[1]] && (!byCode[toks[3]] || byCode[toks[3]].symbol!==toks[1])){   // v557: dual-strand rows share the code with a different symbol (BU5096-style '444' x2)
         const entry={nr, symbol:toks[1], code:toks[3], stitches:countOf(toks[4]), back:backOf(toks[4]), li};
         bySymbol[entry.symbol]=entry; byCode[entry.code]=entry;
         continue;
@@ -21346,13 +21346,16 @@ function parseLegendText(text){
     // pending for count/shape binding from the chart.
     if(isCode(toks[1]) && countOf(toks[2])!==null){
       const code=toks[1], stitches=countOf(toks[2]), back=backOf(toks[2]);
-      if(!byCode[code]){
+      // v557: a code the table already carries can still legitimately appear on a
+      // SECOND row (dual-strand kits print two rows per thread) — accept it when
+      // the married neighbour symbol differs from the code's existing row.
+      {
         let sym=null;
         for(const dj of [1,-1,2,-2]){ const s=symbolAt(li+dj); if(s && !bySymbol[s]){ sym=s; break; } }
-        if(sym){
+        if(sym && (!byCode[code] || byCode[code].symbol!==sym)){
           const entry={nr, symbol:sym, code, stitches, back, li};
-          bySymbol[sym]=entry; byCode[code]=entry;
-        } else {
+          bySymbol[sym]=entry; if(!byCode[code]) byCode[code]=entry;
+        } else if(!sym && !byCode[code]){
           pending.push({nr, code, stitches, back, li});
         }
       }
@@ -21380,9 +21383,9 @@ function parseLegendText(text){
       if(s===ts[i+1] && [...s].length<=2 && !/^X\d?$/i.test(s) &&
          isCode(ts[i+2]) && recCountOf(ts[i+3])!==null){
         const code=ts[i+2];
-        if(!byCode[code] && !bySymbol[s]){
+        if((!byCode[code] || byCode[code].symbol!==s) && !bySymbol[s]){   // v557: strand-variant rows
           const entry={nr, symbol:s, code, stitches:recCountOf(ts[i+3]), back:recBackOf(ts[i+3]), li};
-          bySymbol[s]=entry; byCode[code]=entry;
+          bySymbol[s]=entry; if(!byCode[code]) byCode[code]=entry;
         }
         break;
       }
@@ -21461,10 +21464,10 @@ function parseLegendCountless(lines){
   const notSym=t=> !t || [...t].length>2 || /^X\d?$/i.test(t) || /^[-–−.\/+]+$/.test(t) || KEY.test(t);
   const add=(symbol,codeRaw,li)=>{
     const code=String(codeRaw).toUpperCase();
-    if(!bySymbol[symbol] && !byCode[code]){
+    if(!bySymbol[symbol] && (!byCode[code] || byCode[code].symbol!==symbol)){   // v557: strand-variant rows
       const nr=Object.keys(bySymbol).length+1;
       const e={nr, symbol, code, stitches:0, li, noCount:true};
-      bySymbol[symbol]=e; byCode[code]=e;
+      bySymbol[symbol]=e; if(!byCode[code]) byCode[code]=e;
     }
   };
   for(let li=0; li<lines.length; li++){
@@ -23334,6 +23337,79 @@ function trackerVerifyCounts(){
   return {totalGrid, totalLegend, mismatches, unknown, unknownBy};
 }
 
+// ── v557: manual colour assignment for unallocated symbols ─────────────────
+// After a PDF chart+legend load, any grid symbol without a colour renders as
+// unallocated cells. Instead of leaving them, ask the user to type the thread
+// number per symbol. Numbers are matched CASE-INSENSITIVELY ("black", "Black",
+// "BLACK", "white"… all resolve — trkFindLucas already folds case for named
+// threads). Inputs are pre-filled from legend rows that parsed a code+count but
+// no symbol (pending), matched by stitch count. Applying updates the colour map
+// AND the legend entry, so counts, progress and sync all include the symbol.
+function trkAskUnknownColours(){
+  if(!trackerGrid || !trackerLegend || !trackerColourMap) return;
+  const v=trackerVerifyCounts();
+  const unk=Object.entries(v.unknownBy||{}).sort((a,b)=>b[1]-a[1]);
+  if(!unk.length) return;
+  const brand=(trackerLegend.brand)||trkLegendBrand();
+  const name=TRK_BRAND_NAMES[brand]||'Luca-S';
+  const pend=(trackerLegend.pending||[]).slice();
+  document.querySelectorAll('#trk-unkcol-modal').forEach(el=>el.remove());
+  const wrap=document.createElement('div'); wrap.id='trk-unkcol-modal';
+  wrap.style.cssText='position:fixed;inset:0;z-index:10050;background:rgba(40,25,32,.45);display:flex;align-items:center;justify-content:center;padding:1rem';
+  const box=document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:14px;max-width:440px;width:100%;max-height:82vh;overflow:auto;padding:1rem 1.1rem;box-shadow:0 12px 40px rgba(0,0,0,.25);font-size:.9rem;color:#43303a';
+  let rowsHtml='';
+  unk.slice(0,24).forEach(([ch,n],i)=>{
+    // pre-fill from a pending legend row whose count matches this symbol's cells
+    let pre='';
+    const pi=pend.findIndex(p=>Math.abs((p.stitches||0)-n)<=2);
+    if(pi>=0){ pre=String(pend[pi].code||''); pend.splice(pi,1); }
+    rowsHtml+='<div style="display:flex;align-items:center;gap:.6rem;margin:.45rem 0">'
+      +'<span style="width:30px;height:30px;flex:none;display:inline-flex;align-items:center;justify-content:center;border:1px solid #ddc9ce;border-radius:6px;font-family:\'CrossStitch3\',monospace;font-size:19px">'+String(ch).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span>'
+      +'<span style="flex:none;font-size:.72rem;color:#7d6b72;width:70px">'+n.toLocaleString()+' st</span>'
+      +'<input class="unkcol-in" data-sym="'+String(ch).replace(/"/g,'&quot;').replace(/&/g,'&amp;').replace(/</g,'&lt;')+'" placeholder="thread no. or Black/White" value="'+pre.replace(/"/g,'&quot;')+'" '
+      +'style="flex:1;min-width:0;padding:.4rem .55rem;border:1.5px solid #ddc9ce;border-radius:8px;font-size:.88rem">'
+      +'<span class="unkcol-sw" style="width:20px;height:20px;flex:none;border-radius:5px;border:1px solid #ccc;background:#f2f2f2"></span>'
+      +'</div>';
+  });
+  box.innerHTML='<h3 style="margin:.1rem 0 .4rem;font-size:1.02rem">Some symbols need a thread colour</h3>'
+    +'<p style="margin:.2rem 0 .6rem;font-size:.8rem;color:#7d6b72">The legend didn\u2019t provide a colour for '+unk.length+' symbol'+(unk.length>1?'s':'')+' used on the chart. Type each one\u2019s thread number from your printed legend \u2014 names like \u201cBlack\u201d or \u201cwhite\u201d work in any capitalisation.</p>'
+    +rowsHtml
+    +(unk.length>24?'<p style="font-size:.75rem;color:#7d6b72">Showing the 24 most-used; reopen after applying for the rest.</p>':'')
+    +'<div style="display:flex;gap:.6rem;justify-content:flex-end;margin-top:.8rem">'
+    +'<button id="unkcol-skip" style="all:unset;cursor:pointer;padding:.5rem .9rem;border-radius:9px;color:#7d6b72;font-weight:600">Skip for now</button>'
+    +'<button id="unkcol-apply" style="all:unset;cursor:pointer;padding:.5rem 1rem;border-radius:9px;background:#8e2f45;color:#fff;font-weight:700">Apply</button></div>';
+  wrap.appendChild(box); document.body.appendChild(wrap);
+  const resolve=(code)=>{ const c=String(code||'').trim(); return c?trkFindBrandCode(brand,c):null; };
+  const refresh=(inp)=>{ const f=resolve(inp.value); const sw=inp.nextElementSibling;
+    sw.style.background=f?('rgb('+f.r+','+f.g+','+f.b+')'):'#f2f2f2';
+    inp.style.borderColor=(inp.value.trim() && !f)?'#c94f4f':'#ddc9ce'; };
+  box.querySelectorAll('.unkcol-in').forEach(inp=>{ inp.oninput=()=>refresh(inp); refresh(inp); });
+  box.querySelector('#unkcol-skip').onclick=()=>wrap.remove();
+  box.querySelector('#unkcol-apply').onclick=()=>{
+    let applied=0;
+    box.querySelectorAll('.unkcol-in').forEach(inp=>{
+      const code=inp.value.trim(); if(!code) return;
+      const f=resolve(code); if(!f) return;
+      const sym=inp.dataset.sym;
+      const cnt=(v.unknownBy||{})[sym]||0;
+      const canon=f.label||code;
+      trackerColourMap[sym]={r:f.r,g:f.g,b:f.b,code:canon,stitches:cnt,label:name+' '+canon};
+      if(!trackerLegend.bySymbol[sym]){
+        trackerLegend.bySymbol[sym]={nr:Object.keys(trackerLegend.bySymbol).length+1, symbol:sym, code:canon, stitches:cnt, manual:true};
+        if(!trackerLegend.byCode[canon]) trackerLegend.byCode[canon]=trackerLegend.bySymbol[sym];
+      }
+      applied++;
+    });
+    wrap.remove();
+    if(applied){
+      toast(applied+' colour'+(applied>1?'s':'')+' assigned');
+      trkSaveProject();
+      renderTracker(); updateTrackerProgressUI(); trackerShowVerification();
+    }
+  };
+}
+
 function trackerShowVerification(){
   if(window.trkExactGrid && trackerLegend && trackerLegend.byCode && trackerGrid){
     const box=document.getElementById('trk-verify');
@@ -24249,6 +24325,9 @@ async function tryBuildTracker(){
   document.getElementById('trk-workspace').style.display='';
   trkMode='pan'; trkApplyMode(); // Pan is always the default when entering a pattern
   trackerShowVerification();
+  // v557: symbols the legend didn't provide a colour for — ask the user to type
+  // the thread number for each, instead of leaving unallocated (white) cells.
+  try{ trkAskUnknownColours(); }catch(_e){ console.warn('unknown-colour prompt failed', _e); }
   trackerStitched = Array.from({length: trackerGrid.rows}, ()=>Array(trackerGrid.cols).fill(false));
   trkApplyViewAvail();
   trkSaveProject();
@@ -24267,10 +24346,18 @@ async function tryBuildTracker(){
 // ── Rendering ──
 let trackerViewMode='color', trackerCellPx=16;
 let trkSelectedSyms=new Set(); // when non-empty: highlight these colours, mark only their cells
+// Backstitch focus (v555): its OWN selection, separate from cross-stitch colours.
+// Tapping an outline row lights ONLY that thread's backstitch lines — all cross
+// stitches (including that colour's own) dim, and marking is paused. The two
+// selections are exclusive: activating one clears the other.
+let trkBsSel=new Set();        // normalized backstitch thread codes
+function trkBsNorm(c){ return String(c==null?'':c).replace(/\s*bs\s*$/i,'').trim(); }
+function trkBsSelActive(){ return trkBsSel.size>0; }
+function trkBsSelToggle(code){ const k=trkBsNorm(code); trkSelectedSyms.clear(); if(trkBsSel.has(k)) trkBsSel.delete(k); else trkBsSel.add(k); }
 function trkSelActive(){ return trkSelectedSyms.size>0; }
 function trkSelHas(sym){ return trkSelectedSyms.has(sym); }
-function trkSelToggle(sym){ if(trkSelectedSyms.has(sym)) trkSelectedSyms.delete(sym); else trkSelectedSyms.add(sym); }
-function trkSelClear(){ trkSelectedSyms.clear(); }
+function trkSelToggle(sym){ trkBsSel.clear(); if(trkSelectedSyms.has(sym)) trkSelectedSyms.delete(sym); else trkSelectedSyms.add(sym); }
+function trkSelClear(){ trkSelectedSyms.clear(); trkBsSel.clear(); }
 let trkPageMode=false, trkPageCells=50, trkPageIdx=0, trkPageScale=1;
 let trkGridCfg={on:true, op:50, block:10, bw:2, lw:0.25, color:'#000000', blockColor:'#000000'};
 try{ Object.assign(trkGridCfg, JSON.parse(localStorage.getItem('patternly_trk_grid')||'{}')); }catch(e){}
@@ -24419,7 +24506,7 @@ function renderTracker(){
       if(sym===' ') continue;
       const col=trackerColourMap[sym];
       const stitched=trackerStitched[r][c];
-      const ghost = trkSelActive() && !trkSelHas(sym);
+      const ghost = (trkSelActive() && !trkSelHas(sym)) || trkBsSelActive();   // bs focus dims ALL crosses
       const bwMode = trackerViewMode==='bw';
       if(bwMode){
         // true black & white: paper-white cells, black symbols only
@@ -24576,9 +24663,10 @@ function renderTracker(){
     // codes (outline entries key by \u0002bs_<code>); a segment is "lit" when its code
     // is in that set. If a selection is active but contains no backstitch thread (a
     // cross-stitch colour is selected), no segment is lit → all backstitch dims.
-    const _selActive=trkSelActive();
+    const _selActive=trkSelActive() || trkBsSelActive();
     const _litCodes=new Set();
-    if(_selActive){
+    for(const k of trkBsSel) _litCodes.add(k);   // v555: dedicated backstitch focus
+    if(trkSelActive()){
       const _bsNorm=c=>String(c==null?'':c).replace(/\s*bs\s*$/i,'').trim();
       for(const sym of trkSelectedSyms){
         const cm=trackerColourMap[sym];
@@ -24603,7 +24691,7 @@ function renderTracker(){
   }
   if(trkShowBackstitch && trackerGrid.knotsList && trackerGrid.knotsList.length){
     const bwMode=trackerViewMode==='bw';
-    const dim=trkSelActive()?0.22:1;
+    const dim=(trkSelActive()||trkBsSelActive())?0.22:1;
     trkCtx.save();
     trkCtx.globalAlpha=dim;
     for(const k of trackerGrid.knotsList){
@@ -24672,10 +24760,11 @@ function renderTracker(){
       const isKit = !!(typeof trkCloudSku!=='undefined' && trkCloudSku)
         || /^kit_/i.test(String(trackerActiveProjectKey||''));
       if(!isKit) return;
-      let who=''; try{ const a=lucasAuth(); who=(a&&a.email)?String(a.email):''; }catch(_e){}
-      const label = 'Luca-S \u00b7 ' + (who ? 'Licensed to '+who : 'licensed copy');
+      // Brand wordmark only — the mark identifies the chart as a Luca-S kit
+      // without printing the customer's email across their screen (v554).
+      const label = 'LUCA-S';
       trkCtx.save();
-      trkCtx.font = '700 16px system-ui, sans-serif';
+      trkCtx.font = '800 18px system-ui, sans-serif';
       trkCtx.textAlign='left'; trkCtx.textBaseline='middle';
       trkCtx.translate(trkView.viewW/2, trkView.viewH/2);
       trkCtx.rotate(-Math.PI/7);
@@ -24725,6 +24814,7 @@ let trkLongDone=0; // when a press-and-hold was last handled. One hold can arriv
 function trkSetCell(r,c,state){
   const sym=trackerGrid.cells[r][c];
   if(sym===' ') return;
+  if(trkBsSelActive()) return;                  // backstitch focus: marking paused (lines aren't counted)
   if(trkSelActive() && !trkSelHas(sym)) return; // focused colours: other threads are protected
   trackerStitched[r][c]=state;
 }
@@ -25112,8 +25202,15 @@ function updateTrackerProgressUI(){
   // Backstitch / outline threads — listed for reference, never counted.
   if(outlineEntries.length){
     const oh=document.createElement('div');
-    oh.style.cssText='font-size:.64rem;font-weight:700;color:var(--lp-muted,#7d6b72);text-transform:uppercase;letter-spacing:.04em;margin:.8rem 0 .35rem;padding-top:.6rem;border-top:1px solid #ecdfe2';
-    oh.textContent='Backstitch / outline threads';
+    oh.style.cssText='font-size:.64rem;font-weight:700;color:var(--lp-muted,#7d6b72);text-transform:uppercase;letter-spacing:.04em;margin:.8rem 0 .35rem;padding-top:.6rem;border-top:1px solid #ecdfe2;display:flex;align-items:center;gap:.4rem';
+    // "!" notice (v555): imported backstitch geometry is decoded from the kit
+    // file; if a line ever looks off, the printed chart is the reference.
+    oh.innerHTML='<span>Backstitch / outline threads</span>'
+      +'<button type="button" id="trk-bs-note" aria-label="About backstitch accuracy" '
+      +'style="all:unset;cursor:pointer;width:15px;height:15px;border-radius:50%;border:1.4px solid currentColor;display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;line-height:1">!</button>';
+    oh.querySelector('#trk-bs-note').onclick=(ev)=>{ ev.stopPropagation();
+      toast('If some backstitch doesn\u2019t look right to you, please double-check it against your original printed pattern & legend.');
+    };
     list.appendChild(oh);
     for(const e of outlineEntries){
       const col=trackerColourMap[e.symbol]||{r:80,g:80,b:80,label:''};
@@ -25130,22 +25227,65 @@ function updateTrackerProgressUI(){
       // variant the colour uses (thin for 1 strand, thicker for 2) — e.g. 455 as a
       // 1-strand and a 2-strand line. Never a stitch count: backstitch isn't
       // counted in progress.
-      const strands=(e.backStrands&&e.backStrands.length)?e.backStrands:[null];
-      const _isSel=trkSelHas(e.symbol);
-      for(const st of strands){
-        const _w = st===2 ? 3.4 : 2.2;
-        const _sub = st ? `Backstitch \u00b7 ${st} strand${st>1?'s':''}` : `Backstitch${_cross?' (also stitched)':''}`;
+      // v556: when the import carries per-VARIANT line data (each distinct
+      // colour+strands pair from the file — line A / line B set independently in
+      // the generator), render one row per variant with ITS OWN line colour.
+      // Falls back to the legacy single-lineColor rendering for PDF-built legends.
+      const _bsCode=trkBsNorm(col.code!=null?col.code:'');
+      const _isSel=trkBsSel.has(_bsCode);
+      const _mkRow=(lineCss, width, subText)=>{
         const row=document.createElement('div'); row.className='trk-crow'+(_isSel?' sel':'');
         row.style.opacity='0.9'; row.style.cursor='pointer';
         row.dataset.sym=e.symbol;
-        // Tapping an outline thread lights up its lines on the chart and dims the
-        // rest — same focus behaviour as picking a cross-stitch colour.
-        row.onclick=()=>{ trkSelToggle(e.symbol); renderTracker(); updateTrackerProgressUI(); };
+        // Tapping an outline thread lights up ONLY its lines on the chart; all
+        // cross stitches dim and marking pauses until the focus is cleared.
+        row.onclick=()=>{ trkBsSelToggle(_bsCode); renderTracker(); updateTrackerProgressUI(); };
         row.innerHTML=`<span class="sw" style="background:${_rgb}"></span>`+
-          `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;flex:none" aria-hidden="true"><svg width="20" height="16" viewBox="0 0 20 16"><line x1="1.5" y1="8" x2="18.5" y2="8" stroke="${_lc}" stroke-width="${_w}" stroke-linecap="round"/></svg></span>`+
-          `<span class="lb">${label}<span style="display:block;font-size:.62rem;opacity:.7;font-weight:600">${_sub}</span></span>`;
+          `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;flex:none" aria-hidden="true"><svg width="20" height="16" viewBox="0 0 20 16"><line x1="1.5" y1="8" x2="18.5" y2="8" stroke="${lineCss}" stroke-width="${width}" stroke-linecap="round"/></svg></span>`+
+          `<span class="lb">${label}<span style="display:block;font-size:.62rem;opacity:.7;font-weight:600">${subText}</span></span>`;
         list.appendChild(row);
+      };
+      if(e.backLines && e.backLines.length){
+        for(const v of e.backLines){
+          const _w = v.strands===2 ? 3.4 : 2.2;
+          const _sub = v.strands ? `Backstitch \u00b7 ${v.strands} strand${v.strands>1?'s':''}` : `Backstitch${_cross?' (also stitched)':''}`;
+          _mkRow(`rgb(${v.r},${v.g},${v.b})`, _w, _sub);
+        }
+      } else {
+        const strands=(e.backStrands&&e.backStrands.length)?e.backStrands:[null];
+        for(const st of strands){
+          const _w = st===2 ? 3.4 : 2.2;
+          const _sub = st ? `Backstitch \u00b7 ${st} strand${st>1?'s':''}` : `Backstitch${_cross?' (also stitched)':''}`;
+          _mkRow(_lc, _w, _sub);
+        }
       }
+    }
+  }
+  // French knots — grouped by colour, listed for reference like backstitch.
+  // Knots are overlay ornaments (raised dots on the chart), not counted in
+  // progress; the section makes them findable in the key instead of existing
+  // only as dots on the canvas. Data: trackerGrid.knotsList [{x,y,r,g,b,code}]
+  // (filled by the .ptly/.pat importer and the OXS <object objecttype="knot">
+  // path — both already drive the canvas overlay).
+  if(trackerGrid && trackerGrid.knotsList && trackerGrid.knotsList.length){
+    const kg=new Map();   // colour key -> {r,g,b,code,n}
+    for(const k of trackerGrid.knotsList){
+      const key=(k.code||'')+'|'+k.r+','+k.g+','+k.b;
+      const e=kg.get(key); if(e) e.n++; else kg.set(key,{r:k.r,g:k.g,b:k.b,code:k.code||'',n:1});
+    }
+    const kh=document.createElement('div');
+    kh.style.cssText='font-size:.64rem;font-weight:700;color:var(--lp-muted,#7d6b72);text-transform:uppercase;letter-spacing:.04em;margin:.8rem 0 .35rem;padding-top:.6rem;border-top:1px solid #ecdfe2';
+    kh.textContent='French knots';
+    list.appendChild(kh);
+    for(const e of kg.values()){
+      const _rgb=`rgb(${e.r},${e.g},${e.b})`;
+      const label=(e.code?('Luca-S '+String(e.code).replace(/</g,'&lt;')):'French knot');
+      const row=document.createElement('div'); row.className='trk-crow';
+      row.style.opacity='0.9';
+      row.innerHTML=`<span class="sw" style="background:${_rgb}"></span>`+
+        `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;flex:none" aria-hidden="true"><svg width="20" height="16" viewBox="0 0 20 16"><circle cx="10" cy="8" r="4.6" fill="${_rgb}" stroke="rgba(0,0,0,0.45)" stroke-width="1"/><circle cx="10" cy="8" r="1.4" fill="rgba(0,0,0,0.35)"/></svg></span>`+
+        `<span class="lb">${label}<span style="display:block;font-size:.62rem;opacity:.7;font-weight:600">French knot${e.n>1?'s':''} \u00b7 ${e.n} \u00b7 1 strand</span></span>`;
+      list.appendChild(row);
     }
   }
   // ── Full-View colour sheet: opens from the Colours tab (hidden by default).
@@ -26394,21 +26534,30 @@ async function trkHandleChartOxs(file, preText){
       const bsSegs = (trackerGrid && Array.isArray(trackerGrid.backstitch)) ? trackerGrid.backstitch : [];
       if(bsSegs.length){
         const bsNorm = c => String(c==null?'':c).replace(/\s*bs\s*$/i,'').trim();
-        // per normalised code: segment count, strand variants seen, and a line colour
+        // per normalised code: segment count, strand variants seen, a line colour,
+        // and (v556) the full VARIANT list — each distinct (colour, strands) pair is
+        // its own chart line (the generator sets line A and line B colours per
+        // thread independently); the legend must show each with ITS OWN colour, not
+        // the first variant's colour doubled across all rows.
         const bsInfo={};
         for(const seg of bsSegs){
           const code=bsNorm(seg.code);
           if(!code) continue;
           const st = (seg.strands===1||seg.strands===2) ? seg.strands : null;
-          const info = bsInfo[code] || (bsInfo[code]={n:0, strands:new Set(), lc:null});
+          const info = bsInfo[code] || (bsInfo[code]={n:0, strands:new Set(), lc:null, lines:new Map()});
           info.n++;
           if(st) info.strands.add(st);
           if(!info.lc && isFinite(seg.r)) info.lc={r:seg.r, g:seg.g, b:seg.b};
+          if(isFinite(seg.r)){
+            const vk=seg.r+','+seg.g+','+seg.b+'|'+(st||0);
+            const v=info.lines.get(vk); if(v) v.n++; else info.lines.set(vk,{r:seg.r,g:seg.g,b:seg.b,strands:st,n:1});
+          }
         }
         let nrMax=idxList.length;
         for(const code in bsInfo){
           const info=bsInfo[code];
           const strandsArr=[...info.strands].sort();
+          const linesArr=[...info.lines.values()].sort((a,b)=>(a.strands||0)-(b.strands||0));
           const existing=byCode[code];
           if(existing){
             // thread already in the cross list (used for both) — tag it so it also
@@ -26416,13 +26565,14 @@ async function trkHandleChartOxs(file, preText){
             existing.back=info.n;
             if(strandsArr.length) existing.backStrands=strandsArr;
             if(info.lc) existing.lineColor=info.lc;
+            if(linesArr.length) existing.backLines=linesArr;   // v556: per-variant colours
           } else {
             // backstitch-only thread (no cross-stitches) — synthetic outline entry.
             const key='\u0002bs_'+code;
             if(bySymbol[key]) continue;
             bySymbol[key]={nr:++nrMax, symbol:key, code:code, stitches:0,
               back:info.n, backStrands:strandsArr.length?strandsArr:undefined,
-              lineColor:info.lc||undefined, backOnly:true};
+              lineColor:info.lc||undefined, backLines:linesArr.length?linesArr:undefined, backOnly:true};
             const lc=info.lc||{r:120,g:120,b:120};
             trackerColourMap[key]={r:lc.r, g:lc.g, b:lc.b, code:code, stitches:0, label:(code?('Luca-S '+code):'Backstitch')};
           }
@@ -26707,7 +26857,7 @@ async function trkHandleChartPat(file, preBuf){
     // Overlay data lives on trackerGrid; strands ride on the colour map entries.
     piList.forEach((pi)=>{ const s=symOf[pi]; if(map[s]) map[s].strands=d.palette[pi].strands||2; });
     trackerGrid.backstitch=(d.lines||[]).map(l=>{ const pe=d.palette[l.pi]||{};
-      return {x1:l.x1,y1:l.y1,x2:l.x2,y2:l.y2,r:pe.r||0,g:pe.g||0,b:pe.b||0,code:pe.code||''}; });
+      return {x1:l.x1,y1:l.y1,x2:l.x2,y2:l.y2,r:pe.r||0,g:pe.g||0,b:pe.b||0,code:pe.code||'',strands:pe.strands}; });
     trackerGrid.knotsList=(d.knots||[]).map(k=>{ const pe=d.palette[k.pi]||{};
       return {x:k.x,y:k.y,r:pe.r||0,g:pe.g||0,b:pe.b||0,code:pe.code||''}; });
     trackerActiveProjectKey=trkForcedKitKey()||trkUniqueLocalKey(file.name.replace(/[^a-zA-Z0-9]/g,'_'));
