@@ -2358,6 +2358,12 @@ var qrcode = function() {
   --sand:#F5F0E8;--ink:#2D2A35;--muted:#6B6578;--white:#fff;
   --sidebar:360px;--toolbar:150px;--right-panel:340px;
   --accent:#8B1A2B;
+  /* v550: bottom/top system-bar insets. Default to the CSS env() values so
+     nothing changes on devices (iOS, well-behaved Androids) where env() works.
+     On Android WebViews that report env()=0 despite a visible nav bar, an
+     app-only probe (setSysBarInsets) measures the real gap and raises these. */
+  --sa-bottom: env(safe-area-inset-bottom, 0px);
+  --sa-top: env(safe-area-inset-top, 0px);
 }
 html,body{height:100%;font-family:'DM Sans',sans-serif;background:#f5edee;color:var(--ink)}
 /* iOS status-bar scrim: with viewport-fit=cover the webview extends under the
@@ -3508,7 +3514,7 @@ body.dark #trk-minimap span{background:#221b2d}
    The chart takes the whole viewport and the controls float over it, so the
    stitcher sees as much of the pattern as the screen allows. */
 body.trk-fs #trk-workspace{position:fixed;inset:0;z-index:9400;background:#fff;margin:0;padding:0;overflow:hidden}
-body.trk-fs #trk-canvas-wrap{height:100dvh;border:none;border-radius:0;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body.trk-fs #trk-canvas-wrap{height:100dvh;border:none;border-radius:0;box-sizing:border-box;padding-top:var(--sa-top);padding-bottom:var(--sa-bottom)}
 /* A visible frame around the design so the edge of the chart is obvious against
    the fullscreen background. ~2mm ≈ 7.5px; using an inset outline on the canvas
    area so it sits on top of the content rather than being scrolled away. */
@@ -3529,7 +3535,7 @@ body.trk-fs #trk-fspanel #trk-zoomgroup{display:block!important}
 body.trk-fs #trk-main{display:block;height:100dvh}
 body.trk-fs #trk-fsbar{display:flex}
 body.trk-fs{overflow:hidden}
-#trk-fsbar{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:max(.7rem,env(safe-area-inset-bottom));
+#trk-fsbar{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:max(.7rem,var(--sa-bottom));
   z-index:9450;background:rgba(255,255,255,.97);border:1.5px solid #e6d9dd;border-radius:18px;max-width:calc(100vw - .8rem);
   box-shadow:0 8px 28px rgba(43,34,38,.2);padding:.45rem;gap:.25rem;backdrop-filter:blur(6px);transition:transform .28s ease,opacity .28s ease}
 /* #1: the floating control bar slides away when you scroll DOWN the pattern and
@@ -3565,7 +3571,7 @@ body.dark #trk-cb-viewtog{border-color:#4a3d55}
 body.dark #trk-cb-viewtog button{background:#221b2d;color:#b6abc2}
 #trk-cb-viewtog button.on{background:var(--lp-red,#8B1A2B);color:#fff}
 #trk-cb-close{border:none;background:none;cursor:pointer;font-size:1.5rem;line-height:1;color:var(--lp-muted,#7d6b72);padding:.1rem .38rem}
-#trk-cb-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:.55rem .6rem calc(.6rem + env(safe-area-inset-bottom,0px));
+#trk-cb-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:.55rem .6rem calc(.6rem + var(--sa-bottom));
   display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:.4rem;align-content:start}
 body.cb-list #trk-cb-body{display:flex;flex-direction:column;gap:2px}
 .cbchip .sycell,.cbrow .sycell{display:inline-flex;align-items:center;justify-content:center;background:#f2ece2;color:#241b1e;border-radius:5px;overflow:hidden;flex-shrink:0}
@@ -3600,7 +3606,7 @@ body.dark .cbrow.sel{background:#3a2130}
 body.dark #trk-fspanel{background:#171220;border-left-color:#37303f;color:#efe9f3}
 body.dark #trk-fspanel-head{background:#171220;border-bottom-color:#37303f;color:#efe9f3}
 body.dark #trk-fspanel-head button{color:#b6abc2}
-#trk-fspanel-body{padding:.7rem .9rem calc(1rem + env(safe-area-inset-bottom,0px))}
+#trk-fspanel-body{padding:.7rem .9rem calc(1rem + var(--sa-bottom))}
 /* v354: on MOBILE the settings/colours panel becomes a bottom sheet; desktop keeps
    the side panel above. */
 @media(max-width:820px){
@@ -4480,7 +4486,7 @@ body.dark .fabric-item.sel{background:rgba(255,255,255,.08);color:#f0b8c2}
 #toast{
   position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(20px);
   background:var(--ink);color:#fff;padding:.55rem 1.25rem;border-radius:8px;
-  font-size:.82rem;font-weight:500;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;z-index:999;
+  font-size:.82rem;font-weight:500;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;z-index:2147483000;
 }
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
@@ -5169,7 +5175,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v545';
+window.PATTERNLY_BUILD='v549';
 try{ console.log('%c[Patternly] editor build '+window.PATTERNLY_BUILD,'color:#2E7D32;font-weight:700'); }catch(e){}
 window.addEventListener('DOMContentLoaded',function(){
   try{ document.title = document.title + ' · '+window.PATTERNLY_BUILD; }catch(e){}
@@ -19444,33 +19450,41 @@ function trkDeleteProject(id, name){
     requireCheck:'Yes, permanently delete this pattern and its progress',
     confirmLabel:'Delete', danger:true,
     onConfirm(){
-      // Resolve the SAME account id used when pushing (stable syncId, or the old
-      // content-hash for migrated patterns) so the account copy is found and freed.
-      let syncId=null;
+      // Resolve EVERY id this pattern could be stored under on the account, so the
+      // delete can't miss the record (id schemes drifted across builds: a stable
+      // 'up_' id, an older content-hash, and a filename-derived bare id). We hand
+      // all of them to the confirmed delete, which also matches by name+dims.
+      const rec=(typeof trkIndex==='function'?trkIndex():[]).find(p=>p.id===id) || {};
+      const candIds=[];
+      try{ const a=trkAccountId(rec); if(a) candIds.push(a); }catch(e){}
+      try{ if(rec.syncId) candIds.push(rec.syncId); }catch(e){}
+      try{ const blob=trkBlobGet(id); if(blob) candIds.push(trkSyncIdFromBlob(blob, id)); }catch(e){}
+      try{ candIds.push(String(id).replace(/[^A-Za-z0-9_-]/g,'_').slice(0,64)); }catch(e){}
+      const meta={ name:name||rec.name||'', cols:rec.cols, rows:rec.rows };
+      // Tombstone as a BACKSTOP only (not the primary mechanism): if a delete is
+      // ever slow to propagate, other devices still prune their local card. The
+      // account delete below is what actually frees the slot.
       try{
-        const rec=(typeof trkIndex==='function'?trkIndex():[]).find(p=>p.id===id);
-        syncId=trkAccountId(rec);
-      }catch(e){}
-      // Tombstone the pattern's identity. The account id is a content hash that
-      // can drift from what was pushed, so the server delete below may miss a
-      // stale copy — which then RESURFACES as an "On your account" card the user
-      // just deleted. Suppress those cards locally by id and by name+size (the
-      // account keeps the backup; "Restore a backup" can still bring it back).
-      try{
-        const p=(typeof trkIndex==='function' ? trkIndex().find(x=>x.id===id) : null)||{};
         const tomb=JSON.parse(localStorage.getItem('patternly_trk_tombstones')||'[]');
-        tomb.push({syncId, name:name||p.name||'', cols:p.cols, rows:p.rows, ts:Date.now()});
+        candIds.forEach(sid=>tomb.push({syncId:sid, name:meta.name, cols:meta.cols, rows:meta.rows, ts:Date.now()}));
         localStorage.setItem('patternly_trk_tombstones', JSON.stringify(tomb.slice(-60)));
       }catch(e){}
+      // Remove locally right away for a responsive UI…
       trkBlobDel(id);
       localStorage.removeItem('patternly_tracker_'+id);
       trkIndexWrite(trkIndex().filter(p=>p.id!==id));
-      if(syncId && typeof trkUserPatternDelete==='function') trkUserPatternDelete(syncId);
-      // Legacy cleanup: entries synced before content-hash ids used a
-      // filename-derived id. Remove that too if present.
-      const bareId = String(id).replace(/[^A-Za-z0-9_-]/g,'_').slice(0,64);
-      if(bareId!==syncId && typeof trkUserPatternDelete==='function') trkUserPatternDelete(bareId);
       trkShowHome();
+      // …then delete from the ACCOUNT and CONFIRM it actually went. If the account
+      // still holds a copy (network hiccup, unexpected id), tell the user plainly
+      // rather than pretending it's gone — "once deleted, that's it" has to be real.
+      (async()=>{
+        try{
+          const res=await trkUserPatternDeleteConfirmed(candIds, meta);
+          if(res && res.cleaned===false && typeof toast==='function'){
+            toast('\u26a0 Couldn\u2019t confirm this was removed from your account \u2014 check your connection and try deleting again.');
+          }
+        }catch(e){}
+      })();
     }
   });
 }
@@ -20358,7 +20372,11 @@ function trkDeleteUserPattern(it, card){
     requireCheck:'Yes, remove it from my account',
     confirmLabel:'Remove', danger:true,
     async onConfirm(){
-      try{ await trkUserPatternDelete(it.id); }catch(e){}
+      // it.id is the server's actual stored id (from the account list), so this
+      // targets the right record. Use the confirmed delete so we verify it's gone
+      // rather than assuming — RULE #1: a delete must really be a delete.
+      let cleaned=true;
+      try{ const res=await trkUserPatternDeleteConfirmed([it.id], {name:it.name, cols:it.cols, rows:it.rows}); cleaned=!res||res.cleaned!==false; }catch(e){}
       // Also remove a matching local copy so the count and view stay in step.
       try{
         for(const p of trkIndex()){ if(!p.sku){ if(trkAccountId(p)===it.id){
@@ -20367,6 +20385,7 @@ function trkDeleteUserPattern(it, card){
             trkIndexWrite(trkIndex().filter(x=>x.id!==p.id));
           } } }
       }catch(e){}
+      if(!cleaned && typeof toast==='function') toast('\u26a0 Couldn\u2019t confirm removal from your account \u2014 check your connection and try again.');
       trkShowHome();
     }
   });
@@ -25567,7 +25586,46 @@ async function trkUserPatternFetchProgress(id){
   }catch(e){ return null; }
 }
 async function trkUserPatternDelete(id){
+  // Best-effort single-id delete (kept for callers that pass one known id).
   try{ await fetch(trkUserPatternUrl(id), {method:'DELETE', credentials:'include'}); }catch(e){}
+}
+// Authoritative delete: remove a pattern from the ACCOUNT for good and CONFIRM it.
+// RULE #1 — "once deleted, that's it." The old path guessed one id, fired a
+// fire-and-forget DELETE, and tombstoned locally to hide the card even if the
+// server kept the record (so it lingered on other devices and held a cap slot).
+// This instead (1) asks the server which stored ids actually match this pattern
+// — by every id candidate AND by name+dimensions — (2) deletes each, and (3)
+// re-lists to verify none remain, returning whether the account is truly clean.
+async function trkUserPatternDeleteConfirmed(candIds, meta){
+  const ids=new Set((candIds||[]).filter(Boolean).map(String));
+  const norm=s=>String(s||'').replace(/\s*\(\d+\)\s*$/,'').trim().toLowerCase();
+  // 1) find every server record that IS this pattern.
+  let listBefore=null;
+  try{ listBefore=await trkUserPatternList(); }catch(e){}
+  if(listBefore && Array.isArray(listBefore.items)){
+    for(const it of listBefore.items){
+      const sameId = ids.has(String(it.id));
+      const sameByMeta = meta && norm(meta.name)===norm(it.name) &&
+                         (meta.cols|0)===(it.cols|0) && (meta.rows|0)===(it.rows|0);
+      if(sameId || sameByMeta) ids.add(String(it.id));
+    }
+  }
+  if(!ids.size) return { ok:true, cleaned:true };   // nothing on the account to remove
+  // 2) delete each matching id and require a non-error response.
+  for(const one of ids){
+    try{ await fetch(trkUserPatternUrl(one), {method:'DELETE', credentials:'include', cache:'no-cache'}); }catch(e){}
+  }
+  // 3) verify: re-list and confirm none of the target ids (or the name+dims match)
+  // survive. Report the truth rather than assuming success.
+  let clean=true;
+  try{
+    const after=await trkUserPatternList();
+    if(after && Array.isArray(after.items)){
+      clean = !after.items.some(it=> ids.has(String(it.id)) ||
+        (meta && norm(meta.name)===norm(it.name) && (meta.cols|0)===(it.cols|0) && (meta.rows|0)===(it.rows|0)));
+    }
+  }catch(e){ clean=false; }
+  return { ok:true, cleaned:clean };
 }
 let _trkCapNoticeShown=false;
 function trkUserCapNotice(info){
@@ -26254,6 +26312,36 @@ async function trkHandleChartOxs(file, preText){
         if(bs.length){ trackerGrid.backstitch=bs; console.log('[tracker] '+bs.length+' backstitch segments imported'); }
       }
     }catch(e){ console.warn('[tracker] backstitch parse failed', e); }
+    // French knots — <object objecttype="knot"> ornaments written by the editor's
+    // own .ptly export AND the XSP converter (Tools v26+). The binary .pat path
+    // (trkHandleChartPat) already read these into knotsList; the XML path here did
+    // not, so knots from a converted .ptly were silently dropped on upload. This
+    // mirrors the backstitch block: read each knot's cell coords + palette colour
+    // into trackerGrid.knotsList, which the overlay renderer already draws (a
+    // filled dot in the thread colour). Display-only overlay — the positional
+    // progress bitmap (RULE #1) is untouched; knots are not progress cells.
+    try{
+      const knEls=doc.querySelectorAll('object');
+      if(knEls.length){
+        const kl=[];
+        knEls.forEach(el=>{
+          if((el.getAttribute('objecttype')||'').toLowerCase()!=='knot') return;
+          // Both the editor's own export and the XSP converter write knot coords
+          // in the renderer's own space: 0-based cell-fraction, centre = N+0.5
+          // (editor line ~14371 writes k.x directly; converter writes k.x+0.5).
+          // So do NOT apply the -1 shift used for full/part stitches. Accept the
+          // legacy x/y attribute name as well as x1/y1.
+          const rx=el.getAttribute('x1')!=null?el.getAttribute('x1'):el.getAttribute('x');
+          const ry=el.getAttribute('y1')!=null?el.getAttribute('y1'):el.getAttribute('y');
+          const x=parseFloat(rx), y=parseFloat(ry);
+          const pidx=+el.getAttribute('palindex');
+          const p=pal[pidx];
+          if(p && isFinite(x) && isFinite(y))
+            kl.push({x,y, r:p.r, g:p.g, b:p.b, code:p.number});
+        });
+        if(kl.length){ trackerGrid.knotsList=kl; console.log('[tracker] '+kl.length+' french knots imported'); }
+      }
+    }catch(e){ console.warn('[tracker] knot parse failed', e); }
     // Half stitches — <partstitch> records written by the converter (Tools v4+).
     // direction 1 = the "\" diagonal (TL+BR quadrants, mask 9); 2 = "/" (TR+BL,
     // mask 6). App-compat exports also carry these cells in <fullstitches>; the
@@ -28355,20 +28443,35 @@ function plLoginChoice(){
     // Apple HIG: the Apple option must not be less prominent than others — it goes first, full width, standard black.
     +'<button onclick="plAppleSignIn()" style="display:block;width:100%;background:#000;color:#fff;border:0;border-radius:12px;font-size:1rem;font-weight:600;padding:.9rem;margin-bottom:.6rem;cursor:pointer">\uF8FF Sign in with Apple</button>'
     +'<button onclick="window._plSkipAppleChoice=true;try{plLoginChoiceClose();acctOpenLogin();}finally{window._plSkipAppleChoice=false;}" style="display:block;width:100%;background:var(--lp-red,#8B1A2B);color:#fff;border:0;border-radius:12px;font-size:1rem;font-weight:600;padding:.9rem;cursor:pointer">Sign in with your Luca-S account</button>'
-    +'<p style="font-size:.72rem;color:#7d6b72;margin:.8rem 0 0;line-height:1.45">Kits bought on luca-s.com are linked to your order email — sign in with that address to see them.</p>'
+    +'<p style="font-size:.72rem;color:#8a6d1f;background:#fbf0d5;border-radius:9px;padding:.55rem .7rem;margin:.8rem 0 0;line-height:1.45"><b>Using Apple?</b> Choose \u201cShare My Email\u201d \u2014 if you pick \u201cHide My Email\u201d, we can\u2019t match your kits and purchases to your account.</p>'
     +'</div>';
   d.addEventListener('click', function(e){ if(e.target===d) plLoginChoiceClose(); });
   document.body.appendChild(d);
 }
 async function plAppleSignIn(){
+  plLoginChoiceClose();
   var P=window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SignInWithApple;
   if(!P || !P.authorize){ toast('Apple sign-in is not available in this build'); return; }
   var res;
-  try{ res=await P.authorize({ scopes:'email name' }); }
-  catch(e){ var m=String(e&&e.message||e||''); if(!/cancel/i.test(m)) toast('Apple sign-in didn\u2019t complete'); return; }
+  try{
+    // Watchdog: a Capacitor 7 plugin on a Capacitor 8 bridge can complete the
+    // native sheet yet never resolve the JS promise — which looks like "FaceID
+    // succeeded, then nothing". Surface that instead of hanging silently.
+    res=await Promise.race([
+      P.authorize({ scopes:'email name' }),
+      new Promise(function(_,rej){ setTimeout(function(){ rej(new Error('__pl_timeout')); }, 25000); })
+    ]);
+  }
+  catch(e){
+    var m=String(e&&e.message||e||'');
+    if(m==='__pl_timeout'){ toast('Apple approved, but the app never received the result (plugin bridge). Tell Cristian: AUTHORIZE-TIMEOUT'); return; }
+    if(!/cancel/i.test(m)) toast('Apple sign-in didn\u2019t complete: '+m.slice(0,80));
+    return;
+  }
+  if(!res){ toast('Apple sign-in: empty result from plugin'); return; }
   var r=(res&&(res.response||res))||{};
   var idt=r.identityToken||r.identity_token;
-  if(!idt){ toast('Apple sign-in didn\u2019t complete (no token)'); return; }
+  if(!idt){ toast('Apple sign-in: no identity token in result (keys: '+Object.keys(r).join(',').slice(0,90)+')'); return; }
   try{
     var base=(window.PATTERNLY_API_BASE||'/apps/patternly');
     var body='identity_token='+encodeURIComponent(idt)
@@ -28376,7 +28479,7 @@ async function plAppleSignIn(){
            +'&last_name='+encodeURIComponent(r.familyName||'');
     var resp=await fetch(base+'/auth/apple',{ method:'POST', headers:{'content-type':'application/x-www-form-urlencoded'}, body:body });
     var j=null; try{ j=await resp.json(); }catch(e){}
-    if(!j || !j.ok || !j.pl_session){ toast('Sign-in failed: '+((j&&j.msg)||('HTTP '+resp.status))); return; }
+    if(!j || !j.ok || !j.pl_session){ toast('Sign-in failed at server: '+((j&&j.msg)||('HTTP '+resp.status))+' \u2014 tell Cristian: SERVER-STEP'); return; }
     try{ localStorage.setItem('pl_session', j.pl_session); }catch(e){}
     plLoginChoiceClose();
     if(typeof acctRefresh==='function') await acctRefresh();
@@ -29985,6 +30088,66 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
     vp.setAttribute('content','width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, user-scalable=no');
   }catch(e){}
 })();
+// v550: measure the real bottom system-bar (Android nav) gap and publish it as
+// --sa-bottom. Some Android WebViews report env(safe-area-inset-bottom)=0 even
+// with a visible 3-button nav bar (seen on Samsung, vc4 + adjustMargins:force),
+// so the app menu renders UNDER the nav. We compare the true window height with
+// the height the page can actually use; the difference at the bottom is the nav
+// bar. Gesture-nav / no-bar phones measure ~0 and nothing moves. Re-runs on
+// rotate/resize so it self-corrects. App-only; the website is untouched.
+(function setSysBarInsets(){
+  try{
+    if(!(typeof plIsApp==='function' && plIsApp())) return;
+    var root=document.documentElement;
+    function envBottomPx(){
+      // read whatever env() currently resolves to, in px, via a probe element
+      try{
+        var p=document.createElement('div');
+        p.style.cssText='position:fixed;bottom:0;height:env(safe-area-inset-bottom,0px);width:0;visibility:hidden;pointer-events:none';
+        document.body.appendChild(p);
+        var h=p.getBoundingClientRect().height||0;
+        p.remove(); return h;
+      }catch(e){ return 0; }
+    }
+    function measure(){
+      try{
+        // window.screen gives the full display; the visual viewport gives the
+        // area the page can paint. innerHeight excludes the nav bar on Android.
+        var vv=window.visualViewport;
+        var visible=(vv&&vv.height)?vv.height:window.innerHeight;
+        // client height of the layout viewport (also excludes system bars)
+        var full=window.innerHeight||visible;
+        // The bottom gap: prefer the largest trustworthy signal.
+        // 1) env() if the WebView populates it, 2) screen-vs-window delta.
+        var envB=envBottomPx();
+        var screenH=(window.screen&&window.screen.height)?window.screen.height*(window.devicePixelRatio?1:1):0;
+        var delta=0;
+        try{
+          // outerHeight-innerHeight can include the address bar on web, but in a
+          // Capacitor WebView (no chrome) the residual bottom is the nav bar.
+          if(window.outerHeight && window.innerHeight)
+            delta=Math.max(0, Math.round((window.outerHeight-window.innerHeight)));
+        }catch(e){}
+        // Clamp: a real Android nav bar is ~24–56dp; ignore absurd values that
+        // usually mean the keyboard is open or a transient layout.
+        if(delta>90) delta=0;
+        var px=Math.max(envB, delta);
+        // Only override when we actually found a bar; otherwise keep env() default
+        if(px>2){ root.style.setProperty('--sa-bottom', px+'px'); }
+        else { root.style.removeProperty('--sa-bottom'); }  // fall back to :root env() default
+      }catch(e){}
+    }
+    measure();
+    // re-measure after layout settles and on any viewport change
+    setTimeout(measure, 300); setTimeout(measure, 1200);
+    window.addEventListener('resize', measure, {passive:true});
+    if(window.visualViewport){
+      window.visualViewport.addEventListener('resize', measure, {passive:true});
+      window.visualViewport.addEventListener('scroll', measure, {passive:true});
+    }
+    window.addEventListener('orientationchange', function(){ setTimeout(measure,250); });
+  }catch(e){}
+})();
 // MutationObserver so external navigations stay in sync. Hidden on the editing
 // canvas (app-mode), which has its own toolbars.
 (function ptlyAppNav(){
@@ -30032,20 +30195,20 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
     try{ if(typeof rcConfigure==='function') rcConfigure(); }catch(e){}
 
     var css = ''
-      + 'body.ptly-appui{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}'
+      + 'body.ptly-appui{padding-bottom:calc(88px + var(--sa-bottom))}'
       + 'body.ptly-appui.app-mode{padding-bottom:0}'
       + '#ptly-appnav{position:fixed;left:0;right:0;bottom:0;z-index:8000;background:#fff;'
       + 'border-top:1px solid rgba(0,0,0,.08);box-shadow:0 -1px 14px rgba(0,0,0,.07);'
-      + 'padding-bottom:env(safe-area-inset-bottom,0px);transition:transform .32s cubic-bezier(.4,0,.2,1)}'
+      + 'padding-bottom:var(--sa-bottom);transition:transform .32s cubic-bezier(.4,0,.2,1)}'
       + 'body.appnav-hidden #ptly-appnav{transform:translateY(115%)}'
       + 'body.dark #ptly-appnav{background:#241b1e;border-top-color:rgba(255,255,255,.10)}'
       // v342: the 4-tab nav used to be hidden in the editor (app-mode). Show it there
       // too, and lift the editor's floating tools above it so nothing overlaps.
       // Scoped to mobile widths (where the tools are bottom-pinned).
       + '@media(max-width:820px){'
-      +   'body.ptly-appui #quick-bar{bottom:calc(58px + env(safe-area-inset-bottom,0px) + 10px)!important}'
-      +   'body.ptly-appui #qb-left-btn,body.ptly-appui #qb-right-btn{bottom:calc(58px + env(safe-area-inset-bottom,0px) + 12px)!important}'
-      +   'body.ptly-appui .pj-selbar{bottom:calc(58px + env(safe-area-inset-bottom,0px) + 12px)}'
+      +   'body.ptly-appui #quick-bar{bottom:calc(58px + var(--sa-bottom) + 10px)!important}'
+      +   'body.ptly-appui #qb-left-btn,body.ptly-appui #qb-right-btn{bottom:calc(58px + var(--sa-bottom) + 12px)!important}'
+      +   'body.ptly-appui .pj-selbar{bottom:calc(58px + var(--sa-bottom) + 12px)}'
       + '}'
       + '#ptly-appnav .pn-row{display:flex}'
       + '#ptly-appnav button{flex:1;background:none;border:0;cursor:pointer;padding:.5rem 0 .45rem;'
@@ -30117,7 +30280,7 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       + 'body.app-mode #ptly-appnav{transform:translateY(120%)!important}'
       + 'body.app-mode.ednav #ptly-appnav{transform:translateY(0)!important}'
       + 'body.app-mode.ednav #quick-bar,body.app-mode.ednav #qb-left-btn,body.app-mode.ednav #qb-right-btn,body.app-mode.ednav .pj-selbar{display:none!important}'
-      + 'body.app-mode #quick-bar,body.app-mode #qb-left-btn,body.app-mode #qb-right-btn,body.app-mode .pj-selbar{bottom:calc(env(safe-area-inset-bottom,0px) + 12px)!important}'
+      + 'body.app-mode #quick-bar,body.app-mode #qb-left-btn,body.app-mode #qb-right-btn,body.app-mode .pj-selbar{bottom:calc(var(--sa-bottom) + 12px)!important}'
       + 'body.ptly-appui #tb-nav{display:none!important}'
       + 'body.ptly-appui #tb-menu-btn{display:inline-flex!important}'
       + '@keyframes ptly-sw{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}';
