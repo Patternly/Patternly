@@ -19199,6 +19199,54 @@ async function trkCheckStillOwned(id){
   trkShowHome();
   return false;
 }
+// Recover a chart whose LOCAL copy is missing on this device — created on another
+// device, or pruned locally after a sync. The data still lives on the server, so we
+// fetch it and open, instead of dead-ending with "not found". READ-PATH ONLY: this
+// never calls any push / pull-write / delete / prune, so account sync is untouched
+// (RULE #1). Returns a blob string to open normally, '__opened__' when it already
+// opened the workspace itself (kit path), or null when there is nothing to recover.
+async function trkRecoverMissingBlob(id){
+  const rec=(trkIndex().find(p=>p.id===id))||{};
+  // 1) Luca-S kit — re-download the chart from the catalogue by SKU and open it
+  //    through the SAME proven path a fresh kit-open uses. A bought kit's chart is
+  //    always on the server, so this recovers it on any device, silently.
+  if(rec.sku){
+    try{
+      if(!trkKitList){ try{ await trkKitsLoad(true); }catch(e){} }
+      const kit=(trkKitList||[]).find(k=>String(k.sku||'').toUpperCase()===String(rec.sku).toUpperCase());
+      if(kit){
+        await trkOpenKit(kit);
+        const ws=document.getElementById('trk-workspace');
+        if(ws && ws.style.display!=='none') return '__opened__';
+        return null;   // trkOpenKit surfaced its own gate/error message
+      }
+    }catch(e){ console.warn('[trk] kit recover failed', e); }
+    if(typeof toast==='function') toast('Couldn\u2019t re-download this kit \u2014 check your connection and try again.');
+    return null;
+  }
+  // 2) Uploaded pattern — pull the chart blob from the account (the SAME fetch the
+  //    "Continue on this device" action uses) and store it locally under this id.
+  const aid=(typeof trkAccountId==='function') ? trkAccountId(rec) : (rec.syncId||null);
+  if(aid){
+    let blob=null;
+    try{ blob=await trkUserPatternFetch(aid); }catch(e){ console.warn('[trk] upload recover fetch failed', e); }
+    let parsed=null; if(blob){ try{ parsed=JSON.parse(blob); }catch(e){} }
+    if(parsed && parsed.legend && typeof parsed.cells==='string' && parsed.cols && parsed.rows){
+      try{ trkBlobSet(id, blob); }catch(e){ console.warn('[trk] upload recover store failed', e); }
+      // Bring the saved stitched marks down too, so it opens at real progress.
+      try{
+        const prog=await trkUserPatternFetchProgress(aid);
+        if(prog && typeof prog==='string' && prog.indexOf('|')>=0){
+          localStorage.setItem('patternly_tracker_'+id, JSON.stringify({cols:rec.cols, rows:rec.rows, data:prog}));
+        }
+      }catch(e){}
+      return blob;   // caller opens it via the normal path below
+    }
+  }
+  // 3) Nothing to recover from (never synced, or offline). Be honest, not alarming.
+  if(typeof toast==='function') toast('This pattern\u2019s chart isn\u2019t on this device yet \u2014 open it once on the device you made it on, or use Back up / Restore to bring it here.');
+  return null;
+}
 async function trkOpenProject(id){
   // Ownership first: a cached kit that has been refunded should not open.
   if(!(await trkCheckStillOwned(id))) return;
@@ -19206,8 +19254,14 @@ async function trkOpenProject(id){
   // reading, or a pattern would look "not found" on a fresh page load.
   await trkBlobHydrate();
   try{
-    const raw=trkBlobGet(id);
-    if(!raw){ toast('Saved pattern not found'); return; }
+    let raw=trkBlobGet(id);
+    if(!raw){
+      // Local chart missing on this device — recover it from the server rather
+      // than dead-ending. (Kit path opens the workspace itself.)
+      raw=await trkRecoverMissingBlob(id);
+      if(raw==='__opened__') return;
+      if(!raw) return;   // recovery already showed a precise message
+    }
     const s=JSON.parse(raw);
     trackerActiveProjectKey=id;
     trackerProjectName=(trkIndex().find(p=>p.id===id)||{}).name||id;
