@@ -5175,7 +5175,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v574';
+window.PATTERNLY_BUILD='v577';
 try{ console.log('%c[Patternly] editor build '+window.PATTERNLY_BUILD,'color:#2E7D32;font-weight:700'); }catch(e){}
 window.addEventListener('DOMContentLoaded',function(){
   try{ document.title = document.title + ' · '+window.PATTERNLY_BUILD; }catch(e){}
@@ -9941,6 +9941,7 @@ function render() {
   }
   // Post-render hooks
   if(typeof window._rulerPostRender === 'function') window._rulerPostRender();
+  if(typeof drawBrushSizeOverlay === 'function') drawBrushSizeOverlay();
   if(typeof drawShapeOverlay === 'function') drawShapeOverlay();
   if(typeof drawTextOverlay === 'function') drawTextOverlay();
   if(typeof drawCcMaskOverlay === 'function') drawCcMaskOverlay();
@@ -11470,6 +11471,7 @@ function lyBlockIfLocked(){
   return false;
 }
 canvas.addEventListener('mousedown',e=>{
+  if(e.button===2) return;   // right button = quick-draw, handled below
   if(activeTool==='pan'){
     panState={startX:e.clientX,startY:e.clientY,scrollLeft:canvasArea.scrollLeft,scrollTop:canvasArea.scrollTop};
     return;
@@ -11486,6 +11488,54 @@ canvas.addEventListener('mousemove',e=>{
   moveInteraction(e);
 });
 canvas.addEventListener('mouseup',e=>{panState=null;endInteraction(e);});
+
+// ── Right-click quick-erase: from ANY tool, the right mouse button erases
+// at the current Size (and drags like the eraser) — stitches and lines alike.
+// Registered before the select/shape/text handlers in source order, so the
+// temporary tool switch makes those handlers skip the event naturally.
+let rbActive=false, rbPrevTool=null;
+canvas.addEventListener('contextmenu', e=>e.preventDefault());
+canvas.addEventListener('mousedown', e=>{
+  if(e.button!==2) return;
+  e.preventDefault();
+  if(lyBlockIfLocked()) return;
+  rbActive=true; rbPrevTool=activeTool; activeTool='erase';
+  startInteraction(e);
+});
+document.addEventListener('mouseup', e=>{
+  if(!rbActive) return;
+  endInteraction(e);
+  activeTool=rbPrevTool; rbPrevTool=null; rbActive=false;
+});
+
+// ── Brush footprint preview: while the Brush tool is active, the circle it
+// will cover (its radius, from the Size slider) follows the cursor —
+// maroon in Colour mode, red in Erase mode (Stitchmate-style).
+let _dsHover=null, _dsRafPending=false;
+canvas.addEventListener('mousemove', e=>{
+  if(activeTool!=='brush'){ if(_dsHover){ _dsHover=null; render(); } return; }
+  const cell=cellAt(e);
+  if(!cell){ if(_dsHover){ _dsHover=null; render(); } return; }
+  if(_dsHover && _dsHover.r===cell.r && _dsHover.c===cell.c) return;
+  _dsHover=cell;
+  if(!_dsRafPending){ _dsRafPending=true; requestAnimationFrame(()=>{ _dsRafPending=false; render(); }); }
+});
+canvas.addEventListener('mouseleave', ()=>{ if(_dsHover){ _dsHover=null; render(); } });
+function drawBrushSizeOverlay(){
+  if(!_dsHover) return;
+  if(activeTool!=='brush') return;
+  const rad=((window._brushRadius||2)+0.5)*CELL;
+  const cx=(_dsHover.c+0.5)*CELL, cy=(_dsHover.r+0.5)*CELL;
+  const erase = window._brushMode==='erase';
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx,cy,rad,0,6.2832);
+  ctx.fillStyle = erase ? 'rgba(220,80,80,0.16)' : 'rgba(139,26,43,0.14)';
+  ctx.fill();
+  ctx.lineWidth=Math.max(1,CELL*0.06);
+  ctx.strokeStyle = erase ? 'rgba(194,58,58,0.85)' : 'rgba(139,26,43,0.85)';
+  ctx.stroke();
+  ctx.restore();
+}
 canvas.addEventListener('mouseleave',()=>{isDrawing=false;bsStart=null;panState=null;});
 canvas.addEventListener('touchstart',e=>{
   if(activeTool==='pan')return;
@@ -16594,7 +16644,8 @@ function pjApplySettings(saved){
   if(typeof s.activeColorIdx==='number' && workingPalette.has(s.activeColorIdx) && typeof setActiveColor==='function'){ try{ setActiveColor(s.activeColorIdx); }catch(e){} }
   // Zoom + view mode (each triggers its own re-render at correct scale)
   if(typeof s.zoomIdx==='number' && s.zoomIdx>=0 && s.zoomIdx<zoomLevels.length){ zoomIdx=s.zoomIdx; applyZoom(); }
-  if(s.extViewMode && typeof setExtViewMode==='function'){ try{ setExtViewMode(s.extViewMode); }catch(e){} }
+  // extViewMode intentionally NOT restored: the editor always opens in the
+  // Realistic view (product default); switch views freely after loading.
   // Active tool last — re-opens the right contextual sections
   if(s.activeTool && typeof setActiveTool==='function'){ try{ setActiveTool(s.activeTool); }catch(e){} }
   // ...but opening the editor shouldn't greet the user with the tool's side menu
