@@ -5175,7 +5175,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v573';
+window.PATTERNLY_BUILD='v574';
 try{ console.log('%c[Patternly] editor build '+window.PATTERNLY_BUILD,'color:#2E7D32;font-weight:700'); }catch(e){}
 window.addEventListener('DOMContentLoaded',function(){
   try{ document.title = document.title + ' · '+window.PATTERNLY_BUILD; }catch(e){}
@@ -31773,7 +31773,7 @@ document.querySelectorAll('#lp-nav a[href^="#"]').forEach(a=>{
    button / banner for that platform simply doesn't show.
    ios: full App Store URL, e.g. 'https://apps.apple.com/app/id6451234567'
    android: full Play URL or just the package name, e.g. 'com.lucas.patternly' */
-window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'', android:'com.lucas.patternly' };
+window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.com/app/id6795543177', android:'com.lucas.patternly' };
 (function(){
   var CFG=window.PATTERNLY_APP||{};
   var ua=navigator.userAgent||'';
