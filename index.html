@@ -4778,12 +4778,12 @@ body.dark .fabric-item.sel{background:rgba(255,255,255,.08);color:#f0b8c2}
 #tb-nav{display:flex;align-items:center;gap:1.3rem;justify-content:center;flex:1;min-width:0}
 #tb-nav > a, #tb-nav .lp-nav-dd > a{text-decoration:none;font-size:.85rem;color:var(--muted);font-weight:600;white-space:nowrap;transition:color .15s}
 #tb-nav > a:hover, #tb-nav .lp-nav-dd > a:hover{color:var(--accent)}
-@media(max-width:1180px){#tb-nav{gap:.85rem}#tb-nav > a,#tb-nav .lp-nav-dd > a{font-size:.78rem}}
+@media(max-width:1360px){#tb-nav{gap:.85rem}#tb-nav > a,#tb-nav .lp-nav-dd > a{font-size:.78rem}}
 /* Tablet band (iPads, small laptops): the editor topbar is control-dense, so
    page links step aside — they reach the same places from the drawer menu.
    Raised from 1440px, which hid the nav on ordinary laptops and made the
    editor look like a different site from every other page. */
-@media(max-width:1100px){#tb-nav > a, #tb-nav .lp-nav-dd{display:none}}
+@media(max-width:1600px){#tb-nav > a, #tb-nav .lp-nav-dd{display:none}}
 /* Must stay visible. overflow:hidden clipped the dropdown menus — they are
    absolutely positioned children — so Features and Calculators opened with
    zero height and looked dead. overflow-x:hidden is no use either: when one
@@ -4791,6 +4791,23 @@ body.dark .fabric-item.sel{background:rgba(255,255,255,.08);color:#f0b8c2}
    min-width:0 above is what keeps the nav from pushing the topbar wide. */
 #tb-nav{overflow:visible}
 @media(max-width:820px){#tb-nav{display:none}}
+/* v579 — the editor logo is a 1000x500 image shown at 140px tall (280px wide);
+   on windows narrower than a full desktop it crowded the centred #tb-nav, and
+   because that nav keeps overflow:visible for its dropdown menus the nowrap
+   links spilled over the logo and the action buttons. The 140px logo is
+   the space hog, so on all desktop widths we cap it to a normal header size
+   (and shorten the bar to match); once the window is too narrow to also hold
+   the full page nav we collapse those links into the same ☰
+   menu the site already uses. Scoped to pointer:fine + min-width:821 so mobile
+   (≤820, which reflows the bar) and coarse-pointer tablets keep their own
+   existing header rules untouched. */
+@media (pointer:fine) and (min-width:821px){
+  :root{ --toolbar:100px; }
+  .topbar-logo img{ height:56px !important; }
+}
+@media (pointer:fine) and (min-width:821px) and (max-width:1600px){
+  #tb-menu-btn{ display:inline-flex; }
+}
 
 /* ── EXPORT PANEL ── */
 #export-panel{
@@ -5175,7 +5192,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v577';
+window.PATTERNLY_BUILD='v590';
 try{ console.log('%c[Patternly] editor build '+window.PATTERNLY_BUILD,'color:#2E7D32;font-weight:700'); }catch(e){}
 window.addEventListener('DOMContentLoaded',function(){
   try{ document.title = document.title + ' · '+window.PATTERNLY_BUILD; }catch(e){}
@@ -5995,6 +6012,13 @@ document.addEventListener('DOMContentLoaded', function(){
             <span class="trk-group" id="trk-gridgroup" style="position:relative">
               <button id="trk-grid-btn" title="Grid settings">⚙</button>
               <div id="trk-grid-pop">
+                <!-- v588: the light-up toggle lives IN the shared popover, so the
+                     workspace ⚙ menu and the full-screen Settings (which borrows
+                     this same node) show the identical control. -->
+                <div id="tg-lightup-row" style="display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin:0 0 .55rem;padding:0 0 .55rem;border-bottom:1px solid var(--lp-border,#f0e6ea)">
+                  <span style="font-size:.72rem;font-weight:700;color:var(--lp-ink,#2b2226)">Light up completed stitches<span style="display:block;font-size:.64rem;font-weight:500;color:var(--lp-muted,#7d6b72);margin-top:.1rem">Finished stitches glow so your progress reads from a distance</span></span>
+                  <label class="trk-lu-switch"><input type="checkbox" id="tg-lightup"><span class="trk-lu-slider"></span></label>
+                </div>
                 <label class="tg-row"><span>Grid</span><input type="checkbox" id="tg-on" checked></label>
                 <label class="tg-row" id="tg-bs-row" style="display:none"><span>Backstitch</span><input type="checkbox" id="tg-bs" checked></label>
                 <label class="tg-row"><span>Centre lines</span><input type="checkbox" id="tg-centre"></label>
@@ -8907,6 +8931,7 @@ body.dark .ifsize-note,body.dark .ifsize-ttl{color:#a596ab}
               <option value="manual" data-i18n="pal.manual">Manual</option>
               <option value="color">By code</option>
               <option value="hue">By hue</option>
+              <option value="stitches">Stitches</option>
             </select>
           </div>
         </div>
@@ -14422,10 +14447,13 @@ function expBuildPdf(){
         pdf.setFont(undefined,'bold'); pdf.setFontSize(9); pdf.setTextColor(139,26,43);
         const _t1='Created with Patternly by Luca-S';
         pdf.text(_t1, _bx, _by-3.6, {align:'right'});
+        // Measure the credit line while its own font (bold, 9pt) is still active.
+        // Previously _tw was read after switching to the smaller line-2 font, so it
+        // came out ~25% too narrow and the heart was placed on top of the text. (v582)
+        const _tw = (pdf.getTextWidth ? pdf.getTextWidth(_t1) : 46);
         pdf.setFont(undefined,'normal'); pdf.setFontSize(6.8); pdf.setTextColor(150,135,142);
         pdf.text('Free cross stitch pattern editor \u00b7 luca-s.com/apps/patternly', _bx, _by, {align:'right'});
         try{
-          const _tw=pdf.getTextWidth ? pdf.getTextWidth(_t1) : 46;
           pdf.addImage(_lg, 'PNG', _bx-_tw-8.2, _by-8.6, 6.4, 5.5);
         }catch(_le){}
       }
@@ -15704,6 +15732,24 @@ function getSortedPaletteItems(){
         return ((h*60)+360)%360;
       }
       return toHue(a)-toHue(b);
+    });
+  }
+  if(wpSort === 'stitches'){
+    // Count stitches per colour from the flattened composite (what actually gets stitched).
+    const flat = lyFlatten();
+    const g = flat.grid;
+    const counts = new Map();
+    for(let r=0;r<g.length;r++){
+      const row=g[r]; if(!row) continue;
+      for(let c=0;c<row.length;c++){
+        const v=row[c];
+        if(v!==null && v!==undefined) counts.set(v,(counts.get(v)||0)+1);
+      }
+    }
+    return items.slice().sort((a,b)=>{
+      const na=counts.get(a)||0, nb=counts.get(b)||0;
+      if(nb!==na) return nb-na;   // most-stitched first
+      return colourShortCode(a).localeCompare(colourShortCode(b), undefined, {numeric:true});
     });
   }
   return items;
@@ -19804,6 +19850,10 @@ function trkDeleteProject(id, name){
       // Remove locally right away for a responsive UI…
       trkBlobDel(id);
       localStorage.removeItem('patternly_tracker_'+id);
+      // v587: deleting the pattern also forgets its one-time “check your pattern”
+      // notice, so re-uploading the same file counts as a brand-new pattern and
+      // shows the notice again.
+      try{ localStorage.removeItem('patternly_trk_checknotice_'+String(id).replace(/[^A-Za-z0-9_]/g,'_')); }catch(_e){}
       trkIndexWrite(trkIndex().filter(p=>p.id!==id));
       trkShowHome();
       // …then delete from the ACCOUNT and CONFIRM it actually went. If the account
@@ -20218,8 +20268,16 @@ function trkKitsRender(){
       (kit.image?`<img class="cat-thumb" src="${esc(trkKitImageUrl(kit))}" alt="" loading="lazy" style="width:100%;aspect-ratio:1;object-fit:cover;background:#f6f1f2">`
                 :`<div class="cat-thumb" style="width:100%;aspect-ratio:1;background:#f6f1f2"></div>`)+
       `<div class="cat-body" style="padding:.7rem .75rem"><div style="font-weight:700;font-size:.92rem;line-height:1.35">${esc(kit.title||kit.sku)}</div>`+
-      `<div style="font-size:.76rem;color:#6a626f;margin-top:.25rem">${esc(kit.sku)}${meta?' \u00b7 '+meta:''}</div></div>`;
+      `<div style="font-size:.76rem;color:#6a626f;margin-top:.25rem">${esc(kit.sku)}${meta?' \u00b7 '+meta:''}</div>`+
+      // v590: link to the kit's product page on luca-s.com. kits.json carries the
+      // exact URL (middleware v61+); older/fallback catalogues without it get a
+      // store search for the SKU, which lands on the same product.
+      `<button type="button" class="cat-buy" style="all:unset;box-sizing:border-box;cursor:pointer;display:inline-block;margin-top:.55rem;padding:.32rem .7rem;border:1.5px solid #e6d9dd;border-radius:999px;font-size:.74rem;font-weight:700;color:var(--lp-red,#8B1A2B);background:#fff">\ud83e\uddf5 Get this kit</button></div>`;
     card.onclick=()=>trkOpenKit(kit);
+    { const _b=card.querySelector('.cat-buy');
+      if(_b) _b.onclick=(e)=>{ e.stopPropagation();
+        const u = kit.url || ('https://luca-s.com/search?q='+encodeURIComponent(kit.sku||''));
+        try{ window.open(u,'_blank','noopener'); }catch(_e){ location.href=u; } }; }
     grid.appendChild(card);
   }
 }
@@ -20714,6 +20772,7 @@ function trkDeleteUserPattern(it, card){
         for(const p of trkIndex()){ if(!p.sku){ if(trkAccountId(p)===it.id){
             trkBlobDel(p.id);
             localStorage.removeItem('patternly_tracker_'+p.id);
+            try{ localStorage.removeItem('patternly_trk_checknotice_'+String(p.id).replace(/[^A-Za-z0-9_]/g,'_')); }catch(_e){}
             trkIndexWrite(trkIndex().filter(x=>x.id!==p.id));
           } } }
       }catch(e){}
@@ -23635,6 +23694,61 @@ function resolveTrackerColours(legend){
   return {map, missing};
 }
 
+
+// v586 — guess the legend's thread brand by how many of its codes resolve in
+// each brand's table. No printed swatch RGB is available, so this is a
+// code-coverage signal only; callers gate on a clear margin before acting.
+function trkDetectLegendBrand(legend){
+  if(!legend || !legend.bySymbol) return null;
+  const brands=['lucas','dmc','anchor'];
+  const codes=[];
+  for(const sym in legend.bySymbol){
+    const e=legend.bySymbol[sym];
+    if(e.blend) continue;                 // blends split into components — skip for a clean signal
+    const c=(e.code||'').trim();
+    if(c && c!=='\u2014') codes.push(c);
+  }
+  const total=codes.length;
+  if(total<5) return null;                // too few to judge
+  const frac={};
+  for(const br of brands){
+    let ok=0;
+    for(const c of codes){ try{ if(trkFindBrandCode(br,c)) ok++; }catch(_e){} }
+    frac[br]=ok/total;
+  }
+  let best=brands[0];
+  for(const br of brands){ if(frac[br]>frac[best]) best=br; }
+  return {brand:best, frac, total};
+}
+
+// v586 — ask the user which brand a legend really is, when their dropdown choice
+// fits the codes poorly and another brand fits clearly better. Resolves to the
+// chosen brand id (unchanged if the user keeps theirs). Purely a colour-resolution
+// step — never touches the grid, progress or sync.
+function trkConfirmLegendBrand(chosen, det){
+  return new Promise(function(resolve){
+    const NAMES={lucas:'Luca-S', dmc:'DMC', anchor:'Anchor'};
+    const pct=function(b){ return Math.round((det.frac[b]||0)*100); };
+    document.querySelectorAll('#trk-brandconfirm').forEach(function(el){ el.remove(); });
+    const wrap=document.createElement('div'); wrap.id='trk-brandconfirm';
+    wrap.style.cssText='position:fixed;inset:0;z-index:10062;background:rgba(40,25,32,.45);display:flex;align-items:center;justify-content:center;padding:1rem';
+    const box=document.createElement('div');
+    box.style.cssText='background:#fff;border-radius:14px;max-width:420px;width:100%;padding:1.15rem 1.2rem;box-shadow:0 12px 40px rgba(0,0,0,.25);font-size:.9rem;color:#43303a';
+    box.innerHTML='<h3 style="margin:.1rem 0 .5rem;font-size:1.05rem">Is this a '+NAMES[det.brand]+' legend?</h3>'
+      +'<p style="margin:.2rem 0 .9rem;font-size:.85rem;line-height:1.5;color:#5c4b53">You picked <b>'+NAMES[chosen]+'</b>, but only '+pct(chosen)+'% of the codes match '+NAMES[chosen]+' \u2014 while '+pct(det.brand)+'% match <b>'+NAMES[det.brand]+'</b>. Getting the brand right is what maps each code to the correct colour. Which is it?</p>'
+      +'<div style="display:flex;gap:.5rem;justify-content:flex-end;flex-wrap:wrap">'
+      +'<button id="bc-keep" style="all:unset;cursor:pointer;padding:.55rem 1rem;border-radius:9px;border:1.5px solid #e6d9dd;color:#7d6b72;font-weight:700">Keep '+NAMES[chosen]+'</button>'
+      +'<button id="bc-use" style="all:unset;cursor:pointer;padding:.55rem 1.1rem;border-radius:9px;background:#8e2f45;color:#fff;font-weight:700">Use '+NAMES[det.brand]+'</button>'
+      +'</div>';
+    wrap.appendChild(box); document.body.appendChild(wrap);
+    let done=false;
+    const finish=function(v){ if(done) return; done=true; wrap.remove(); resolve(v); };
+    box.querySelector('#bc-keep').onclick=function(){ finish(chosen); };
+    box.querySelector('#bc-use').onclick=function(){ finish(det.brand); };
+    wrap.addEventListener('click', function(e){ if(e.target===wrap) finish(chosen); });
+  });
+}
+
 // ── Exactness verification: parsed grid vs the legend's declared stitch counts ──
 // Value of one cell: a whole cross is 1, a fractional stitch is its occupied
 // corners over four. Legends count fractionals this way, so verification,
@@ -23785,6 +23899,214 @@ function trkAskUnknownColours(){
       toast(applied+' colour'+(applied>1?'s':'')+' assigned');
       trkSaveProject();
       renderTracker(); updateTrackerProgressUI(); trackerShowVerification();
+    }
+  };
+}
+
+
+// v584 — one-time "check your pattern" notice, shown ONLY on a fresh upload
+// (tryBuildTracker runs for uploads/manual/skip, never for a re-open). Gated by
+// a per-pattern localStorage flag so it never reappears when that upload is
+// reopened. `next` runs on dismiss (used to defer the unknown-colour prompt so
+// two modals don't stack). Returns true if it showed the modal.
+function trkUploadCheckNotice(next){
+  next = (typeof next==='function') ? next : function(){};
+  try{
+    if(trkCloudSku) return false;                                   // catalogue kits skip
+    if(!trackerActiveProjectKey || trackerActiveProjectKey==='default') return false;
+    var flagKey='patternly_trk_checknotice_'+String(trackerActiveProjectKey).replace(/[^A-Za-z0-9_]/g,'_');
+    try{ if(localStorage.getItem(flagKey)==='1') return false; }catch(_e){}
+    try{ localStorage.setItem(flagKey,'1'); }catch(_e){}
+  }catch(_e){ return false; }
+  document.querySelectorAll('#trk-check-notice').forEach(function(el){ el.remove(); });
+  var wrap=document.createElement('div'); wrap.id='trk-check-notice';
+  wrap.style.cssText='position:fixed;inset:0;z-index:10060;background:rgba(40,25,32,.45);display:flex;align-items:center;justify-content:center;padding:1rem';
+  var box=document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:14px;max-width:420px;width:100%;padding:1.15rem 1.2rem;box-shadow:0 12px 40px rgba(0,0,0,.25);font-size:.92rem;color:#43303a';
+  box.innerHTML='<h3 style="margin:.1rem 0 .5rem;font-size:1.05rem">Give your pattern a quick check \ud83e\uddf5</h3>'
+    +'<p style="margin:.2rem 0 1rem;font-size:.86rem;line-height:1.5;color:#5c4b53">Patternly reads uploaded charts automatically, so please look over the pattern before you start stitching. If a symbol\u2019s colour doesn\u2019t look right, you can enter the thread colour for each symbol yourself \u2014 your printed kit chart is always the final word.</p>'
+    +'<div style="display:flex;gap:.6rem;justify-content:flex-end;flex-wrap:wrap">'
+    +'<button id="trk-checknotice-manual" style="all:unset;cursor:pointer;padding:.55rem 1rem;border-radius:9px;border:1.5px solid #8e2f45;color:#8e2f45;font-weight:700">Enter colours manually</button>'
+    +'<button id="trk-checknotice-ok" style="all:unset;cursor:pointer;padding:.55rem 1.1rem;border-radius:9px;background:#8e2f45;color:#fff;font-weight:700">Got it, I\u2019ll check</button>'
+    +'</div>';
+  wrap.appendChild(box); document.body.appendChild(wrap);
+  var done=false;
+  var close=function(){ if(done) return; done=true; wrap.remove(); };
+  box.querySelector('#trk-checknotice-manual').onclick=function(){ close(); try{ trkOpenManualColours(); }catch(_e){ console.warn('[trk] manual colours failed', _e); } };
+  box.querySelector('#trk-checknotice-ok').onclick=function(){ close(); try{ next(); }catch(_e){} };
+  wrap.addEventListener('click', function(e){ if(e.target===wrap){ close(); try{ next(); }catch(_e){} } });
+  return true;
+}
+
+// v584 — workspace overlay to set/override the thread colour for EVERY symbol on
+// the chart. Modelled on trkAskUnknownColours (proven apply/persist path). Writes
+// to trackerColourMap and saves the project blob, so the mapping reloads when the
+// uploaded pattern is reopened. Preserves any stored per-colour metrage.
+function trkOpenManualColours(){
+  if(!trackerGrid || !trackerColourMap){ toast('Open a pattern first'); return; }
+  let brand=(trackerLegend&&trackerLegend.brand)||trkLegendBrand();
+  let name=TRK_BRAND_NAMES[brand]||'Luca-S';
+  var counts={};
+  for(var r=0;r<trackerGrid.cells.length;r++){ var row=trackerGrid.cells[r]; for(var c=0;c<row.length;c++){ var ch=row[c]; if(ch!==' ') counts[ch]=(counts[ch]||0)+1; } }
+  var syms=Object.keys(counts).filter(function(s){ return trackerColourMap[s]; }).sort(function(a,b){ return counts[b]-counts[a]; });
+  if(!syms.length){ toast('No symbols to edit'); return; }
+  var escq=function(x){ return String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); };
+  var useFont = !!(trackerGrid.chartFont==='CrossStitch3' && trackerChartFontReady);
+  var symFont = useFont ? trkChartFontStack : "'CrossStitch3',monospace";
+  // v589: pending symbol renames (original -> chosen). Cells are remapped on Apply
+  // as ONE simultaneous permutation, so swapping two symbols is safe. The progress
+  // bitmap is positional (RULE #1) and is never touched by a rename.
+  var symPend={};
+  document.querySelectorAll('#trk-editcol-modal').forEach(function(el){ el.remove(); });
+  document.querySelectorAll('#trk-editcol-sympick, #trk-editcol-sympick-bd').forEach(function(el){ el.remove(); });
+  var wrap=document.createElement('div'); wrap.id='trk-editcol-modal';
+  wrap.style.cssText='position:fixed;inset:0;z-index:10061;background:rgba(40,25,32,.45);display:flex;align-items:center;justify-content:center;padding:1rem';
+  var box=document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:14px;max-width:460px;width:100%;max-height:84vh;overflow:hidden;display:flex;flex-direction:column;padding:0;box-shadow:0 12px 40px rgba(0,0,0,.25);font-size:.9rem;color:#43303a';
+  var rowsHtml='';
+  syms.forEach(function(sym){
+    var cur=trackerColourMap[sym]||{};
+    var pre=(cur.code && cur.code!=='\u2014' && !/^unassigned$/i.test(String(cur.code))) ? String(cur.code) : '';
+    var swbg='rgb('+(cur.r!=null?cur.r:242)+','+(cur.g!=null?cur.g:242)+','+(cur.b!=null?cur.b:242)+')';
+    rowsHtml+='<div style="display:flex;align-items:center;gap:.6rem;margin:.45rem 0">'
+      +'<button type="button" class="editcol-symbtn" data-sym0="'+escq(sym)+'" title="Tap to change this symbol" style="width:30px;height:30px;flex:none;display:inline-flex;align-items:center;justify-content:center;border:1px solid #ddc9ce;border-radius:6px;background:#fff;cursor:pointer;font-family:'+symFont.replace(/"/g,'&quot;')+';font-size:19px;padding:0;color:#000">'+escq(sym)+'</button>'
+      +'<span style="flex:none;font-size:.72rem;color:#7d6b72;width:66px">'+(counts[sym]||0).toLocaleString()+' st</span>'
+      +'<input class="editcol-in" data-sym="'+escq(sym)+'" placeholder="thread no. or Black/White" value="'+escq(pre)+'" style="flex:1;min-width:0;padding:.4rem .55rem;border:1.5px solid #ddc9ce;border-radius:8px;font-size:.88rem">'
+      +'<span class="editcol-sw" style="width:20px;height:20px;flex:none;border-radius:5px;border:1px solid #ccc;background:'+swbg+'"></span>'
+      +'</div>';
+  });
+  box.innerHTML='<div style="overflow:auto;flex:1 1 auto;min-height:0;padding:1rem 1.1rem .5rem">'
+    +'<h3 style="margin:.1rem 0 .4rem;font-size:1.02rem">Enter a colour for each symbol</h3>'
+    +'<p style="margin:.2rem 0 .5rem;font-size:.8rem;color:#7d6b72">Type the thread number for each symbol from your printed legend \u2014 names like \u201cBlack\u201d or \u201cwhite\u201d work in any capitalisation. Leave a row blank to keep its current colour. Tap a symbol to change which glyph it shows.</p>'
+    +'<div style="display:flex;align-items:center;gap:.4rem;margin:.1rem 0 .5rem;font-size:.74rem;color:#7d6b72"><span style="font-weight:700">Thread brand</span>'
+      +'<div id="editcol-brands" style="display:flex;gap:.35rem;flex-wrap:wrap">'
+        +'<button data-k="lucas">Luca-S</button><button data-k="dmc">DMC</button><button data-k="anchor">Anchor</button>'
+      +'</div></div>'
+    +rowsHtml
+    +'</div>'
+    +'<div style="flex:none;display:flex;gap:.6rem;justify-content:flex-end;padding:.7rem 1.1rem;border-top:1px solid #efe0e2;background:#fff;border-radius:0 0 14px 14px">'
+    +'<button id="editcol-cancel" style="all:unset;cursor:pointer;padding:.5rem .9rem;border-radius:9px;color:#7d6b72;font-weight:600">Cancel</button>'
+    +'<button id="editcol-apply" style="all:unset;cursor:pointer;padding:.5rem 1rem;border-radius:9px;background:#8e2f45;color:#fff;font-weight:700">Apply</button></div>';
+  wrap.appendChild(box); document.body.appendChild(wrap);
+  var resolve=function(code){ var cc=String(code||'').trim(); return cc?trkFindBrandCode(brand,cc):null; };
+  (function(){
+    var bBtns=[].slice.call(box.querySelectorAll('#editcol-brands button'));
+    var paint=function(){ bBtns.forEach(function(x){ var on=x.dataset.k===brand; x.style.cssText='border:1.5px solid '+(on?'#8e2f45':'#e6d9dd')+';background:'+(on?'#fbeef1':'#fff')+';border-radius:8px;padding:.28rem .6rem;font-size:.72rem;font-weight:700;color:'+(on?'#8e2f45':'#7d6b72')+';cursor:pointer;font-family:inherit'; }); };
+    bBtns.forEach(function(b){ b.onclick=function(){ brand=b.dataset.k; name=TRK_BRAND_NAMES[brand]||'Luca-S'; paint(); box.querySelectorAll('.editcol-in').forEach(function(inp){ refresh(inp); }); }; });
+    paint();
+  })();
+  var refresh=function(inp){ var f=resolve(inp.value); var sw=inp.nextElementSibling;
+    if(inp.value.trim()) sw.style.background=f?('rgb('+f.r+','+f.g+','+f.b+')'):'#f2f2f2';
+    inp.style.borderColor=(inp.value.trim() && !f)?'#c94f4f':'#ddc9ce'; };
+  box.querySelectorAll('.editcol-in').forEach(function(inp){ inp.oninput=function(){ refresh(inp); }; });
+  // ── v589: symbol picker (mirrors the converter's floating .sympick) ──────────
+  var curSymOf=function(orig){ return (symPend[orig]!==undefined)?symPend[orig]:orig; };
+  var closePicker=function(){
+    var p=document.getElementById('trk-editcol-sympick'); if(p) p.remove();
+    var b=document.getElementById('trk-editcol-sympick-bd'); if(b) b.remove();
+  };
+  var paintSymBtns=function(){ box.querySelectorAll('.editcol-symbtn').forEach(function(b){
+    var orig=b.dataset.sym0, cur=curSymOf(orig), changed=cur!==orig;
+    b.textContent=cur;
+    b.style.background=changed?'#fff4e5':'#fff';
+    b.style.borderColor=changed?'#e0b070':'#ddc9ce';
+  }); };
+  var SYM_CHARSET=(function(){
+    var a=[],i;
+    for(i=33;i<=126;i++) a.push(String.fromCharCode(i));
+    for(i=161;i<=255;i++){ if(i===173) continue; a.push(String.fromCharCode(i)); }   // same Latin-1 range the converter's SYMCHAR maps
+    return a;
+  })();
+  var openPicker=function(btn){
+    closePicker();
+    var orig=btn.dataset.sym0;
+    var taken={}; syms.forEach(function(s0){ if(s0!==orig) taken[curSymOf(s0)]=1; });
+    var bd=document.createElement('div'); bd.id='trk-editcol-sympick-bd';
+    bd.style.cssText='position:fixed;inset:0;z-index:10070;background:rgba(20,10,15,.28)';
+    var p=document.createElement('div'); p.id='trk-editcol-sympick';
+    p.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10071;display:flex;flex-direction:column;gap:.5rem;width:340px;max-width:92vw;padding:.9rem;border:1.5px solid #e6d9dd;border-radius:12px;background:#fff;box-shadow:0 18px 60px rgba(30,10,15,.35)';
+    p.innerHTML='<div style="font-size:.8rem;font-weight:700;color:#43303a">Pick a symbol</div>'
+      +'<div style="font-size:.68rem;color:#7d6b72">Greyed symbols belong to another colour (picking one swaps only if you also change that colour\u2019s symbol). Pick the current symbol to undo.</div>';
+    var grid=document.createElement('div');
+    grid.style.cssText='display:flex;flex-wrap:wrap;gap:3px;max-height:46vh;overflow-y:auto';
+    SYM_CHARSET.forEach(function(g){
+      var b=document.createElement('button'); b.type='button'; b.textContent=g;
+      var inUse=!!taken[g], isCur=(g===curSymOf(orig));
+      b.style.cssText='font-family:'+symFont+';font-size:19px;width:30px;height:30px;padding:0;background:'+(inUse?'#f4eef0':'#fff')+';color:'+(inUse?'#b9a8ae':'#000')+';border:1px solid '+(isCur?'#8B1A2B':'#e6d9dd')+';border-radius:5px;cursor:pointer';
+      b.onclick=function(){
+        if(g===orig) delete symPend[orig]; else symPend[orig]=g;
+        paintSymBtns(); closePicker();
+      };
+      grid.appendChild(b);
+    });
+    p.appendChild(grid);
+    bd.onclick=closePicker;
+    document.body.appendChild(bd); document.body.appendChild(p);
+  };
+  box.querySelectorAll('.editcol-symbtn').forEach(function(b){ b.onclick=function(){ openPicker(b); }; });
+  box.querySelector('#editcol-cancel').onclick=function(){ closePicker(); wrap.remove(); };
+  box.querySelector('#editcol-apply').onclick=function(){
+    // ── symbol renames first: validate as ONE simultaneous permutation ───────
+    var renames={}, nRen=0;
+    for(var o in symPend){ if(symPend[o]!==o){ renames[o]=symPend[o]; nRen++; } }
+    if(nRen){
+      var tgt={}, conflict=null;
+      for(var o1 in renames){ var n1=renames[o1];
+        if(tgt[n1]){ conflict='Two colours can\u2019t share the symbol \u201c'+n1+'\u201d.'; break; } tgt[n1]=1; }
+      if(!conflict){
+        for(var o2 in renames){ var n2=renames[o2];
+          if(n2!==o2 && counts[n2]!==undefined && renames[n2]===undefined){ conflict='\u201c'+n2+'\u201d is already used by another colour.'; break; } }
+      }
+      if(conflict){ toast(conflict); return; }   // keep the editor open to fix it
+      var mapSym=function(v){ return (renames[v]!==undefined)?renames[v]:v; };
+      // Cells (and font cells) in one swap-safe pass. Positional structures —
+      // progress bitmap, halfCells, partMask — key on row:col and are untouched.
+      for(var r2=0;r2<trackerGrid.cells.length;r2++){ var row2=trackerGrid.cells[r2];
+        for(var c2=0;c2<row2.length;c2++){ var v2=row2[c2]; if(v2!==' ' && renames[v2]!==undefined) row2[c2]=renames[v2]; } }
+      if(trackerGrid.fontCells){
+        for(var r3=0;r3<trackerGrid.fontCells.length;r3++){ var row3=trackerGrid.fontCells[r3];
+          for(var c3=0;c3<row3.length;c3++){ var v3=row3[c3]; if(v3!==' ' && renames[v3]!==undefined) row3[c3]=renames[v3]; } }
+      }
+      var ncm={}; for(var k1 in trackerColourMap){ ncm[mapSym(k1)]=trackerColourMap[k1]; } trackerColourMap=ncm;
+      if(trackerLegend && trackerLegend.bySymbol){
+        var nbs={}; for(var k2 in trackerLegend.bySymbol){ var e2=trackerLegend.bySymbol[k2]; var nk=mapSym(k2); e2.symbol=nk; nbs[nk]=e2; }
+        trackerLegend.bySymbol=nbs;   // byCode holds the same entry objects, so it stays correct
+      }
+      for(var o3 in renames){
+        try{ if(trackerSprites && trackerSprites[o3]) delete trackerSprites[o3]; }catch(_e){}          // old glyph's crop no longer matches
+        try{ if(typeof trkFinalToRaw==='object' && trkFinalToRaw && trkFinalToRaw[o3]!==undefined) delete trkFinalToRaw[o3]; }catch(_e){}
+      }
+      try{ if(trackerGrid.chartFont==='CrossStitch3' && trackerChartFontReady && typeof trkComputeFontMissing==='function') trackerGrid.fontMissing=trkComputeFontMissing(trackerGrid); }catch(_e){}
+      try{ if(typeof trkSelClear==='function') trkSelClear(); }catch(_e){}
+      var nct={}; for(var k3 in counts){ nct[mapSym(k3)]=counts[k3]; } counts=nct;
+    }
+    // ── colours, keyed on the FINAL symbols ─────────────────────────────────
+    var applied=0;
+    box.querySelectorAll('.editcol-in').forEach(function(inp){
+      var code=inp.value.trim(); if(!code) return;
+      var f=resolve(code); if(!f) return;
+      var sym=inp.dataset.sym; if(nRen && renames[sym]!==undefined) sym=renames[sym];
+      var canon=f.label||code;
+      var prev=trackerColourMap[sym]||{};
+      var cnt=(prev.stitches!=null?prev.stitches:(counts[sym]||0));
+      var keepMetres=(prev.metres!=null && isFinite(prev.metres))?+prev.metres:null;
+      trkManualColsSave(sym, canon);   // no-op for uploads (keyed on SKU); project blob below is the source of truth
+      trackerColourMap[sym]={r:f.r,g:f.g,b:f.b,code:canon,stitches:cnt,label:name+' '+canon};
+      if(keepMetres!=null) trackerColourMap[sym].metres=keepMetres;
+      if(trackerLegend && trackerLegend.bySymbol){
+        if(trackerLegend.bySymbol[sym]) trackerLegend.bySymbol[sym].code=canon;
+        else trackerLegend.bySymbol[sym]={nr:Object.keys(trackerLegend.bySymbol).length+1, symbol:sym, code:canon, stitches:cnt, manual:true};
+        if(trackerLegend.byCode && !trackerLegend.byCode[canon]) trackerLegend.byCode[canon]=trackerLegend.bySymbol[sym];
+      }
+      applied++;
+    });
+    closePicker(); wrap.remove();
+    if(applied || nRen){
+      var msg=[]; if(applied) msg.push(applied+' colour'+(applied>1?'s':'')+' set');
+      if(nRen) msg.push(nRen+' symbol'+(nRen>1?'s':'')+' changed');
+      toast(msg.join(' \u00b7 '));
+      try{ trkSaveProject(); }catch(_e){}
+      try{ renderTracker(); updateTrackerProgressUI(); if(typeof trackerShowVerification==='function') trackerShowVerification(); }catch(_e){}
     }
   };
 }
@@ -24706,7 +25028,10 @@ async function tryBuildTracker(){
   trackerShowVerification();
   // v557: symbols the legend didn't provide a colour for — ask the user to type
   // the thread number for each, instead of leaving unallocated (white) cells.
-  try{ trkAskUnknownColours(); }catch(_e){ console.warn('unknown-colour prompt failed', _e); }
+  try{
+    if(!trkUploadCheckNotice(function(){ try{ trkAskUnknownColours(); }catch(_e){} }))
+      trkAskUnknownColours();   // notice already seen (or n/a) — go straight to the unknown-colour prompt
+  }catch(_e){ console.warn('unknown-colour prompt failed', _e); }
   trackerStitched = Array.from({length: trackerGrid.rows}, ()=>Array(trackerGrid.cols).fill(false));
   trkApplyViewAvail();
   trkSaveProject();
@@ -24787,11 +25112,14 @@ try{ trkLightUpOn = localStorage.getItem('patternly_trk_lightup')==='1'; }catch(
 function trkSetLightUp(on){
   trkLightUpOn=!!on;
   try{ localStorage.setItem('patternly_trk_lightup', on?'1':'0'); }catch(e){}
+  const _lu=document.getElementById('tg-lightup'); if(_lu && _lu.checked!==trkLightUpOn) _lu.checked=trkLightUpOn;
   if(typeof renderTracker==='function' && trackerGrid) renderTracker();
 }
 function renderTracker(){
   if(!trackerGrid) return;
-  const trkLightUpDraw = trkLightUpOn && document.body.classList.contains('trk-fs');
+  // v588: light-up applies in the normal view too — the toggle now lives in the
+  // shared ⚙ popover, so its effect must not be full-screen-only.
+  const trkLightUpDraw = trkLightUpOn;
   const vp=trkViewport();
   // Coordinate-ruler gutter: a fixed margin (px) reserved along the top and left
   // so the 10/20/30 numbers sit OUTSIDE the stitches, never on top of them. Width
@@ -24968,9 +25296,11 @@ function renderTracker(){
       if(stitched){
         if(ghost){ trkCtx.fillStyle='rgba(255,255,255,0.35)'; trkCtx.fillRect(x+1,y+1,cell-1,cell-1); continue; }
         if(trkLightUpDraw){
-          // Completed stitches fill the WHOLE cell bright red so worked areas
-          // read clearly from a distance; the symbol stays on top. (Default OFF.)
-          trkCtx.fillStyle='rgba(233,42,44,0.95)';
+          // Completed stitches fill the WHOLE cell in the ConfettiScope's neon
+          // magenta (#ff3df0) — a colour no real thread has, so worked areas pop
+          // against ANY pattern, including red-heavy ones where the old red fill
+          // disappeared. Single colour by design. Symbol stays on top. (v587)
+          trkCtx.fillStyle='rgba(255,61,240,0.95)';
           trkCtx.fillRect(x+1,y+1,cell-1,cell-1);
           // Keep the cell's symbol readable ON TOP when zoomed in (white glyph /
           // light sprite, since the red fill is dark).
@@ -25275,6 +25605,8 @@ document.getElementById('trk-grid-btn').addEventListener('click',function(){
   bw.addEventListener('input',()=>{ trkGridCfg.bw=+bw.value; lbl(); trkGridSave(); renderTracker(); });
   lw.addEventListener('input',()=>{ trkGridCfg.lw=+lw.value; lbl(); trkGridSave(); renderTracker(); });
   on.addEventListener('change',()=>{ trkGridCfg.on=on.checked; trkGridSave(); renderTracker(); });
+  { const lu=document.getElementById('tg-lightup');
+    if(lu){ lu.checked=trkLightUpOn; lu.addEventListener('change',()=>trkSetLightUp(lu.checked)); } }
   document.querySelectorAll('.tg-color-row').forEach(row=>{ const key=cfgKey(row.dataset.target);
     row.querySelectorAll('.tg-col').forEach(b=>b.addEventListener('click',()=>{ trkGridCfg[key]=b.dataset.c; syncCol(); trkGridSave(); renderTracker(); }));
     const ci=row.querySelector('.tg-colcustom'); if(ci) ci.addEventListener('input',()=>{ trkGridCfg[key]=ci.value; syncCol(); trkGridSave(); renderTracker(); });
@@ -25503,6 +25835,18 @@ function updateTrackerProgressUI(){
     try{ localStorage.setItem('patternly_trk_csort', sel.value); }catch(e){}
     updateTrackerProgressUI(); };
   sortRow.appendChild(sel);
+  // v585: uploads and backups (no catalogue SKU) can re-open the manual colour
+  // editor from here — the notice's “Enter colours manually” is otherwise one-shot.
+  // Hidden for Luca-S catalogue kits, whose colours come from the kit itself.
+  if(!trkCloudSku){
+    const edBtn=document.createElement('button');
+    edBtn.type='button'; edBtn.id='trk-editcolours';
+    edBtn.innerHTML='\u270e Edit';
+    edBtn.title='Set or change the thread colour for each symbol';
+    edBtn.style.cssText='flex:none;font-family:inherit;font-size:.66rem;font-weight:700;padding:.15rem .5rem;border:1px solid #e6d9dd;border-radius:6px;background:#fff;color:var(--lp-red,#8B1A2B);cursor:pointer';
+    edBtn.onclick=function(){ try{ trkOpenManualColours(); }catch(e){ console.warn('[trk] manual colours failed', e); } };
+    sortRow.appendChild(edBtn);
+  }
   list.appendChild(sortRow);
 
   const entries=Object.values(trackerLegend.bySymbol).slice().sort((a,b)=>{
@@ -25722,10 +26066,33 @@ function updateTrackerProgressUI(){
       cbody.appendChild(el);
     }
   })();
-  // Thread-length estimate: 2.5 cm of working thread per full cross at 14 ct,
-  // scaled by the kit's fabric count (same formula as the editor's estimator)
-  const trkMetrage = st => st*0.025*(14/((trackerLegend&&trackerLegend.fabricCount)||14));
+  // Thread-length estimate (metres of working floss per colour), calibrated to
+  // Luca-S real-world usage: metres of 2-strand floss per 1000 full crosses, by
+  // Aida/evenweave count. Values interpolated linearly for counts in between and
+  // clamped to the nearest listed count outside the range. (v583 — the previous
+  // 2.5 cm/stitch figure ran ~5x high.)
+  const TRK_M_PER_1000 = {14:5.0, 16:4.4, 18:3.9, 20:3.6, 25:2.9};
+  const trkMPerStitch = () => {
+    const c = (trackerLegend&&trackerLegend.fabricCount) || 14;
+    const T = TRK_M_PER_1000;
+    if(T[c]!=null) return T[c]/1000;
+    const ks = Object.keys(T).map(Number).sort((a,b)=>a-b);
+    if(c<=ks[0]) return T[ks[0]]/1000;
+    if(c>=ks[ks.length-1]) return T[ks[ks.length-1]]/1000;
+    for(let i=0;i<ks.length-1;i++){
+      if(c>ks[i] && c<ks[i+1]){ const a=ks[i],b=ks[i+1],f=(c-a)/(b-a); return (T[a]+(T[b]-T[a])*f)/1000; }
+    }
+    return T[14]/1000;
+  };
+  const trkMetrage = st => st * trkMPerStitch();
   const trkFmtM = m => m>=10 ? Math.round(m)+' m' : m>=1 ? m.toFixed(1)+' m' : Math.round(m*100)+' cm';
+  // v584: prefer the metrage stored in the pattern's .ptly (written by the
+  // generator, editable per colour); fall back to the per-count estimate.
+  const trkColMetres = (sym, stitches) => {
+    const c = trackerColourMap && trackerColourMap[sym];
+    if(c && isFinite(c.metres)) return +c.metres;
+    return trkMetrage(stitches||0);
+  };
   // header card: always the big symbol of the most-recently-tapped colour. When
   // several are selected, keep that big symbol and add a small "+N more", a row of
   // swatch dots, and the combined total — rather than a cluttered chip strip.
@@ -25742,10 +26109,10 @@ function updateTrackerProgressUI(){
       infoBot = `${(done[primary]||0).toLocaleString()} / ${(total[primary]||0).toLocaleString()} stitched`
         + ` · ${pcol.strands||2} strand${(pcol.strands||2)>1?'s':''}`
         + (pcol.half?' · half stitch':'')
-        + ` · ≈ ${trkFmtM(trkMetrage(total[primary]||0))}`;
+        + ` · ≈ ${trkFmtM(trkColMetres(primary, total[primary]||0))}`;
     } else {
       infoTop = `${(pcol.label||'Symbol').replace(/</g,'&lt;')} <span class="mm">+${selArr.length-1} more</span>`;
-      infoBot = `${selArr.length} colours · ${cd.toLocaleString()} / ${ct.toLocaleString()} · ≈ ${trkFmtM(trkMetrage(ct))}`;
+      infoBot = `${selArr.length} colours · ${cd.toLocaleString()} / ${ct.toLocaleString()} · ≈ ${trkFmtM(selArr.reduce((s2,sy)=>s2+trkColMetres(sy, total[sy]||0),0))}`;
       const MAXDOTS=8, shown=selArr.slice(0,MAXDOTS);
       swatches = `<div class="trk-selswatches">`+shown.map((s,i)=>{const c=trackerColourMap[s];return `<span class="sw" data-i="${i}" style="background:rgb(${c.r},${c.g},${c.b})" title="${(c.label||'').replace(/"/g,'&quot;').replace(/</g,'&lt;')} — tap to remove"></span>`;}).join('')+
         (selArr.length>MAXDOTS?`<span class="ovf">+${selArr.length-MAXDOTS}</span>`:'')+`</div>`;
@@ -26737,6 +27104,28 @@ async function trkHandleLegend(file){
     if(trackerLegend.stitchesSize) status += ` · ${trackerLegend.stitchesSize.w}×${trackerLegend.stitchesSize.h}`;
     if(resolved.missing.length){ status += ` · ⚠ ${resolved.missing.length} code(s) not in palette`; st.style.color='#b25f10'; }
     st.textContent = status;
+    // v586: brand sanity-check. If the user's dropdown brand resolves the codes
+    // poorly and another brand clearly fits better, confirm before continuing —
+    // wrong brand = every code maps to the wrong colour.
+    try{
+      const _chosen=trkLegendBrand();
+      const _det=trkDetectLegendBrand(trackerLegend);
+      if(_det && _det.brand!==_chosen){
+        const _cf=_det.frac[_chosen]||0, _bf=_det.frac[_det.brand]||0;
+        if(_bf>=0.85 && _cf<0.75 && (_bf-_cf)>=0.2){
+          const _pick=await trkConfirmLegendBrand(_chosen, _det);
+          if(_pick && _pick!==_chosen){
+            const _bsel=document.getElementById('trk-legend-brand'); if(_bsel) _bsel.value=_pick;
+            trackerLegend.brand=_pick;
+            const _r2=resolveTrackerColours(trackerLegend);
+            trackerColourMap=_r2.map;
+            let _s2=`✅ ${file.name} — ${trackerLegend.rowCount} colours · ${TRK_BRAND_NAMES[_pick]||_pick}`;
+            if(_r2.missing.length){ _s2+=` · ⚠ ${_r2.missing.length} code(s) not in palette`; st.style.color='#b25f10'; } else { st.style.color=''; }
+            st.textContent=_s2;
+          }
+        }
+      }
+    }catch(_e){ console.warn('[trk] brand detection failed', _e); }
     if(trackerLastChartFile && !trackerGrid) await trkHandleChart(trackerLastChartFile);
     else await tryBuildTracker();
   }catch(err){
@@ -26767,7 +27156,8 @@ async function trkHandleChartOxs(file, preText){
         name:p.getAttribute('name')||p.getAttribute('number')||('Colour '+idx),
         r:parseInt(hex.slice(0,2),16), g:parseInt(hex.slice(2,4),16), b:parseInt(hex.slice(4,6),16),
         strands:parseInt(p.getAttribute('strands'),10)||2,
-        half:(p.getAttribute('stitchtype')||'').toLowerCase()==='half'   // legend-only flag; no per-cell geometry
+        half:(p.getAttribute('stitchtype')||'').toLowerCase()==='half',   // legend-only flag; no per-cell geometry
+        metres:(function(){ const m=parseFloat(p.getAttribute('metres')); return isFinite(m)?m:null; })()   // v584: per-colour floss length written by the generator; overrides the estimate when present
       };
     });
     // symbols: prefer what the OXS itself declares (Editor handoff, other
@@ -26901,6 +27291,7 @@ async function trkHandleChartOxs(file, preText){
       const e={nr:i+1, symbol:s, code:p.number, stitches:counts[s]};
       bySymbol[s]=e; if(!byCode[p.number]) byCode[p.number]=e;
       map[s]={r:p.r,g:p.g,b:p.b, code:p.number, stitches:counts[s], label:p.name, strands:p.strands, half:p.half};
+      if(p.metres!=null) map[s].metres=p.metres;   // v584: stored floss length (from the .ptly), persisted with the project
     });
     // Backstitch → legend, so the "Backstitch / outline threads" reference section
     // shows for OXS/.ptly imports just like it does for PDF charts. The imported
@@ -29848,20 +30239,8 @@ function trkFsPanel(kind){
     const btn=document.getElementById('fsb-colours'); if(btn) btn.classList.add('active');
   } else if(kind==='settings'){
     title.textContent='Settings';
-    // Light-up toggle at the top of Settings (full-view only). Fresh node each
-    // open; remove any prior one first so it never stacks.
-    (function(){
-      var old=document.getElementById('trk-fs-lightup-wrap'); if(old) old.remove();
-      var w=document.createElement('div'); w.id='trk-fs-lightup-wrap';
-      w.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:.7rem;margin:0 0 .9rem;padding:0 0 .9rem;border-bottom:1px solid var(--lp-border,#f0e6ea)';
-      var lab=document.createElement('div');
-      lab.style.cssText='font-size:.82rem;font-weight:700;color:var(--lp-ink,#2b2226)';
-      lab.innerHTML='Light up completed stitches<div style=\'font-size:.68rem;font-weight:500;color:var(--lp-muted,#7d6b72);margin-top:.15rem\'>Finished stitches glow so your progress reads from a distance</div>';
-      var sw=document.createElement('label'); sw.className='trk-lu-switch';
-      sw.innerHTML='<input type=\'checkbox\''+(trkLightUpOn?' checked':'')+'><span class=\'trk-lu-slider\'></span>';
-      sw.querySelector('input').addEventListener('change',function(){ trkSetLightUp(this.checked); });
-      w.appendChild(lab); w.appendChild(sw); body.appendChild(w);
-    })();
+    // (v588) The light-up toggle now lives inside #trk-grid-pop itself, which is
+    // borrowed into this panel below — no separate injection needed.
     const pop=document.getElementById('trk-grid-pop');
     if(pop){ pop.classList.add('open'); pop.style.position='static'; pop.style.width='auto';
              pop.style.border='none'; pop.style.boxShadow='none'; pop.style.padding='0'; body.appendChild(pop); }
