@@ -317,6 +317,7 @@ query Kits($handle: String!, $cursor: String) {
       pageInfo { hasNextPage endCursor }
       nodes {
         title
+        handle
         featuredImage { url }
         pattern: metafield(namespace: "patternly", key: "pattern") { value }
         canvasSize: metafield(namespace: "patternly", key: "canvas_size") { value }
@@ -353,6 +354,9 @@ async function buildCatalogue(env) {
       if (!sku) continue;                            // no metafield → not a kit
       const kit = { sku };
       if (p.title) kit.title = p.title;
+      // v61: product page for this kit — lets the app offer a "Get this kit"
+      // button in the catalogue. Handle-based so it works on the primary domain.
+      if (p.handle) kit.url = "https://luca-s.com/products/" + p.handle;
       if (p.featuredImage && p.featuredImage.url) kit.image = p.featuredImage.url;
       // Optional authoritative canvas size ("<width>x<height>") set per product
       // in Shopify. When present the app uses it verbatim instead of guessing;
