@@ -5192,7 +5192,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v591';
+window.PATTERNLY_BUILD='v592';
 try{ console.log('%c[Patternly] editor build '+window.PATTERNLY_BUILD,'color:#2E7D32;font-weight:700'); }catch(e){}
 window.addEventListener('DOMContentLoaded',function(){
   try{ document.title = document.title + ' · '+window.PATTERNLY_BUILD; }catch(e){}
@@ -20086,7 +20086,7 @@ function trkKitsAskCode(msg, kit){
       if(kit) trkOpenKit(kit); else trkKitsLoad(true);
       return true;
     }},
-    secondary: _buyUrl ? {label:'\ud83e\uddf5 Get this kit on luca-s.com', onClick:()=>{
+    secondary: _buyUrl ? {label:'Get this kit on luca-s.com', onClick:()=>{
       try{ window.open(_buyUrl,'_blank','noopener'); }catch(_e){ location.href=_buyUrl; }
     }} : null,
     // Abandoning the code prompt also abandons any QR-link intent — otherwise a
@@ -20121,8 +20121,9 @@ function trkGateModal(o){
     +'<button id="trk-gate-cancel" style="background:none;border:none;font-family:inherit;font-size:.82rem;'
       +'font-weight:700;color:#7d6b72;cursor:pointer;padding:.5rem .6rem">Cancel</button>'
     +'</div>'
-    +(o.secondary?'<div style="margin-top:.7rem;text-align:center"><a href="#" id="trk-gate-sec" '
-      +'style="font-size:.78rem;color:var(--lp-red,#8B1A2B);font-weight:700">'+esc(o.secondary.label)+'</a></div>':'')
+    +(o.secondary?'<a href="#" id="trk-gate-sec" style="display:block;box-sizing:border-box;width:100%;margin-top:.6rem;'
+      +'text-align:center;background:#fff;border:1.5px solid var(--lp-red,#8B1A2B);color:var(--lp-red,#8B1A2B);'
+      +'font-weight:700;font-size:.86rem;padding:.6rem .9rem;border-radius:10px;text-decoration:none">'+esc(o.secondary.label)+'</a>':'')
     +'</div>';
   document.body.appendChild(wrap);
   const close=()=>wrap.remove();
