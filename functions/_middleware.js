@@ -1,5 +1,9 @@
 // Patternly — Cloudflare Pages Function v22
 // v2 + /patterns/* : serves the Luca-S kit catalogue and pattern files from R2.
+// v62: partner-brand kits — a partner-kits.json manifest in the bucket is merged
+// into the catalogue (entries: sku,title,image,brand,buy,live). Pattern files
+// live in the same flat <SKU>/ layout under the partner's SKU prefix, so file
+// serving, access codes and the readiness gate all work unchanged.
 //
 // The files are deliberately NOT on a public R2 URL. Everything goes through
 // this function so that adding "did this customer buy this kit?" later is an
@@ -407,6 +411,221 @@ async function readySkus(env) {
   return ready;
 }
 
+// Partner kit manifest: R2 key partner-kits.json, {kits:[...]} or a bare array.
+// Only entries with a sku and live!==false are listed. Titles/images/links are
+// passed through; brand tells the app whose kit it is; buy doubles as kit.url
+// so the existing \u201cGet this kit\u201d button points at the partner's store.
+async function partnerKits(env) {
+  if (!env.PATTERNS) return [];
+  try {
+    const obj = await env.PATTERNS.get("partner-kits.json");
+    if (!obj) return [];
+    const data = JSON.parse(await obj.text());
+    const list = Array.isArray(data) ? data : (data.kits || []);
+    const out = [];
+    for (const e of list) {
+      if (!e || !e.sku || e.live === false) continue;
+      const kit = { sku: String(e.sku).trim() };
+      if (!kit.sku) continue;
+      if (e.title) kit.title = e.title;
+      if (e.image) kit.image = e.image;
+      if (e.brand) kit.brand = e.brand;
+      if (e.buy)   { kit.buy = e.buy; kit.url = e.buy; }
+      if (e.canvasSize) kit.canvasSize = e.canvasSize;
+      out.push(kit);
+    }
+    return out;
+  } catch (e) {
+    console.warn("partner-kits.json unreadable:", e.message);
+    return [];
+  }
+}
+// Merge partner kits into the built catalogue. Shopify entries win on SKU
+// collision; when a bucket listing is available the same files-exist gate and
+// ptly enrichment apply to partners as to Luca-S kits.
+function mergePartnerKits(listed, partners, ready) {
+  const seen = new Set(listed.map(k => String(k.sku).toUpperCase()));
+  for (const k of partners) {
+    const key = String(k.sku).toUpperCase();
+    if (seen.has(key)) continue;
+    if (ready) {
+      if (!ready.has(k.sku)) continue;             // manifest entry, no files yet
+      const ptlyKey = ready.get(k.sku);
+      if (ptlyKey) { k.ptly = true; k.files = Object.assign({}, k.files, { ptly: ptlyKey }); }
+    }
+    seen.add(key);
+    listed.push(k);
+  }
+  return listed;
+}
+
+
+// ── Patternly for Brands: partner API (v63) ─────────────────────────────────
+// Sign-in and uploads for partner kit brands ("Partner Studio", /brands page).
+//
+// Credentials live in the PARTNERS KV namespace — one record per brand:
+//   key   : the brand key the partner pastes to sign in, e.g. "PK-HJ-XXXXXXXX"
+//   value : {"brand":"HobbyJobby","prefix":"HJ","email":"anna@...","buy":"https://..."}
+// Add a partner = add a KV entry. Revoke = delete it. No redeploys.
+//
+// Scoping: partners never name storage paths. The server builds every R2 key
+// from the record's prefix, so another brand's folder (or Luca-S kits, which
+// have no "<PREFIX>-" shape) is unexpressable, not merely forbidden.
+//
+// Uploads land in partner-kits.json with live:false — invisible to the
+// catalogue (v62 filters them) until approved. Approval is an admin call
+// guarded by env.PARTNER_ADMIN_KEY.
+
+function partnerJson(status, obj) {
+  return new Response(JSON.stringify(obj), {
+    status, headers: { "content-type": "application/json", "cache-control": "no-store" }
+  });
+}
+async function partnerAuth(request, env) {
+  if (!env.PARTNERS) return { err: partnerJson(503, { ok:false, error:"partner-system-not-configured" }) };
+  const key = (request.headers.get("x-brand-key") || "").trim();
+  if (!key) return { err: partnerJson(401, { ok:false, error:"missing-key" }) };
+  let rec = null;
+  try { rec = JSON.parse((await env.PARTNERS.get(key)) || "null"); } catch (e) {}
+  if (!rec || !rec.prefix || !rec.brand) return { err: partnerJson(401, { ok:false, error:"bad-key" }) };
+  return { key, brand: String(rec.brand), prefix: String(rec.prefix).toUpperCase(), email: rec.email || "", buy: rec.buy || "" };
+}
+async function partnerManifestRaw(env) {
+  try {
+    const obj = await env.PATTERNS.get("partner-kits.json");
+    if (!obj) return [];
+    const data = JSON.parse(await obj.text());
+    return Array.isArray(data) ? data : (data.kits || []);
+  } catch (e) { return []; }
+}
+async function partnerManifestWrite(env, list) {
+  await env.PATTERNS.put("partner-kits.json", JSON.stringify({ kits: list }, null, 1), {
+    httpMetadata: { contentType: "application/json" }
+  });
+}
+function partnerCleanTitle(t) {
+  return String(t || "").replace(/[<>]/g, "").trim().slice(0, 120);
+}
+function partnerSkuFor(auth, raw) {
+  // "hj-001", "HJ 001", "001" all become HJ-001. Anything outside A-Z0-9 in the
+  // body is rejected rather than repaired — the SKU is a permanent id.
+  let s = String(raw || "").trim().toUpperCase();
+  if (s.startsWith(auth.prefix)) s = s.slice(auth.prefix.length);
+  s = s.replace(/^[-_ ]+/, "");
+  if (!/^[A-Z0-9]{1,24}$/.test(s)) return null;
+  return auth.prefix + "-" + s;
+}
+
+async function handlePartnerApi(request, url, env) {
+  const sub = url.pathname.slice(url.pathname.indexOf("/partner/") + "/partner/".length).replace(/\/+$/, "");
+
+  if (sub === "signin" && request.method === "POST") {
+    if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"partner-system-not-configured" });
+    let body = {};
+    try { body = await request.json(); } catch (e) {}
+    const key = String(body.key || "").trim();
+    const email = String(body.email || "").trim().toLowerCase();
+    let rec = null;
+    try { rec = JSON.parse((await env.PARTNERS.get(key)) || "null"); } catch (e) {}
+    if (!rec || !email || String(rec.email || "").toLowerCase() !== email) {
+      return partnerJson(401, { ok:false, error:"That email and brand key don\u2019t match." });
+    }
+    return partnerJson(200, { ok:true, brand: rec.brand, prefix: String(rec.prefix).toUpperCase(), email: rec.email, buy: rec.buy || "" });
+  }
+
+  if (sub === "mine" && request.method === "GET") {
+    const auth = await partnerAuth(request, env);
+    if (auth.err) return auth.err;
+    const all = await partnerManifestRaw(env);
+    const mine = all.filter(e => e && typeof e.sku === "string" && e.sku.toUpperCase().startsWith(auth.prefix + "-"));
+    const out = [];
+    for (const e of mine.slice(0, 100)) {
+      let hasFile = false;
+      try { hasFile = !!(await env.PATTERNS.head(e.sku + "/pattern.Ptly")); } catch (er) {}
+      out.push({ sku: e.sku, title: e.title || "", live: e.live !== false, image: e.image || "", uploadedAt: e.uploadedAt || "", hasFile });
+    }
+    return partnerJson(200, { ok:true, brand: auth.brand, kits: out });
+  }
+
+  if (sub === "upload" && request.method === "POST") {
+    const auth = await partnerAuth(request, env);
+    if (auth.err) return auth.err;
+    let form = null;
+    try { form = await request.formData(); } catch (e) {
+      return partnerJson(400, { ok:false, error:"Expected a multipart form upload." });
+    }
+    const sku = partnerSkuFor(auth, form.get("sku"));
+    if (!sku) return partnerJson(400, { ok:false, error:"SKU must be 1\u201324 letters or digits (your prefix is added automatically)." });
+    const title = partnerCleanTitle(form.get("title"));
+    if (!title) return partnerJson(400, { ok:false, error:"Give the pattern a title." });
+    const ptly = form.get("ptly");
+    if (!ptly || typeof ptly.arrayBuffer !== "function") return partnerJson(400, { ok:false, error:"Attach the .Ptly pattern file." });
+    if (ptly.size > 8000000) return partnerJson(400, { ok:false, error:"The pattern file is over 8 MB." });
+    const ptlyBuf = await ptly.arrayBuffer();
+    const head = new TextDecoder().decode(ptlyBuf.slice(0, 4096));
+    if (head.indexOf("<") < 0 || !/chart|oxs|palette/i.test(head)) {
+      return partnerJson(400, { ok:false, error:"That doesn\u2019t look like a .Ptly file \u2014 export it from the converter first." });
+    }
+    const cover = form.get("cover");
+    let coverExt = null, coverBuf = null, coverType = null;
+    if (cover && typeof cover.arrayBuffer === "function" && cover.size > 0) {
+      const t = String(cover.type || "").toLowerCase();
+      coverExt = t === "image/jpeg" ? "jpg" : t === "image/png" ? "png" : t === "image/webp" ? "webp" : null;
+      if (!coverExt) return partnerJson(400, { ok:false, error:"Cover must be a JPG, PNG or WebP image." });
+      if (cover.size > 3000000) return partnerJson(400, { ok:false, error:"Cover image is over 3 MB." });
+      coverBuf = await cover.arrayBuffer(); coverType = t;
+    }
+    const perKitBuy = String(form.get("buy") || "").trim();
+    if (perKitBuy && !/^https:\/\//i.test(perKitBuy)) return partnerJson(400, { ok:false, error:"The shop link must start with https://" });
+
+    await env.PATTERNS.put(sku + "/pattern.Ptly", ptlyBuf, { httpMetadata: { contentType: "application/xml" } });
+    if (coverBuf) await env.PATTERNS.put(sku + "/cover." + coverExt, coverBuf, { httpMetadata: { contentType: coverType } });
+
+    const list = await partnerManifestRaw(env);
+    const now = new Date().toISOString();
+    const idx = list.findIndex(e => e && typeof e.sku === "string" && e.sku.toUpperCase() === sku);
+    const prev = idx >= 0 ? list[idx] : null;
+    const entry = {
+      sku, title,
+      brand: auth.brand,
+      buy: perKitBuy || (prev && prev.buy) || auth.buy || "",
+      image: coverBuf ? ("https://luca-s.com/apps/patternly/patterns/" + sku + "/cover." + coverExt)
+                      : ((prev && prev.image) || ""),
+      // A re-upload of an already-live kit stays live (the partner is fixing
+      // their own chart); a brand-new kit always starts hidden.
+      live: prev ? (prev.live !== false) : false,
+      email: auth.email, uploadedAt: now
+    };
+    if (idx >= 0) list[idx] = entry; else list.push(entry);
+    await partnerManifestWrite(env, list);
+    return partnerJson(200, { ok:true, sku, live: entry.live,
+      note: entry.live ? "Updated \u2014 the new file is live." : "Uploaded \u2014 pending review before it appears in the catalogue." });
+  }
+
+  // ── admin: review queue ───────────────────────────────────────────────────
+  const adminKey = (request.headers.get("x-admin-key") || "").trim();
+  const adminOk = env.PARTNER_ADMIN_KEY && adminKey && adminKey === env.PARTNER_ADMIN_KEY;
+
+  if (sub === "pending" && request.method === "GET") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    const list = await partnerManifestRaw(env);
+    return partnerJson(200, { ok:true, pending: list.filter(e => e && e.live === false) });
+  }
+  if (sub === "approve" && request.method === "POST") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    let body = {}; try { body = await request.json(); } catch (e) {}
+    const sku = String(body.sku || "").trim().toUpperCase();
+    const list = await partnerManifestRaw(env);
+    const e = list.find(x => x && typeof x.sku === "string" && x.sku.toUpperCase() === sku);
+    if (!e) return partnerJson(404, { ok:false, error:"no such kit" });
+    e.live = body.live !== false;
+    await partnerManifestWrite(env, list);
+    return partnerJson(200, { ok:true, sku: e.sku, live: e.live });
+  }
+
+  return partnerJson(404, { ok:false, error:"unknown partner endpoint" });
+}
+
 async function serveCatalogue(auth, request, url, env) {
   // The catalogue listing is open; only the pattern files are gated.
   let kits = null;
@@ -442,19 +661,36 @@ async function serveCatalogue(auth, request, url, env) {
       // a card that fails on click beats an empty shop.
       console.warn("readySkus failed, listing all tagged kits:", e.message);
     }
+    try {
+      let ready2 = null;
+      try { ready2 = await readySkus(env); } catch (e) {}
+      mergePartnerKits(listed, await partnerKits(env), ready2);
+    } catch (e) { console.warn("partner merge failed:", e.message); }
     return new Response(JSON.stringify({ kits: listed }), {
       headers: { "content-type": "application/json", "cache-control": "no-store" }
     });
   }
-  // Fallback: whatever kits.json is still in the bucket.
+  // Fallback: whatever kits.json is still in the bucket, plus partner kits so
+  // a Shopify outage never hides partner catalogues (they don't depend on it).
   if (env.PATTERNS) {
     const obj = await env.PATTERNS.get("kits.json");
     if (obj) {
-      const headers = new Headers();
-      obj.writeHttpMetadata(headers);
-      headers.set("content-type", "application/json");
-      headers.set("cache-control", "no-store");
-      return new Response(obj.body, { headers });
+      try {
+        const data = JSON.parse(await obj.text());
+        const listed = Array.isArray(data) ? data : (data.kits || []);
+        mergePartnerKits(listed, await partnerKits(env), null);
+        return new Response(JSON.stringify({ kits: listed }), {
+          headers: { "content-type": "application/json", "cache-control": "no-store" }
+        });
+      } catch (e) {
+        console.warn("fallback merge failed, serving stored file:", e.message);
+        const again = await env.PATTERNS.get("kits.json");
+        const headers = new Headers();
+        again.writeHttpMetadata(headers);
+        headers.set("content-type", "application/json");
+        headers.set("cache-control", "no-store");
+        return new Response(again.body, { headers });
+      }
     }
   }
   return new Response(JSON.stringify({ kits: [] }), {
@@ -1427,6 +1663,10 @@ async function handleRequest(context) {
   // For populating the Shopify metafield and building QR links. Returns the
   // derived code plus a ready-made deep link. Gated behind an admin key so the
   // full code list can't be scraped by anyone hitting the endpoint.
+  if (url.pathname.indexOf("/partner/") >= 0) {
+    return handlePartnerApi(request, url, env);
+  }
+
   if (url.pathname === "/code" || url.pathname.endsWith("/code")) {
     const adminKey = env.CODE_ADMIN_KEY;
     const given = url.searchParams.get("key") || request.headers.get("x-admin-key") || "";
