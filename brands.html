@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Patternly Partner Studio</title>
+<meta name="robots" content="noindex">
+<style>
+  :root{ --red:#8B1A2B; --red2:#a63248; --ink:#2b2226; --muted:#7d6b72; --border:#e6d9dd; --bg:#fdf7f8; --ok:#1c7c3c; --warn:#b25f10; }
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.55 system-ui,'Segoe UI',Roboto,sans-serif;color:var(--ink);background:#fff}
+  .wrap{max-width:860px;margin:0 auto;padding:2rem 1rem 4rem}
+  h1{font-size:1.55rem;margin:.2rem 0 .2rem}
+  h1 .accent{color:var(--red)}
+  .sub{color:var(--muted);font-size:.92rem;margin:0 0 1.6rem}
+  .card{border:1px solid var(--border);border-radius:14px;padding:1.15rem 1.25rem;margin:0 0 1rem;background:#fff}
+  .card h2{font-size:1rem;margin:.05rem 0 .7rem}
+  label{font-size:.78rem;font-weight:700;display:block;margin:0 0 .3rem}
+  input[type=text],input[type=email],input[type=password],input[type=url]{width:100%;padding:.62rem .7rem;border:1.5px solid var(--border);border-radius:9px;font:inherit}
+  input:focus{outline:2px solid #f3d9de}
+  .row{display:flex;gap:.7rem;flex-wrap:wrap}
+  .row>div{flex:1;min-width:220px}
+  button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:.68rem 1.2rem;cursor:pointer}
+  .primary{background:var(--red);color:#fff}
+  .primary:hover{background:var(--red2)}
+  .ghost{background:var(--bg);color:var(--red);border:1.5px solid var(--border)}
+  button[disabled]{opacity:.5;cursor:not-allowed}
+  .note{font-size:.8rem;color:var(--muted);margin-top:.45rem}
+  .err{color:#b3261e;font-weight:700;font-size:.85rem}
+  .okmsg{color:var(--ok);font-weight:700;font-size:.85rem}
+  .pill{display:inline-block;border-radius:999px;padding:.13rem .6rem;font-size:.72rem;font-weight:700}
+  .pill.live{background:#e7f5eb;color:var(--ok)}
+  .pill.pending{background:#fff4e3;color:var(--warn)}
+  .topbar{display:flex;align-items:center;gap:.8rem;margin-bottom:1.2rem}
+  .topbar .who{font-size:.82rem;color:var(--muted)}
+  .topbar .who b{color:var(--ink)}
+  .topbar button{margin-left:auto;padding:.4rem .8rem;font-size:.8rem}
+  table{width:100%;border-collapse:collapse;font-size:.86rem}
+  th,td{text-align:left;padding:.55rem .6rem;border-bottom:1px solid var(--border);vertical-align:middle}
+  th{font-size:.72rem;text-transform:uppercase;letter-spacing:.03em;color:var(--muted)}
+  .thumb{width:46px;height:46px;border-radius:8px;object-fit:cover;background:#f3ecee;border:1px solid var(--border)}
+  .skucell{font-family:ui-monospace,Consolas,monospace;font-weight:700}
+  .prefixchip{display:inline-flex;align-items:center;padding:.6rem .7rem;border:1.5px solid var(--border);border-right:0;border-radius:9px 0 0 9px;background:var(--bg);font-weight:800;color:var(--red);font-family:ui-monospace,Consolas,monospace}
+  .skuwrap{display:flex}
+  .skuwrap input{border-radius:0 9px 9px 0}
+  .filebox{border:1.5px dashed var(--border);border-radius:10px;padding:.8rem;text-align:center;cursor:pointer;background:#fffdfd}
+  .filebox.has{border-style:solid;background:var(--bg)}
+  .filebox input{display:none}
+  .filebox .fname{font-size:.8rem;font-weight:700;color:var(--red);word-break:break-all}
+  .coverprev{max-width:120px;max-height:120px;border-radius:8px;display:block;margin:.5rem auto 0}
+  .steps{font-size:.85rem;color:var(--muted);line-height:1.7}
+  .steps b{color:var(--ink)}
+  a{color:var(--red)}
+  #signedin,#loading{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Patternly <span class="accent">Partner Studio</span></h1>
+  <p class="sub">Publish your kit patterns to the Patternly Stitch Tracker — your customers stitch on screen, your chart file never leaves the server.</p>
+
+  <!-- ── sign in ─────────────────────────────────────────────────────────── -->
+  <div id="signin" class="card">
+    <h2>Sign in</h2>
+    <div class="row">
+      <div>
+        <label for="si-email">Email</label>
+        <input type="email" id="si-email" autocomplete="email">
+      </div>
+      <div>
+        <label for="si-key">Brand key</label>
+        <input type="password" id="si-key" autocomplete="off" spellcheck="false" placeholder="PK-…">
+      </div>
+    </div>
+    <div style="margin-top:.9rem" class="row">
+      <button class="primary" id="si-go">Sign in</button>
+    </div>
+    <div class="note" id="si-msg">Your brand key came with your Patternly for Brands welcome email. Both fields must match what Luca-S registered for you.</div>
+  </div>
+
+  <!-- ── workspace ───────────────────────────────────────────────────────── -->
+  <div id="signedin">
+    <div class="topbar">
+      <span class="who">Signed in as <b id="who-brand"></b> · <span id="who-email"></span></span>
+      <button class="ghost" id="signout">Sign out</button>
+    </div>
+
+    <div class="card">
+      <h2>1 · Prepare your pattern file</h2>
+      <div class="steps">
+        Convert your chart in the free
+        <a href="#" id="conv-link" target="_blank" rel="noopener"><b>Patternly File Converter</b></a>:
+        drop in your <b>.xsp / OXS / .pat</b> file, check the preview and the colour table
+        (that preview is what your customers will stitch from — what you approve there is what we serve),
+        then download it as a <b>.Ptly</b> file and publish it below.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>2 · Publish a pattern</h2>
+      <div class="row">
+        <div>
+          <label for="up-sku">Kit SKU</label>
+          <div class="skuwrap">
+            <span class="prefixchip" id="up-prefix">HJ-</span>
+            <input type="text" id="up-sku" placeholder="e.g. 001 or M123" maxlength="24" spellcheck="false">
+          </div>
+          <div class="note">Letters and digits only — this becomes the kit&rsquo;s permanent id and its access-code base.</div>
+        </div>
+        <div>
+          <label for="up-title">Pattern title</label>
+          <input type="text" id="up-title" maxlength="120" placeholder="e.g. Mountain Sunrise">
+        </div>
+      </div>
+      <div class="row" style="margin-top:.8rem">
+        <div>
+          <label>Pattern file (.Ptly)</label>
+          <label class="filebox" id="box-ptly"><input type="file" id="up-ptly" accept=".ptly,.Ptly,application/xml"><span class="fname" id="name-ptly">Click to choose the .Ptly file</span></label>
+        </div>
+        <div>
+          <label>Cover photo (JPG / PNG / WebP)</label>
+          <label class="filebox" id="box-cover"><input type="file" id="up-cover" accept="image/jpeg,image/png,image/webp"><span class="fname" id="name-cover">Click to choose the cover image</span><img id="cover-prev" class="coverprev" style="display:none" alt=""></label>
+        </div>
+      </div>
+      <div class="row" style="margin-top:.8rem">
+        <div>
+          <label for="up-buy">Shop link for this kit <span style="font-weight:400;color:var(--muted)">(optional — your brand&rsquo;s shop is used if empty)</span></label>
+          <input type="url" id="up-buy" placeholder="https://…">
+        </div>
+      </div>
+      <div style="margin-top:1rem" class="row">
+        <button class="primary" id="up-go">Publish</button>
+      </div>
+      <div class="note" id="up-msg">New patterns are reviewed by Luca-S before they appear in the catalogue — usually within a working day.</div>
+    </div>
+
+    <div class="card">
+      <h2>My patterns <button class="ghost" id="mine-refresh" style="float:right;padding:.3rem .7rem;font-size:.76rem">Refresh</button></h2>
+      <div id="mine-box"><div class="note">Loading…</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// The Studio lives at …/brands on the same site as the app, so the partner API
+// base is the same path with /brands swapped for /partner — works both through
+// the luca-s.com proxy and on the raw pages.dev origin.
+const API = location.pathname.replace(/\/brands[^/]*\/?$/,'') + '/partner/';
+const CONVERTER_URL = location.pathname.replace(/\/brands[^/]*\/?$/,'') + '/#converter';
+const $ = id => document.getElementById(id);
+let SESSION = null;   // {brand, prefix, email, buy, key}
+
+function saveSession(){ try{ sessionStorage.setItem('patternly_partner', JSON.stringify(SESSION)); }catch(e){} }
+function loadSession(){ try{ return JSON.parse(sessionStorage.getItem('patternly_partner')||'null'); }catch(e){ return null; } }
+function clearSession(){ SESSION=null; try{ sessionStorage.removeItem('patternly_partner'); }catch(e){} }
+
+function show(state){
+  $('signin').style.display  = state==='in' ? '' : 'none';
+  $('signedin').style.display = state==='ws' ? 'block' : 'none';
+}
+function enterWorkspace(){
+  $('who-brand').textContent = SESSION.brand;
+  $('who-email').textContent = SESSION.email || '';
+  $('up-prefix').textContent = SESSION.prefix + '-';
+  $('conv-link').href = CONVERTER_URL;
+  show('ws');
+  loadMine();
+}
+
+// ── sign in ──────────────────────────────────────────────────────────────────
+$('si-go').onclick = async () => {
+  const email = $('si-email').value.trim(), key = $('si-key').value.trim();
+  const msg = $('si-msg');
+  if(!email || !key){ msg.innerHTML = '<span class="err">Enter both your email and your brand key.</span>'; return; }
+  $('si-go').disabled = true; msg.textContent = 'Signing in…';
+  try{
+    const r = await fetch(API + 'signin', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ email, key }) });
+    const d = await r.json().catch(()=>({}));
+    if(!r.ok || !d.ok){ msg.innerHTML = '<span class="err">' + (d.error || 'Sign-in failed.') + '</span>'; return; }
+    SESSION = { brand:d.brand, prefix:d.prefix, email:d.email, buy:d.buy||'', key };
+    saveSession(); enterWorkspace();
+  }catch(e){ msg.innerHTML = '<span class="err">Network error — try again.</span>'; }
+  finally{ $('si-go').disabled = false; }
+};
+$('si-key').addEventListener('keydown', e => { if(e.key==='Enter') $('si-go').click(); });
+$('signout').onclick = () => { clearSession(); show('in'); };
+
+// ── file pickers ─────────────────────────────────────────────────────────────
+function wireFile(inputId, boxId, nameId, isCover){
+  const inp=$(inputId), box=$(boxId), nm=$(nameId);
+  inp.addEventListener('change', ()=>{
+    const f=inp.files[0];
+    box.classList.toggle('has', !!f);
+    nm.textContent = f ? f.name : (isCover?'Click to choose the cover image':'Click to choose the .Ptly file');
+    if(isCover){
+      const img=$('cover-prev');
+      if(f){ img.src=URL.createObjectURL(f); img.style.display='block'; }
+      else { img.style.display='none'; }
+    }
+  });
+}
+wireFile('up-ptly','box-ptly','name-ptly',false);
+wireFile('up-cover','box-cover','name-cover',true);
+
+// ── publish ──────────────────────────────────────────────────────────────────
+$('up-go').onclick = async () => {
+  const msg=$('up-msg');
+  const skuBody=$('up-sku').value.trim(), title=$('up-title').value.trim();
+  const ptly=$('up-ptly').files[0], cover=$('up-cover').files[0];
+  const buy=$('up-buy').value.trim();
+  if(!/^[A-Za-z0-9]{1,24}$/.test(skuBody)){ msg.innerHTML='<span class="err">SKU: 1–24 letters or digits (the ' + SESSION.prefix + '- part is added for you).</span>'; return; }
+  if(!title){ msg.innerHTML='<span class="err">Give the pattern a title.</span>'; return; }
+  if(!ptly){ msg.innerHTML='<span class="err">Attach the .Ptly file from the converter.</span>'; return; }
+  if(ptly.size>8000000){ msg.innerHTML='<span class="err">The .Ptly file is over 8 MB.</span>'; return; }
+  if(cover && cover.size>3000000){ msg.innerHTML='<span class="err">The cover image is over 3 MB.</span>'; return; }
+  if(buy && !/^https:\/\//i.test(buy)){ msg.innerHTML='<span class="err">The shop link must start with https://</span>'; return; }
+  const fd=new FormData();
+  fd.set('sku', skuBody); fd.set('title', title);
+  fd.set('ptly', ptly);
+  if(cover) fd.set('cover', cover);
+  if(buy) fd.set('buy', buy);
+  $('up-go').disabled=true; msg.textContent='Uploading…';
+  try{
+    const r=await fetch(API+'upload', { method:'POST', headers:{'x-brand-key':SESSION.key}, body:fd });
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok || !d.ok){ msg.innerHTML='<span class="err">'+(d.error||'Upload failed.')+'</span>'; return; }
+    msg.innerHTML='<span class="okmsg">'+d.sku+': '+(d.note||'uploaded.')+'</span>';
+    $('up-sku').value=''; $('up-title').value=''; $('up-buy').value='';
+    $('up-ptly').value=''; $('up-cover').value='';
+    $('box-ptly').classList.remove('has'); $('box-cover').classList.remove('has');
+    $('name-ptly').textContent='Click to choose the .Ptly file';
+    $('name-cover').textContent='Click to choose the cover image';
+    $('cover-prev').style.display='none';
+    loadMine();
+  }catch(e){ msg.innerHTML='<span class="err">Network error — the upload did not go through.</span>'; }
+  finally{ $('up-go').disabled=false; }
+};
+
+// ── my patterns ──────────────────────────────────────────────────────────────
+async function loadMine(){
+  const box=$('mine-box');
+  box.innerHTML='<div class="note">Loading…</div>';
+  try{
+    const r=await fetch(API+'mine', { headers:{'x-brand-key':SESSION.key} });
+    const d=await r.json().catch(()=>({}));
+    if(r.status===401){ clearSession(); show('in'); $('si-msg').innerHTML='<span class="err">Your sign-in expired — sign in again.</span>'; return; }
+    if(!r.ok || !d.ok){ box.innerHTML='<div class="err">Could not load your patterns.</div>'; return; }
+    if(!d.kits.length){ box.innerHTML='<div class="note">Nothing published yet — your uploads will appear here.</div>'; return; }
+    let h='<table><thead><tr><th></th><th>SKU</th><th>Title</th><th>Status</th><th>Uploaded</th></tr></thead><tbody>';
+    for(const k of d.kits){
+      const dt = k.uploadedAt ? new Date(k.uploadedAt).toLocaleDateString() : '';
+      h+='<tr>'
+        +'<td>'+(k.image?'<img class="thumb" src="'+String(k.image).replace(/"/g,'&quot;')+'" alt="">':'<span class="thumb" style="display:inline-block"></span>')+'</td>'
+        +'<td class="skucell">'+k.sku+'</td>'
+        +'<td>'+String(k.title||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</td>'
+        +'<td>'+(k.live?'<span class="pill live">Live</span>':'<span class="pill pending">Pending review</span>')
+              +(k.hasFile?'':' <span class="err" title="Pattern file missing">file missing</span>')+'</td>'
+        +'<td style="color:var(--muted);font-size:.8rem">'+dt+'</td>'
+        +'</tr>';
+    }
+    box.innerHTML=h+'</tbody></table>';
+  }catch(e){ box.innerHTML='<div class="err">Network error.</div>'; }
+}
+$('mine-refresh').onclick=loadMine;
+
+// ── boot ─────────────────────────────────────────────────────────────────────
+SESSION=loadSession();
+if(SESSION && SESSION.key){ enterWorkspace(); } else { show('in'); }
+</script>
+</body>
+</html>
