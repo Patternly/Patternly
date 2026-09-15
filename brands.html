@@ -135,7 +135,12 @@
     </div>
 
     <div class="card">
-      <h2>My patterns <button class="ghost" id="mine-refresh" style="float:right;padding:.3rem .7rem;font-size:.76rem">Refresh</button></h2>
+      <h2>My patterns
+        <span style="float:right;display:flex;gap:.5rem">
+          <button class="ghost" id="mine-csv" style="padding:.3rem .7rem;font-size:.76rem" disabled>Download codes CSV</button>
+          <button class="ghost" id="mine-refresh" style="padding:.3rem .7rem;font-size:.76rem">Refresh</button>
+        </span></h2>
+      <div class="note" style="margin:0 0 .6rem">Each pattern has its own <b>access code</b> and QR link — print them on your kit inserts. Codes work the moment the kit goes <b>Live</b>; the test link opens the kit in the Stitch Tracker exactly as your customers see it.</div>
       <div id="mine-box"><div class="note">Loading…</div></div>
     </div>
   </div>
@@ -150,6 +155,7 @@ const API = location.pathname.replace(/\/brands[^/]*\/?$/,'') + '/partner/';
 const CONVERTER_URL = location.pathname.replace(/\/brands[^/]*\/?$/,'') + '/#converter';
 const $ = id => document.getElementById(id);
 let SESSION = null;   // {brand, prefix, email, buy, key}
+let MINE = [];        // last-loaded pattern list (for the codes CSV)
 
 function saveSession(){ try{ sessionStorage.setItem('patternly_partner', JSON.stringify(SESSION)); }catch(e){} }
 function loadSession(){ try{ return JSON.parse(sessionStorage.getItem('patternly_partner')||'null'); }catch(e){ return null; } }
@@ -247,22 +253,35 @@ async function loadMine(){
     if(r.status===401){ clearSession(); show('in'); $('si-msg').innerHTML='<span class="err">Your sign-in expired — sign in again.</span>'; return; }
     if(!r.ok || !d.ok){ box.innerHTML='<div class="err">Could not load your patterns.</div>'; return; }
     if(!d.kits.length){ box.innerHTML='<div class="note">Nothing published yet — your uploads will appear here.</div>'; return; }
-    let h='<table><thead><tr><th></th><th>SKU</th><th>Title</th><th>Status</th><th>Uploaded</th></tr></thead><tbody>';
+    MINE=d.kits;
+    $('mine-csv').disabled = !d.kits.some(k=>k.code);
+    let h='<table><thead><tr><th></th><th>SKU</th><th>Title</th><th>Status</th><th>Access code</th><th></th></tr></thead><tbody>';
     for(const k of d.kits){
-      const dt = k.uploadedAt ? new Date(k.uploadedAt).toLocaleDateString() : '';
       h+='<tr>'
         +'<td>'+(k.image?'<img class="thumb" src="'+String(k.image).replace(/"/g,'&quot;')+'" alt="">':'<span class="thumb" style="display:inline-block"></span>')+'</td>'
         +'<td class="skucell">'+k.sku+'</td>'
         +'<td>'+String(k.title||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</td>'
         +'<td>'+(k.live?'<span class="pill live">Live</span>':'<span class="pill pending">Pending review</span>')
               +(k.hasFile?'':' <span class="err" title="Pattern file missing">file missing</span>')+'</td>'
-        +'<td style="color:var(--muted);font-size:.8rem">'+dt+'</td>'
+        +'<td>'+(k.code?'<span class="skucell">'+k.code+'</span> <button class="ghost copybtn" data-copy="'+k.code+'" style="padding:.15rem .5rem;font-size:.7rem">Copy</button>':'<span class="note">—</span>')+'</td>'
+        +'<td>'+(k.code&&k.live?'<a href="'+k.link.replace(/"/g,'&quot;')+'" target="_blank" rel="noopener" style="font-size:.78rem;font-weight:700">Test in Stitch Tracker</a>'
+                :(k.code?'<span class="note" title="The link starts working once the kit is live">Test link activates when Live</span>':''))+'</td>'
         +'</tr>';
     }
     box.innerHTML=h+'</tbody></table>';
+    box.querySelectorAll('.copybtn').forEach(b=>{ b.onclick=()=>{ navigator.clipboard.writeText(b.dataset.copy).then(()=>{ b.textContent='Copied'; setTimeout(()=>b.textContent='Copy',1200); }); }; });
   }catch(e){ box.innerHTML='<div class="err">Network error.</div>'; }
 }
 $('mine-refresh').onclick=loadMine;
+$('mine-csv').onclick=()=>{
+  let csv='sku,title,code,link\n';
+  for(const k of MINE){ if(!k.code) continue;
+    csv+=k.sku+',"'+String(k.title||'').replace(/"/g,'""')+'",'+k.code+','+k.link+'\n'; }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download=(SESSION&&SESSION.prefix?SESSION.prefix.toLowerCase()+'_':'')+'pattern_codes.csv';
+  document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},400);
+};
 
 // ── boot ─────────────────────────────────────────────────────────────────────
 SESSION=loadSession();
