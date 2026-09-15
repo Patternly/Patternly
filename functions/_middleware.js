@@ -570,7 +570,11 @@ async function handlePartnerApi(request, url, env) {
     if (!ptly || typeof ptly.arrayBuffer !== "function") return partnerJson(400, { ok:false, error:"Attach the .Ptly pattern file." });
     if (ptly.size > 8000000) return partnerJson(400, { ok:false, error:"The pattern file is over 8 MB." });
     const ptlyBuf = await ptly.arrayBuffer();
-    const head = new TextDecoder().decode(ptlyBuf.slice(0, 4096));
+    // v65: encoding-proof sniff. Real .Ptly files can be UTF-16 (Windows XML
+    // exports) — decoded naively every letter carries a NUL, so keyword tests
+    // fail on perfectly valid files. Strip NULs and replacement chars before
+    // testing; the check stays a light sanity gate, not a parser.
+    const head = new TextDecoder().decode(ptlyBuf.slice(0, 4096)).replace(/[\u0000\ufffd]/g, "");
     if (head.indexOf("<") < 0 || !/chart|oxs|palette/i.test(head)) {
       return partnerJson(400, { ok:false, error:"That doesn\u2019t look like a .Ptly file \u2014 export it from the converter first." });
     }
