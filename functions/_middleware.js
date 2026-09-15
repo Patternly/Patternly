@@ -542,7 +542,15 @@ async function handlePartnerApi(request, url, env) {
     for (const e of mine.slice(0, 100)) {
       let hasFile = false;
       try { hasFile = !!(await env.PATTERNS.head(e.sku + "/pattern.Ptly")); } catch (er) {}
-      out.push({ sku: e.sku, title: e.title || "", live: e.live !== false, image: e.image || "", uploadedAt: e.uploadedAt || "", hasFile });
+      // v64: hand the partner their kits' access codes and ready QR links.
+      // codeFor() derives server-side (and honours PATTERN_CODES overrides),
+      // scoped to this partner's own SKUs — the code secret never leaves here.
+      let code = null;
+      try { code = await codeFor(e.sku, env); } catch (er) {}
+      const link = code
+        ? "https://luca-s.com/apps/patternly?sku=" + encodeURIComponent(e.sku) + "&code=" + encodeURIComponent(code) + "#tracker"
+        : "";
+      out.push({ sku: e.sku, title: e.title || "", live: e.live !== false, image: e.image || "", uploadedAt: e.uploadedAt || "", hasFile, code: code || "", link });
     }
     return partnerJson(200, { ok:true, brand: auth.brand, kits: out });
   }
