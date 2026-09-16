@@ -570,12 +570,18 @@ async function handlePartnerApi(request, url, env) {
     if (!ptly || typeof ptly.arrayBuffer !== "function") return partnerJson(400, { ok:false, error:"Attach the .Ptly pattern file." });
     if (ptly.size > 8000000) return partnerJson(400, { ok:false, error:"The pattern file is over 8 MB." });
     const ptlyBuf = await ptly.arrayBuffer();
-    // v65: encoding-proof sniff. Real .Ptly files can be UTF-16 (Windows XML
-    // exports) — decoded naively every letter carries a NUL, so keyword tests
-    // fail on perfectly valid files. Strip NULs and replacement chars before
-    // testing; the check stays a light sanity gate, not a parser.
-    const head = new TextDecoder().decode(ptlyBuf.slice(0, 4096)).replace(/[\u0000\ufffd]/g, "");
-    if (head.indexOf("<") < 0 || !/chart|oxs|palette/i.test(head)) {
+    // v66: a real .Ptly is the binary Patternly container — magic bytes "PTNLY1"
+    // at offset 0 (the chart inside is obfuscated by design, so no XML sniffing
+    // can ever match it). Accept the magic; as a courtesy also accept a plain
+    // OXS/XML chart in any common encoding.
+    const magic = new Uint8Array(ptlyBuf.slice(0, 6));
+    const isPtnly = magic.length === 6 && String.fromCharCode(...magic) === "PTNLY1";
+    let looksXml = false;
+    if (!isPtnly) {
+      const head = new TextDecoder().decode(ptlyBuf.slice(0, 4096)).replace(/[\u0000\ufffd]/g, "");
+      looksXml = head.indexOf("<") >= 0 && /chart|oxs|palette/i.test(head);
+    }
+    if (!isPtnly && !looksXml) {
       return partnerJson(400, { ok:false, error:"That doesn\u2019t look like a .Ptly file \u2014 export it from the converter first." });
     }
     const cover = form.get("cover");
