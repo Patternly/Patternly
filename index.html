@@ -5192,7 +5192,12 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v594';
+window.PATTERNLY_BUILD='v595';
+function openBrandsPage(){
+  let p=location.pathname;
+  if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
+  location.href = p.replace(/\/+$/,'') + '/brands';
+}
 try{ console.log('%c[Patternly] editor build '+window.PATTERNLY_BUILD,'color:#2E7D32;font-weight:700'); }catch(e){}
 window.addEventListener('DOMContentLoaded',function(){
   try{ document.title = document.title + ' · '+window.PATTERNLY_BUILD; }catch(e){}
@@ -5747,7 +5752,7 @@ document.addEventListener('DOMContentLoaded', function(){
           <a href="#about">About Luca-S</a>
           <a href="#" onclick="openPricing();return false" data-i18n="acct.pricing">Pricing</a>
           <a href="#" onclick="openGuide();return false" data-i18n="acct.guide">Guide</a>
-          <a href="brands" rel="noopener">Patternly for Brands</a>
+          <a href="#" onclick="openBrandsPage();return false">Patternly for Brands</a>
           <a href="#" onclick="plOpenPrivacy();return false" data-i18n="acct.privacy">Privacy Policy</a>
         </div>
       </div>
@@ -6708,7 +6713,7 @@ document.addEventListener('DOMContentLoaded', function(){
           <a href="#" onclick="ptlyGoSection('about');return false" data-i18n="foot.about">About Luca-S</a>
           <a href="#" onclick="openPricing();return false" data-i18n="acct.pricing">Pricing</a>
           <a href="#" onclick="openGuide();return false" data-i18n="acct.guide">Guide</a>
-          <a href="brands" rel="noopener">Patternly for Brands</a>
+          <a href="#" onclick="openBrandsPage();return false">Patternly for Brands</a>
           <a href="#" onclick="plOpenPrivacy();return false" data-i18n="acct.privacy">Privacy Policy</a>
         </div>
       </div>
@@ -6936,7 +6941,7 @@ document.addEventListener('DOMContentLoaded', function(){
           <a href="#" onclick="ptlyGoSection('about');return false" data-i18n="foot.about">About Luca-S</a>
           <a href="#" onclick="openPricing();return false" data-i18n="acct.pricing">Pricing</a>
           <a href="#" onclick="openGuide();return false" data-i18n="acct.guide">Guide</a>
-          <a href="brands" rel="noopener">Patternly for Brands</a>
+          <a href="#" onclick="openBrandsPage();return false">Patternly for Brands</a>
           <a href="#" onclick="plOpenPrivacy();return false" data-i18n="acct.privacy">Privacy Policy</a>
         </div>
       </div>
