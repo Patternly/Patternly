@@ -609,15 +609,16 @@ async function handlePartnerApi(request, url, env) {
       buy: perKitBuy || (prev && prev.buy) || auth.buy || "",
       image: coverBuf ? ("https://luca-s.com/apps/patternly/patterns/" + sku + "/cover." + coverExt)
                       : ((prev && prev.image) || ""),
-      // A re-upload of an already-live kit stays live (the partner is fixing
-      // their own chart); a brand-new kit always starts hidden.
-      live: prev ? (prev.live !== false) : false,
+      // v67: uploads publish immediately — brand keys only go to trusted
+      // partners, and the chart is theirs to approve in the converter preview.
+      // The admin approve endpoint with {live:false} remains as a kill switch.
+      live: prev ? (prev.live !== false) : true,
       email: auth.email, uploadedAt: now
     };
     if (idx >= 0) list[idx] = entry; else list.push(entry);
     await partnerManifestWrite(env, list);
     return partnerJson(200, { ok:true, sku, live: entry.live,
-      note: entry.live ? "Updated \u2014 the new file is live." : "Uploaded \u2014 pending review before it appears in the catalogue." });
+      note: entry.live ? "Published \u2014 your pattern is live in the catalogue." : "Uploaded \u2014 currently unpublished." });
   }
 
   // ── admin: review queue ───────────────────────────────────────────────────
