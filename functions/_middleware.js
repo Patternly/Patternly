@@ -488,7 +488,8 @@ async function partnerAuth(request, env) {
   let rec = null;
   try { rec = JSON.parse((await env.PARTNERS.get(key)) || "null"); } catch (e) {}
   if (!rec || !rec.prefix || !rec.brand) return { err: partnerJson(401, { ok:false, error:"bad-key" }) };
-  return { key, brand: String(rec.brand), prefix: String(rec.prefix).toUpperCase(), email: rec.email || "", buy: rec.buy || "" };
+  return { key, brand: String(rec.brand), prefix: String(rec.prefix).toUpperCase(), email: rec.email || "", buy: rec.buy || "",
+           limit: (Number.isFinite(+rec.limit) && +rec.limit > 0) ? +rec.limit : 200 };
 }
 async function partnerManifestRaw(env) {
   try {
@@ -514,6 +515,18 @@ function partnerSkuFor(auth, raw) {
   s = s.replace(/^[-_ ]+/, "");
   if (!/^[A-Z0-9]{1,24}$/.test(s)) return null;
   return auth.prefix + "-" + s;
+}
+
+// Remove one partner kit completely: manifest entry + its stored files.
+async function partnerRemoveKit(env, sku) {
+  const list = await partnerManifestRaw(env);
+  const idx = list.findIndex(e => e && typeof e.sku === "string" && e.sku.toUpperCase() === sku);
+  if (idx < 0) return false;
+  list.splice(idx, 1);
+  await partnerManifestWrite(env, list);
+  const gone = [sku + "/pattern.Ptly", sku + "/cover.jpg", sku + "/cover.png", sku + "/cover.webp"];
+  for (const k of gone) { try { await env.PATTERNS.delete(k); } catch (e) {} }
+  return true;
 }
 
 async function handlePartnerApi(request, url, env) {
@@ -602,6 +615,14 @@ async function handlePartnerApi(request, url, env) {
     const list = await partnerManifestRaw(env);
     const now = new Date().toISOString();
     const idx = list.findIndex(e => e && typeof e.sku === "string" && e.sku.toUpperCase() === sku);
+    // v68: per-brand kit cap (KV "limit", default 200). Guards the catalogue and
+    // the bucket if a brand key ever leaks — replacing an existing kit is exempt.
+    if (idx < 0) {
+      const owned = list.filter(e => e && typeof e.sku === "string" && e.sku.toUpperCase().startsWith(auth.prefix + "-")).length;
+      if (owned >= auth.limit) {
+        return partnerJson(400, { ok:false, error:"Your brand has reached its " + auth.limit + "-pattern limit \u2014 contact Luca-S to raise it." });
+      }
+    }
     const prev = idx >= 0 ? list[idx] : null;
     const entry = {
       sku, title,
@@ -621,6 +642,17 @@ async function handlePartnerApi(request, url, env) {
       note: entry.live ? "Published \u2014 your pattern is live in the catalogue." : "Uploaded \u2014 currently unpublished." });
   }
 
+  if (sub === "delete" && request.method === "POST") {
+    const auth = await partnerAuth(request, env);
+    if (auth.err) return auth.err;
+    let body = {}; try { body = await request.json(); } catch (e) {}
+    const sku = String(body.sku || "").trim().toUpperCase();
+    if (!sku.startsWith(auth.prefix + "-")) return partnerJson(400, { ok:false, error:"That kit is not yours to delete." });
+    const ok = await partnerRemoveKit(env, sku);
+    if (!ok) return partnerJson(404, { ok:false, error:"No such kit." });
+    return partnerJson(200, { ok:true, sku, deleted:true });
+  }
+
   // ── admin: review queue ───────────────────────────────────────────────────
   const adminKey = (request.headers.get("x-admin-key") || "").trim();
   const adminOk = env.PARTNER_ADMIN_KEY && adminKey && adminKey === env.PARTNER_ADMIN_KEY;
@@ -629,6 +661,14 @@ async function handlePartnerApi(request, url, env) {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
     const list = await partnerManifestRaw(env);
     return partnerJson(200, { ok:true, pending: list.filter(e => e && e.live === false) });
+  }
+  if (sub === "remove" && request.method === "POST") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    let body = {}; try { body = await request.json(); } catch (e) {}
+    const sku = String(body.sku || "").trim().toUpperCase();
+    const ok = await partnerRemoveKit(env, sku);
+    if (!ok) return partnerJson(404, { ok:false, error:"no such kit" });
+    return partnerJson(200, { ok:true, sku, removed:true });
   }
   if (sub === "approve" && request.method === "POST") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
