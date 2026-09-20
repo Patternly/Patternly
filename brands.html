@@ -52,6 +52,11 @@
   .steps b{color:var(--ink)}
   a{color:var(--red)}
   #signedin,#loading{display:none}
+  .tabbar{display:flex;gap:.3rem;border-bottom:2px solid var(--border);margin:0 0 1.2rem}
+  .tabbar button{font:inherit;font-weight:700;font-size:.92rem;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:.55rem .95rem;cursor:pointer;border-radius:0;margin-bottom:-2px}
+  .tabbar button.active{color:var(--red);border-bottom-color:var(--red)}
+  .pbar{height:8px;border-radius:999px;background:#f0e6e9;overflow:hidden}
+  .pbar>span{display:block;height:100%;background:var(--red)}
 </style>
 </head>
 <body>
@@ -85,22 +90,32 @@
       <button class="ghost" id="signout">Sign out</button>
     </div>
 
+    <div class="tabbar" id="tabbar">
+      <button type="button" data-tab="patterns" class="active">My Patterns</button>
+      <button type="button" data-tab="converter">Converter</button>
+      <button type="button" data-tab="customers">My Customers</button>
+    </div>
+
+    <div id="tab-converter" style="display:none">
     <div class="card">
-      <h2>1 · Convert your chart
+      <h2>Convert your chart
         <a href="#" id="conv-link" target="_blank" rel="noopener" style="float:right;font-size:.78rem;font-weight:700">Open full screen</a></h2>
       <div class="steps" style="margin-bottom:.7rem">
         This is the same conversion tool Luca-S kits are prepared with. Drop in your
         <b>.xsp / OXS / .pat</b> chart, check the preview and edit the colour table — thread numbers,
         symbols and metres per colour — then export the <b>.Ptly</b> file.
         <b>The preview is what your customers will stitch from: what you approve here is exactly what we serve.</b>
-        Publish the exported file in step 2 below.
+        Then publish it from the <b>My Patterns</b> tab.
       </div>
       <iframe id="conv-frame"
         style="width:100%;height:760px;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>
     </div>
+    </div><!-- /tab-converter -->
 
-    <div class="card">
-      <h2>2 · Publish a pattern</h2>
+    <div id="tab-patterns">
+    <div class="card" id="publish-card" style="display:none">
+      <h2>Add a pattern
+        <a href="#" id="pub-back" style="float:right;font-size:.78rem;font-weight:700">← Back to My Patterns</a></h2>
       <div class="row">
         <div>
           <label for="up-sku">Kit SKU</label>
@@ -137,14 +152,35 @@
       <div class="note" id="up-msg">Publishing is instant — your pattern appears in the catalogue right away, exactly as you approved it in the converter preview.</div>
     </div>
 
-    <div class="card">
-      <h2>My patterns
+    <div class="card" id="list-card">
+      <h2>My Patterns
         <span style="float:right;display:flex;gap:.5rem">
+          <button class="primary" id="add-pattern" style="padding:.3rem .8rem;font-size:.76rem">+ Add Pattern</button>
           <button class="ghost" id="mine-csv" style="padding:.3rem .7rem;font-size:.76rem" disabled>Download codes CSV</button>
           <button class="ghost" id="mine-refresh" style="padding:.3rem .7rem;font-size:.76rem">Refresh</button>
         </span></h2>
       <div class="note" style="margin:0 0 .6rem">Each pattern has its own <b>access code</b> and QR link — print them on your kit inserts. The test link opens the kit in the Stitch Tracker exactly as your customers see it.</div>
+      <div id="patterns-msg"></div>
       <div id="mine-box"><div class="note">Loading…</div></div>
+    </div>
+    </div><!-- /tab-patterns -->
+
+    <div id="tab-customers" style="display:none">
+      <div class="card">
+        <h2>Find a customer</h2>
+        <div class="note" style="margin:0 0 .7rem">When a customer writes to you for help, paste the email address they wrote from. You&rsquo;ll see their progress on <b>your patterns only</b> — other brands’ kits on their account stay private.</div>
+        <div class="row">
+          <div style="flex:2;min-width:220px"><input type="email" id="cl-email" placeholder="customer@email.com" autocomplete="off"></div>
+          <button class="primary" id="cl-go">Look up</button>
+        </div>
+        <div id="cl-result" style="margin-top:.9rem"></div>
+      </div>
+      <div class="card">
+        <h2>All customers
+          <button class="ghost" id="cust-refresh" style="float:right;padding:.3rem .7rem;font-size:.76rem">Refresh</button></h2>
+        <div class="note" style="margin:0 0 .6rem">Everyone with stitching progress on one of your patterns, most recent first. Emails are partly masked; use the lookup above when a customer contacts you directly.</div>
+        <div id="cust-box"><div class="note">Loading…</div></div>
+      </div>
     </div>
   </div>
 </div>
@@ -2454,14 +2490,36 @@ function convUrl(){
   CONV_URL=URL.createObjectURL(new Blob([bytes],{type:'text/html'}));
   return CONV_URL;
 }
+// ── tabs (v7) ────────────────────────────────────────────────────
+let CUST_LOADED=false;
+function showTab(name){
+  ['patterns','converter','customers'].forEach(t=>{
+    const el=$('tab-'+t); if(el) el.style.display = (t===name)?'':'none';
+  });
+  document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+  // The converter is ~350 KB of embedded tooling — decode it the first time
+  // the tab is opened, not at sign-in.
+  if(name==='converter' && !$('conv-frame').src){
+    const _cu=convUrl(); $('conv-frame').src=_cu; $('conv-link').href=_cu;
+  }
+  if(name==='customers' && !CUST_LOADED){ CUST_LOADED=true; loadCustomers(); }
+  if(name==='patterns') showPublish(false);
+}
+document.querySelectorAll('#tabbar button').forEach(b=>{ b.onclick=()=>showTab(b.dataset.tab); });
+function showPublish(on){
+  $('publish-card').style.display = on?'':'none';
+  $('list-card').style.display = on?'none':'';
+}
+$('add-pattern').onclick=()=>showPublish(true);
+$('pub-back').onclick=(e)=>{ e.preventDefault(); showPublish(false); };
+
 function enterWorkspace(){
   $('who-brand').textContent = SESSION.brand;
   $('who-email').textContent = SESSION.email || '';
   $('up-prefix').textContent = SESSION.prefix + '-';
-  const _cu=convUrl();
-  $('conv-frame').src=_cu;
-  $('conv-link').href=_cu;
+  CUST_LOADED=false;
   show('ws');
+  showTab('patterns');
   loadMine();
 }
 
@@ -2530,6 +2588,9 @@ $('up-go').onclick = async () => {
     $('name-cover').textContent='Click to choose the cover image';
     $('cover-prev').style.display='none';
     loadMine();
+    showPublish(false);
+    const pm=$('patterns-msg');
+    if(pm){ pm.innerHTML='<div class="okmsg" style="margin:0 0 .6rem">'+d.sku+': '+(d.note||'Published.')+'</div>'; setTimeout(()=>{ pm.innerHTML=''; }, 8000); }
   }catch(e){ msg.innerHTML='<span class="err">Network error — the upload did not go through.</span>'; }
   finally{ $('up-go').disabled=false; }
 };
@@ -2608,6 +2669,67 @@ async function deleteKit(sku){
     loadMine();
   }catch(e){ alert('Network error — the delete did not go through.'); }
 }
+// ── customers (v7) ───────────────────────────────────────────────────────────
+function fmtStitchTime(ms){
+  const m=Math.round((ms||0)/60000);
+  if(m<1) return '—';
+  if(m<60) return m+'m';
+  return Math.floor(m/60)+'h '+(m%60)+'m';
+}
+function fmtWhen(ts){
+  if(!ts) return '';
+  try{ return new Date(ts).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}); }catch(e){ return ''; }
+}
+function custKitRows(kits){
+  const esc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  let h='<table><thead><tr><th>Pattern</th><th style="min-width:150px">Progress</th><th>Time</th><th>Sessions</th><th>Last active</th></tr></thead><tbody>';
+  for(const k of kits){
+    h+='<tr><td><span class="skucell">'+esc(k.sku)+'</span>'+(k.title?'<div class="note">'+esc(k.title)+'</div>':'')+'</td>'
+      +'<td><div style="display:flex;align-items:center;gap:.5rem"><div class="pbar" style="flex:1"><span style="width:'+(k.pct|0)+'%"></span></div><span style="font-size:.78rem;font-weight:700">'+(k.pct|0)+'%</span></div>'
+      +'<div class="note" style="margin-top:.15rem">'+(k.done|0).toLocaleString()+' / '+(k.total|0).toLocaleString()+' stitches</div></td>'
+      +'<td>'+fmtStitchTime(k.timeMs)+'</td><td>'+(k.sessions|0)+'</td>'
+      +'<td style="color:var(--muted);font-size:.8rem">'+fmtWhen(k.lastActive)+'</td></tr>';
+  }
+  return h+'</tbody></table>';
+}
+async function loadCustomers(){
+  const box=$('cust-box');
+  box.innerHTML='<div class="note">Loading…</div>';
+  try{
+    const r=await fetch(API+'customers',{headers:{'x-brand-key':SESSION.key}});
+    const d=await r.json().catch(()=>({}));
+    if(r.status===401){ clearSession(); show('in'); return; }
+    if(!r.ok||!d.ok){ box.innerHTML='<div class="err">'+(d.error||'Could not load customers.')+'</div>'; return; }
+    if(!d.customers.length){ box.innerHTML='<div class="note">No customers yet — this list fills up as people stitch your patterns in the Stitch Tracker.</div>'; return; }
+    const esc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    let h='';
+    for(const c of d.customers){
+      h+='<div style="border:1px solid var(--border);border-radius:10px;padding:.7rem .8rem;margin:0 0 .6rem">'
+        +'<div style="font-weight:700;margin:0 0 .4rem">'+esc(c.email||'(email unavailable)')
+        +' <span class="note" style="font-weight:400">· '+c.kits.length+' pattern'+(c.kits.length>1?'s':'')+'</span></div>'
+        +custKitRows(c.kits)+'</div>';
+    }
+    if(d.truncated) h+='<div class="note">Showing the 250 most recently active customers.</div>';
+    box.innerHTML=h;
+  }catch(e){ box.innerHTML='<div class="err">Network error.</div>'; }
+}
+$('cust-refresh').onclick=loadCustomers;
+$('cl-go').onclick=async()=>{
+  const email=$('cl-email').value.trim();
+  const out=$('cl-result');
+  if(!email||email.indexOf('@')<=0){ out.innerHTML='<div class="err">Enter the customer’s email address.</div>'; return; }
+  $('cl-go').disabled=true; out.innerHTML='<div class="note">Looking up…</div>';
+  try{
+    const r=await fetch(API+'customer-lookup',{method:'POST',headers:{'x-brand-key':SESSION.key,'content-type':'application/json'},body:JSON.stringify({email})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok){ out.innerHTML='<div class="err">'+(d.error||'Lookup failed.')+'</div>'; return; }
+    if(!d.found){ out.innerHTML='<div class="note">No stitching progress on your patterns for that email address. Check the spelling — and note a customer only appears here once they’ve opened one of your patterns in the Stitch Tracker while signed in.</div>'; return; }
+    out.innerHTML='<div style="font-weight:700;margin:0 0 .4rem">'+String(d.email).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</div>'+custKitRows(d.kits);
+  }catch(e){ out.innerHTML='<div class="err">Network error.</div>'; }
+  finally{ $('cl-go').disabled=false; }
+};
+$('cl-email').addEventListener('keydown',e=>{ if(e.key==='Enter') $('cl-go').click(); });
+
 // ── boot ─────────────────────────────────────────────────────────────────────
 SESSION=loadSession();
 if(SESSION && SESSION.key){ enterWorkspace(); } else { show('in'); }
