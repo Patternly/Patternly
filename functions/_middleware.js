@@ -517,6 +517,83 @@ function partnerSkuFor(auth, raw) {
   return auth.prefix + "-" + s;
 }
 
+
+// ── Partner customers (v69) ─────────────────────────────────────────────────
+// Read-only views over the progress store for a brand's own kits. Progress
+// lives in ENTITLEEMENTS as prog:<customerId>:<SKU>; nothing here writes to it
+// and nothing here is on the sync path. The stitch bitmap (rec.data) is never
+// returned — brands get summaries only.
+function partnerMaskEmail(email) {
+  const s = String(email || "");
+  const at = s.indexOf("@");
+  if (at <= 0) return s ? "***" : "";
+  const local = s.slice(0, at);
+  const keep = local.slice(0, Math.min(2, local.length));
+  return keep + "***" + s.slice(at);
+}
+function partnerProgSummary(sku, rec, titles) {
+  const done = rec.done | 0, total = rec.total | 0;
+  return {
+    sku,
+    title: titles[sku.toUpperCase()] || "",
+    done, total,
+    pct: total > 0 ? Math.min(100, Math.round(done * 100 / total)) : 0,
+    threads: rec.threads | 0,
+    timeMs: rec.timeMs | 0,
+    sessions: rec.sessions | 0,
+    lastActive: rec.ts || 0
+  };
+}
+async function partnerTitleMap(env) {
+  const titles = {};
+  try {
+    for (const e of await partnerManifestRaw(env)) {
+      if (e && e.sku) titles[String(e.sku).toUpperCase()] = e.title || "";
+    }
+  } catch (e) {}
+  return titles;
+}
+// Scan prog:* keys and collect this brand's kits, grouped by customer id.
+// The SKU is in the key name, so non-brand keys are skipped without a read.
+// Page cap mirrors the /progress lister; at thousands of stitchers this wants
+// a write-time index instead of a scan — revisit then, not before.
+async function partnerProgressScan(env, prefix) {
+  const byCustomer = new Map();
+  let cursor;
+  for (let page = 0; page < 5; page++) {
+    const listed = await env.ENTITLEMENTS.list({ prefix: "prog:", limit: 1000, cursor });
+    for (const k of listed.keys) {
+      const parts = k.name.split(":");
+      if (parts.length < 3) continue;
+      const sku = parts[parts.length - 1].toUpperCase();
+      if (!sku.startsWith(prefix + "-")) continue;
+      const cid = parts.slice(1, -1).join(":");
+      const raw = await env.ENTITLEMENTS.get(k.name);
+      if (!raw) continue;
+      let rec; try { rec = JSON.parse(raw); } catch (e) { continue; }
+      if (!byCustomer.has(cid)) byCustomer.set(cid, []);
+      byCustomer.get(cid).push({ sku, rec });
+    }
+    if (!listed.list_complete) cursor = listed.cursor; else break;
+  }
+  return byCustomer;
+}
+const PARTNER_CUSTOMER_NODES_QUERY =
+  `query($ids:[ID!]!){ nodes(ids:$ids){ ... on Customer { id email } } }`;
+async function partnerResolveEmails(env, ids) {
+  const out = {};
+  for (let i = 0; i < ids.length; i += 50) {
+    const chunk = ids.slice(i, i + 50).map(id => "gid://shopify/Customer/" + id);
+    try {
+      const d = await adminQuery(env, PARTNER_CUSTOMER_NODES_QUERY, { ids: chunk });
+      for (const n of (d && d.nodes) || []) {
+        if (n && n.id) out[String(n.id).replace(/^gid:\/\/shopify\/Customer\//, "")] = n.email || "";
+      }
+    } catch (e) { console.warn("partner email resolve failed:", e.message); }
+  }
+  return out;
+}
+
 // Remove one partner kit completely: manifest entry + its stored files.
 async function partnerRemoveKit(env, sku) {
   const list = await partnerManifestRaw(env);
@@ -566,6 +643,69 @@ async function handlePartnerApi(request, url, env) {
       out.push({ sku: e.sku, title: e.title || "", live: e.live !== false, image: e.image || "", uploadedAt: e.uploadedAt || "", hasFile, code: code || "", link });
     }
     return partnerJson(200, { ok:true, brand: auth.brand, kits: out });
+  }
+
+  if (sub === "customers" && request.method === "GET") {
+    const auth = await partnerAuth(request, env);
+    if (auth.err) return auth.err;
+    if (!env.ENTITLEMENTS) return partnerJson(503, { ok:false, error:"progress store not configured" });
+    const titles = await partnerTitleMap(env);
+    const byCustomer = await partnerProgressScan(env, auth.prefix);
+    const ids = [...byCustomer.keys()].slice(0, 250);
+    const emails = ids.length ? await partnerResolveEmails(env, ids) : {};
+    const customers = ids.map(cid => {
+      const kits = byCustomer.get(cid).map(({ sku, rec }) => partnerProgSummary(sku, rec, titles));
+      kits.sort((a, b) => b.lastActive - a.lastActive);
+      return {
+        // Masked on purpose: the browsable list never hands full addresses to a
+        // partner. Support gets the full record via customer-lookup, where the
+        // customer has already given the brand their address themselves.
+        email: partnerMaskEmail(emails[cid]),
+        kits,
+        lastActive: kits.length ? kits[0].lastActive : 0
+      };
+    });
+    customers.sort((a, b) => b.lastActive - a.lastActive);
+    return partnerJson(200, { ok:true, brand: auth.brand, customers, truncated: byCustomer.size > ids.length });
+  }
+
+  if (sub === "customer-lookup" && request.method === "POST") {
+    const auth = await partnerAuth(request, env);
+    if (auth.err) return auth.err;
+    if (!env.ENTITLEMENTS) return partnerJson(503, { ok:false, error:"progress store not configured" });
+    let body = {}; try { body = await request.json(); } catch (e) {}
+    const email = String(body.email || "").trim().toLowerCase();
+    if (!email || email.indexOf("@") <= 0) return partnerJson(400, { ok:false, error:"Enter the customer’s email address." });
+    // One shape for every miss — no account, and account with none of THIS
+    // brand's kits, are indistinguishable, so a brand key cannot be used to
+    // probe which emails have Patternly accounts.
+    const notFound = () => partnerJson(200, { ok:true, found:false });
+    let cid = null;
+    try {
+      const d = await adminQuery(env, CUSTOMER_BY_EMAIL_QUERY, { q: "email:" + email });
+      const node = d && d.customers && d.customers.edges && d.customers.edges[0] && d.customers.edges[0].node;
+      if (node && node.id) cid = String(node.id).replace(/^gid:\/\/shopify\/Customer\//, "");
+    } catch (e) {
+      return partnerJson(503, { ok:false, error:"Customer lookup is unavailable right now — try again shortly." });
+    }
+    if (!cid) return notFound();
+    const titles = await partnerTitleMap(env);
+    const kits = [];
+    let cursor;
+    for (let page = 0; page < 3; page++) {
+      const listed = await env.ENTITLEMENTS.list({ prefix: "prog:" + cid + ":", limit: 1000, cursor });
+      for (const k of listed.keys) {
+        const sku = k.name.split(":").pop().toUpperCase();
+        if (!sku.startsWith(auth.prefix + "-")) continue;
+        const raw = await env.ENTITLEMENTS.get(k.name);
+        if (!raw) continue;
+        try { kits.push(partnerProgSummary(sku, JSON.parse(raw), titles)); } catch (e) {}
+      }
+      if (!listed.list_complete) cursor = listed.cursor; else break;
+    }
+    if (!kits.length) return notFound();
+    kits.sort((a, b) => b.lastActive - a.lastActive);
+    return partnerJson(200, { ok:true, found:true, email, kits });
   }
 
   if (sub === "upload" && request.method === "POST") {
