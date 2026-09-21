@@ -793,9 +793,191 @@ async function handlePartnerApi(request, url, env) {
     return partnerJson(200, { ok:true, sku, deleted:true });
   }
 
+  // v70: hide/show a kit without deleting it. Printed codes keep working the
+  // moment it is shown again; hidden kits simply leave the catalogue.
+  if (sub === "toggle" && request.method === "POST") {
+    const auth = await partnerAuth(request, env);
+    if (auth.err) return auth.err;
+    let body = {}; try { body = await request.json(); } catch (e) {}
+    const sku = String(body.sku || "").trim().toUpperCase();
+    if (!sku.startsWith(auth.prefix + "-")) return partnerJson(400, { ok:false, error:"That kit is not yours." });
+    const list = await partnerManifestRaw(env);
+    const e = list.find(x => x && typeof x.sku === "string" && x.sku.toUpperCase() === sku);
+    if (!e) return partnerJson(404, { ok:false, error:"No such kit." });
+    e.live = body.live !== false;
+    await partnerManifestWrite(env, list);
+    return partnerJson(200, { ok:true, sku, live: e.live });
+  }
+
+  // v70: edit a kit's metadata — title, shop link, cover — without re-uploading
+  // the pattern file. The chart itself only ever changes through a full upload.
+  if (sub === "update" && request.method === "POST") {
+    const auth = await partnerAuth(request, env);
+    if (auth.err) return auth.err;
+    let form = null;
+    try { form = await request.formData(); } catch (e) {
+      return partnerJson(400, { ok:false, error:"Expected a multipart form." });
+    }
+    const sku = String(form.get("sku") || "").trim().toUpperCase();
+    if (!sku.startsWith(auth.prefix + "-")) return partnerJson(400, { ok:false, error:"That kit is not yours." });
+    const list = await partnerManifestRaw(env);
+    const e = list.find(x => x && typeof x.sku === "string" && x.sku.toUpperCase() === sku);
+    if (!e) return partnerJson(404, { ok:false, error:"No such kit." });
+    const title = partnerCleanTitle(form.get("title"));
+    if (title) e.title = title;
+    const buy = String(form.get("buy") || "").trim();
+    if (buy) {
+      if (!/^https:\/\//i.test(buy)) return partnerJson(400, { ok:false, error:"The shop link must start with https://" });
+      e.buy = buy;
+    }
+    const cover = form.get("cover");
+    if (cover && typeof cover.arrayBuffer === "function" && cover.size > 0) {
+      const t = String(cover.type || "").toLowerCase();
+      const ext = t === "image/jpeg" ? "jpg" : t === "image/png" ? "png" : t === "image/webp" ? "webp" : null;
+      if (!ext) return partnerJson(400, { ok:false, error:"Cover must be a JPG, PNG or WebP image." });
+      if (cover.size > 3000000) return partnerJson(400, { ok:false, error:"Cover image is over 3 MB." });
+      await env.PATTERNS.put(sku + "/cover." + ext, await cover.arrayBuffer(), { httpMetadata: { contentType: t } });
+      e.image = "https://luca-s.com/apps/patternly/patterns/" + sku + "/cover." + ext;
+    }
+    await partnerManifestWrite(env, list);
+    return partnerJson(200, { ok:true, sku, title: e.title || "", buy: e.buy || "", image: e.image || "" });
+  }
+
   // ── admin: review queue ───────────────────────────────────────────────────
   const adminKey = (request.headers.get("x-admin-key") || "").trim();
   const adminOk = env.PARTNER_ADMIN_KEY && adminKey && adminKey === env.PARTNER_ADMIN_KEY;
+
+  // ── admin: brand management (v70) — powers the Studio's Admin mode ────────
+  // Everything here is guarded by PARTNER_ADMIN_KEY; brand keys never reach it.
+  if (sub === "admin/brands" && request.method === "GET") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"partner system not configured" });
+    const kitsByPrefix = {};
+    try {
+      for (const e of await partnerManifestRaw(env)) {
+        if (!e || typeof e.sku !== "string") continue;
+        const p = e.sku.toUpperCase().split("-")[0];
+        kitsByPrefix[p] = (kitsByPrefix[p] || 0) + 1;
+      }
+    } catch (e) {}
+    const brands = [];
+    let cursor;
+    for (let page = 0; page < 5; page++) {
+      const listed = await env.PARTNERS.list({ limit: 1000, cursor });
+      for (const k of listed.keys) {
+        let rec = null;
+        try { rec = JSON.parse((await env.PARTNERS.get(k.name)) || "null"); } catch (e) {}
+        if (!rec || !rec.prefix) continue;
+        const prefix = String(rec.prefix).toUpperCase();
+        brands.push({
+          key: k.name, brand: rec.brand || "", prefix,
+          email: rec.email || "", buy: rec.buy || "",
+          limit: (Number.isFinite(+rec.limit) && +rec.limit > 0) ? +rec.limit : 200,
+          kits: kitsByPrefix[prefix] || 0
+        });
+      }
+      if (!listed.list_complete) cursor = listed.cursor; else break;
+    }
+    brands.sort((a, b) => a.brand.localeCompare(b.brand));
+    return partnerJson(200, { ok:true, brands });
+  }
+
+  if (sub === "admin/create" && request.method === "POST") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"partner system not configured" });
+    let body = {}; try { body = await request.json(); } catch (e) {}
+    const brand = String(body.brand || "").replace(/[<>]/g, "").trim().slice(0, 40);
+    const prefix = String(body.prefix || "").trim().toUpperCase();
+    const email = String(body.email || "").trim().toLowerCase();
+    const buy = String(body.buy || "").trim();
+    const limit = +body.limit;
+    if (!brand) return partnerJson(400, { ok:false, error:"Give the brand a name." });
+    if (!/^[A-Z0-9]{2,6}$/.test(prefix)) return partnerJson(400, { ok:false, error:"Prefix: 2–6 letters or digits, e.g. RTO." });
+    if (!email || email.indexOf("@") <= 0) return partnerJson(400, { ok:false, error:"Enter the partner’s sign-in email." });
+    if (buy && !/^https:\/\//i.test(buy)) return partnerJson(400, { ok:false, error:"The shop link must start with https://" });
+    // One prefix = one brand, forever — it walls storage and customers apart.
+    let cursor;
+    for (let page = 0; page < 5; page++) {
+      const listed = await env.PARTNERS.list({ limit: 1000, cursor });
+      for (const k of listed.keys) {
+        try {
+          const rec = JSON.parse((await env.PARTNERS.get(k.name)) || "null");
+          if (rec && String(rec.prefix).toUpperCase() === prefix) {
+            return partnerJson(400, { ok:false, error:"Prefix " + prefix + " is already used by " + (rec.brand || "another brand") + "." });
+          }
+        } catch (e) {}
+      }
+      if (!listed.list_complete) cursor = listed.cursor; else break;
+    }
+    const A = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+    let key = null;
+    for (let tries = 0; tries < 3 && !key; tries++) {
+      const b = new Uint8Array(12); crypto.getRandomValues(b);
+      let s = ""; for (const x of b) s += A[x % A.length];
+      const cand = "PK-" + prefix + "-" + s;
+      if (!(await env.PARTNERS.get(cand))) key = cand;
+    }
+    if (!key) return partnerJson(500, { ok:false, error:"could not generate a key" });
+    const rec = { brand, prefix, email };
+    if (buy) rec.buy = buy;
+    if (Number.isFinite(limit) && limit > 0) rec.limit = Math.floor(limit);
+    await env.PARTNERS.put(key, JSON.stringify(rec));
+    return partnerJson(200, { ok:true, key, brand, prefix, email,
+      note: "Save this key now — it is shown once. Send it to the partner with their sign-in email." });
+  }
+
+  if (sub === "admin/update-brand" && request.method === "POST") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"partner system not configured" });
+    let body = {}; try { body = await request.json(); } catch (e) {}
+    const key = String(body.key || "").trim();
+    let rec = null;
+    try { rec = JSON.parse((await env.PARTNERS.get(key)) || "null"); } catch (e) {}
+    if (!rec) return partnerJson(404, { ok:false, error:"no such brand key" });
+    if (body.email !== undefined) {
+      const email = String(body.email || "").trim().toLowerCase();
+      if (!email || email.indexOf("@") <= 0) return partnerJson(400, { ok:false, error:"bad email" });
+      rec.email = email;
+    }
+    if (body.buy !== undefined) {
+      const buy = String(body.buy || "").trim();
+      if (buy && !/^https:\/\//i.test(buy)) return partnerJson(400, { ok:false, error:"The shop link must start with https://" });
+      rec.buy = buy;
+    }
+    if (body.limit !== undefined) {
+      const limit = +body.limit;
+      if (!Number.isFinite(limit) || limit <= 0) return partnerJson(400, { ok:false, error:"bad limit" });
+      rec.limit = Math.floor(limit);
+    }
+    if (body.brand !== undefined) {
+      const brand = String(body.brand || "").replace(/[<>]/g, "").trim().slice(0, 40);
+      if (!brand) return partnerJson(400, { ok:false, error:"bad brand name" });
+      rec.brand = brand;
+    }
+    await env.PARTNERS.put(key, JSON.stringify(rec));
+    return partnerJson(200, { ok:true, key, brand: rec.brand, prefix: rec.prefix, email: rec.email, buy: rec.buy || "", limit: rec.limit || 200 });
+  }
+
+  if (sub === "admin/revoke" && request.method === "POST") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"partner system not configured" });
+    let body = {}; try { body = await request.json(); } catch (e) {}
+    const key = String(body.key || "").trim();
+    if (!(await env.PARTNERS.get(key))) return partnerJson(404, { ok:false, error:"no such brand key" });
+    await env.PARTNERS.delete(key);
+    return partnerJson(200, { ok:true, revoked: key,
+      note: "Sign-in and uploads stop immediately. The brand’s published kits stay live — hide or remove them separately if needed." });
+  }
+
+  if (sub === "admin/patterns" && request.method === "GET") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    const list = await partnerManifestRaw(env);
+    const out = list.filter(e => e && e.sku).map(e => ({
+      sku: e.sku, title: e.title || "", brand: e.brand || "",
+      live: e.live !== false, image: e.image || "", buy: e.buy || "", uploadedAt: e.uploadedAt || ""
+    }));
+    return partnerJson(200, { ok:true, patterns: out });
+  }
 
   if (sub === "pending" && request.method === "GET") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
