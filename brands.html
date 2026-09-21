@@ -57,6 +57,10 @@
   .tabbar button.active{color:var(--red);border-bottom-color:var(--red)}
   .pbar{height:8px;border-radius:999px;background:#f0e6e9;overflow:hidden}
   .pbar>span{display:block;height:100%;background:var(--red)}
+  .ovgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.7rem}
+  .ovtile{border:1px solid var(--border);border-radius:12px;padding:.85rem .95rem;background:#fff}
+  .ovnum{font-size:1.55rem;font-weight:800;color:var(--red);line-height:1.2}
+  .ovlab{font-size:.72rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-top:.2rem}
 </style>
 </head>
 <body>
@@ -91,10 +95,20 @@
     </div>
 
     <div class="tabbar" id="tabbar">
-      <button type="button" data-tab="patterns" class="active">My Patterns</button>
+      <button type="button" data-tab="overview" class="active">Overview</button>
+      <button type="button" data-tab="patterns">My Patterns</button>
       <button type="button" data-tab="converter">Converter</button>
       <button type="button" data-tab="customers">My Customers</button>
     </div>
+
+    <div id="tab-overview" style="display:none">
+      <div class="card">
+        <h2>Overview
+          <button class="ghost" id="ov-refresh" style="float:right;padding:.3rem .7rem;font-size:.76rem">Refresh</button></h2>
+        <div id="ov-tiles" class="ovgrid"><div class="note">Loading…</div></div>
+        <div id="ov-note" class="note" style="margin-top:.7rem"></div>
+      </div>
+    </div><!-- /tab-overview -->
 
     <div id="tab-converter" style="display:none">
     <div class="card">
@@ -150,6 +164,32 @@
         <button class="primary" id="up-go">Publish</button>
       </div>
       <div class="note" id="up-msg">Publishing is instant — your pattern appears in the catalogue right away, exactly as you approved it in the converter preview.</div>
+    </div>
+
+    <div class="card" id="edit-card" style="display:none">
+      <h2>Edit <span id="ed-sku" class="skucell"></span>
+        <a href="#" id="ed-back" style="float:right;font-size:.78rem;font-weight:700">← Back to My Patterns</a></h2>
+      <div class="row">
+        <div>
+          <label for="ed-title">Pattern title</label>
+          <input type="text" id="ed-title" maxlength="120">
+        </div>
+        <div>
+          <label for="ed-buy">Shop link <span style="font-weight:400;color:var(--muted)">(leave empty to keep the current one)</span></label>
+          <input type="url" id="ed-buy" placeholder="https://…">
+        </div>
+      </div>
+      <div class="row" style="margin-top:.8rem">
+        <div>
+          <label>Replace cover photo <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+          <label class="filebox" id="box-edcover"><input type="file" id="ed-cover" accept="image/jpeg,image/png,image/webp"><span class="fname" id="name-edcover">Keep the current cover</span><img id="edcover-prev" class="coverprev" style="display:none" alt=""></label>
+        </div>
+        <div></div>
+      </div>
+      <div style="margin-top:1rem" class="row">
+        <button class="primary" id="ed-save">Save changes</button>
+      </div>
+      <div class="note" id="ed-msg">The chart itself isn’t changed here — to replace the pattern file, publish this SKU again from + Add Pattern.</div>
     </div>
 
     <div class="card" id="list-card">
@@ -2493,7 +2533,7 @@ function convUrl(){
 // ── tabs (v7) ────────────────────────────────────────────────────
 let CUST_LOADED=false;
 function showTab(name){
-  ['patterns','converter','customers'].forEach(t=>{
+  ['overview','patterns','converter','customers'].forEach(t=>{
     const el=$('tab-'+t); if(el) el.style.display = (t===name)?'':'none';
   });
   document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
@@ -2503,15 +2543,102 @@ function showTab(name){
     const _cu=convUrl(); $('conv-frame').src=_cu; $('conv-link').href=_cu;
   }
   if(name==='customers' && !CUST_LOADED){ CUST_LOADED=true; loadCustomers(); }
+  if(name==='overview') loadOverview();
   if(name==='patterns') showPublish(false);
 }
 document.querySelectorAll('#tabbar button').forEach(b=>{ b.onclick=()=>showTab(b.dataset.tab); });
 function showPublish(on){
   $('publish-card').style.display = on?'':'none';
+  $('edit-card').style.display='none';
   $('list-card').style.display = on?'none':'';
 }
 $('add-pattern').onclick=()=>showPublish(true);
 $('pub-back').onclick=(e)=>{ e.preventDefault(); showPublish(false); };
+// ── edit a pattern's metadata (v8) ──────────────────────────────────
+let EDIT_SKU=null;
+function showEdit(sku){
+  EDIT_SKU=sku||null;
+  $('edit-card').style.display = sku?'':'none';
+  $('publish-card').style.display='none';
+  $('list-card').style.display = sku?'none':'';
+  if(sku){
+    const k=MINE.find(x=>x.sku===sku)||{};
+    $('ed-sku').textContent=sku;
+    $('ed-title').value=k.title||'';
+    $('ed-buy').value='';
+    $('ed-cover').value='';
+    $('box-edcover').classList.remove('has');
+    $('name-edcover').textContent='Keep the current cover';
+    $('edcover-prev').style.display='none';
+    $('ed-msg').textContent='The chart itself isn\u2019t changed here \u2014 to replace the pattern file, publish this SKU again from + Add Pattern.';
+  }
+}
+$('ed-back').onclick=(e)=>{ e.preventDefault(); showEdit(null); };
+$('ed-cover').addEventListener('change',()=>{
+  const f=$('ed-cover').files[0];
+  $('box-edcover').classList.toggle('has', !!f);
+  $('name-edcover').textContent=f?f.name:'Keep the current cover';
+  const img=$('edcover-prev');
+  if(f){ img.src=URL.createObjectURL(f); img.style.display='block'; } else img.style.display='none';
+});
+$('ed-save').onclick=async()=>{
+  if(!EDIT_SKU) return;
+  const msg=$('ed-msg');
+  const title=$('ed-title').value.trim(), buy=$('ed-buy').value.trim(), cover=$('ed-cover').files[0];
+  if(buy && !/^https:\/\//i.test(buy)){ msg.innerHTML='<span class="err">The shop link must start with https://</span>'; return; }
+  if(cover && cover.size>3000000){ msg.innerHTML='<span class="err">The cover image is over 3 MB.</span>'; return; }
+  const fd=new FormData();
+  fd.set('sku', EDIT_SKU);
+  if(title) fd.set('title', title);
+  if(buy) fd.set('buy', buy);
+  if(cover) fd.set('cover', cover);
+  $('ed-save').disabled=true; msg.textContent='Saving\u2026';
+  try{
+    const r=await fetch(API+'update',{method:'POST',headers:{'x-brand-key':SESSION.key},body:fd});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok){ msg.innerHTML='<span class="err">'+(d.error||'Save failed.')+'</span>'; return; }
+    showEdit(null);
+    const pm=$('patterns-msg');
+    if(pm){ pm.innerHTML='<div class="okmsg" style="margin:0 0 .6rem">'+d.sku+': changes saved.</div>'; setTimeout(()=>{ pm.innerHTML=''; }, 6000); }
+    loadMine();
+  }catch(e){ msg.innerHTML='<span class="err">Network error \u2014 nothing was saved.</span>'; }
+  finally{ $('ed-save').disabled=false; }
+};
+async function toggleKit(sku, live){
+  try{
+    const r=await fetch(API+'toggle',{method:'POST',headers:{'x-brand-key':SESSION.key,'content-type':'application/json'},body:JSON.stringify({sku,live})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok){ alert(d.error||'Could not change visibility.'); return; }
+    loadMine();
+  }catch(e){ alert('Network error \u2014 nothing changed.'); }
+}
+// ── overview (v8) ──────────────────────────────────────────────────
+async function loadOverview(){
+  const t=$('ov-tiles'), note=$('ov-note');
+  t.innerHTML='<div class="note">Loading\u2026</div>'; note.textContent='';
+  try{
+    const [rm, rc]=await Promise.all([
+      fetch(API+'mine',{headers:{'x-brand-key':SESSION.key}}),
+      fetch(API+'customers',{headers:{'x-brand-key':SESSION.key}})
+    ]);
+    const dm=await rm.json().catch(()=>({})), dc=await rc.json().catch(()=>({}));
+    if(!rm.ok||!dm.ok){ t.innerHTML='<div class="err">Could not load the overview.</div>'; return; }
+    const kits=dm.kits||[], customers=(dc.ok&&dc.customers)||[];
+    const liveN=kits.filter(k=>k.live).length;
+    let stitches=0; const perSku={};
+    for(const c of customers) for(const k of c.kits){ stitches+=(k.done|0); perSku[k.sku]=(perSku[k.sku]||0)+(k.done|0); }
+    let top=null; for(const s in perSku){ if(top===null||perSku[s]>perSku[top]) top=s; }
+    const topKit= top ? (kits.find(k=>k.sku===top)||{sku:top,title:''}) : null;
+    const tile=(num,lab)=>'<div class="ovtile"><div class="ovnum">'+num+'</div><div class="ovlab">'+lab+'</div></div>';
+    t.innerHTML =
+      tile(liveN+' / '+kits.length, 'Patterns live')+
+      tile(String(customers.length)+((dc.ok&&dc.truncated)?'+':''), 'Customers stitching')+
+      tile(stitches.toLocaleString(), 'Stitches on your patterns')+
+      tile(topKit?topKit.sku:'\u2014', 'Most stitched'+(topKit&&topKit.title?' \u00b7 '+String(topKit.title).replace(/</g,'&lt;').slice(0,28):''));
+    if(!customers.length) note.textContent='Customer numbers fill in as people stitch your patterns in the Stitch Tracker.';
+  }catch(e){ t.innerHTML='<div class="err">Network error.</div>'; }
+}
+$('ov-refresh').onclick=loadOverview;
 
 function enterWorkspace(){
   $('who-brand').textContent = SESSION.brand;
@@ -2519,7 +2646,7 @@ function enterWorkspace(){
   $('up-prefix').textContent = SESSION.prefix + '-';
   CUST_LOADED=false;
   show('ws');
-  showTab('patterns');
+  showTab('overview');
   loadMine();
 }
 
@@ -2613,12 +2740,14 @@ async function loadMine(){
         +'<td>'+(k.image?'<img class="thumb" src="'+String(k.image).replace(/"/g,'&quot;')+'" alt="">':'<span class="thumb" style="display:inline-block"></span>')+'</td>'
         +'<td class="skucell">'+k.sku+'</td>'
         +'<td>'+String(k.title||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</td>'
-        +'<td>'+(k.live?'<span class="pill live">Live</span>':'<span class="pill pending">Pending review</span>')
+        +'<td>'+(k.live?'<span class="pill live">Live</span>':'<span class="pill pending">Hidden</span>')
               +(k.hasFile?'':' <span class="err" title="Pattern file missing">file missing</span>')+'</td>'
         +'<td>'+(k.code?'<span class="skucell">'+k.code+'</span> <button class="ghost copybtn" data-copy="'+k.code+'" style="padding:.15rem .5rem;font-size:.7rem">Copy</button>':'<span class="note">—</span>')+'</td>'
         +'<td style="white-space:nowrap">'+(k.code&&k.live?'<a href="'+k.link.replace(/"/g,'&quot;')+'" target="_blank" rel="noopener" style="font-size:.78rem;font-weight:700">Test in Stitch Tracker</a>'
                 :(k.code?'<span class="note" title="The link starts working once the kit is live">Test link activates when Live</span>':''))
         +(k.code?' <button class="ghost qrbtn" data-sku="'+k.sku+'" style="padding:.15rem .55rem;font-size:.7rem">QR</button>':'')
+        +' <button class="ghost editbtn" data-sku="'+k.sku+'" style="padding:.15rem .55rem;font-size:.7rem">Edit</button>'
+        +' <button class="ghost togglebtn" data-sku="'+k.sku+'" data-live="'+(k.live?1:0)+'" style="padding:.15rem .55rem;font-size:.7rem">'+(k.live?'Hide':'Show')+'</button>'
         +' <button class="ghost delbtn" data-sku="'+k.sku+'" style="padding:.15rem .55rem;font-size:.7rem;color:#b3261e;border-color:#e8c9c9">Delete</button>'
         +'</td>'
         +'</tr>';
@@ -2627,6 +2756,8 @@ async function loadMine(){
     box.querySelectorAll('.copybtn').forEach(b=>{ b.onclick=()=>{ navigator.clipboard.writeText(b.dataset.copy).then(()=>{ b.textContent='Copied'; setTimeout(()=>b.textContent='Copy',1200); }); }; });
     box.querySelectorAll('.qrbtn').forEach(b=>{ b.onclick=()=>downloadQrFor(b.dataset.sku); });
     box.querySelectorAll('.delbtn').forEach(b=>{ b.onclick=()=>deleteKit(b.dataset.sku); });
+    box.querySelectorAll('.editbtn').forEach(b=>{ b.onclick=()=>showEdit(b.dataset.sku); });
+    box.querySelectorAll('.togglebtn').forEach(b=>{ b.onclick=()=>toggleKit(b.dataset.sku, b.dataset.live!=='1'); });
   }catch(e){ box.innerHTML='<div class="err">Network error.</div>'; }
 }
 $('mine-refresh').onclick=loadMine;
