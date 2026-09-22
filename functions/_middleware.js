@@ -544,6 +544,33 @@ function partnerProgSummary(sku, rec, titles) {
     lastActive: rec.ts || 0
   };
 }
+// v74: the Luca-S catalogue for admin views — read-only. Built from Shopify
+// exactly like kits.json (buildCatalogue), falling back to the stored
+// kits.json object so a Shopify hiccup shows the last known list instead of
+// nothing. Never written to: Luca-S kits stay managed in Shopify + R2, so the
+// partner manifest never learns about them and the two pipelines can't
+// shadow each other.
+async function lucaKitsRaw(env) {
+  let kits = null;
+  try { kits = await buildCatalogue(env); } catch (e) {}
+  if (!kits && env.PATTERNS) {
+    try {
+      const obj = await env.PATTERNS.get("kits.json");
+      if (obj) {
+        const data = JSON.parse(await obj.text());
+        kits = Array.isArray(data) ? data : (data.kits || []);
+      }
+    } catch (e) {}
+  }
+  const out = [];
+  for (const k of (kits || [])) {
+    if (!k || !k.sku) continue;
+    const sku = String(k.sku).trim();
+    if (!sku) continue;
+    out.push({ sku, title: k.title || "", image: k.image || "", url: k.url || "" });
+  }
+  return out;
+}
 async function partnerTitleMap(env) {
   const titles = {};
   try {
@@ -719,6 +746,9 @@ async function handlePartnerApi(request, url, env) {
     if (!sku) return partnerJson(400, { ok:false, error:"SKU must be 1\u201324 letters or digits (your prefix is added automatically)." });
     const title = partnerCleanTitle(form.get("title"));
     if (!title) return partnerJson(400, { ok:false, error:"Give the pattern a title." });
+    // v73: "publish hidden" — stage a pattern out of the catalogue (e.g. until
+    // the kit ships); the partner presses Show when ready.
+    const wantHidden = String(form.get("hidden") || "") === "1";
     const ptly = form.get("ptly");
     if (!ptly || typeof ptly.arrayBuffer !== "function") return partnerJson(400, { ok:false, error:"Attach the .Ptly pattern file." });
     if (ptly.size > 8000000) return partnerJson(400, { ok:false, error:"The pattern file is over 8 MB." });
@@ -773,13 +803,15 @@ async function handlePartnerApi(request, url, env) {
       // v67: uploads publish immediately — brand keys only go to trusted
       // partners, and the chart is theirs to approve in the converter preview.
       // The admin approve endpoint with {live:false} remains as a kill switch.
-      live: prev ? (prev.live !== false) : true,
+      // v73: unless the partner chose to publish hidden.
+      live: wantHidden ? false : (prev ? (prev.live !== false) : true),
       email: auth.email, uploadedAt: now
     };
     if (idx >= 0) list[idx] = entry; else list.push(entry);
     await partnerManifestWrite(env, list);
     return partnerJson(200, { ok:true, sku, live: entry.live,
-      note: entry.live ? "Published \u2014 your pattern is live in the catalogue." : "Uploaded \u2014 currently unpublished." });
+      note: entry.live ? "Published \u2014 your pattern is live in the catalogue."
+                       : "Published hidden \u2014 press Show on My Patterns when you\u2019re ready." });
   }
 
   if (sub === "delete" && request.method === "POST") {
@@ -791,6 +823,33 @@ async function handlePartnerApi(request, url, env) {
     const ok = await partnerRemoveKit(env, sku);
     if (!ok) return partnerJson(404, { ok:false, error:"No such kit." });
     return partnerJson(200, { ok:true, sku, deleted:true });
+  }
+
+  // v72: "Download progress" — on-request export of a customer's CURRENT saved
+  // progress on one of the brand's kits. Read-only; same probe-proof shape as
+  // customer-lookup (no account and no progress are indistinguishable).
+  if (sub === "progress-download" && request.method === "POST") {
+    const auth = await partnerAuth(request, env);
+    if (auth.err) return auth.err;
+    if (!env.ENTITLEMENTS) return partnerJson(503, { ok:false, error:"progress store not configured" });
+    let body = {}; try { body = await request.json(); } catch (e) {}
+    const email = String(body.email || "").trim().toLowerCase();
+    const sku = String(body.sku || "").trim().toUpperCase();
+    if (!email || email.indexOf("@") <= 0) return partnerJson(400, { ok:false, error:"Enter the customer’s email address." });
+    if (!sku.startsWith(auth.prefix + "-")) return partnerJson(400, { ok:false, error:"That kit is not yours." });
+    let cid = null;
+    try {
+      const d = await adminQuery(env, CUSTOMER_BY_EMAIL_QUERY, { q: "email:" + email });
+      const node = d && d.customers && d.customers.edges && d.customers.edges[0] && d.customers.edges[0].node;
+      if (node && node.id) cid = String(node.id).replace(/^gid:\/\/shopify\/Customer\//, "");
+    } catch (e) {
+      return partnerJson(503, { ok:false, error:"Customer lookup is unavailable right now — try again shortly." });
+    }
+    if (!cid) return partnerJson(200, { ok:true, found:false });
+    let rec = null;
+    try { rec = JSON.parse((await env.ENTITLEMENTS.get("prog:" + cid + ":" + sku)) || "null"); } catch (e) {}
+    if (!rec) return partnerJson(200, { ok:true, found:false });
+    return partnerJson(200, { ok:true, found:true, email, sku, exported: new Date().toISOString(), progress: rec });
   }
 
   // v70: hide/show a kit without deleting it. Printed codes keep working the
@@ -972,11 +1031,119 @@ async function handlePartnerApi(request, url, env) {
   if (sub === "admin/patterns" && request.method === "GET") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
     const list = await partnerManifestRaw(env);
-    const out = list.filter(e => e && e.sku).map(e => ({
-      sku: e.sku, title: e.title || "", brand: e.brand || "",
-      live: e.live !== false, image: e.image || "", buy: e.buy || "", uploadedAt: e.uploadedAt || ""
-    }));
+    const out = [];
+    for (const e of list) {
+      if (!e || !e.sku) continue;
+      // v71: the team sees each kit's access code and QR link too, so support
+      // can resend a code without the Kit Link Generator. Admin-guarded.
+      let code = null;
+      try { code = await codeFor(e.sku, env); } catch (er) {}
+      out.push({
+        sku: e.sku, title: e.title || "", brand: e.brand || "",
+        live: e.live !== false, image: e.image || "", buy: e.buy || "", uploadedAt: e.uploadedAt || "",
+        code: code || "",
+        link: code ? "https://luca-s.com/apps/patternly?sku=" + encodeURIComponent(e.sku) + "&code=" + encodeURIComponent(code) + "#tracker" : ""
+      });
+    }
+        // v74: Luca-S catalogue kits appear too — read-only rows so support can
+    // grab any kit's access code, QR and insert card from one screen. They're
+    // managed in Shopify/R2, so no hide/remove for them; the row carries
+    // luca:true and the Studio hides those buttons.
+    try {
+      const seen = new Set(out.map(k => String(k.sku).toUpperCase()));
+      for (const k of await lucaKitsRaw(env)) {
+        if (seen.has(k.sku.toUpperCase())) continue;
+        seen.add(k.sku.toUpperCase());
+        let code = null;
+        try { code = await codeFor(k.sku, env); } catch (er) {}
+        out.push({
+          sku: k.sku, title: k.title, brand: "Luca-S", luca: true,
+          live: true, image: k.image, buy: k.url, uploadedAt: "",
+          code: code || "",
+          link: code ? "https://luca-s.com/apps/patternly?sku=" + encodeURIComponent(k.sku) + "&code=" + encodeURIComponent(code) + "#tracker" : ""
+        });
+      }
+    } catch (e) { console.warn("luca catalogue merge failed:", e.message); }
     return partnerJson(200, { ok:true, patterns: out });
+  }
+
+  // v71: program-wide customer views for the Luca-S team. Full email addresses
+  // — this is Luca-S's own customer data, seen by Luca-S staff, never by
+  // partner brands. ?prefix=HJ narrows to one brand; without it EVERY kit with
+  // progress is included, Luca-S catalogue kits too, so this doubles as the
+  // support console for your own kits.
+  if (sub === "admin/customers" && request.method === "GET") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    if (!env.ENTITLEMENTS) return partnerJson(503, { ok:false, error:"progress store not configured" });
+    const prefix = String(url.searchParams.get("prefix") || "").trim().toUpperCase();
+    const titles = await partnerTitleMap(env);
+    // v74: Luca-S kits get their real titles (the partner manifest only knows
+    // partner kits). Only fetched when Luca-S rows can appear (no prefix).
+    if (!prefix) {
+      try { for (const k of await lucaKitsRaw(env)) { const s = k.sku.toUpperCase(); if (!(s in titles)) titles[s] = k.title; } } catch (e) {}
+    }
+    const byCustomer = new Map();
+    let cursor;
+    for (let page = 0; page < 5; page++) {
+      const listed = await env.ENTITLEMENTS.list({ prefix: "prog:", limit: 1000, cursor });
+      for (const k of listed.keys) {
+        const parts = k.name.split(":");
+        if (parts.length < 3) continue;
+        const sku = parts[parts.length - 1].toUpperCase();
+        if (prefix && !sku.startsWith(prefix + "-")) continue;
+        const cid = parts.slice(1, -1).join(":");
+        const raw = await env.ENTITLEMENTS.get(k.name);
+        if (!raw) continue;
+        let rec; try { rec = JSON.parse(raw); } catch (e) { continue; }
+        if (!byCustomer.has(cid)) byCustomer.set(cid, []);
+        byCustomer.get(cid).push(partnerProgSummary(sku, rec, titles));
+      }
+      if (!listed.list_complete) cursor = listed.cursor; else break;
+    }
+    const ids = [...byCustomer.keys()].slice(0, 250);
+    const emails = ids.length ? await partnerResolveEmails(env, ids) : {};
+    const customers = ids.map(cid => {
+      const kits = byCustomer.get(cid);
+      kits.sort((a, b) => b.lastActive - a.lastActive);
+      return { email: emails[cid] || "", customerId: cid, kits, lastActive: kits.length ? kits[0].lastActive : 0 };
+    });
+    customers.sort((a, b) => b.lastActive - a.lastActive);
+    return partnerJson(200, { ok:true, customers, truncated: byCustomer.size > ids.length });
+  }
+
+  if (sub === "admin/customer-lookup" && request.method === "POST") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    if (!env.ENTITLEMENTS) return partnerJson(503, { ok:false, error:"progress store not configured" });
+    let body = {}; try { body = await request.json(); } catch (e) {}
+    const email = String(body.email || "").trim().toLowerCase();
+    if (!email || email.indexOf("@") <= 0) return partnerJson(400, { ok:false, error:"Enter the customer\u2019s email address." });
+    let cid = null;
+    try {
+      const d = await adminQuery(env, CUSTOMER_BY_EMAIL_QUERY, { q: "email:" + email });
+      const node = d && d.customers && d.customers.edges && d.customers.edges[0] && d.customers.edges[0].node;
+      if (node && node.id) cid = String(node.id).replace(/^gid:\/\/shopify\/Customer\//, "");
+    } catch (e) {
+      return partnerJson(503, { ok:false, error:"Customer lookup is unavailable right now \u2014 try again shortly." });
+    }
+    if (!cid) return partnerJson(200, { ok:true, found:false });
+    const titles = await partnerTitleMap(env);
+    // v74: Luca-S kit titles for the lookup view too.
+    try { for (const k of await lucaKitsRaw(env)) { const s = k.sku.toUpperCase(); if (!(s in titles)) titles[s] = k.title; } } catch (e) {}
+    const kits = [];
+    let cursor;
+    for (let page = 0; page < 3; page++) {
+      const listed = await env.ENTITLEMENTS.list({ prefix: "prog:" + cid + ":", limit: 1000, cursor });
+      for (const k of listed.keys) {
+        const sku = k.name.split(":").pop().toUpperCase();
+        const raw = await env.ENTITLEMENTS.get(k.name);
+        if (!raw) continue;
+        try { kits.push(partnerProgSummary(sku, JSON.parse(raw), titles)); } catch (e) {}
+      }
+      if (!listed.list_complete) cursor = listed.cursor; else break;
+    }
+    if (!kits.length) return partnerJson(200, { ok:true, found:false });
+    kits.sort((a, b) => b.lastActive - a.lastActive);
+    return partnerJson(200, { ok:true, found:true, email, customerId: cid, kits });
   }
 
   if (sub === "pending" && request.method === "GET") {
@@ -1002,6 +1169,33 @@ async function handlePartnerApi(request, url, env) {
     e.live = body.live !== false;
     await partnerManifestWrite(env, list);
     return partnerJson(200, { ok:true, sku: e.sku, live: e.live });
+  }
+
+  if (sub === "admin/progress-download" && request.method === "POST") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    if (!env.ENTITLEMENTS) return partnerJson(503, { ok:false, error:"progress store not configured" });
+    let body = {}; try { body = await request.json(); } catch (e) {}
+    const sku = String(body.sku || "").trim().toUpperCase();
+    if (!/^[A-Z0-9_-]{1,40}$/.test(sku)) return partnerJson(400, { ok:false, error:"bad sku" });
+    let cid = String(body.customerId || "").trim();
+    let email = String(body.email || "").trim().toLowerCase();
+    if (!cid && email) {
+      try {
+        const d = await adminQuery(env, CUSTOMER_BY_EMAIL_QUERY, { q: "email:" + email });
+        const node = d && d.customers && d.customers.edges && d.customers.edges[0] && d.customers.edges[0].node;
+        if (node && node.id) cid = String(node.id).replace(/^gid:\/\/shopify\/Customer\//, "");
+      } catch (e) {
+        return partnerJson(503, { ok:false, error:"Customer lookup is unavailable right now — try again shortly." });
+      }
+    }
+    if (!cid) return partnerJson(200, { ok:true, found:false });
+    if (!email) {
+      try { email = (await partnerResolveEmails(env, [cid]))[cid] || ""; } catch (e) {}
+    }
+    let rec = null;
+    try { rec = JSON.parse((await env.ENTITLEMENTS.get("prog:" + cid + ":" + sku)) || "null"); } catch (e) {}
+    if (!rec) return partnerJson(200, { ok:true, found:false });
+    return partnerJson(200, { ok:true, found:true, email, customerId: cid, sku, exported: new Date().toISOString(), progress: rec });
   }
 
   return partnerJson(404, { ok:false, error:"unknown partner endpoint" });
