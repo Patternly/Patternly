@@ -282,8 +282,15 @@ async function checkAccessCode(request, url, env, key) {
     "";
   // Case-insensitive: the code is printed in caps but a customer may type it
   // lower-case. The clean alphabet has no case-collision risk.
+  // v76: printed codes may carry a cosmetic brand prefix ("CP-K7Q2M9XW") so a
+  // code read out over the phone identifies the brand. The bare code is always
+  // accepted; a "<letters/digits>-" front is stripped and tried too. Overrides
+  // that legitimately contain a dash still match verbatim via the first test.
+  const wantU = String(want).toUpperCase();
+  const gotU = got.trim().toUpperCase();
+  const gotStripped = gotU.replace(/^[A-Z0-9]{1,8}-/, "");
   return {
-    ok: timingSafeEqual(got.trim().toUpperCase(), String(want).toUpperCase()),
+    ok: timingSafeEqual(gotU, wantU) || (gotStripped !== gotU && timingSafeEqual(gotStripped, wantU)),
     seen: got.length > 0
   };
 }
@@ -710,6 +717,42 @@ async function handlePartnerApi(request, url, env) {
     return partnerJson(200, { ok:true, brand: auth.brand, kits: out });
   }
 
+  // v76: brand logo for styled QR downloads. Stored per brand under
+  // brand-assets/<PREFIX>/logo.png — a path the server builds from the signed-in
+  // brand's prefix, so no brand can read or replace another's logo. The folder
+  // name contains a dash, so it can never collide with a kit SKU folder and is
+  // invisible to the catalogue and the awaiting-Shopify scan.
+  if (sub === "logo" && request.method === "GET") {
+    const auth = await partnerAuth(request, env);
+    if (auth.err) return auth.err;
+    if (!env.PATTERNS) return partnerJson(503, { ok:false, error:"pattern store not configured" });
+    const obj = await env.PATTERNS.get("brand-assets/" + auth.prefix + "/logo.png");
+    if (!obj) return partnerJson(404, { ok:true, found:false });
+    return new Response(obj.body, { headers: { "content-type": "image/png", "cache-control": "no-store" } });
+  }
+  if (sub === "logo" && request.method === "POST") {
+    const auth = await partnerAuth(request, env);
+    if (auth.err) return auth.err;
+    if (!env.PATTERNS) return partnerJson(503, { ok:false, error:"pattern store not configured" });
+    let form = null;
+    try { form = await request.formData(); } catch (e) {
+      return partnerJson(400, { ok:false, error:"Expected a multipart form upload." });
+    }
+    if (String(form.get("remove") || "") === "1") {
+      try { await env.PATTERNS.delete("brand-assets/" + auth.prefix + "/logo.png"); } catch (e) {}
+      return partnerJson(200, { ok:true, removed:true });
+    }
+    const logo = form.get("logo");
+    if (!logo || typeof logo.arrayBuffer !== "function" || !logo.size) return partnerJson(400, { ok:false, error:"Attach a PNG logo." });
+    if (logo.size > 1000000) return partnerJson(400, { ok:false, error:"The logo is over 1 MB." });
+    const buf = await logo.arrayBuffer();
+    const sig = new Uint8Array(buf.slice(0, 8));
+    const pngOk = sig.length === 8 && [137,80,78,71,13,10,26,10].every((v,i) => sig[i] === v);
+    if (!pngOk) return partnerJson(400, { ok:false, error:"The logo must be a PNG image." });
+    await env.PATTERNS.put("brand-assets/" + auth.prefix + "/logo.png", buf, { httpMetadata: { contentType: "image/png" } });
+    return partnerJson(200, { ok:true });
+  }
+
   if (sub === "customers" && request.method === "GET") {
     const auth = await partnerAuth(request, env);
     if (auth.err) return auth.err;
@@ -1066,6 +1109,40 @@ async function handlePartnerApi(request, url, env) {
       note: "Sign-in and uploads stop immediately. The brand’s published kits stay live — hide or remove them separately if needed." });
   }
 
+  // v76: the Luca-S logo (brand-assets/_lucas/logo.png) for admin-side QR
+  // downloads; with ?prefix= the admin can read any brand's logo so partner
+  // kits keep their own branding in the admin views too.
+  if (sub === "admin/logo" && request.method === "GET") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    if (!env.PATTERNS) return partnerJson(503, { ok:false, error:"pattern store not configured" });
+    const pfx = String(url.searchParams.get("prefix") || "").trim().toUpperCase();
+    if (pfx && !/^[A-Z0-9]{2,6}$/.test(pfx)) return partnerJson(400, { ok:false, error:"bad prefix" });
+    const obj = await env.PATTERNS.get("brand-assets/" + (pfx || "_lucas") + "/logo.png");
+    if (!obj) return partnerJson(404, { ok:true, found:false });
+    return new Response(obj.body, { headers: { "content-type": "image/png", "cache-control": "no-store" } });
+  }
+  if (sub === "admin/logo" && request.method === "POST") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    if (!env.PATTERNS) return partnerJson(503, { ok:false, error:"pattern store not configured" });
+    let form = null;
+    try { form = await request.formData(); } catch (e) {
+      return partnerJson(400, { ok:false, error:"Expected a multipart form upload." });
+    }
+    if (String(form.get("remove") || "") === "1") {
+      try { await env.PATTERNS.delete("brand-assets/_lucas/logo.png"); } catch (e) {}
+      return partnerJson(200, { ok:true, removed:true });
+    }
+    const logo = form.get("logo");
+    if (!logo || typeof logo.arrayBuffer !== "function" || !logo.size) return partnerJson(400, { ok:false, error:"Attach a PNG logo." });
+    if (logo.size > 1000000) return partnerJson(400, { ok:false, error:"The logo is over 1 MB." });
+    const buf = await logo.arrayBuffer();
+    const sig = new Uint8Array(buf.slice(0, 8));
+    const pngOk = sig.length === 8 && [137,80,78,71,13,10,26,10].every((v,i) => sig[i] === v);
+    if (!pngOk) return partnerJson(400, { ok:false, error:"The logo must be a PNG image." });
+    await env.PATTERNS.put("brand-assets/_lucas/logo.png", buf, { httpMetadata: { contentType: "image/png" } });
+    return partnerJson(200, { ok:true });
+  }
+
   // v75: upload a Luca-S kit's pattern from the admin hub — no more Cloudflare
   // dashboard. Luca-S SKUs carry no dash, and this endpoint refuses any dashed
   // SKU: the exact mirror of partner scoping (which can ONLY write dashed,
@@ -1092,10 +1169,24 @@ async function handlePartnerApi(request, url, env) {
       looksXml = head.indexOf("<") >= 0 && /chart|oxs|palette/i.test(head);
     }
     if (!isPtnly && !looksXml) return partnerJson(400, { ok:false, error:"That doesn\u2019t look like a .Ptly file — export it from the converter first." });
+    // v77: optional colour legend (PDF), validated BEFORE anything is written so
+    // a bad legend never leaves a half-published kit. Stored as <SKU>/legend.pdf
+    // — the tracker's Legend button appears whenever that file exists.
+    let legendBuf = null;
+    const legend = form.get("legend");
+    if (legend && typeof legend.arrayBuffer === "function" && legend.size > 0) {
+      if (legend.size > 15000000) return partnerJson(400, { ok:false, error:"The legend PDF is over 15 MB." });
+      legendBuf = await legend.arrayBuffer();
+      const lhead = new Uint8Array(legendBuf.slice(0, 5));
+      if (!(lhead.length === 5 && String.fromCharCode(...lhead) === "%PDF-")) {
+        return partnerJson(400, { ok:false, error:"The legend must be a PDF file." });
+      }
+    }
     await env.PATTERNS.put(sku + "/pattern.Ptly", ptlyBuf, { httpMetadata: { contentType: "application/xml" } });
+    if (legendBuf) await env.PATTERNS.put(sku + "/legend.pdf", legendBuf, { httpMetadata: { contentType: "application/pdf" } });
     let code = null; try { code = await codeFor(sku, env); } catch (e) {}
     const link = await lucaLinkSku(env, sku);
-    return partnerJson(200, { ok:true, sku, code: code || "", linked: link.linked, note: link.note });
+    return partnerJson(200, { ok:true, sku, code: code || "", legend: !!legendBuf, linked: link.linked, note: link.note });
   }
 
   // v75: (re)try pointing the Shopify product at an already-uploaded folder.
