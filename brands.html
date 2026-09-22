@@ -277,7 +277,17 @@
     <div id="tab-apatterns" style="display:none">
       <div class="card">
         <h2>All patterns — partner brands + the Luca-S catalogue
-          <button class="ghost" id="apat-refresh" style="float:right;padding:.3rem .7rem;font-size:.76rem">Refresh</button></h2>
+          <button class="ghost" id="apat-refresh" style="float:right;padding:.3rem .7rem;font-size:.76rem">Refresh</button>
+          <button class="primary" id="aup-open" style="float:right;margin-right:.5rem;padding:.3rem .8rem;font-size:.76rem">+ Add Pattern</button></h2>
+        <div id="aup-card" style="display:none;border:1px solid var(--border);border-radius:10px;padding:.8rem .9rem;margin:0 0 .8rem">
+          <div class="note" style="margin:0 0 .6rem">Adds a <b>Luca-S</b> pattern straight to the pattern store — the access code and QR are ready immediately, so you can print insert cards while the kits are being manufactured. When the Shopify product with this SKU is created later, it links automatically (title, photo and buy button all come from the product). Re-uploading the same SKU replaces the file.</div>
+          <div class="row">
+            <div style="max-width:220px"><label for="aup-sku">SKU <span style="font-weight:400;color:var(--muted)">(no dash)</span></label><input type="text" id="aup-sku" maxlength="24" spellcheck="false" placeholder="B1234" style="text-transform:uppercase"></div>
+            <div><label for="aup-file">Pattern file (.Ptly)</label><input type="file" id="aup-file" accept=".ptly,.Ptly"></div>
+          </div>
+          <div style="margin-top:.8rem" class="row"><button class="primary" id="aup-go">Upload pattern</button> <button class="ghost" id="aup-cancel">Cancel</button></div>
+          <div id="aup-msg" style="margin-top:.5rem"></div>
+        </div>
         <div id="apat-box"><div class="note">Loading…</div></div>
       </div>
     </div>
@@ -3049,6 +3059,47 @@ async function dlAdminProgress(cid, email, sku, btn){
   }catch(e){ alert('Network error.'); }
   finally{ if(btn) btn.disabled=false; }
 }
+// ── v15: Shopify-style customer list — collapsed email rows, click to expand,
+// with a per-page selector (10/25/50/100) and Prev/Next. One renderer serves
+// both the partner tab and the admin tab; the fetched data stays in memory
+// (CUST_VIEW / ACUST_VIEW) so paging and expanding never refetch.
+let CUST_VIEW={page:0,per:25,open:null,data:[],truncated:false};
+let ACUST_VIEW={page:0,per:25,open:null,data:[],truncated:false};
+function custLastActive(c){ let m=0; for(const k of (c.kits||[])) if(k.lastActive>m) m=k.lastActive; return m; }
+function renderCustList(box, view, esc, detailFn, afterWire){
+  const list=view.data||[];
+  const pages=Math.max(1,Math.ceil(list.length/view.per));
+  if(view.page>=pages) view.page=pages-1;
+  const start=view.page*view.per, slice=list.slice(start,start+view.per);
+  let h='<div style="display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin:0 0 .55rem;flex-wrap:wrap">'
+    +'<span class="note">'+list.length+' customer'+(list.length===1?'':'s')+(view.truncated?' (250 most recently active)':'')+' · showing '+(start+1)+'–'+Math.min(start+view.per,list.length)+'</span>'
+    +'<label class="note" style="display:flex;align-items:center;gap:.35rem">Per page <select class="cust-per" style="padding:.2rem .4rem;border:1px solid var(--border);border-radius:7px;font:inherit;font-size:.8rem">'
+    +[10,25,50,100].map(n=>'<option value="'+n+'"'+(n===view.per?' selected':'')+'>'+n+'</option>').join('')+'</select></label></div>';
+  for(let i=0;i<slice.length;i++){
+    const c=slice[i], idx=start+i, open=view.open===idx, la=custLastActive(c);
+    h+='<div style="border:1px solid var(--border);border-radius:10px;margin:0 0 .45rem;overflow:hidden">'
+      +'<div class="cust-row" data-idx="'+idx+'" style="display:flex;align-items:center;gap:.6rem;padding:.6rem .8rem;cursor:pointer'+(open?';background:#fbf7f8':'')+'">'
+      +'<span style="flex:1;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis">'+esc(c.email||'(email unavailable)')+'</span>'
+      +'<span class="note" style="white-space:nowrap">'+c.kits.length+' pattern'+(c.kits.length>1?'s':'')+'</span>'
+      +'<span class="note" style="min-width:6.5rem;text-align:right;white-space:nowrap">'+(la?fmtWhen(la):'')+'</span>'
+      +'<span style="color:var(--muted);font-size:.75rem">'+(open?'\u25b4':'\u25be')+'</span></div>'
+      +(open?('<div style="padding:.2rem .8rem .7rem;border-top:1px solid var(--border)">'+detailFn(c)+'</div>'):'')
+      +'</div>';
+  }
+  if(pages>1){
+    h+='<div style="display:flex;justify-content:center;gap:.5rem;align-items:center;margin:.6rem 0 0">'
+      +'<button class="ghost cust-prev" '+(view.page===0?'disabled':'')+' style="padding:.25rem .8rem;font-size:.75rem">\u2190 Prev</button>'
+      +'<span class="note">Page '+(view.page+1)+' / '+pages+'</span>'
+      +'<button class="ghost cust-next" '+(view.page===pages-1?'disabled':'')+' style="padding:.25rem .8rem;font-size:.75rem">Next \u2192</button></div>';
+  }
+  box.innerHTML=h;
+  const redraw=()=>renderCustList(box,view,esc,detailFn,afterWire);
+  box.querySelectorAll('.cust-row').forEach(r=>{ r.onclick=()=>{ const i=+r.dataset.idx; view.open=(view.open===i?null:i); redraw(); }; });
+  const sel=box.querySelector('.cust-per'); if(sel) sel.onchange=()=>{ view.per=+sel.value; view.page=0; view.open=null; redraw(); };
+  const pv=box.querySelector('.cust-prev'); if(pv) pv.onclick=()=>{ view.page--; view.open=null; redraw(); };
+  const nx=box.querySelector('.cust-next'); if(nx) nx.onclick=()=>{ view.page++; view.open=null; redraw(); };
+  if(afterWire) afterWire(box);
+}
 async function loadCustomers(){
   const box=$('cust-box');
   box.innerHTML='<div class="note">Loading…</div>';
@@ -3059,15 +3110,8 @@ async function loadCustomers(){
     if(!r.ok||!d.ok){ box.innerHTML='<div class="err">'+(d.error||'Could not load customers.')+'</div>'; return; }
     if(!d.customers.length){ box.innerHTML='<div class="note">No customers yet — this list fills up as people stitch your patterns in the Stitch Tracker.</div>'; return; }
     const esc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;');
-    let h='';
-    for(const c of d.customers){
-      h+='<div style="border:1px solid var(--border);border-radius:10px;padding:.7rem .8rem;margin:0 0 .6rem">'
-        +'<div style="font-weight:700;margin:0 0 .4rem">'+esc(c.email||'(email unavailable)')
-        +' <span class="note" style="font-weight:400">· '+c.kits.length+' pattern'+(c.kits.length>1?'s':'')+'</span></div>'
-        +custKitRows(c.kits)+'</div>';
-    }
-    if(d.truncated) h+='<div class="note">Showing the 250 most recently active customers.</div>';
-    box.innerHTML=h;
+    CUST_VIEW.data=d.customers; CUST_VIEW.truncated=!!d.truncated; CUST_VIEW.page=0; CUST_VIEW.open=null;
+    renderCustList(box, CUST_VIEW, esc, c=>custKitRows(c.kits), null);
   }catch(e){ box.innerHTML='<div class="err">Network error.</div>'; }
 }
 $('cust-refresh').onclick=loadCustomers;
@@ -3211,13 +3255,14 @@ async function loadAdminPatterns(){
     let h='<table><thead><tr><th></th><th>SKU</th><th>Brand</th><th>Title</th><th>Status</th><th>Access code</th><th></th></tr></thead><tbody>';
     for(const k of d.patterns){
       h+='<tr><td>'+(k.image?'<img class="thumb" src="'+escA(k.image)+'" alt="">':'<span class="thumb" style="display:inline-block"></span>')+'</td>'
-        +'<td class="skucell">'+escA(k.sku)+'</td><td style="font-size:.8rem">'+escA(k.brand||'')+'</td><td>'+escA(k.title)+'</td>'
-        +'<td>'+(k.luca?'<span class="pill live">Live · Shopify</span>':(k.live?'<span class="pill live">Live</span>':'<span class="pill pending">Hidden</span>'))+'</td>'
+        +'<td class="skucell">'+escA(k.sku)+'</td><td style="font-size:.8rem">'+escA(k.brand||'')+'</td><td>'+(k.awaiting&&!k.title?'<span class="note">(title comes from Shopify)</span>':escA(k.title))+'</td>'
+        +'<td>'+(k.luca?(k.awaiting?'<span class="pill pending">Awaiting Shopify</span>':'<span class="pill live">Live · Shopify</span>'):(k.live?'<span class="pill live">Live</span>':'<span class="pill pending">Hidden</span>'))+'</td>'
         +'<td>'+(k.code?'<span class="skucell">'+escA(k.code)+'</span> <button class="ghost acopy" data-copy="'+escA(k.code)+'" style="padding:.15rem .5rem;font-size:.7rem">Copy</button>':'—')+'</td>'
         +'<td style="white-space:nowrap">'
         +((k.code&&k.live)?'<a href="'+escA(k.link)+'" target="_blank" rel="noopener" style="font-size:.75rem;font-weight:700">Test</a> ':'')
         +((k.code&&k.link)?'<button class="ghost aqr" data-sku="'+escA(k.sku)+'" style="padding:.15rem .55rem;font-size:.7rem">QR</button> ':'')
         +((k.code&&k.link)?'<button class="ghost acard" data-sku="'+escA(k.sku)+'" style="padding:.15rem .55rem;font-size:.7rem">Insert card</button>':'')
+        +(k.awaiting?' <button class="ghost alink" data-sku="'+escA(k.sku)+'" style="padding:.15rem .55rem;font-size:.7rem">Link Shopify</button>':'')
         // Luca-S catalogue rows are read-only here: hide/remove live in Shopify
         // (draft or untag the product) and R2, not in the partner manifest.
         +(k.luca?'':' <button class="ghost atoggle" data-sku="'+escA(k.sku)+'" data-live="'+(k.live?1:0)+'" style="padding:.15rem .55rem;font-size:.7rem">'+(k.live?'Hide':'Show')+'</button>'
@@ -3238,6 +3283,15 @@ async function loadAdminPatterns(){
       const k=ADMIN_PATS.find(x=>x.sku===b.dataset.sku); if(!k) return;
       printCardFor(k.sku, k);
     }; });
+    box.querySelectorAll('.alink').forEach(b=>{ b.onclick=async()=>{
+      b.disabled=true; b.textContent='Linking…';
+      try{
+        const r2=await fetch(API+'admin/link',{method:'POST',headers:adminHeaders(true),body:JSON.stringify({sku:b.dataset.sku})});
+        const d2=await r2.json().catch(()=>({}));
+        alert(d2.note||d2.error||'Link attempt finished.');
+      }catch(e){ alert('Network error.'); }
+      loadAdminPatterns();
+    }; });
     box.querySelectorAll('.atoggle').forEach(b=>{ b.onclick=async()=>{
       const r2=await fetch(API+'approve',{method:'POST',headers:adminHeaders(true),body:JSON.stringify({sku:b.dataset.sku, live: b.dataset.live!=='1'})});
       const d2=await r2.json().catch(()=>({}));
@@ -3254,6 +3308,28 @@ async function loadAdminPatterns(){
   }catch(e){ box.innerHTML='<div class="err">Network error.</div>'; }
 }
 $('apat-refresh').onclick=loadAdminPatterns;
+$('aup-open').onclick=()=>{ $('aup-card').style.display=''; $('aup-msg').innerHTML=''; };
+$('aup-cancel').onclick=()=>{ $('aup-card').style.display='none'; };
+$('aup-go').onclick=async()=>{
+  const sku=$('aup-sku').value.trim().toUpperCase();
+  const f=$('aup-file').files[0];
+  const msg=$('aup-msg');
+  if(!/^[A-Z0-9]{2,24}$/.test(sku)){ msg.innerHTML='<div class="err">SKU must be 2–24 letters or digits with no dash (dashed SKUs belong to partner brands).</div>'; return; }
+  if(!f){ msg.innerHTML='<div class="err">Choose the .Ptly pattern file.</div>'; return; }
+  $('aup-go').disabled=true; msg.innerHTML='<div class="note">Uploading…</div>';
+  try{
+    const fd=new FormData(); fd.set('sku',sku); fd.set('ptly',f,f.name||'pattern.Ptly');
+    const r=await fetch(API+'admin/upload',{method:'POST',headers:adminHeaders(),body:fd});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok){ msg.innerHTML='<div class="err">'+(d.error||'Upload failed.')+'</div>'; }
+    else{
+      msg.innerHTML='<div style="color:#1c7a3d;font-weight:600">'+d.sku+' uploaded — access code <span class="skucell">'+d.code+'</span>. '+escA(d.note||'')+'</div>';
+      $('aup-sku').value=''; $('aup-file').value='';
+      loadAdminPatterns();
+    }
+  }catch(e){ msg.innerHTML='<div class="err">Network error.</div>'; }
+  $('aup-go').disabled=false;
+};
 // ── customers (admin, full emails, all kits) ──
 function adminKitRows(kits, ctx){
   const hasDl = !!(ctx && (ctx.customerId || ctx.email));
@@ -3285,16 +3361,10 @@ async function loadAdminCustomers(){
     const d=await r.json().catch(()=>({}));
     if(!r.ok||!d.ok){ box.innerHTML='<div class="err">'+(d.error||'Could not load customers.')+'</div>'; return; }
     if(!d.customers.length){ box.innerHTML='<div class="note">No stitching progress found'+(pfx?' for this brand':'')+' yet.</div>'; return; }
-    let h='';
-    for(const c of d.customers){
-      h+='<div style="border:1px solid var(--border);border-radius:10px;padding:.7rem .8rem;margin:0 0 .6rem">'
-        +'<div style="font-weight:700;margin:0 0 .4rem">'+escA(c.email||'(email unavailable)')
-        +' <span class="note" style="font-weight:400">· '+c.kits.length+' pattern'+(c.kits.length>1?'s':'')+'</span></div>'
-        +adminKitRows(c.kits, {customerId:c.customerId||'', email:c.email||''})+'</div>';
-    }
-    if(d.truncated) h+='<div class="note">Showing the 250 most recently active customers.</div>';
-    box.innerHTML=h;
-    box.querySelectorAll('.adl').forEach(b=>{ b.onclick=()=>dlAdminProgress(b.dataset.cid, b.dataset.email, b.dataset.sku, b); });
+    ACUST_VIEW.data=d.customers; ACUST_VIEW.truncated=!!d.truncated; ACUST_VIEW.page=0; ACUST_VIEW.open=null;
+    renderCustList(box, ACUST_VIEW, escA,
+      c=>adminKitRows(c.kits, {customerId:c.customerId||'', email:c.email||''}),
+      bx=>{ bx.querySelectorAll('.adl').forEach(b=>{ b.onclick=()=>dlAdminProgress(b.dataset.cid, b.dataset.email, b.dataset.sku, b); }); });
   }catch(e){ box.innerHTML='<div class="err">Network error.</div>'; }
 }
 $('acust-refresh').onclick=loadAdminCustomers;
