@@ -681,6 +681,35 @@ async function partnerRemoveKit(env, sku) {
 async function handlePartnerApi(request, url, env) {
   const sub = url.pathname.slice(url.pathname.indexOf("/partner/") + "/partner/".length).replace(/\/+$/, "");
 
+  // v79: partner application form (public — the /brands landing page posts
+  // here). No email is sent anywhere: applications are stored in the PARTNERS
+  // KV under "app:" keys and read in the admin hub's Brands tab. Brand records
+  // there are keyed "PK-..." and applications carry no prefix field, so the
+  // two can never be confused (admin/brands skips records without a prefix).
+  // Guards: a hidden honeypot field, length caps, and a hard cap on stored
+  // applications so the namespace can't be flooded.
+  if (sub === "apply" && request.method === "POST") {
+    if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"not available right now" });
+    let body = null; try { body = await request.json(); } catch (e) {}
+    if (!body) return partnerJson(400, { ok:false, error:"bad request" });
+    // Honeypot: real people never see this field. Bots that fill it get a
+    // success response and nothing is stored.
+    if (String(body.company || "").trim()) return partnerJson(200, { ok:true });
+    const brand = String(body.brand || "").trim().slice(0, 80);
+    const email = String(body.email || "").trim().slice(0, 120);
+    const website = String(body.website || "").trim().slice(0, 200);
+    const message = String(body.message || "").trim().slice(0, 1200);
+    if (brand.length < 2) return partnerJson(400, { ok:false, error:"Tell us your brand name." });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return partnerJson(400, { ok:false, error:"Enter a valid email address." });
+    try {
+      const existing = await env.PARTNERS.list({ prefix: "app:", limit: 250 });
+      if (existing.keys.length >= 200) return partnerJson(503, { ok:false, error:"Applications are paused right now — please email us instead." });
+    } catch (e) {}
+    const id = "app:" + Date.now() + ":" + Math.random().toString(36).slice(2, 8);
+    await env.PARTNERS.put(id, JSON.stringify({ brand, email, website, message, ts: Date.now() }));
+    return partnerJson(200, { ok:true });
+  }
+
   if (sub === "signin" && request.method === "POST") {
     if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"partner-system-not-configured" });
     let body = {};
@@ -1000,6 +1029,35 @@ async function handlePartnerApi(request, url, env) {
         kitsByPrefix[p] = (kitsByPrefix[p] || 0) + 1;
       }
     } catch (e) {}
+    // v78: activation per brand — how many real customers are stitching each
+    // brand's kits, and when the newest sync happened. Progress records are
+    // read only for partner (dashed) SKUs, so the Luca-S catalogue's progress
+    // keys are skipped from the key name alone and cost nothing here.
+    const actByPrefix = {};
+    try {
+      if (env.ENTITLEMENTS) {
+        let pcur;
+        for (let pg = 0; pg < 5; pg++) {
+          const plist = await env.ENTITLEMENTS.list({ prefix: "prog:", limit: 1000, cursor: pcur });
+          for (const pk of plist.keys) {
+            const parts = pk.name.split(":");
+            if (parts.length < 3) continue;
+            const psku = parts[parts.length - 1].toUpperCase();
+            const dash = psku.indexOf("-");
+            if (dash <= 0) continue;                       // Luca-S kit — no brand row
+            const pfx2 = psku.slice(0, dash);
+            const cid2 = parts.slice(1, -1).join(":");
+            const a = actByPrefix[pfx2] || (actByPrefix[pfx2] = { c: new Set(), last: 0 });
+            a.c.add(cid2);
+            try {
+              const rec2 = JSON.parse((await env.ENTITLEMENTS.get(pk.name)) || "null");
+              if (rec2 && +rec2.ts > a.last) a.last = +rec2.ts;
+            } catch (e) {}
+          }
+          if (!plist.list_complete) pcur = plist.cursor; else break;
+        }
+      }
+    } catch (e) {}
     const brands = [];
     let cursor;
     for (let page = 0; page < 5; page++) {
@@ -1013,7 +1071,9 @@ async function handlePartnerApi(request, url, env) {
           key: k.name, brand: rec.brand || "", prefix,
           email: rec.email || "", buy: rec.buy || "",
           limit: (Number.isFinite(+rec.limit) && +rec.limit > 0) ? +rec.limit : 200,
-          kits: kitsByPrefix[prefix] || 0
+          kits: kitsByPrefix[prefix] || 0,
+          customers: (actByPrefix[prefix] && actByPrefix[prefix].c.size) || 0,
+          lastActive: (actByPrefix[prefix] && actByPrefix[prefix].last) || 0
         });
       }
       if (!listed.list_complete) cursor = listed.cursor; else break;
@@ -1107,6 +1167,32 @@ async function handlePartnerApi(request, url, env) {
     await env.PARTNERS.delete(key);
     return partnerJson(200, { ok:true, revoked: key,
       note: "Sign-in and uploads stop immediately. The brand’s published kits stay live — hide or remove them separately if needed." });
+  }
+
+  // v79: read and clear stored partner applications.
+  if (sub === "admin/applications" && request.method === "GET") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"partner system not configured" });
+    const apps = [];
+    try {
+      const listed = await env.PARTNERS.list({ prefix: "app:", limit: 250 });
+      for (const k of listed.keys) {
+        try {
+          const rec = JSON.parse((await env.PARTNERS.get(k.name)) || "null");
+          if (rec) apps.push({ id: k.name, brand: rec.brand || "", email: rec.email || "", website: rec.website || "", message: rec.message || "", ts: rec.ts || 0 });
+        } catch (e) {}
+      }
+    } catch (e) {}
+    apps.sort((a, b) => b.ts - a.ts);
+    return partnerJson(200, { ok:true, applications: apps });
+  }
+  if (sub === "admin/application-delete" && request.method === "POST") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    let body = null; try { body = await request.json(); } catch (e) {}
+    const id = String((body && body.id) || "");
+    if (!/^app:/.test(id)) return partnerJson(400, { ok:false, error:"bad id" });
+    try { await env.PARTNERS.delete(id); } catch (e) {}
+    return partnerJson(200, { ok:true });
   }
 
   // v76: the Luca-S logo (brand-assets/_lucas/logo.png) for admin-side QR
