@@ -544,6 +544,44 @@ function partnerProgSummary(sku, rec, titles) {
     lastActive: rec.ts || 0
   };
 }
+// v75: releasing a Luca-S kit from the admin hub. Kits are manufactured before
+// their Shopify product exists, so upload and linking are separate steps: the
+// pattern file lands in R2 immediately (access codes and QR derive from the
+// SKU alone, so insert cards can be printed on day one), and the product's
+// patternly.pattern metafield is set whenever the product appears — attempted
+// automatically at upload time and again from the Studio's "Link Shopify"
+// button. Linking never throws: an unlinked upload is a normal state.
+const LUCA_PRODUCT_BY_SKU_QUERY = `
+query ProductBySku($q: String!) {
+  productVariants(first: 5, query: $q) {
+    nodes { sku product { id title } }
+  }
+}`;
+const LUCA_SET_METAFIELD_MUTATION = `
+mutation SetPatternMetafield($metafields: [MetafieldsSetInput!]!) {
+  metafieldsSet(metafields: $metafields) {
+    metafields { id }
+    userErrors { field message }
+  }
+}`;
+async function lucaLinkSku(env, sku) {
+  try {
+    const d = await adminQuery(env, LUCA_PRODUCT_BY_SKU_QUERY, { q: "sku:" + sku });
+    if (!d) return { linked: false, note: "Shopify Admin API is not configured — set the patternly.pattern metafield on the product by hand." };
+    const nodes = (d.productVariants && d.productVariants.nodes) || [];
+    const hit = nodes.find(n => n && n.sku && String(n.sku).toUpperCase() === sku && n.product && n.product.id);
+    if (!hit) return { linked: false, note: "No Shopify product with SKU " + sku + " yet — press Link Shopify once the product is created." };
+    const m = await adminQuery(env, LUCA_SET_METAFIELD_MUTATION, { metafields: [{
+      ownerId: hit.product.id, namespace: "patternly", key: "pattern",
+      type: "single_line_text_field", value: sku
+    }]});
+    const errs = m && m.metafieldsSet && m.metafieldsSet.userErrors;
+    if (errs && errs.length) return { linked: false, note: "Shopify refused the metafield: " + errs.map(e => e.message).join("; ") };
+    return { linked: true, note: "Linked to “" + (hit.product.title || sku) + "”. It shows in the app once the product is in the Needlecraft Kits collection." };
+  } catch (e) {
+    return { linked: false, note: "Could not link (" + e.message + ") — press Link Shopify to retry, or set the patternly.pattern metafield by hand." };
+  }
+}
 // v74: the Luca-S catalogue for admin views — read-only. Built from Shopify
 // exactly like kits.json (buildCatalogue), falling back to the stored
 // kits.json object so a Shopify hiccup shows the last known list instead of
@@ -1028,6 +1066,48 @@ async function handlePartnerApi(request, url, env) {
       note: "Sign-in and uploads stop immediately. The brand’s published kits stay live — hide or remove them separately if needed." });
   }
 
+  // v75: upload a Luca-S kit's pattern from the admin hub — no more Cloudflare
+  // dashboard. Luca-S SKUs carry no dash, and this endpoint refuses any dashed
+  // SKU: the exact mirror of partner scoping (which can ONLY write dashed,
+  // prefixed keys), so the two pipelines cannot touch each other's folders.
+  // Re-uploading the same SKU replaces the pattern file.
+  if (sub === "admin/upload" && request.method === "POST") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    if (!env.PATTERNS) return partnerJson(503, { ok:false, error:"pattern store not configured" });
+    let form = null;
+    try { form = await request.formData(); } catch (e) {
+      return partnerJson(400, { ok:false, error:"Expected a multipart form upload." });
+    }
+    const sku = String(form.get("sku") || "").trim().toUpperCase();
+    if (!/^[A-Z0-9]{2,24}$/.test(sku)) return partnerJson(400, { ok:false, error:"SKU must be 2–24 letters or digits with no dash (dashed SKUs belong to partner brands)." });
+    const ptly = form.get("ptly");
+    if (!ptly || typeof ptly.arrayBuffer !== "function") return partnerJson(400, { ok:false, error:"Attach the .Ptly pattern file." });
+    if (ptly.size > 8000000) return partnerJson(400, { ok:false, error:"The pattern file is over 8 MB." });
+    const ptlyBuf = await ptly.arrayBuffer();
+    const magic = new Uint8Array(ptlyBuf.slice(0, 6));
+    const isPtnly = magic.length === 6 && String.fromCharCode(...magic) === "PTNLY1";
+    let looksXml = false;
+    if (!isPtnly) {
+      const head = new TextDecoder().decode(ptlyBuf.slice(0, 4096)).replace(/[\u0000\ufffd]/g, "");
+      looksXml = head.indexOf("<") >= 0 && /chart|oxs|palette/i.test(head);
+    }
+    if (!isPtnly && !looksXml) return partnerJson(400, { ok:false, error:"That doesn\u2019t look like a .Ptly file — export it from the converter first." });
+    await env.PATTERNS.put(sku + "/pattern.Ptly", ptlyBuf, { httpMetadata: { contentType: "application/xml" } });
+    let code = null; try { code = await codeFor(sku, env); } catch (e) {}
+    const link = await lucaLinkSku(env, sku);
+    return partnerJson(200, { ok:true, sku, code: code || "", linked: link.linked, note: link.note });
+  }
+
+  // v75: (re)try pointing the Shopify product at an already-uploaded folder.
+  if (sub === "admin/link" && request.method === "POST") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    let body = null; try { body = await request.json(); } catch (e) {}
+    const sku = String((body && body.sku) || "").trim().toUpperCase();
+    if (!/^[A-Z0-9]{2,24}$/.test(sku)) return partnerJson(400, { ok:false, error:"bad sku" });
+    const link = await lucaLinkSku(env, sku);
+    return partnerJson(200, { ok:true, sku, linked: link.linked, note: link.note });
+  }
+
   if (sub === "admin/patterns" && request.method === "GET") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
     const list = await partnerManifestRaw(env);
@@ -1064,6 +1144,26 @@ async function handlePartnerApi(request, url, env) {
         });
       }
     } catch (e) { console.warn("luca catalogue merge failed:", e.message); }
+    // v75: folders in the bucket that no catalogue lists yet — Luca-S kits
+    // uploaded ahead of their Shopify product ("Awaiting Shopify"). Codes and
+    // QR work from day one because they derive from the SKU alone.
+    try {
+      const seen2 = new Set(out.map(k => String(k.sku).toUpperCase()));
+      const ready = await readySkus(env);
+      if (ready) for (const sku of ready.keys()) {
+        const up = String(sku).toUpperCase();
+        if (up.includes("-") || seen2.has(up)) continue;   // partner folders / already listed
+        seen2.add(up);
+        let code = null;
+        try { code = await codeFor(up, env); } catch (er) {}
+        out.push({
+          sku: up, title: "", brand: "Luca-S", luca: true, awaiting: true,
+          live: false, image: "", buy: "", uploadedAt: "",
+          code: code || "",
+          link: code ? "https://luca-s.com/apps/patternly?sku=" + encodeURIComponent(up) + "&code=" + encodeURIComponent(code) + "#tracker" : ""
+        });
+      }
+    } catch (e) { console.warn("awaiting scan failed:", e.message); }
     return partnerJson(200, { ok:true, patterns: out });
   }
 
