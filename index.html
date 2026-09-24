@@ -30478,11 +30478,45 @@ const PR_PRICES = {
   EUR:{sym:'\u20ac', month:'3.98', year:'31.98', was:'47.76'},
   USD:{sym:'$',       month:'4.98', year:'39.98', was:'59.76'}
 };
+// v596: per-tier savings, plus a reduced tier for lower-income markets. The
+// reduced tier is shown in euros (symbol borrowed from the EUR row) - Shopify
+// still charges the local-currency equivalent at checkout, same as always.
+PR_PRICES.GBP.save=33; PR_PRICES.EUR.save=33; PR_PRICES.USD.save=33;
+PR_PRICES.EUR2={sym:PR_PRICES.EUR.sym, month:'1.99', year:'17.99', was:'23.88', save:25};
+// Countries on the reduced web tier (mirrors the Shopify Markets setup).
+const PR_DISCOUNT_CC = new Set(['BR','BG','CN','CO','EG','HU','IN','ID','KZ','MX','MD','PH','PL','RO','RS','ZA','TH','TR','UA']);
 // Annual is priced at eight months in every currency, so "save a third" is true
 // everywhere and the badge does not need to change per market.
 let prPeriod = 'month';
 let prCur = 'GBP';
 
+// v596: in the native app, fetch the store's real localized prices once and
+// re-render. priceString comes straight from Apple/Google for this user's
+// storefront, so a price change in App Store Connect / Play Console shows up
+// here with no app update. No-ops entirely on the web.
+let _prNativeTried=false;
+async function prLoadNativePrices(){
+  if(_prNativeTried) return; _prNativeTried=true;
+  try{
+    if(typeof plIsApp!=='function' || !plIsApp()) return;
+    try{ if(typeof rcConfigure==='function') await rcConfigure(); }catch(e){}
+    const pkgs = (typeof rcPackages==='function') ? await rcPackages() : [];
+    if(!pkgs || !pkgs.length) return;
+    const find=re=>pkgs.find(p=>re.test(String(p.packageType||p.identifier||'')));
+    const mo=find(/MONTH/i), yr=find(/ANNUAL|YEAR/i);
+    if(!mo || !yr) return;
+    const mp=mo.product||{}, yp=yr.product||{};
+    if(!mp.priceString || !yp.priceString) return;
+    const out={ monthStr:mp.priceString, yearStr:yp.priceString, wasStr:'', save:33 };
+    const m=+mp.price, y=+yp.price, cur=mp.currencyCode||yp.currencyCode||'';
+    if(m>0 && y>0){
+      out.save=Math.max(0, Math.round((1 - y/(m*12))*100));
+      try{ out.wasStr=new Intl.NumberFormat(undefined,{style:'currency',currency:cur||'EUR'}).format(m*12); }catch(e){ out.wasStr=''; }
+    }
+    window.PR_NATIVE=out;
+    prRender(null, null);
+  }catch(e){}
+}
 function prSetCurrency(cur){ prRender(cur, prPeriod); }
 function prSetPeriod(per){ prRender(null, per); }
 
@@ -30490,18 +30524,35 @@ function prRender(cur, per){
   if(cur) prCur = PR_PRICES[cur] ? cur : 'GBP';
   if(per) prPeriod = (per==='year') ? 'year' : 'month';
   const p = PR_PRICES[prCur] || PR_PRICES.GBP;
-  const txt = p.sym + p[prPeriod];
   const yearly = prPeriod === 'year';
+  // v596: inside the native app the store's real localized prices replace the
+  // web table entirely - what's printed is exactly what the payment sheet
+  // will charge, per-country overrides included.
+  const N = window.PR_NATIVE || null;
+  const txt = N ? (yearly ? N.yearStr : N.monthStr) : (p.sym + p[prPeriod]);
 
   const a=document.getElementById('pr-amount'); if(a) a.textContent=txt;
   const was=document.getElementById('pr-was');
   if(was){
     // Twelve monthly payments, shown struck through so the saving is visible
     // at the moment of choosing rather than asserted in a badge alone.
-    was.textContent = yearly ? (p.sym + p.was) : '';
+    was.textContent = yearly ? (N ? N.wasStr : (p.sym + p.was)) : '';
     was.style.display = yearly ? '' : 'none';
   }
   const per_=document.getElementById('pr-per'); if(per_) per_.textContent = yearly ? '/ year' : '/ month';
+  // v596: the savings badge follows the real prices - 25% on the reduced tier,
+  // computed from the store's own figures in the app - instead of a fixed 33%.
+  try{
+    const sv=document.querySelector('.pr-save');
+    if(sv){
+      const pct = N ? N.save : (p.save || 33);
+      const base = (window.plT ? plT('pr.save33') : 'Save 33%');
+      sv.textContent = base.replace('33', String(pct));
+    }
+  }catch(e){}
+  // The local-currency footnote describes the web checkout; in the app the
+  // shown price IS the charged price, so the note would only cast doubt on it.
+  const fx=document.getElementById('pr-fx'); if(fx) fx.style.display = N ? 'none' : '';
   const n=document.getElementById('pr-note-price'); if(n) n.textContent=txt;
   const note=document.getElementById('pr-note');
   if(note){
@@ -30612,6 +30663,7 @@ function prGuessCurrency(){
     if(cc){
       if(cc==='GB') return 'GBP';
       if(cc==='US') return 'USD';
+      if(PR_DISCOUNT_CC.has(cc)) return 'EUR2';
       return 'EUR';
     }
   }catch(e){}
@@ -30697,6 +30749,7 @@ function openPricing(){
     let savedPer='month';
     try{ const s=localStorage.getItem('patternly_period'); if(s==='year'||s==='month') savedPer=s; }catch(e){}
     prRender(prGuessCurrency(), savedPer);
+    prLoadNativePrices();
     // /whoami may not have resolved yet when Pricing opens. If the real country
     // isn't in hand, wait for auth to land and re-render so the currency matches
     // the shop rather than the device clock.
