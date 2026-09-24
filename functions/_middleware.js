@@ -488,6 +488,23 @@ function partnerJson(status, obj) {
     status, headers: { "content-type": "application/json", "cache-control": "no-store" }
   });
 }
+// v80: whitelist-validate a QR style. Shapes and sizes are enumerated, the
+// colour must be a 6-digit hex dark enough to scan on white (relative
+// luminance cap) — a pastel module colour is the classic way to print a QR
+// that looks fine and scans never.
+const QR_STYLE_SHAPES = ["dot", "rounded", "square", "cross", "star", "heart"];
+function partnerCleanQrStyle(body) {
+  if (!body || typeof body !== "object") return null;
+  const shape = String(body.shape || "dot").toLowerCase();
+  if (!QR_STYLE_SHAPES.includes(shape)) return null;
+  const color = String(body.color || "#2b2226").toLowerCase();
+  if (!/^#[0-9a-f]{6}$/.test(color)) return null;
+  const r = parseInt(color.slice(1, 3), 16) / 255, g = parseInt(color.slice(3, 5), 16) / 255, b = parseInt(color.slice(5, 7), 16) / 255;
+  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  if (lum > 0.55) return null;                        // too light to scan on white
+  const size = (+body.size === 600) ? 600 : 1200;
+  return { shape, color, caption: !!body.caption, size };
+}
 async function partnerAuth(request, env) {
   if (!env.PARTNERS) return { err: partnerJson(503, { ok:false, error:"partner-system-not-configured" }) };
   const key = (request.headers.get("x-brand-key") || "").trim();
@@ -744,6 +761,29 @@ async function handlePartnerApi(request, url, env) {
       out.push({ sku: e.sku, title: e.title || "", live: e.live !== false, image: e.image || "", uploadedAt: e.uploadedAt || "", hasFile, code: code || "", link });
     }
     return partnerJson(200, { ok:true, brand: auth.brand, kits: out });
+  }
+
+  // v80: per-brand QR style — module shape, colour, caption and size chosen
+  // once in My Account → Branding and stored next to the logo, so it follows
+  // the brand across devices and the admin hub renders their kits the same way.
+  if (sub === "qr-style" && request.method === "GET") {
+    const auth = await partnerAuth(request, env);
+    if (auth.err) return auth.err;
+    if (!env.PATTERNS) return partnerJson(503, { ok:false, error:"pattern store not configured" });
+    const obj = await env.PATTERNS.get("brand-assets/" + auth.prefix + "/qr-style.json");
+    if (!obj) return partnerJson(200, { ok:true, found:false });
+    try { return partnerJson(200, { ok:true, found:true, style: JSON.parse(await obj.text()) }); }
+    catch (e) { return partnerJson(200, { ok:true, found:false }); }
+  }
+  if (sub === "qr-style" && request.method === "POST") {
+    const auth = await partnerAuth(request, env);
+    if (auth.err) return auth.err;
+    if (!env.PATTERNS) return partnerJson(503, { ok:false, error:"pattern store not configured" });
+    let body = null; try { body = await request.json(); } catch (e) {}
+    const style = partnerCleanQrStyle(body);
+    if (!style) return partnerJson(400, { ok:false, error:"bad style" });
+    await env.PATTERNS.put("brand-assets/" + auth.prefix + "/qr-style.json", JSON.stringify(style), { httpMetadata: { contentType: "application/json" } });
+    return partnerJson(200, { ok:true });
   }
 
   // v76: brand logo for styled QR downloads. Stored per brand under
@@ -1192,6 +1232,27 @@ async function handlePartnerApi(request, url, env) {
     const id = String((body && body.id) || "");
     if (!/^app:/.test(id)) return partnerJson(400, { ok:false, error:"bad id" });
     try { await env.PARTNERS.delete(id); } catch (e) {}
+    return partnerJson(200, { ok:true });
+  }
+
+  // v80: the Luca-S QR style (with ?prefix= the admin reads any brand's).
+  if (sub === "admin/qr-style" && request.method === "GET") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    if (!env.PATTERNS) return partnerJson(503, { ok:false, error:"pattern store not configured" });
+    const pfx = String(url.searchParams.get("prefix") || "").trim().toUpperCase();
+    if (pfx && !/^[A-Z0-9]{2,6}$/.test(pfx)) return partnerJson(400, { ok:false, error:"bad prefix" });
+    const obj = await env.PATTERNS.get("brand-assets/" + (pfx || "_lucas") + "/qr-style.json");
+    if (!obj) return partnerJson(200, { ok:true, found:false });
+    try { return partnerJson(200, { ok:true, found:true, style: JSON.parse(await obj.text()) }); }
+    catch (e) { return partnerJson(200, { ok:true, found:false }); }
+  }
+  if (sub === "admin/qr-style" && request.method === "POST") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    if (!env.PATTERNS) return partnerJson(503, { ok:false, error:"pattern store not configured" });
+    let body = null; try { body = await request.json(); } catch (e) {}
+    const style = partnerCleanQrStyle(body);
+    if (!style) return partnerJson(400, { ok:false, error:"bad style" });
+    await env.PATTERNS.put("brand-assets/_lucas/qr-style.json", JSON.stringify(style), { httpMetadata: { contentType: "application/json" } });
     return partnerJson(200, { ok:true });
   }
 
