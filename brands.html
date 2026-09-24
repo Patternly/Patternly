@@ -460,11 +460,15 @@
           <button class="ghost" id="apat-refresh" style="float:right;padding:.3rem .7rem;font-size:.76rem">Refresh</button>
           <button class="primary" id="aup-open" style="float:right;margin-right:.5rem;padding:.3rem .8rem;font-size:.76rem">+ Add Pattern</button></h2>
         <div id="aup-card" style="display:none;border:1px solid var(--border);border-radius:10px;padding:.8rem .9rem;margin:0 0 .8rem">
-          <div class="note" style="margin:0 0 .6rem">Adds a <b>Luca-S</b> pattern straight to the pattern store — the access code and QR are ready immediately, so you can print insert cards while the kits are being manufactured. When the Shopify product with this SKU is created later, it links automatically (title, photo and buy button all come from the product). Re-uploading the same SKU replaces the file.</div>
+          <div class="note" style="margin:0 0 .6rem">Adds a <b>Luca-S</b> pattern straight to the pattern store — the access code and QR are ready immediately. <b>With a title</b> the kit is live in the Stitch Tracker right away (cover optional); when the Shopify product with this SKU is linked later, its title, photo and buy button take over automatically. <b>Without a title</b> it stays "Awaiting Shopify" until the product exists. Re-uploading the same SKU replaces the file.</div>
           <div class="row">
-            <div style="max-width:220px"><label for="aup-sku">SKU <span style="font-weight:400;color:var(--muted)">(no dash)</span></label><input type="text" id="aup-sku" maxlength="24" spellcheck="false" placeholder="B1234" style="text-transform:uppercase"></div>
+            <div style="max-width:200px"><label for="aup-sku">SKU <span style="font-weight:400;color:var(--muted)">(no dash)</span></label><input type="text" id="aup-sku" maxlength="24" spellcheck="false" placeholder="B1234" style="text-transform:uppercase"></div>
+            <div><label for="aup-title">Title <span style="font-weight:400;color:var(--muted)">(optional — makes it live now)</span></label><input type="text" id="aup-title" maxlength="80" placeholder="Bouquet of Peonies"></div>
+          </div>
+          <div class="row" style="margin-top:.7rem">
             <div><label for="aup-file">Pattern file (.Ptly)</label><input type="file" id="aup-file" accept=".ptly,.Ptly"></div>
             <div><label for="aup-legend">Colour legend PDF <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input type="file" id="aup-legend" accept=".pdf,application/pdf"></div>
+            <div><label for="aup-cover">Cover image <span style="font-weight:400;color:var(--muted)">(optional, JPG/PNG/WebP)</span></label><input type="file" id="aup-cover" accept="image/jpeg,image/png,image/webp"></div>
           </div>
           <div style="margin-top:.8rem" class="row"><button class="primary" id="aup-go">Upload pattern</button> <button class="ghost" id="aup-cancel">Cancel</button></div>
           <div id="aup-msg" style="margin-top:.5rem"></div>
@@ -3813,16 +3817,16 @@ function renderAdminPatterns(){
     for(const k of slice){
       h+='<tr><td>'+(k.image?'<img class="thumb" src="'+escA(k.image)+'" alt="">':'<span class="thumb" style="display:inline-block"></span>')+'</td>'
         +'<td class="skucell">'+escA(k.sku)+'</td><td style="font-size:.8rem">'+escA(k.brand||'')+'</td><td>'+(k.awaiting&&!k.title?'<span class="note">(title comes from Shopify)</span>':escA(k.title))+'</td>'
-        +'<td>'+(k.luca?(k.awaiting?'<span class="pill pending">Awaiting Shopify</span>':'<span class="pill live">Live · Shopify</span>'):(k.live?'<span class="pill live">Live</span>':'<span class="pill pending">Hidden</span>'))+'</td>'
+        +'<td>'+(k.luca?(k.awaiting?'<span class="pill pending">Awaiting Shopify</span>':(k.unlinked?(k.live?'<span class="pill live">Live · not linked</span>':'<span class="pill pending">Hidden</span>'):'<span class="pill live">Live · Shopify</span>')):(k.live?'<span class="pill live">Live</span>':'<span class="pill pending">Hidden</span>'))+'</td>'
         +'<td>'+(k.code?'<span class="skucell">'+escA(displayCode(k.sku,k.code))+'</span> <button class="ghost acopy" data-copy="'+escA(displayCode(k.sku,k.code))+'" style="padding:.15rem .5rem;font-size:.7rem">Copy</button>':'—')+'</td>'
         +'<td style="white-space:nowrap">'
         +((k.code&&k.live)?'<a href="'+escA(k.link)+'" target="_blank" rel="noopener" style="font-size:.75rem;font-weight:700">Test</a> ':'')
         +((k.code&&k.link)?'<button class="ghost aqr" data-sku="'+escA(k.sku)+'" style="padding:.15rem .55rem;font-size:.7rem">QR</button> ':'')
         +((k.code&&k.link)?'<button class="ghost acard" data-sku="'+escA(k.sku)+'" style="padding:.15rem .55rem;font-size:.7rem">Insert card</button>':'')
-        +(k.awaiting?' <button class="ghost alink" data-sku="'+escA(k.sku)+'" style="padding:.15rem .55rem;font-size:.7rem">Link Shopify</button>':'')
+        +((k.awaiting||k.unlinked)?' <button class="ghost alink" data-sku="'+escA(k.sku)+'" style="padding:.15rem .55rem;font-size:.7rem">Link Shopify</button>':'')
         // Luca-S catalogue rows are read-only here: hide/remove live in Shopify
         // (draft or untag the product) and R2, not in the partner manifest.
-        +(k.luca?'':' <button class="ghost atoggle" data-sku="'+escA(k.sku)+'" data-live="'+(k.live?1:0)+'" style="padding:.15rem .55rem;font-size:.7rem">'+(k.live?'Hide':'Show')+'</button>'
+        +((k.luca&&!k.unlinked)?'':' <button class="ghost atoggle" data-sku="'+escA(k.sku)+'" data-live="'+(k.live?1:0)+'" style="padding:.15rem .55rem;font-size:.7rem">'+(k.live?'Hide':'Show')+'</button>'
         +' <button class="ghost aremove" data-sku="'+escA(k.sku)+'" style="padding:.15rem .55rem;font-size:.7rem;color:#b3261e;border-color:#e8c9c9">Remove</button>')+'</td></tr>';
     }
     h+='</tbody></table>';
@@ -3904,13 +3908,15 @@ $('aup-go').onclick=async()=>{
   $('aup-go').disabled=true; msg.innerHTML='<div class="note">Uploading…</div>';
   try{
     const fd=new FormData(); fd.set('sku',sku); fd.set('ptly',f,f.name||'pattern.Ptly');
+    const tv=$('aup-title').value.trim(); if(tv) fd.set('title',tv);
+    const cf=$('aup-cover').files[0]; if(cf) fd.set('cover',cf,cf.name||'cover.jpg');
     const lf=$('aup-legend').files[0]; if(lf) fd.set('legend',lf,lf.name||'legend.pdf');
     const r=await fetch(API+'admin/upload',{method:'POST',headers:adminHeaders(),body:fd});
     const d=await r.json().catch(()=>({}));
     if(!r.ok||!d.ok){ msg.innerHTML='<div class="err">'+(d.error||'Upload failed.')+'</div>'; }
     else{
-      msg.innerHTML='<div style="color:#1c7a3d;font-weight:600">'+d.sku+' uploaded — access code <span class="skucell">'+d.code+'</span>. '+escA(d.note||'')+'</div>';
-      $('aup-sku').value=''; $('aup-file').value=''; $('aup-legend').value='';
+      msg.innerHTML='<div style="color:#1c7a3d;font-weight:600">'+d.sku+' uploaded — access code <span class="skucell">'+d.code+'</span>. '+(d.staged?'Live in the Stitch Tracker now. ':'')+escA(d.note||'')+'</div>';
+      $('aup-sku').value=''; $('aup-title').value=''; $('aup-file').value=''; $('aup-cover').value=''; $('aup-legend').value='';
       loadAdminPatterns();
     }
   }catch(e){ msg.innerHTML='<div class="err">Network error.</div>'; }
