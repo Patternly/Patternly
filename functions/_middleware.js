@@ -601,6 +601,14 @@ async function lucaLinkSku(env, sku) {
     }]});
     const errs = m && m.metafieldsSet && m.metafieldsSet.userErrors;
     if (errs && errs.length) return { linked: false, note: "Shopify refused the metafield: " + errs.map(e => e.message).join("; ") };
+    // v81: Shopify is the source of truth from here - delete the temporary
+    // staging entry (title/cover typed in the Studio) so the product's own
+    // title, photo and buy button take over everywhere without a shadow copy.
+    try {
+      const list = await partnerManifestRaw(env);
+      const idx = list.findIndex(e => e && typeof e.sku === "string" && e.sku.toUpperCase() === sku && e.sku.indexOf("-") < 0);
+      if (idx >= 0) { list.splice(idx, 1); await partnerManifestWrite(env, list); }
+    } catch (e) {}
     return { linked: true, note: "Linked to “" + (hit.product.title || sku) + "”. It shows in the app once the product is in the Needlecraft Kits collection." };
   } catch (e) {
     return { linked: false, note: "Could not link (" + e.message + ") — press Link Shopify to retry, or set the patternly.pattern metafield by hand." };
@@ -1304,6 +1312,21 @@ async function handlePartnerApi(request, url, env) {
     }
     const sku = String(form.get("sku") || "").trim().toUpperCase();
     if (!/^[A-Z0-9]{2,24}$/.test(sku)) return partnerJson(400, { ok:false, error:"SKU must be 2–24 letters or digits with no dash (dashed SKUs belong to partner brands)." });
+    // v81: optional title + cover. With a title the kit goes live in the app
+    // immediately (staged through the same manifest partner kits use); without
+    // one it stays "Awaiting Shopify" as before. Both are temporary skins:
+    // Shopify wins on SKU collision at catalogue build, and linking deletes
+    // the staging entry, so the product's title/photo/buy take over cleanly.
+    const title = partnerCleanTitle(form.get("title"));
+    const cover = form.get("cover");
+    let coverExt = null, coverBuf = null, coverType = null;
+    if (cover && typeof cover.arrayBuffer === "function" && cover.size > 0) {
+      const t = String(cover.type || "").toLowerCase();
+      coverExt = t === "image/jpeg" ? "jpg" : t === "image/png" ? "png" : t === "image/webp" ? "webp" : null;
+      if (!coverExt) return partnerJson(400, { ok:false, error:"Cover must be a JPG, PNG or WebP image." });
+      if (cover.size > 3000000) return partnerJson(400, { ok:false, error:"Cover image is over 3 MB." });
+      coverBuf = await cover.arrayBuffer(); coverType = t;
+    }
     const ptly = form.get("ptly");
     if (!ptly || typeof ptly.arrayBuffer !== "function") return partnerJson(400, { ok:false, error:"Attach the .Ptly pattern file." });
     if (ptly.size > 8000000) return partnerJson(400, { ok:false, error:"The pattern file is over 8 MB." });
@@ -1331,9 +1354,27 @@ async function handlePartnerApi(request, url, env) {
     }
     await env.PATTERNS.put(sku + "/pattern.Ptly", ptlyBuf, { httpMetadata: { contentType: "application/xml" } });
     if (legendBuf) await env.PATTERNS.put(sku + "/legend.pdf", legendBuf, { httpMetadata: { contentType: "application/pdf" } });
+    if (coverBuf) await env.PATTERNS.put(sku + "/cover." + coverExt, coverBuf, { httpMetadata: { contentType: coverType } });
+    let staged = false;
+    if (title) {
+      const list = await partnerManifestRaw(env);
+      const idx = list.findIndex(e => e && typeof e.sku === "string" && e.sku.toUpperCase() === sku);
+      const prev = idx >= 0 ? list[idx] : null;
+      const entry = {
+        sku, title,
+        brand: "Luca-S",
+        buy: (prev && prev.buy) || "",
+        image: coverBuf ? ("https://luca-s.com/apps/patternly/patterns/" + sku + "/cover." + coverExt) : ((prev && prev.image) || ""),
+        live: true,
+        uploadedAt: new Date().toISOString()
+      };
+      if (idx >= 0) list[idx] = entry; else list.push(entry);
+      await partnerManifestWrite(env, list);
+      staged = true;
+    }
     let code = null; try { code = await codeFor(sku, env); } catch (e) {}
     const link = await lucaLinkSku(env, sku);
-    return partnerJson(200, { ok:true, sku, code: code || "", legend: !!legendBuf, linked: link.linked, note: link.note });
+    return partnerJson(200, { ok:true, sku, code: code || "", legend: !!legendBuf, staged, linked: link.linked, note: link.note });
   }
 
   // v75: (re)try pointing the Shopify product at an already-uploaded folder.
@@ -1356,8 +1397,12 @@ async function handlePartnerApi(request, url, env) {
       // can resend a code without the Kit Link Generator. Admin-guarded.
       let code = null;
       try { code = await codeFor(e.sku, env); } catch (er) {}
+      // v81: a dashless manifest entry is a staged Luca-S kit - live in the
+      // app on Studio data, not yet handed over to a Shopify product.
+      const staged = String(e.sku).indexOf("-") < 0;
       out.push({
-        sku: e.sku, title: e.title || "", brand: e.brand || "",
+        sku: e.sku, title: e.title || "", brand: e.brand || (staged ? "Luca-S" : ""),
+        luca: staged || undefined, unlinked: staged || undefined,
         live: e.live !== false, image: e.image || "", buy: e.buy || "", uploadedAt: e.uploadedAt || "",
         code: code || "",
         link: code ? "https://luca-s.com/apps/patternly?sku=" + encodeURIComponent(e.sku) + "&code=" + encodeURIComponent(code) + "#tracker" : ""
