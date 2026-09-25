@@ -432,6 +432,10 @@ async function partnerKits(env) {
     const out = [];
     for (const e of list) {
       if (!e || !e.sku || e.live === false) continue;
+      // v83: partner kits are QR-only by default. They enter the browsable
+      // catalogue only when the admin explicitly lists them (listed:true).
+      // Dashless entries are staged Luca-S kits and stay listed as before.
+      if (String(e.sku).indexOf("-") > 0 && e.listed !== true) continue;
       const kit = { sku: String(e.sku).trim() };
       if (!kit.sku) continue;
       if (e.title) kit.title = e.title;
@@ -735,6 +739,48 @@ async function handlePartnerApi(request, url, env) {
     return partnerJson(200, { ok:true });
   }
 
+  // v83: single-kit lookup for QR opens. An unlisted partner kit is not in the
+  // public kits.json, so the tracker asks for exactly one SKU here when a QR
+  // or access-code deep link names a kit it cannot see. This serves only what
+  // a listed catalogue entry would have made public anyway (title, cover,
+  // brand, buy link, file pointers) - the chart itself stays code-gated.
+  if (sub === "kit-info" && request.method === "GET") {
+    if (!env.PATTERNS) return partnerJson(503, { ok:false, error:"pattern store not configured" });
+    const sku = String(url.searchParams.get("sku") || "").trim().toUpperCase();
+    if (!/^[A-Z0-9-]{2,32}$/.test(sku)) return partnerJson(400, { ok:false, error:"bad sku" });
+    let kit = null;
+    try {
+      for (const e of await partnerManifestRaw(env)) {
+        if (e && typeof e.sku === "string" && e.sku.toUpperCase() === sku && e.live !== false) {
+          kit = { sku: e.sku, title: e.title || "", brand: e.brand || "", image: e.image || "", buy: e.buy || "", url: e.buy || "" };
+          if (e.canvasSize) kit.canvasSize = e.canvasSize;
+          break;
+        }
+      }
+    } catch (e) {}
+    if (!kit) {
+      try {
+        for (const k of await lucaKitsRaw(env)) {
+          if (String(k.sku).toUpperCase() === sku) { kit = { sku: k.sku, title: k.title || "", brand: "Luca-S", image: k.image || "", url: k.url || "" }; break; }
+        }
+      } catch (e) {}
+    }
+    if (!kit) return partnerJson(200, { ok:true, found:false });
+    // Same readiness gate as the catalogue: no chart file, no kit.
+    let ptlyKey = "", chart = false;
+    try {
+      const listed = await env.PATTERNS.list({ prefix: kit.sku + "/", limit: 100 });
+      for (const o of listed.objects) {
+        const leaf = o.key.slice(kit.sku.length + 1).toLowerCase();
+        if (leaf.endsWith(".ptly")) ptlyKey = o.key;
+        else if (leaf === "chart.pdf") chart = true;
+      }
+    } catch (e) {}
+    if (!ptlyKey && !chart) return partnerJson(200, { ok:true, found:false });
+    if (ptlyKey) { kit.ptly = true; kit.files = { ptly: ptlyKey }; }
+    return partnerJson(200, { ok:true, found:true, kit });
+  }
+
   if (sub === "signin" && request.method === "POST") {
     if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"partner-system-not-configured" });
     let body = {};
@@ -766,7 +812,7 @@ async function handlePartnerApi(request, url, env) {
       const link = code
         ? "https://luca-s.com/apps/patternly?sku=" + encodeURIComponent(e.sku) + "&code=" + encodeURIComponent(code) + "#tracker"
         : "";
-      out.push({ sku: e.sku, title: e.title || "", live: e.live !== false, image: e.image || "", uploadedAt: e.uploadedAt || "", hasFile, code: code || "", link });
+      out.push({ sku: e.sku, title: e.title || "", live: e.live !== false, listed: e.listed === true, image: e.image || "", uploadedAt: e.uploadedAt || "", hasFile, code: code || "", link });
     }
     return partnerJson(200, { ok:true, brand: auth.brand, kits: out });
   }
@@ -968,7 +1014,7 @@ async function handlePartnerApi(request, url, env) {
     if (idx >= 0) list[idx] = entry; else list.push(entry);
     await partnerManifestWrite(env, list);
     return partnerJson(200, { ok:true, sku, live: entry.live,
-      note: entry.live ? "Published \u2014 your pattern is live in the catalogue."
+      note: entry.live ? "Published \u2014 customers open it with the kit\u2019s QR code or access code."
                        : "Published hidden \u2014 press Show on My Patterns when you\u2019re ready." });
   }
 
@@ -1402,6 +1448,20 @@ async function handlePartnerApi(request, url, env) {
       linked: link.linked });
   }
 
+  // v83: grant or revoke catalogue placement for a partner kit.
+  if (sub === "admin/list" && request.method === "POST") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    let body = null; try { body = await request.json(); } catch (e) {}
+    const sku = String((body && body.sku) || "").trim().toUpperCase();
+    if (!sku || sku.indexOf("-") <= 0) return partnerJson(400, { ok:false, error:"Only partner kits have a listing switch - Luca-S kits are always browsable." });
+    const list = await partnerManifestRaw(env);
+    const idx = list.findIndex(e => e && typeof e.sku === "string" && e.sku.toUpperCase() === sku);
+    if (idx < 0) return partnerJson(404, { ok:false, error:"unknown sku" });
+    list[idx].listed = !!(body && body.listed);
+    await partnerManifestWrite(env, list);
+    return partnerJson(200, { ok:true, sku, listed: list[idx].listed });
+  }
+
   // v75: (re)try pointing the Shopify product at an already-uploaded folder.
   if (sub === "admin/link" && request.method === "POST") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
@@ -1428,6 +1488,7 @@ async function handlePartnerApi(request, url, env) {
       out.push({
         sku: e.sku, title: e.title || "", brand: e.brand || (staged ? "Luca-S" : ""),
         luca: staged || undefined, unlinked: staged || undefined,
+        listed: staged ? undefined : (e.listed === true),
         live: e.live !== false, image: e.image || "", buy: e.buy || "", uploadedAt: e.uploadedAt || "",
         code: code || "",
         link: code ? "https://luca-s.com/apps/patternly?sku=" + encodeURIComponent(e.sku) + "&code=" + encodeURIComponent(code) + "#tracker" : ""
