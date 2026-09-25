@@ -146,8 +146,8 @@
       </div>
       <div class="land-tile fadeup d4">
         <svg viewBox="0 0 24 24" fill="none" stroke="#8B1A2B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M21 21l-4.3-4.3"/><path d="M8.5 11h5M11 8.5v5"/></svg>
-        <b>Get discovered by stitchers</b>
-        <p>Your kits sit in the same catalogue stitchers already browse — someone finishing a Luca-S kit sees yours next, cover photo and “Buy the kit” button included. Free exposure to people who already buy kits.</p>
+        <b>Earn catalogue placement</b>
+        <p>Your kits open by QR from day one — and active partners can be listed in the shared catalogue stitchers browse, cover photo and “Buy the kit” button included. Free exposure to people who already buy kits, earned as your kits see real use.</p>
       </div>
       <div class="land-tile fadeup d4">
         <svg viewBox="0 0 24 24" fill="none" stroke="#8B1A2B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4l-7.2 7.2a2 2 0 01-2.8 0L3 13V3h10l7.6 7.6a2 2 0 010 2.8z"/><circle cx="7.5" cy="7.5" r="1.3"/></svg>
@@ -334,7 +334,7 @@
           <button class="ghost" id="mine-csv" style="padding:.3rem .7rem;font-size:.76rem" disabled>Download codes CSV</button>
           <button class="ghost" id="mine-refresh" style="padding:.3rem .7rem;font-size:.76rem">Refresh</button>
         </span></h2>
-      <div class="note" style="margin:0 0 .6rem">Each pattern has its own <b>access code</b> and QR link — print them on your kit inserts. The test link opens the kit in the Stitch Tracker exactly as your customers see it.</div>
+      <div class="note" style="margin:0 0 .6rem">Each pattern has its own <b>access code</b> and QR link — print them on your kit inserts; your customers scan the QR (or type the code) and the kit opens in the Stitch Tracker. Patterns aren’t shown in the public catalogue by default — active partners can be granted catalogue placement by Luca-S.</div>
       <div id="patterns-msg"></div>
       <div id="mine-box"><div class="note">Loading…</div></div>
     </div>
@@ -3348,7 +3348,7 @@ async function loadMine(){
         +'<td>'+(k.image?'<img class="thumb" src="'+String(k.image).replace(/"/g,'&quot;')+'" alt="">':'<span class="thumb" style="display:inline-block"></span>')+'</td>'
         +'<td class="skucell">'+k.sku+'</td>'
         +'<td>'+String(k.title||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</td>'
-        +'<td>'+(k.live?'<span class="pill live">Live</span>':'<span class="pill pending">Hidden</span>')
+        +'<td>'+(k.live?(k.listed?'<span class="pill live">Live · Listed</span>':'<span class="pill live" title="Customers open it with the QR or access code from your kit insert">Active · QR only</span>'):'<span class="pill pending">Hidden</span>')
               +(k.hasFile?'':' <span class="err" title="Pattern file missing">file missing</span>')+'</td>'
         +'<td>'+(k.code?'<span class="skucell">'+displayCode(k.sku,k.code)+'</span> <button class="ghost copybtn" data-copy="'+displayCode(k.sku,k.code)+'" style="padding:.15rem .5rem;font-size:.7rem">Copy</button>':'<span class="note">—</span>')+'</td>'
         +'<td style="white-space:nowrap">'+(k.code&&k.live?'<a href="'+k.link.replace(/"/g,'&quot;')+'" target="_blank" rel="noopener" style="font-size:.78rem;font-weight:700">Test in Stitch Tracker</a>'
@@ -3831,7 +3831,7 @@ function renderAdminPatterns(){
     for(const k of slice){
       h+='<tr><td>'+(k.image?'<img class="thumb" src="'+escA(k.image)+'" alt="">':'<span class="thumb" style="display:inline-block"></span>')+'</td>'
         +'<td class="skucell">'+escA(k.sku)+'</td><td style="font-size:.8rem">'+escA(k.brand||'')+'</td><td>'+(k.awaiting&&!k.title?'<span class="note">(title comes from Shopify)</span>':escA(k.title))+'</td>'
-        +'<td>'+(k.luca?(k.awaiting?'<span class="pill pending">Awaiting Shopify</span>':(k.unlinked?(k.live?'<span class="pill live">Live · not linked</span>':'<span class="pill pending">Hidden</span>'):'<span class="pill live">Live · Shopify</span>')):(k.live?'<span class="pill live">Live</span>':'<span class="pill pending">Hidden</span>'))
+        +'<td>'+(k.luca?(k.awaiting?'<span class="pill pending">Awaiting Shopify</span>':(k.unlinked?(k.live?'<span class="pill live">Live · not linked</span>':'<span class="pill pending">Hidden</span>'):'<span class="pill live">Live · Shopify</span>')):(k.live?(k.listed?'<span class="pill live">Live · Listed</span>':'<span class="pill live">Active · QR only</span>'):'<span class="pill pending">Hidden</span>'))
         +(((k.awaiting||k.unlinked)&&k.hasFile===false)?' <span class="err" style="font-size:.72rem;font-weight:700" title="Reserved — save this SKU again with the .Ptly attached">no pattern file</span>':'')+'</td>'
         +'<td>'+(k.code?'<span class="skucell">'+escA(displayCode(k.sku,k.code))+'</span> <button class="ghost acopy" data-copy="'+escA(displayCode(k.sku,k.code))+'" style="padding:.15rem .5rem;font-size:.7rem">Copy</button>':'—')+'</td>'
         +'<td style="white-space:nowrap">'
@@ -3840,6 +3840,7 @@ function renderAdminPatterns(){
         +((k.code&&k.link)?'<button class="ghost acard" data-sku="'+escA(k.sku)+'" style="padding:.15rem .55rem;font-size:.7rem">Insert card</button>':'')
         +((k.awaiting||k.unlinked)?' <button class="ghost alink" data-sku="'+escA(k.sku)+'" style="padding:.15rem .55rem;font-size:.7rem">Link Shopify</button>':'')
         +(k.luca?' <button class="ghost aupd" data-sku="'+escA(k.sku)+'" style="padding:.15rem .55rem;font-size:.7rem">Update</button>':'')
+        +((!k.luca&&k.live)?' <button class="ghost alist" data-sku="'+escA(k.sku)+'" data-listed="'+(k.listed?1:0)+'" style="padding:.15rem .55rem;font-size:.7rem">'+(k.listed?'Unlist':'List in catalogue')+'</button>':'')
         // Luca-S catalogue rows are read-only here: hide/remove live in Shopify
         // (draft or untag the product) and R2, not in the partner manifest.
         +((k.luca&&!k.unlinked)?'':' <button class="ghost atoggle" data-sku="'+escA(k.sku)+'" data-live="'+(k.live?1:0)+'" style="padding:.15rem .55rem;font-size:.7rem">'+(k.live?'Hide':'Show')+'</button>'
@@ -3891,6 +3892,16 @@ function renderAdminPatterns(){
         const d2=await r2.json().catch(()=>({}));
         alert(d2.note||d2.error||'Link attempt finished.');
       }catch(e){ alert('Network error.'); }
+      loadAdminPatterns();
+    }; });
+    // v31: catalogue placement is granted, not automatic - the toggle flips
+    // whether this partner kit appears in the public browsable catalogue.
+    box.querySelectorAll('.alist').forEach(b=>{ b.onclick=async()=>{
+      const wants=b.dataset.listed!=='1';
+      if(wants && !confirm('List '+b.dataset.sku+' in the public catalogue?\n\nEvery Patternly user browsing Kit Patterns will see it alongside Luca-S kits.')) return;
+      const r2=await fetch(API+'admin/list',{method:'POST',headers:adminHeaders(true),body:JSON.stringify({sku:b.dataset.sku, listed:wants})});
+      const d2=await r2.json().catch(()=>({}));
+      if(!r2.ok||!d2.ok){ alert(d2.error||'Could not change the listing.'); return; }
       loadAdminPatterns();
     }; });
     box.querySelectorAll('.atoggle').forEach(b=>{ b.onclick=async()=>{
