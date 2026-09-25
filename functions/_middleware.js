@@ -1327,18 +1327,24 @@ async function handlePartnerApi(request, url, env) {
       if (cover.size > 3000000) return partnerJson(400, { ok:false, error:"Cover image is over 3 MB." });
       coverBuf = await cover.arrayBuffer(); coverType = t;
     }
+    // v82: everything except the SKU is optional. The same call registers a
+    // bare SKU (codes and QR work from the SKU alone), adds or replaces the
+    // .Ptly, legend, cover or title later - attach only what changes; what's
+    // omitted is left untouched.
     const ptly = form.get("ptly");
-    if (!ptly || typeof ptly.arrayBuffer !== "function") return partnerJson(400, { ok:false, error:"Attach the .Ptly pattern file." });
-    if (ptly.size > 8000000) return partnerJson(400, { ok:false, error:"The pattern file is over 8 MB." });
-    const ptlyBuf = await ptly.arrayBuffer();
-    const magic = new Uint8Array(ptlyBuf.slice(0, 6));
-    const isPtnly = magic.length === 6 && String.fromCharCode(...magic) === "PTNLY1";
-    let looksXml = false;
-    if (!isPtnly) {
-      const head = new TextDecoder().decode(ptlyBuf.slice(0, 4096)).replace(/[\u0000\ufffd]/g, "");
-      looksXml = head.indexOf("<") >= 0 && /chart|oxs|palette/i.test(head);
+    let ptlyBuf = null;
+    if (ptly && typeof ptly.arrayBuffer === "function" && ptly.size > 0) {
+      if (ptly.size > 8000000) return partnerJson(400, { ok:false, error:"The pattern file is over 8 MB." });
+      ptlyBuf = await ptly.arrayBuffer();
+      const magic = new Uint8Array(ptlyBuf.slice(0, 6));
+      const isPtnly = magic.length === 6 && String.fromCharCode(...magic) === "PTNLY1";
+      let looksXml = false;
+      if (!isPtnly) {
+        const head = new TextDecoder().decode(ptlyBuf.slice(0, 4096)).replace(/[\u0000\ufffd]/g, "");
+        looksXml = head.indexOf("<") >= 0 && /chart|oxs|palette/i.test(head);
+      }
+      if (!isPtnly && !looksXml) return partnerJson(400, { ok:false, error:"That doesn\u2019t look like a .Ptly file — export it from the converter first." });
     }
-    if (!isPtnly && !looksXml) return partnerJson(400, { ok:false, error:"That doesn\u2019t look like a .Ptly file — export it from the converter first." });
     // v77: optional colour legend (PDF), validated BEFORE anything is written so
     // a bad legend never leaves a half-published kit. Stored as <SKU>/legend.pdf
     // — the tracker's Legend button appears whenever that file exists.
@@ -1352,29 +1358,48 @@ async function handlePartnerApi(request, url, env) {
         return partnerJson(400, { ok:false, error:"The legend must be a PDF file." });
       }
     }
-    await env.PATTERNS.put(sku + "/pattern.Ptly", ptlyBuf, { httpMetadata: { contentType: "application/xml" } });
+    if (ptlyBuf) await env.PATTERNS.put(sku + "/pattern.Ptly", ptlyBuf, { httpMetadata: { contentType: "application/xml" } });
     if (legendBuf) await env.PATTERNS.put(sku + "/legend.pdf", legendBuf, { httpMetadata: { contentType: "application/pdf" } });
     if (coverBuf) await env.PATTERNS.put(sku + "/cover." + coverExt, coverBuf, { httpMetadata: { contentType: coverType } });
+    // v82: does the kit have a chart after this call? If not, drop a tiny
+    // marker so the SKU appears in the admin list ("no pattern file yet")
+    // even with an empty folder. Dot-files are invisible to the catalogue's
+    // readiness scan, so a reserved kit can never open half-made in the app.
+    let hasFile = !!ptlyBuf;
+    if (!hasFile) {
+      try { hasFile = !!(env.PATTERNS.head ? await env.PATTERNS.head(sku + "/pattern.Ptly") : await env.PATTERNS.get(sku + "/pattern.Ptly")); } catch (e) {}
+      if (!hasFile) {
+        try { await env.PATTERNS.put(sku + "/.reserved", JSON.stringify({ reservedAt: new Date().toISOString() }), { httpMetadata: { contentType: "application/json" } }); } catch (e) {}
+      }
+    }
     let staged = false;
-    if (title) {
+    {
       const list = await partnerManifestRaw(env);
       const idx = list.findIndex(e => e && typeof e.sku === "string" && e.sku.toUpperCase() === sku);
       const prev = idx >= 0 ? list[idx] : null;
-      const entry = {
-        sku, title,
-        brand: "Luca-S",
-        buy: (prev && prev.buy) || "",
-        image: coverBuf ? ("https://luca-s.com/apps/patternly/patterns/" + sku + "/cover." + coverExt) : ((prev && prev.image) || ""),
-        live: true,
-        uploadedAt: new Date().toISOString()
-      };
-      if (idx >= 0) list[idx] = entry; else list.push(entry);
-      await partnerManifestWrite(env, list);
-      staged = true;
+      // v82: keep the staging entry through partial updates - a new title
+      // replaces the old one, but replacing only the file or cover must not
+      // wipe an existing title.
+      if (title || prev) {
+        const entry = {
+          sku,
+          title: title || (prev && prev.title) || "",
+          brand: "Luca-S",
+          buy: (prev && prev.buy) || "",
+          image: coverBuf ? ("https://luca-s.com/apps/patternly/patterns/" + sku + "/cover." + coverExt) : ((prev && prev.image) || ""),
+          live: prev ? (prev.live !== false) : true,
+          uploadedAt: new Date().toISOString()
+        };
+        if (idx >= 0) list[idx] = entry; else list.push(entry);
+        await partnerManifestWrite(env, list);
+        staged = true;
+      }
     }
     let code = null; try { code = await codeFor(sku, env); } catch (e) {}
     const link = await lucaLinkSku(env, sku);
-    return partnerJson(200, { ok:true, sku, code: code || "", legend: !!legendBuf, staged, linked: link.linked, note: link.note });
+    return partnerJson(200, { ok:true, sku, code: code || "", legend: !!legendBuf, staged, hasFile,
+      note: (hasFile ? "" : "No pattern file yet — the kit can\u2019t open in the app until you add the .Ptly (codes and QR already work). ") + link.note,
+      linked: link.linked });
   }
 
   // v75: (re)try pointing the Shopify product at an already-uploaded folder.
@@ -1432,15 +1457,34 @@ async function handlePartnerApi(request, url, env) {
     // QR work from day one because they derive from the SKU alone.
     try {
       const seen2 = new Set(out.map(k => String(k.sku).toUpperCase()));
-      const ready = await readySkus(env);
-      if (ready) for (const sku of ready.keys()) {
-        const up = String(sku).toUpperCase();
-        if (up.includes("-") || seen2.has(up)) continue;   // partner folders / already listed
+      // v82: scan raw folders rather than only chart-ready ones, so a SKU
+      // registered without its .Ptly yet (a .reserved marker) is listed too,
+      // flagged hasFile:false. brand-assets and partner folders carry a dash
+      // and are skipped from the name alone.
+      const chartBy = new Map();                 // UPPER folder -> has a chart
+      let fcur;
+      for (let pg = 0; pg < 10; pg++) {
+        const listed = await env.PATTERNS.list({ limit: 1000, cursor: fcur });
+        for (const obj of listed.objects) {
+          const slash = obj.key.indexOf("/");
+          if (slash <= 0) continue;
+          const folder = obj.key.slice(0, slash);
+          if (folder.includes("-")) continue;
+          const up = folder.toUpperCase();
+          const leaf = obj.key.slice(slash + 1).toLowerCase();
+          const chart = leaf.endsWith(".ptly") || leaf === "chart.pdf";
+          chartBy.set(up, (chartBy.get(up) || false) || chart);
+        }
+        if (!listed.truncated) break; else fcur = listed.cursor;
+      }
+      for (const r of out) if (r.unlinked) r.hasFile = chartBy.get(String(r.sku).toUpperCase()) === true;
+      for (const [up, hasFile] of chartBy) {
+        if (seen2.has(up)) continue;
         seen2.add(up);
         let code = null;
         try { code = await codeFor(up, env); } catch (er) {}
         out.push({
-          sku: up, title: "", brand: "Luca-S", luca: true, awaiting: true,
+          sku: up, title: "", brand: "Luca-S", luca: true, awaiting: true, hasFile,
           live: false, image: "", buy: "", uploadedAt: "",
           code: code || "",
           link: code ? "https://luca-s.com/apps/patternly?sku=" + encodeURIComponent(up) + "&code=" + encodeURIComponent(code) + "#tracker" : ""
