@@ -3351,23 +3351,29 @@ async function loadMine(){
         +'<td>'+(k.live?(k.listed?'<span class="pill live">Live · Listed</span>':'<span class="pill live" title="Customers open it with the QR or access code from your kit insert">Active · QR only</span>'):'<span class="pill pending">Hidden</span>')
               +(k.hasFile?'':' <span class="err" title="Pattern file missing">file missing</span>')+'</td>'
         +'<td>'+(k.code?'<span class="skucell">'+displayCode(k.sku,k.code)+'</span> <button class="ghost copybtn" data-copy="'+displayCode(k.sku,k.code)+'" style="padding:.15rem .5rem;font-size:.7rem">Copy</button>':'<span class="note">—</span>')+'</td>'
-        +'<td style="white-space:nowrap">'+(k.code&&k.live?'<a href="'+k.link.replace(/"/g,'&quot;')+'" target="_blank" rel="noopener" style="font-size:.78rem;font-weight:700">Test in Stitch Tracker</a>'
-                :(k.code?'<span class="note" title="The link starts working once the kit is live">Test link activates when Live</span>':''))
-        +(k.code?' <button class="ghost qrbtn" data-sku="'+k.sku+'" style="padding:.15rem .55rem;font-size:.7rem">QR</button>':'')
-        +(k.code?' <button class="ghost cardbtn" data-sku="'+k.sku+'" style="padding:.15rem .55rem;font-size:.7rem">Insert card</button>':'')
-        +' <button class="ghost editbtn" data-sku="'+k.sku+'" style="padding:.15rem .55rem;font-size:.7rem">Edit</button>'
-        +' <button class="ghost togglebtn" data-sku="'+k.sku+'" data-live="'+(k.live?1:0)+'" style="padding:.15rem .55rem;font-size:.7rem">'+(k.live?'Hide':'Show')+'</button>'
-        +' <button class="ghost delbtn" data-sku="'+k.sku+'" style="padding:.15rem .55rem;font-size:.7rem;color:#b3261e;border-color:#e8c9c9">Delete</button>'
+        +'<td style="white-space:nowrap;text-align:right">'+(k.code&&k.live?'<a href="'+k.link.replace(/"/g,'&quot;')+'" target="_blank" rel="noopener" style="font-size:.78rem;font-weight:700">Test</a>'
+                :(k.code?'<span class="note" title="The link starts working once the kit is live">Activates when Live</span>':''))
+        +' <button class="ghost prowmenu" data-sku="'+k.sku+'" title="More actions" style="padding:.15rem .6rem;font-size:.95rem;line-height:1.1">⋯</button>'
         +'</td>'
         +'</tr>';
     }
     box.innerHTML=h+'</tbody></table>';
     box.querySelectorAll('.copybtn').forEach(b=>{ b.onclick=()=>{ navigator.clipboard.writeText(b.dataset.copy).then(()=>{ b.textContent='Copied'; setTimeout(()=>b.textContent='Copy',1200); }); }; });
-    box.querySelectorAll('.qrbtn').forEach(b=>{ b.onclick=()=>downloadQrFor(b.dataset.sku); });
-    box.querySelectorAll('.cardbtn').forEach(b=>{ b.onclick=()=>printCardFor(b.dataset.sku); });
-    box.querySelectorAll('.delbtn').forEach(b=>{ b.onclick=()=>deleteKit(b.dataset.sku); });
-    box.querySelectorAll('.editbtn').forEach(b=>{ b.onclick=()=>showEdit(b.dataset.sku); });
-    box.querySelectorAll('.togglebtn').forEach(b=>{ b.onclick=()=>toggleKit(b.dataset.sku, b.dataset.live!=='1'); });
+    // v33: all row actions live in the ⋯ menu so the table never overflows.
+    box.querySelectorAll('.prowmenu').forEach(b=>{ b.onclick=(ev)=>{
+      ev.stopPropagation();
+      const k=MINE.find(x=>x.sku===b.dataset.sku); if(!k) return;
+      const items=[];
+      if(k.code){
+        items.push({label:'Download QR', onClick:()=>downloadQrFor(k.sku)});
+        items.push({label:'Insert card', onClick:()=>printCardFor(k.sku)});
+      }
+      items.push({label:'Edit details', onClick:()=>showEdit(k.sku)});
+      items.push({sep:true});
+      items.push({label:(k.live?'Hide':'Show'), onClick:()=>toggleKit(k.sku, !k.live)});
+      items.push({label:'Delete…', danger:true, onClick:()=>deleteKit(k.sku)});
+      rowMenuOpen(b, items);
+    }; });
   }catch(e){ box.innerHTML='<div class="err">Network error.</div>'; }
 }
 $('mine-refresh').onclick=loadMine;
@@ -3633,6 +3639,34 @@ let ABRANDS_LOADED=false, APAT_LOADED=false, ACUST_LOADED=false;
 let ADMIN_PATS=[];
 let ADMIN_BRANDS=[];
 let BRAND_EDIT_KEY=null;
+// ── v33: row-action menu — one visible Test link, the rest in a ⋯ popover,
+// so wide tables never spill past the card edge. One shared element, fixed-
+// positioned by the trigger, closed by outside click or Escape.
+let _rowMenuEl=null;
+function rowMenuClose(){ if(_rowMenuEl){ _rowMenuEl.remove(); _rowMenuEl=null; document.removeEventListener('click', _rowMenuDoc, true); } }
+function _rowMenuDoc(e){ if(_rowMenuEl && !_rowMenuEl.contains(e.target)) rowMenuClose(); }
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') rowMenuClose(); });
+function rowMenuOpen(btn, items){
+  rowMenuClose();
+  const m=document.createElement('div');
+  m.style.cssText='position:fixed;z-index:90;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 14px 36px rgba(43,34,38,.18);padding:.3rem;min-width:190px';
+  items.forEach(it=>{
+    if(!it) return;
+    if(it.sep){ const s=document.createElement('div'); s.style.cssText='height:1px;background:var(--border);margin:.28rem .4rem'; m.appendChild(s); return; }
+    const b=document.createElement('button'); b.type='button'; b.textContent=it.label;
+    b.style.cssText='display:block;width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:.45rem .7rem;font:inherit;font-size:.82rem;font-weight:600;cursor:pointer;color:'+(it.danger?'#b3261e':'var(--ink)');
+    b.onmouseenter=()=>{ b.style.background=it.danger?'#fdf0f0':'var(--bg)'; };
+    b.onmouseleave=()=>{ b.style.background='none'; };
+    b.onclick=(ev)=>{ ev.stopPropagation(); rowMenuClose(); it.onClick(); };
+    m.appendChild(b);
+  });
+  document.body.appendChild(m);
+  const r=btn.getBoundingClientRect();
+  m.style.top=Math.min(window.innerHeight-m.offsetHeight-8, r.bottom+6)+'px';
+  m.style.left=Math.max(8, Math.min(window.innerWidth-m.offsetWidth-8, r.right-m.offsetWidth))+'px';
+  _rowMenuEl=m;
+  setTimeout(()=>document.addEventListener('click', _rowMenuDoc, true), 0);
+}
 function adminHeaders(json){ const h={'x-admin-key':SESSION.key}; if(json) h['content-type']='application/json'; return h; }
 const escA=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 function brandOfSku(sku){
@@ -3842,17 +3876,9 @@ function renderAdminPatterns(){
         +'<td>'+(k.luca?(k.awaiting?'<span class="pill pending">Awaiting Shopify</span>':(k.unlinked?(k.live?'<span class="pill live">Live · not linked</span>':'<span class="pill pending">Hidden</span>'):'<span class="pill live">Live · Shopify</span>')):(k.live?(k.listed?'<span class="pill live">Live · Listed</span>':'<span class="pill live">Active · QR only</span>'):'<span class="pill pending">Hidden</span>'))
         +(((k.awaiting||k.unlinked)&&k.hasFile===false)?' <span class="err" style="font-size:.72rem;font-weight:700" title="Reserved — save this SKU again with the .Ptly attached">no pattern file</span>':'')+'</td>'
         +'<td>'+(k.code?'<span class="skucell">'+escA(displayCode(k.sku,k.code))+'</span> <button class="ghost acopy" data-copy="'+escA(displayCode(k.sku,k.code))+'" style="padding:.15rem .5rem;font-size:.7rem">Copy</button>':'—')+'</td>'
-        +'<td style="white-space:nowrap">'
+        +'<td style="white-space:nowrap;text-align:right">'
         +((k.code&&k.live)?'<a href="'+escA(k.link)+'" target="_blank" rel="noopener" style="font-size:.75rem;font-weight:700">Test</a> ':'')
-        +((k.code&&k.link)?'<button class="ghost aqr" data-sku="'+escA(k.sku)+'" style="padding:.15rem .55rem;font-size:.7rem">QR</button> ':'')
-        +((k.code&&k.link)?'<button class="ghost acard" data-sku="'+escA(k.sku)+'" style="padding:.15rem .55rem;font-size:.7rem">Insert card</button>':'')
-        +((k.awaiting||k.unlinked)?' <button class="ghost alink" data-sku="'+escA(k.sku)+'" style="padding:.15rem .55rem;font-size:.7rem">Link Shopify</button>':'')
-        +(k.luca?' <button class="ghost aupd" data-sku="'+escA(k.sku)+'" style="padding:.15rem .55rem;font-size:.7rem">Update</button>':'')
-        +((!k.luca&&k.live)?' <button class="ghost alist" data-sku="'+escA(k.sku)+'" data-listed="'+(k.listed?1:0)+'" style="padding:.15rem .55rem;font-size:.7rem">'+(k.listed?'Unlist':'List in catalogue')+'</button>':'')
-        // Luca-S catalogue rows are read-only here: hide/remove live in Shopify
-        // (draft or untag the product) and R2, not in the partner manifest.
-        +((k.luca&&!k.unlinked)?'':' <button class="ghost atoggle" data-sku="'+escA(k.sku)+'" data-live="'+(k.live?1:0)+'" style="padding:.15rem .55rem;font-size:.7rem">'+(k.live?'Hide':'Show')+'</button>'
-        +' <button class="ghost aremove" data-sku="'+escA(k.sku)+'" style="padding:.15rem .55rem;font-size:.7rem;color:#b3261e;border-color:#e8c9c9">Remove</button>')+'</td></tr>';
+        +'<button class="ghost arowmenu" data-sku="'+escA(k.sku)+'" title="More actions" style="padding:.15rem .6rem;font-size:.95rem;line-height:1.1">⋯</button></td></tr>';
     }
     h+='</tbody></table>';
     if(pages>1){
@@ -3865,23 +3891,7 @@ function renderAdminPatterns(){
     const pv=box.querySelector('.apat-prev'); if(pv) pv.onclick=()=>{ APAT_VIEW.page--; renderAdminPatterns(); };
     const nx=box.querySelector('.apat-next'); if(nx) nx.onclick=()=>{ APAT_VIEW.page++; renderAdminPatterns(); };
     box.querySelectorAll('.acopy').forEach(b=>{ b.onclick=()=>navigator.clipboard.writeText(b.dataset.copy).then(()=>{ b.textContent='Copied'; setTimeout(()=>b.textContent='Copy',1200); }); });
-    box.querySelectorAll('.aqr').forEach(b=>{ b.onclick=async()=>{
-      const k=ADMIN_PATS.find(x=>x.sku===b.dataset.sku); if(!k||!k.link) return;
-      const lg=await adminLogoFor(prefixOfSku(k.sku));
-      const st=await adminStyleFor(prefixOfSku(k.sku));
-      brandedQr(k.link,{logo:lg,size:QR_PREFS.size,shape:st.shape,color:st.color,caption:QR_PREFS.caption?{title:k.title||k.sku,line2:k.sku+' · '+displayCode(k.sku,k.code)}:null}).toBlob(blob=>{
-        const a=document.createElement('a');
-        a.href=URL.createObjectURL(blob); a.download=k.sku+'_qr.png';
-        document.body.appendChild(a); a.click();
-        setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},400);
-      },'image/png');
-    }; });
-    box.querySelectorAll('.acard').forEach(b=>{ b.onclick=async()=>{
-      const k=ADMIN_PATS.find(x=>x.sku===b.dataset.sku); if(!k) return;
-      const lg=await adminLogoFor(prefixOfSku(k.sku));
-      const st=await adminStyleFor(prefixOfSku(k.sku));
-      printCardFor(k.sku, k, lg, st);
-    }; });
+    box.querySelectorAll('.arowmenu').forEach(b=>{ b.onclick=(ev)=>{ ev.stopPropagation(); apatMenu(b, b.dataset.sku); }; });
     // v28: Update opens the save form prefilled — attach only what changes
     // (a new .Ptly to replace the chart, a legend, a cover, or a new title).
     box.querySelectorAll('.aupd').forEach(b=>{ b.onclick=()=>{
@@ -3902,30 +3912,81 @@ function renderAdminPatterns(){
       }catch(e){ alert('Network error.'); }
       loadAdminPatterns();
     }; });
-    // v31: catalogue placement is granted, not automatic - the toggle flips
-    // whether this partner kit appears in the public browsable catalogue.
-    box.querySelectorAll('.alist').forEach(b=>{ b.onclick=async()=>{
-      const wants=b.dataset.listed!=='1';
-      if(wants && !confirm('List '+b.dataset.sku+' in the public catalogue?\n\nEvery Patternly user browsing Kit Patterns will see it alongside Luca-S kits.')) return;
-      const r2=await fetch(API+'admin/list',{method:'POST',headers:adminHeaders(true),body:JSON.stringify({sku:b.dataset.sku, listed:wants})});
-      const d2=await r2.json().catch(()=>({}));
-      if(!r2.ok||!d2.ok){ alert(d2.error||'Could not change the listing.'); return; }
-      loadAdminPatterns();
-    }; });
-    box.querySelectorAll('.atoggle').forEach(b=>{ b.onclick=async()=>{
-      const r2=await fetch(API+'approve',{method:'POST',headers:adminHeaders(true),body:JSON.stringify({sku:b.dataset.sku, live: b.dataset.live!=='1'})});
-      const d2=await r2.json().catch(()=>({}));
-      if(!r2.ok||!d2.ok){ alert(d2.error||'Could not change visibility.'); return; }
-      loadAdminPatterns();
-    }; });
-    box.querySelectorAll('.aremove').forEach(b=>{ b.onclick=async()=>{
-      if(!confirm('Remove '+b.dataset.sku+' permanently?\n\nThe pattern file and cover are deleted and its printed codes stop working. This cannot be undone.')) return;
-      const r2=await fetch(API+'remove',{method:'POST',headers:adminHeaders(true),body:JSON.stringify({sku:b.dataset.sku})});
-      const d2=await r2.json().catch(()=>({}));
-      if(!r2.ok||!d2.ok){ alert(d2.error||'Remove failed.'); return; }
-      loadAdminPatterns();
-    }; });
   }
+}
+// v33: admin row actions, shared by the ⋯ menu.
+async function apatQr(sku){
+  const k=ADMIN_PATS.find(x=>x.sku===sku); if(!k||!k.link) return;
+  const lg=await adminLogoFor(prefixOfSku(k.sku));
+  const st=await adminStyleFor(prefixOfSku(k.sku));
+  brandedQr(k.link,{logo:lg,size:QR_PREFS.size,shape:st.shape,color:st.color,caption:QR_PREFS.caption?{title:k.title||k.sku,line2:k.sku+' · '+displayCode(k.sku,k.code)}:null}).toBlob(blob=>{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download=k.sku+'_qr.png';
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},400);
+  },'image/png');
+}
+async function apatCard(sku){
+  const k=ADMIN_PATS.find(x=>x.sku===sku); if(!k) return;
+  const lg=await adminLogoFor(prefixOfSku(k.sku));
+  const st=await adminStyleFor(prefixOfSku(k.sku));
+  printCardFor(k.sku, k, lg, st);
+}
+async function apatLink(sku){
+  try{
+    const r2=await fetch(API+'admin/link',{method:'POST',headers:adminHeaders(true),body:JSON.stringify({sku})});
+    const d2=await r2.json().catch(()=>({}));
+    alert(d2.note||d2.error||'Link attempt finished.');
+  }catch(e){ alert('Network error.'); }
+  loadAdminPatterns();
+}
+function apatUpdate(sku){
+  const k=ADMIN_PATS.find(x=>x.sku===sku); if(!k) return;
+  $('aup-card').style.display='';
+  $('aup-sku').value=k.sku;
+  $('aup-title').value=(k.unlinked&&k.title)?k.title:'';
+  $('aup-msg').innerHTML='<div class="note">Updating <b>'+escA(k.sku)+'</b> — attach only what you want to replace, then press Save pattern.</div>';
+  $('aup-card').scrollIntoView({behavior:'smooth',block:'start'});
+  setTimeout(()=>$('aup-file').focus(),350);
+}
+async function apatList(sku, listed){
+  const wants=!listed;
+  if(wants && !confirm('List '+sku+' in the public catalogue?\n\nEvery Patternly user browsing Kit Patterns will see it alongside Luca-S kits.')) return;
+  const r2=await fetch(API+'admin/list',{method:'POST',headers:adminHeaders(true),body:JSON.stringify({sku, listed:wants})});
+  const d2=await r2.json().catch(()=>({}));
+  if(!r2.ok||!d2.ok){ alert(d2.error||'Could not change the listing.'); return; }
+  loadAdminPatterns();
+}
+async function apatToggle(sku, live){
+  const r2=await fetch(API+'approve',{method:'POST',headers:adminHeaders(true),body:JSON.stringify({sku, live:!live})});
+  const d2=await r2.json().catch(()=>({}));
+  if(!r2.ok||!d2.ok){ alert(d2.error||'Could not change visibility.'); return; }
+  loadAdminPatterns();
+}
+async function apatRemove(sku){
+  if(!confirm('Remove '+sku+' permanently?\n\nThe pattern file and cover are deleted and its printed codes stop working. This cannot be undone.')) return;
+  const r2=await fetch(API+'remove',{method:'POST',headers:adminHeaders(true),body:JSON.stringify({sku})});
+  const d2=await r2.json().catch(()=>({}));
+  if(!r2.ok||!d2.ok){ alert(d2.error||'Remove failed.'); return; }
+  loadAdminPatterns();
+}
+function apatMenu(btn, sku){
+  const k=ADMIN_PATS.find(x=>x.sku===sku); if(!k) return;
+  const items=[];
+  if(k.code&&k.link){
+    items.push({label:'Download QR', onClick:()=>apatQr(sku)});
+    items.push({label:'Insert card', onClick:()=>apatCard(sku)});
+  }
+  if(k.awaiting||k.unlinked) items.push({label:'Link Shopify', onClick:()=>apatLink(sku)});
+  if(k.luca) items.push({label:'Update files / title', onClick:()=>apatUpdate(sku)});
+  if(!k.luca&&k.live) items.push({label:(k.listed?'Unlist from catalogue':'List in catalogue'), onClick:()=>apatList(sku, !!k.listed)});
+  const manage=(!k.luca)||k.unlinked;
+  if(manage){
+    items.push({sep:true});
+    items.push({label:(k.live?'Hide':'Show'), onClick:()=>apatToggle(sku, !!k.live)});
+    items.push({label:'Remove…', danger:true, onClick:()=>apatRemove(sku)});
+  }
+  rowMenuOpen(btn, items);
 }
 $('apat-refresh').onclick=loadAdminPatterns;
 $('apat-q').oninput=()=>{ APAT_VIEW.q=$('apat-q').value; APAT_VIEW.page=0; if(ADMIN_PATS.length) renderAdminPatterns(); };
