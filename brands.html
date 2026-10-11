@@ -3636,6 +3636,14 @@ let BRAND_EDIT_KEY=null;
 function adminHeaders(json){ const h={'x-admin-key':SESSION.key}; if(json) h['content-type']='application/json'; return h; }
 const escA=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 function brandOfSku(sku){
+  // v32: vendor-branded house kits (HobbyJobby) are dashless but not Luca-S —
+  // when the admin patterns list is loaded, its per-kit brand wins.
+  try{
+    if(typeof ADMIN_PATS!=='undefined' && ADMIN_PATS && ADMIN_PATS.length){
+      const hit=ADMIN_PATS.find(k=>String(k.sku).toUpperCase()===String(sku).toUpperCase());
+      if(hit && hit.brand) return hit.brand;
+    }
+  }catch(e){}
   if(String(sku).indexOf('-')<0) return 'Luca-S';
   const p=String(sku).split('-')[0];
   const b=ADMIN_BRANDS.find(x=>x.prefix===p);
