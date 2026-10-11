@@ -329,6 +329,7 @@ query Kits($handle: String!, $cursor: String) {
       nodes {
         title
         handle
+        vendor
         featuredImage { url }
         pattern: metafield(namespace: "patternly", key: "pattern") { value }
         canvasSize: metafield(namespace: "patternly", key: "canvas_size") { value }
@@ -365,6 +366,12 @@ async function buildCatalogue(env) {
       if (!sku) continue;                            // no metafield → not a kit
       const kit = { sku };
       if (p.title) kit.title = p.title;
+      // v84: house brands on the same store (HobbyJobby, and any future one)
+      // are told apart by Shopify's own vendor field. A non-Luca-S vendor
+      // becomes the kit's brand, so the app, the brand filter, the admin rows
+      // and the insert cards all attribute it correctly with zero typing.
+      const vend = p.vendor ? String(p.vendor).trim() : "";
+      if (vend && !/^luca-?s$/i.test(vend)) kit.brand = vend;
       // v61: product page for this kit — lets the app offer a "Get this kit"
       // button in the catalogue. Handle-based so it works on the primary domain.
       if (p.handle) kit.url = "https://luca-s.com/products/" + p.handle;
@@ -641,7 +648,7 @@ async function lucaKitsRaw(env) {
     if (!k || !k.sku) continue;
     const sku = String(k.sku).trim();
     if (!sku) continue;
-    out.push({ sku, title: k.title || "", image: k.image || "", url: k.url || "" });
+    out.push({ sku, title: k.title || "", brand: k.brand || "", image: k.image || "", url: k.url || "" });
   }
   return out;
 }
@@ -761,7 +768,7 @@ async function handlePartnerApi(request, url, env) {
     if (!kit) {
       try {
         for (const k of await lucaKitsRaw(env)) {
-          if (String(k.sku).toUpperCase() === sku) { kit = { sku: k.sku, title: k.title || "", brand: "Luca-S", image: k.image || "", url: k.url || "" }; break; }
+          if (String(k.sku).toUpperCase() === sku) { kit = { sku: k.sku, title: k.title || "", brand: k.brand || "Luca-S", image: k.image || "", url: k.url || "" }; break; }
         }
       } catch (e) {}
     }
@@ -1506,7 +1513,7 @@ async function handlePartnerApi(request, url, env) {
         let code = null;
         try { code = await codeFor(k.sku, env); } catch (er) {}
         out.push({
-          sku: k.sku, title: k.title, brand: "Luca-S", luca: true,
+          sku: k.sku, title: k.title, brand: k.brand || "Luca-S", luca: true,
           live: true, image: k.image, buy: k.url, uploadedAt: "",
           code: code || "",
           link: code ? "https://luca-s.com/apps/patternly?sku=" + encodeURIComponent(k.sku) + "&code=" + encodeURIComponent(code) + "#tracker" : ""
