@@ -12,7 +12,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v60";
+const MW_VERSION = "v85";
 
 const enc = new TextEncoder();
 
@@ -2735,6 +2735,26 @@ async function handleRequest(context) {
   // full code list can't be scraped by anyone hitting the endpoint.
   if (url.pathname.indexOf("/partner/") >= 0) {
     return handlePartnerApi(request, url, env);
+  }
+
+  // v85: clean kit URL for printed QR codes / Shopify redirects.
+  //   GET /apps/patternly/kit/<SKU>  ->  302 to ?sku=<SKU>&code=<code>#tracker
+  // The access code is resolved server-side (PATTERN_CODES override, then the
+  // derived code), so nothing secret is ever printed or stored in Shopify.
+  {
+    const km = /\/kit\/([A-Za-z0-9][A-Za-z0-9-]{0,30})\/?$/.exec(url.pathname);
+    if (km && request.method === "GET") {
+      const sku = km[1].toUpperCase();
+      const code = await codeFor(sku + "/chart.pdf", env);
+      const base = env.APP_PUBLIC_URL || "https://luca-s.com/apps/patternly";
+      const link = code
+        ? base + "?sku=" + encodeURIComponent(sku) + "&code=" + encodeURIComponent(code) + "#tracker"
+        : base + "?sku=" + encodeURIComponent(sku) + "#tracker";
+      return new Response(null, {
+        status: 302,
+        headers: { "location": link, "cache-control": "no-store" }
+      });
+    }
   }
 
   if (url.pathname === "/code" || url.pathname.endsWith("/code")) {
