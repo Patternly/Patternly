@@ -12,7 +12,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v85";
+const MW_VERSION = "v86";
 
 const enc = new TextEncoder();
 
@@ -498,6 +498,41 @@ function partnerJson(status, obj) {
   return new Response(JSON.stringify(obj), {
     status, headers: { "content-type": "application/json", "cache-control": "no-store" }
   });
+}
+
+// ── v86: team user accounts ───────────────────────────────────────────────────
+// The master PARTNER_ADMIN_KEY (PA-...) keeps every permission. Team members get
+// their own PU-... key with a per-tab scope list. Storage in PARTNERS KV:
+//   ukey:<PU-key>  -> uid                       (lookup on every admin request)
+//   user:<uid>     -> {name, scopes, created, lastSeen, hint}
+// User records never carry a prefix, so the partner sign-in and the Brands
+// listing (both keyed on rec.prefix) ignore them. The "users" scope is never
+// granted to a PU key: only the master key can see or mint keys.
+const USER_SCOPES = ["patterns", "converter", "customers", "brands", "branding"];
+const UKEY_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+function randAlpha(n) {
+  const b = new Uint8Array(n); crypto.getRandomValues(b);
+  let s = ""; for (const x of b) s += UKEY_ALPHABET[x % UKEY_ALPHABET.length];
+  return s;
+}
+async function adminAuth(key, env) {
+  if (!key) return { ok:false };
+  if (env.PARTNER_ADMIN_KEY && timingSafeEqual(key, env.PARTNER_ADMIN_KEY)) {
+    return { ok:true, master:true, name:"Owner", scopes: USER_SCOPES.slice() };
+  }
+  if (!/^PU-/.test(key) || !env.PARTNERS) return { ok:false };
+  let rec = null, uid = null;
+  try {
+    uid = await env.PARTNERS.get("ukey:" + key);
+    if (uid) rec = JSON.parse((await env.PARTNERS.get("user:" + uid)) || "null");
+  } catch (e) {}
+  if (!uid || !rec) return { ok:false };
+  const scopes = Array.isArray(rec.scopes) ? rec.scopes.filter(s => USER_SCOPES.includes(s)) : [];
+  return { ok:true, master:false, uid, name: rec.name || "", scopes };
+}
+function scopeDenied(adm, scope) {
+  if (adm.master || (adm.scopes && adm.scopes.includes(scope))) return null;
+  return partnerJson(403, { ok:false, error:"Your account doesn\u2019t have access to " + scope + "." });
 }
 // v80: whitelist-validate a QR style. Shapes and sizes are enumerated, the
 // colour must be a 6-digit hex dark enough to scan on white (relative
@@ -1115,12 +1150,105 @@ async function handlePartnerApi(request, url, env) {
 
   // ── admin: review queue ───────────────────────────────────────────────────
   const adminKey = (request.headers.get("x-admin-key") || "").trim();
-  const adminOk = env.PARTNER_ADMIN_KEY && adminKey && adminKey === env.PARTNER_ADMIN_KEY;
+  const ADM = await adminAuth(adminKey, env);          // v86: master or team user
+  const adminOk = ADM.ok;
+
+  // ── v86: who am I / team users (master only) ──────────────────────────────
+  if (sub === "admin/whoami" && request.method === "GET") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    if (!ADM.master && env.PARTNERS) {
+      try {
+        const rec = JSON.parse((await env.PARTNERS.get("user:" + ADM.uid)) || "null");
+        if (rec) { rec.lastSeen = Date.now(); await env.PARTNERS.put("user:" + ADM.uid, JSON.stringify(rec)); }
+      } catch (e) {}
+    }
+    return partnerJson(200, { ok:true, master: ADM.master, name: ADM.name, scopes: ADM.scopes });
+  }
+  if (sub === "admin/users" && request.method === "GET") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    if (!ADM.master) return partnerJson(403, { ok:false, error:"Only the owner can manage team users." });
+    if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"partner system not configured" });
+    const users = [];
+    let cursor;
+    for (let page = 0; page < 5; page++) {
+      const listed = await env.PARTNERS.list({ prefix: "user:", limit: 1000, cursor });
+      for (const k of listed.keys) {
+        let rec = null;
+        try { rec = JSON.parse((await env.PARTNERS.get(k.name)) || "null"); } catch (e) {}
+        if (!rec) continue;
+        users.push({ uid: k.name.slice(5), name: rec.name || "", scopes: Array.isArray(rec.scopes) ? rec.scopes : [],
+          hint: rec.hint || "", created: +rec.created || 0, lastSeen: +rec.lastSeen || 0 });
+      }
+      if (!listed.list_complete) cursor = listed.cursor; else break;
+    }
+    users.sort((a, b) => a.name.localeCompare(b.name));
+    return partnerJson(200, { ok:true, users, scopes: USER_SCOPES });
+  }
+  if (sub === "admin/user-create" && request.method === "POST") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    if (!ADM.master) return partnerJson(403, { ok:false, error:"Only the owner can manage team users." });
+    if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"partner system not configured" });
+    let body = {}; try { body = await request.json(); } catch (e) {}
+    const name = String(body.name || "").trim().slice(0, 60);
+    if (!name) return partnerJson(400, { ok:false, error:"Give the user a name." });
+    const scopes = (Array.isArray(body.scopes) ? body.scopes : []).map(s => String(s).toLowerCase()).filter(s => USER_SCOPES.includes(s));
+    if (!scopes.length) return partnerJson(400, { ok:false, error:"Tick at least one permission." });
+    let key = null;
+    for (let tries = 0; tries < 3 && !key; tries++) {
+      const cand = "PU-" + randAlpha(4) + "-" + randAlpha(12);
+      if (!(await env.PARTNERS.get("ukey:" + cand))) key = cand;
+    }
+    if (!key) return partnerJson(500, { ok:false, error:"could not generate a key" });
+    const uid = randAlpha(10);
+    const rec = { name, scopes, created: Date.now(), lastSeen: 0, hint: key.slice(-4) };
+    await env.PARTNERS.put("user:" + uid, JSON.stringify(rec));
+    await env.PARTNERS.put("ukey:" + key, uid);
+    return partnerJson(200, { ok:true, uid, key, name, scopes,
+      note: "Save this key now \u2014 it is shown once. The user signs into the Studio with their email and this key." });
+  }
+  if (sub === "admin/user-update" && request.method === "POST") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    if (!ADM.master) return partnerJson(403, { ok:false, error:"Only the owner can manage team users." });
+    if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"partner system not configured" });
+    let body = {}; try { body = await request.json(); } catch (e) {}
+    const uid = String(body.uid || "").trim();
+    let rec = null;
+    try { rec = JSON.parse((await env.PARTNERS.get("user:" + uid)) || "null"); } catch (e) {}
+    if (!uid || !rec) return partnerJson(404, { ok:false, error:"no such user" });
+    if (typeof body.name === "string" && body.name.trim()) rec.name = body.name.trim().slice(0, 60);
+    if (Array.isArray(body.scopes)) {
+      const scopes = body.scopes.map(s => String(s).toLowerCase()).filter(s => USER_SCOPES.includes(s));
+      if (!scopes.length) return partnerJson(400, { ok:false, error:"Tick at least one permission." });
+      rec.scopes = scopes;
+    }
+    await env.PARTNERS.put("user:" + uid, JSON.stringify(rec));
+    return partnerJson(200, { ok:true, uid, name: rec.name, scopes: rec.scopes });
+  }
+  if (sub === "admin/user-revoke" && request.method === "POST") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    if (!ADM.master) return partnerJson(403, { ok:false, error:"Only the owner can manage team users." });
+    if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"partner system not configured" });
+    let body = {}; try { body = await request.json(); } catch (e) {}
+    const uid = String(body.uid || "").trim();
+    if (!uid || !(await env.PARTNERS.get("user:" + uid))) return partnerJson(404, { ok:false, error:"no such user" });
+    // Find and delete the key entry so the user is locked out at once.
+    let cursor;
+    for (let page = 0; page < 5; page++) {
+      const listed = await env.PARTNERS.list({ prefix: "ukey:", limit: 1000, cursor });
+      for (const k of listed.keys) {
+        if ((await env.PARTNERS.get(k.name)) === uid) await env.PARTNERS.delete(k.name);
+      }
+      if (!listed.list_complete) cursor = listed.cursor; else break;
+    }
+    await env.PARTNERS.delete("user:" + uid);
+    return partnerJson(200, { ok:true, uid, revoked:true, note:"Their key stops working immediately." });
+  }
 
   // ── admin: brand management (v70) — powers the Studio's Admin mode ────────
   // Everything here is guarded by PARTNER_ADMIN_KEY; brand keys never reach it.
   if (sub === "admin/brands" && request.method === "GET") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "brands"); if (d) return d; }
     if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"partner system not configured" });
     const kitsByPrefix = {};
     try {
@@ -1185,6 +1313,7 @@ async function handlePartnerApi(request, url, env) {
 
   if (sub === "admin/create" && request.method === "POST") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "brands"); if (d) return d; }
     if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"partner system not configured" });
     let body = {}; try { body = await request.json(); } catch (e) {}
     const brand = String(body.brand || "").replace(/[<>]/g, "").trim().slice(0, 40);
@@ -1229,6 +1358,7 @@ async function handlePartnerApi(request, url, env) {
 
   if (sub === "admin/update-brand" && request.method === "POST") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "brands"); if (d) return d; }
     if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"partner system not configured" });
     let body = {}; try { body = await request.json(); } catch (e) {}
     const key = String(body.key || "").trim();
@@ -1261,6 +1391,7 @@ async function handlePartnerApi(request, url, env) {
 
   if (sub === "admin/revoke" && request.method === "POST") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "brands"); if (d) return d; }
     if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"partner system not configured" });
     let body = {}; try { body = await request.json(); } catch (e) {}
     const key = String(body.key || "").trim();
@@ -1273,6 +1404,7 @@ async function handlePartnerApi(request, url, env) {
   // v79: read and clear stored partner applications.
   if (sub === "admin/applications" && request.method === "GET") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "brands"); if (d) return d; }
     if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"partner system not configured" });
     const apps = [];
     try {
@@ -1289,6 +1421,7 @@ async function handlePartnerApi(request, url, env) {
   }
   if (sub === "admin/application-delete" && request.method === "POST") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "brands"); if (d) return d; }
     let body = null; try { body = await request.json(); } catch (e) {}
     const id = String((body && body.id) || "");
     if (!/^app:/.test(id)) return partnerJson(400, { ok:false, error:"bad id" });
@@ -1299,6 +1432,7 @@ async function handlePartnerApi(request, url, env) {
   // v80: the Luca-S QR style (with ?prefix= the admin reads any brand's).
   if (sub === "admin/qr-style" && request.method === "GET") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "branding"); if (d) return d; }
     if (!env.PATTERNS) return partnerJson(503, { ok:false, error:"pattern store not configured" });
     const pfx = String(url.searchParams.get("prefix") || "").trim().toUpperCase();
     if (pfx && !/^[A-Z0-9]{2,6}$/.test(pfx)) return partnerJson(400, { ok:false, error:"bad prefix" });
@@ -1309,6 +1443,7 @@ async function handlePartnerApi(request, url, env) {
   }
   if (sub === "admin/qr-style" && request.method === "POST") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "branding"); if (d) return d; }
     if (!env.PATTERNS) return partnerJson(503, { ok:false, error:"pattern store not configured" });
     let body = null; try { body = await request.json(); } catch (e) {}
     const style = partnerCleanQrStyle(body);
@@ -1322,6 +1457,7 @@ async function handlePartnerApi(request, url, env) {
   // kits keep their own branding in the admin views too.
   if (sub === "admin/logo" && request.method === "GET") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "branding"); if (d) return d; }
     if (!env.PATTERNS) return partnerJson(503, { ok:false, error:"pattern store not configured" });
     const pfx = String(url.searchParams.get("prefix") || "").trim().toUpperCase();
     if (pfx && !/^[A-Z0-9]{2,6}$/.test(pfx)) return partnerJson(400, { ok:false, error:"bad prefix" });
@@ -1331,6 +1467,7 @@ async function handlePartnerApi(request, url, env) {
   }
   if (sub === "admin/logo" && request.method === "POST") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "branding"); if (d) return d; }
     if (!env.PATTERNS) return partnerJson(503, { ok:false, error:"pattern store not configured" });
     let form = null;
     try { form = await request.formData(); } catch (e) {
@@ -1358,6 +1495,7 @@ async function handlePartnerApi(request, url, env) {
   // Re-uploading the same SKU replaces the pattern file.
   if (sub === "admin/upload" && request.method === "POST") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "patterns"); if (d) return d; }
     if (!env.PATTERNS) return partnerJson(503, { ok:false, error:"pattern store not configured" });
     let form = null;
     try { form = await request.formData(); } catch (e) {
@@ -1458,6 +1596,7 @@ async function handlePartnerApi(request, url, env) {
   // v83: grant or revoke catalogue placement for a partner kit.
   if (sub === "admin/list" && request.method === "POST") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "patterns"); if (d) return d; }
     let body = null; try { body = await request.json(); } catch (e) {}
     const sku = String((body && body.sku) || "").trim().toUpperCase();
     if (!sku || sku.indexOf("-") <= 0) return partnerJson(400, { ok:false, error:"Only partner kits have a listing switch - Luca-S kits are always browsable." });
@@ -1472,6 +1611,7 @@ async function handlePartnerApi(request, url, env) {
   // v75: (re)try pointing the Shopify product at an already-uploaded folder.
   if (sub === "admin/link" && request.method === "POST") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "patterns"); if (d) return d; }
     let body = null; try { body = await request.json(); } catch (e) {}
     const sku = String((body && body.sku) || "").trim().toUpperCase();
     if (!/^[A-Z0-9]{2,24}$/.test(sku)) return partnerJson(400, { ok:false, error:"bad sku" });
@@ -1481,6 +1621,7 @@ async function handlePartnerApi(request, url, env) {
 
   if (sub === "admin/patterns" && request.method === "GET") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "patterns"); if (d) return d; }
     const list = await partnerManifestRaw(env);
     const out = [];
     for (const e of list) {
@@ -1569,6 +1710,7 @@ async function handlePartnerApi(request, url, env) {
   // support console for your own kits.
   if (sub === "admin/customers" && request.method === "GET") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "customers"); if (d) return d; }
     if (!env.ENTITLEMENTS) return partnerJson(503, { ok:false, error:"progress store not configured" });
     const prefix = String(url.searchParams.get("prefix") || "").trim().toUpperCase();
     const titles = await partnerTitleMap(env);
@@ -1608,6 +1750,7 @@ async function handlePartnerApi(request, url, env) {
 
   if (sub === "admin/customer-lookup" && request.method === "POST") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "customers"); if (d) return d; }
     if (!env.ENTITLEMENTS) return partnerJson(503, { ok:false, error:"progress store not configured" });
     let body = {}; try { body = await request.json(); } catch (e) {}
     const email = String(body.email || "").trim().toLowerCase();
@@ -1643,11 +1786,13 @@ async function handlePartnerApi(request, url, env) {
 
   if (sub === "pending" && request.method === "GET") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "patterns"); if (d) return d; }
     const list = await partnerManifestRaw(env);
     return partnerJson(200, { ok:true, pending: list.filter(e => e && e.live === false) });
   }
   if (sub === "remove" && request.method === "POST") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "patterns"); if (d) return d; }
     let body = {}; try { body = await request.json(); } catch (e) {}
     const sku = String(body.sku || "").trim().toUpperCase();
     const ok = await partnerRemoveKit(env, sku);
@@ -1656,6 +1801,7 @@ async function handlePartnerApi(request, url, env) {
   }
   if (sub === "approve" && request.method === "POST") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "patterns"); if (d) return d; }
     let body = {}; try { body = await request.json(); } catch (e) {}
     const sku = String(body.sku || "").trim().toUpperCase();
     const list = await partnerManifestRaw(env);
@@ -1668,6 +1814,7 @@ async function handlePartnerApi(request, url, env) {
 
   if (sub === "admin/progress-download" && request.method === "POST") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "customers"); if (d) return d; }
     if (!env.ENTITLEMENTS) return partnerJson(503, { ok:false, error:"progress store not configured" });
     let body = {}; try { body = await request.json(); } catch (e) {}
     const sku = String(body.sku || "").trim().toUpperCase();
