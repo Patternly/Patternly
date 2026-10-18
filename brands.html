@@ -39,6 +39,13 @@
   .pill{display:inline-block;border-radius:999px;padding:.13rem .6rem;font-size:.72rem;font-weight:700}
   .pill.live{background:#e7f5eb;color:var(--ok)}
   .pill.pending{background:#fff4e3;color:var(--warn)}
+  /* v37: permission chips (Users tab) */
+  .permchips{display:flex;flex-wrap:wrap;gap:.45rem}
+  .permchip{font:inherit;font-size:.8rem;font-weight:700;border:1.5px solid var(--border);background:#fff;color:var(--muted);border-radius:999px;padding:.32rem .85rem;cursor:pointer;transition:all .12s}
+  .permchip:hover{border-color:var(--red);color:var(--red)}
+  .permchip.on{background:var(--red);border-color:var(--red);color:#fff}
+  .permchip.on::before{content:"\2713\00a0"}
+  .permtag{display:inline-block;border-radius:999px;padding:.1rem .55rem;font-size:.7rem;font-weight:700;background:var(--bg);color:var(--ink);margin:.1rem .18rem .1rem 0;border:1px solid var(--border)}
   .topbar{display:flex;align-items:center;gap:.8rem;margin-bottom:1.2rem}
   .topbar .who{font-size:.82rem;color:var(--muted)}
   .topbar .who b{color:var(--ink)}
@@ -551,6 +558,33 @@
             <button class="ghost" id="acust-refresh" style="padding:.3rem .7rem;font-size:.76rem">Refresh</button>
           </span></h2>
         <div id="acust-box"><div class="note">Loading…</div></div>
+      </div>
+    </div>
+
+    <div id="tab-ausers" style="display:none">
+      <div class="card">
+        <h2><span id="uf-title">Add a team user</span>
+          <a href="#" id="uf-cancel" style="float:right;font-size:.78rem;font-weight:700;display:none">Cancel edit</a></h2>
+        <div class="note" style="margin:0 0 .8rem">Each person gets their own key and sees only the tabs you tick. Revoking locks them out instantly. Only you (the owner key) can see this tab or mint keys.</div>
+        <div class="row">
+          <div style="max-width:320px"><label for="uf-name">Name</label><input type="text" id="uf-name" maxlength="60" placeholder="e.g. Ana"></div>
+          <div><label>Can open</label><div class="permchips" id="uf-perms"></div></div>
+        </div>
+        <div style="margin-top:1rem" class="row"><button class="primary" id="uf-save">Create user</button></div>
+        <div class="note" id="uf-msg"></div>
+        <div id="uf-keybox" style="display:none;margin-top:.8rem;border:1.5px solid var(--red);border-radius:10px;padding:.8rem .9rem;background:var(--bg)">
+          <div class="ovlab">User key — shown once</div>
+          <div style="display:flex;align-items:center;gap:.6rem;margin-top:.3rem;flex-wrap:wrap">
+            <span id="uf-key" class="skucell" style="font-size:1.05rem"></span>
+            <button class="ghost" id="uf-copy" style="padding:.2rem .7rem;font-size:.74rem">Copy</button>
+          </div>
+          <div class="note" style="margin:.5rem 0 0">They sign in at this page with their email and this key. The email is a label only.</div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Team users
+          <button class="ghost" id="users-refresh" style="float:right;padding:.3rem .7rem;font-size:.76rem">Refresh</button></h2>
+        <div id="users-box"><div class="note">Loading…</div></div>
       </div>
     </div>
   </div>
@@ -2865,7 +2899,7 @@ function convUrl(){
 // ── tabs (v7) ────────────────────────────────────────────────────
 let CUST_LOADED=false;
 function showTab(name){
-  ['overview','patterns','converter','customers','account','aov','abrands','apatterns','acustomers','abranding'].forEach(t=>{
+  ['overview','patterns','converter','customers','account','aov','abrands','apatterns','acustomers','abranding','ausers'].forEach(t=>{
     const el=$('tab-'+t); if(el) el.style.display = (t===name)?'':'none';
   });
   document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
@@ -2874,7 +2908,7 @@ function showTab(name){
   if(name==='converter' && !$('conv-frame').src){
     const _cu=convUrl(); $('conv-frame').src=_cu; $('conv-link').href=_cu;
   }
-  if(name==='converter'){ const _cp=$('conv-pub'); if(_cp) _cp.style.display=(SESSION&&SESSION.admin)?'block':'none'; }
+  if(name==='converter'){ const _cp=$('conv-pub'); if(_cp) _cp.style.display=(SESSION&&SESSION.admin&&hasScope('patterns'))?'block':'none'; }
   if(name==='customers' && !CUST_LOADED){ CUST_LOADED=true; loadCustomers(); }
   if(name==='overview') loadOverview();
   if(name==='patterns') showPublish(false);
@@ -2883,6 +2917,7 @@ function showTab(name){
   if(name==='abrands' && !ABRANDS_LOADED){ ABRANDS_LOADED=true; loadBrands(); loadApplications(); }
   if(name==='apatterns' && !APAT_LOADED){ APAT_LOADED=true; loadAdminPatterns(); }
   if(name==='acustomers' && !ACUST_LOADED){ ACUST_LOADED=true; loadAdminCustomers(); }
+  if(name==='ausers' && !AUSERS_LOADED){ AUSERS_LOADED=true; loadUsers(); }
 }
 document.querySelectorAll('#tabbar button').forEach(b=>{ b.onclick=()=>showTab(b.dataset.tab); });
 function showPublish(on){
@@ -2979,10 +3014,19 @@ async function loadOverview(){
 $('ov-refresh').onclick=loadOverview;
 
 const TABS_PARTNER=[['overview','Overview'],['patterns','My Patterns'],['converter','Converter'],['customers','My Customers'],['account','My Account']];
-const TABS_ADMIN=[['aov','Overview'],['abrands','Brands'],['apatterns','Patterns'],['converter','Converter'],['acustomers','Customers'],['abranding','Branding']];
+// v37: third element = scope a team user needs; 'owner' = master key only.
+const TABS_ADMIN=[['aov','Overview',null],['abrands','Brands','brands'],['apatterns','Patterns','patterns'],['converter','Converter','converter'],['acustomers','Customers','customers'],['abranding','Branding','branding'],['ausers','Users','owner']];
+const ALL_SCOPES=['patterns','converter','customers','brands','branding'];
+function hasScope(s){
+  if(!SESSION||!SESSION.admin) return false;
+  if(SESSION.master) return true;          // owner key: everything
+  if(s==null) return true;                 // Overview is always open
+  if(s==='owner') return false;            // Users tab: owner only
+  return Array.isArray(SESSION.scopes) && SESSION.scopes.includes(s);
+}
 function buildTabbar(){
   const bar=$('tabbar'); bar.innerHTML='';
-  ((SESSION&&SESSION.admin)?TABS_ADMIN:TABS_PARTNER).forEach(pair=>{
+  ((SESSION&&SESSION.admin)?TABS_ADMIN.filter(t=>hasScope(t[2])):TABS_PARTNER).forEach(pair=>{
     const b=document.createElement('button'); b.type='button'; b.dataset.tab=pair[0]; b.textContent=pair[1];
     b.onclick=()=>showTab(pair[0]); bar.appendChild(b);
   });
@@ -2990,13 +3034,17 @@ function buildTabbar(){
 function enterWorkspace(){
   $('who-brand').textContent = SESSION.brand;
   $('who-email').textContent = SESSION.email || '';
-  CUST_LOADED=false; ABRANDS_LOADED=false; APAT_LOADED=false; ACUST_LOADED=false;
+  CUST_LOADED=false; ABRANDS_LOADED=false; APAT_LOADED=false; ACUST_LOADED=false; AUSERS_LOADED=false;
+  // v37: an admin session saved before team users existed is the owner key.
+  if(SESSION.admin && SESSION.master==null){ SESSION.master=true; SESSION.scopes=ALL_SCOPES.slice(); }
   buildTabbar();
   show('ws');
   if(SESSION.admin){
     showTab('aov');
-    refreshAdminLogoPrev();
-    loadBrandStyle(API+'admin/qr-style', adminHeaders()).then(()=>ADMIN_BRANDING.refresh());
+    if(hasScope('branding')){
+      refreshAdminLogoPrev();
+      loadBrandStyle(API+'admin/qr-style', adminHeaders()).then(()=>ADMIN_BRANDING.refresh());
+    }
     return;
   }
   $('up-prefix').textContent = SESSION.prefix + '-';
@@ -3014,11 +3062,14 @@ $('si-go').onclick = async () => {
   $('si-go').disabled = true; msg.textContent = 'Signing in…';
   try{
     // v9: the Luca-S team signs into the same page with the PA- admin key.
-    if(/^PA-/i.test(key)){
-      const ra = await fetch(API + 'admin/brands', { headers:{ 'x-admin-key': key } });
+    // v37: PA- (owner) and PU- (team user) keys both sign in here; the
+    // middleware tells us which tabs this key may open.
+    if(/^P[AU]-/i.test(key)){
+      const ra = await fetch(API + 'admin/whoami', { headers:{ 'x-admin-key': key } });
       const da = await ra.json().catch(()=>({}));
-      if(!ra.ok || !da.ok){ msg.innerHTML = '<span class="err">'+(da.error||'That admin key is not valid.')+'</span>'; return; }
-      SESSION = { admin:true, brand:'Luca-S Admin', prefix:'', email, key };
+      if(!ra.ok || !da.ok){ msg.innerHTML = '<span class="err">'+(da.error||'That key is not valid.')+'</span>'; return; }
+      SESSION = { admin:true, master:!!da.master, name:da.name||'', scopes:da.scopes||[],
+        brand: da.master ? 'Luca-S Admin' : ((da.name||'Team user')+' \u00b7 Luca-S'), prefix:'', email, key };
       saveSession(); enterWorkspace(); return;
     }
     const r = await fetch(API + 'signin', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ email, key }) });
@@ -3758,21 +3809,22 @@ async function adminBrandsFetch(){
 async function loadAdminOverview(){
   const t=$('aov-tiles'); t.innerHTML='<div class="note">Loading…</div>';
   try{
-    const [db, rp, rc]=await Promise.all([
-      adminBrandsFetch(),
-      fetch(API+'admin/patterns',{headers:adminHeaders()}),
-      fetch(API+'admin/customers',{headers:adminHeaders()})
+    // v37: a team user only gets the tiles their permissions cover.
+    const none=Promise.resolve({ok:false,skip:true});
+    const [db, dp, dc]=await Promise.all([
+      hasScope('brands')?adminBrandsFetch():none,
+      hasScope('patterns')?fetch(API+'admin/patterns',{headers:adminHeaders()}).then(r=>r.json()).catch(()=>({})):none,
+      hasScope('customers')?fetch(API+'admin/customers',{headers:adminHeaders()}).then(r=>r.json()).catch(()=>({})):none
     ]);
-    const dp=await rp.json().catch(()=>({})), dc=await rc.json().catch(()=>({}));
-    if(!db.ok||!dp.ok){ t.innerHTML='<div class="err">Could not load the overview.</div>'; return; }
+    if((!db.ok&&!db.skip)||(!dp.ok&&!dp.skip)){ t.innerHTML='<div class="err">Could not load the overview.</div>'; return; }
     const pats=dp.patterns||[], custs=(dc.ok&&dc.customers)||[];
     let stitches=0; for(const c of custs) for(const k of c.kits) stitches+=(k.done|0);
     const tile=(num,lab)=>'<div class="ovtile"><div class="ovnum">'+num+'</div><div class="ovlab">'+lab+'</div></div>';
-    t.innerHTML=
-      tile(db.brands.length,'Partner brands')+
-      tile(pats.filter(p=>p.live).length+' / '+pats.length,'Partner patterns live')+
-      tile(String(custs.length)+((dc.ok&&dc.truncated)?'+':''),'Customers stitching')+
-      tile(stitches.toLocaleString(),'Stitches tracked');
+    let h='';
+    if(db.ok) h+=tile(db.brands.length,'Partner brands');
+    if(dp.ok) h+=tile(pats.filter(p=>p.live).length+' / '+pats.length,'Partner patterns live');
+    if(dc.ok) h+=tile(String(custs.length)+((dc.truncated)?'+':''),'Customers stitching')+tile(stitches.toLocaleString(),'Stitches tracked');
+    t.innerHTML=h||'<div class="note">Signed in as '+escA(SESSION.name||'team user')+'. Use the tabs above.</div>';
   }catch(e){ t.innerHTML='<div class="err">Network error.</div>'; }
 }
 $('aov-refresh').onclick=loadAdminOverview;
@@ -3851,6 +3903,86 @@ async function loadBrands(){
   }catch(e){ box.innerHTML='<div class="err">Network error.</div>'; }
 }
 $('brands-refresh').onclick=loadBrands;
+// ===== v37: team users (owner only) =====
+let AUSERS_LOADED=false, USERS=[], USER_EDIT=null;
+const SCOPE_LABEL={patterns:'Patterns',converter:'Converter',customers:'Customers',brands:'Brands',branding:'Branding'};
+function ufChips(){ return [...$('uf-perms').querySelectorAll('.permchip')]; }
+function ufSelected(){ return ufChips().filter(c=>c.classList.contains('on')).map(c=>c.dataset.scope); }
+function ufBuildChips(selected){
+  const box=$('uf-perms'); box.innerHTML='';
+  ALL_SCOPES.forEach(s=>{
+    const b=document.createElement('button'); b.type='button'; b.className='permchip'+((selected||[]).includes(s)?' on':''); b.dataset.scope=s; b.textContent=SCOPE_LABEL[s];
+    b.onclick=()=>b.classList.toggle('on'); box.appendChild(b);
+  });
+}
+function ufReset(){
+  USER_EDIT=null; $('uf-title').textContent='Add a team user'; $('uf-cancel').style.display='none';
+  $('uf-save').textContent='Create user'; $('uf-name').value=''; $('uf-msg').textContent=''; ufBuildChips([]);
+}
+function ufEdit(u){
+  USER_EDIT=u.uid; $('uf-title').textContent='Edit '+u.name; $('uf-cancel').style.display='';
+  $('uf-save').textContent='Save changes'; $('uf-name').value=u.name; $('uf-msg').textContent=''; $('uf-keybox').style.display='none';
+  ufBuildChips(u.scopes); window.scrollTo({top:0,behavior:'smooth'});
+}
+$('uf-cancel').onclick=(e)=>{ e.preventDefault(); ufReset(); };
+$('uf-copy').onclick=()=>{ navigator.clipboard.writeText($('uf-key').textContent).then(()=>{ $('uf-copy').textContent='Copied'; setTimeout(()=>$('uf-copy').textContent='Copy',1200); }); };
+$('uf-save').onclick=async()=>{
+  const name=$('uf-name').value.trim(), scopes=ufSelected(), msg=$('uf-msg');
+  if(!name){ msg.innerHTML='<span class="err">Give the user a name.</span>'; return; }
+  if(!scopes.length){ msg.innerHTML='<span class="err">Tick at least one tab.</span>'; return; }
+  $('uf-save').disabled=true; msg.textContent='Saving\u2026';
+  try{
+    const ep=USER_EDIT?'admin/user-update':'admin/user-create';
+    const body=USER_EDIT?{uid:USER_EDIT,name,scopes}:{name,scopes};
+    const r=await fetch(API+ep,{method:'POST',headers:adminHeaders(true),body:JSON.stringify(body)});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok){ msg.innerHTML='<span class="err">'+escA(d.error||'Could not save.')+'</span>'; return; }
+    if(d.key){ $('uf-key').textContent=d.key; $('uf-keybox').style.display=''; msg.innerHTML='<span style="color:var(--ok);font-weight:700">'+escA(name)+' created.</span> Copy the key now \u2014 it will not be shown again.'; }
+    else msg.innerHTML='<span style="color:var(--ok);font-weight:700">Saved.</span>';
+    const keep=$('uf-keybox').style.display;
+    ufReset(); $('uf-keybox').style.display=keep;
+    if(!d.key) $('uf-msg').innerHTML='<span style="color:var(--ok);font-weight:700">Saved.</span>';
+    loadUsers();
+  }catch(e){ msg.innerHTML='<span class="err">Network error.</span>'; }
+  finally{ $('uf-save').disabled=false; }
+};
+async function loadUsers(){
+  const box=$('users-box'); box.innerHTML='<div class="note">Loading\u2026</div>';
+  if(!ufChips().length) ufBuildChips([]);
+  try{
+    const r=await fetch(API+'admin/users',{headers:adminHeaders()});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok){ box.innerHTML='<div class="err">'+escA(d.error||'Could not load users.')+'</div>'; return; }
+    USERS=d.users||[];
+    if(!USERS.length){ box.innerHTML='<div class="note">No team users yet \u2014 add the first one above.</div>'; return; }
+    let h='<table><thead><tr><th>Name</th><th>Can open</th><th>Key</th><th>Last sign-in</th><th>Added</th><th></th></tr></thead><tbody>';
+    for(const u of USERS){
+      h+='<tr><td style="font-weight:700">'+escA(u.name)+'</td>'
+        +'<td>'+(u.scopes.length?u.scopes.map(s=>'<span class="permtag">'+escA(SCOPE_LABEL[s]||s)+'</span>').join(''):'<span class="err">none</span>')+'</td>'
+        +'<td class="skucell" style="color:var(--muted)">PU-\u2026'+escA(u.hint)+'</td>'
+        +'<td style="color:var(--muted);font-size:.8rem">'+(u.lastSeen?fmtWhen(u.lastSeen):'never')+'</td>'
+        +'<td style="color:var(--muted);font-size:.8rem">'+(u.created?fmtWhen(u.created):'\u2014')+'</td>'
+        +'<td style="white-space:nowrap;text-align:right"><button class="ghost urowmenu" data-uid="'+escA(u.uid)+'" style="padding:.15rem .6rem;font-size:.9rem;line-height:1">\u22ef</button></td></tr>';
+    }
+    box.innerHTML=h+'</tbody></table>';
+    box.querySelectorAll('.urowmenu').forEach(b=>{ b.onclick=(ev)=>{
+      ev.stopPropagation(); const u=USERS.find(x=>x.uid===b.dataset.uid); if(!u) return;
+      rowMenuOpen(b,[
+        {label:'Edit permissions', onClick:()=>ufEdit(u)},
+        {sep:true},
+        {label:'Revoke key', danger:true, onClick:async()=>{
+          if(!confirm('Revoke '+u.name+'\u2019s key?\n\nThey are locked out immediately.')) return;
+          const r2=await fetch(API+'admin/user-revoke',{method:'POST',headers:adminHeaders(true),body:JSON.stringify({uid:u.uid})});
+          const d2=await r2.json().catch(()=>({}));
+          if(!r2.ok||!d2.ok){ alert(d2.error||'Revoke failed.'); return; }
+          if(USER_EDIT===u.uid) ufReset();
+          loadUsers();
+        }}
+      ]);
+    }; });
+  }catch(e){ box.innerHTML='<div class="err">Network error.</div>'; }
+}
+$('users-refresh').onclick=loadUsers;
 async function loadApplications(){
   const box=$('apps-box'); box.innerHTML='<div class="note">Loading…</div>';
   try{
