@@ -12,7 +12,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v90";
+const MW_VERSION = "v91";
 
 const enc = new TextEncoder();
 
@@ -1280,6 +1280,142 @@ async function handlePartnerApi(request, url, env) {
     }
     return partnerJson(200, { ok:true, master: ADM.master, owner: !!ADM.owner, uid: ADM.uid || "", name: ADM.name, scopes: ADM.scopes });
   }
+  // ── v91: Patternly Plus revenue (owner only) ──────────────────────────────
+  // GET admin/revenue?from=YYYY-MM-DD&to=YYYY-MM-DD
+  // Three sources, merged per day and per platform, reported in GBP:
+  //   web     : Shopify orders carrying a Plus SKU (shop currency = GBP)
+  //   ios/android, up to REV_HISTORY_UNTIL : RevenueCat daily export (USD)
+  //   ios/android, after that              : the live rev: ledger (v90)
+  if (sub === "admin/revenue" && request.method === "GET") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    if (!ADM.master) return partnerJson(403, { ok:false, error:"Only the owner can see revenue." });
+    const dayOk = s => /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + "T00:00:00Z"));
+    const today = new Date().toISOString().slice(0, 10);
+    let from = String(url.searchParams.get("from") || "").trim();
+    let to = String(url.searchParams.get("to") || "").trim();
+    if (!dayOk(to)) to = today;
+    if (!dayOk(from)) from = new Date(Date.parse(to + "T00:00:00Z") - 29 * 86400000).toISOString().slice(0, 10);
+    if (from > to) { const t = from; from = to; to = t; }
+    const fromMs = Date.parse(from + "T00:00:00Z"), toMs = Date.parse(to + "T23:59:59.999Z");
+    const fx = Number(env.FX_USD_GBP) > 0 ? Number(env.FX_USD_GBP) : REV_FX_USD_GBP;
+    const r2 = v => Math.round(v * 100) / 100;
+
+    const days = new Map();   // d -> {web,ios,android, webN,iosN,androidN}
+    const day = d => { let x = days.get(d); if (!x) { x = { d, web:0, ios:0, android:0, webN:0, iosN:0, androidN:0 }; days.set(d, x); } return x; };
+    const counts = { web:{ new:0, renewal:0, refund:0 }, ios:{ new:0, renewal:0, refund:0, trial:0 }, android:{ new:0, renewal:0, refund:0, trial:0 } };
+    const net = { ios:0, android:0, iosKnown:true, androidKnown:true };
+    const notes = [];
+
+    // 1. history (USD -> GBP)
+    for (const h of REV_HISTORY) {
+      if (h[0] < from || h[0] > to || h[0] > REV_HISTORY_UNTIL) continue;
+      const x = day(h[0]);
+      x.ios += h[1] * fx; x.iosN += h[2]; x.android += h[3] * fx; x.androidN += h[4];
+      net.ios += h[1] * fx * REV_HISTORY_TAKEHOME; net.android += h[3] * fx * REV_HISTORY_TAKEHOME;
+    }
+    if (from <= REV_HISTORY_UNTIL) notes.push("Store figures up to " + REV_HISTORY_UNTIL + " come from the RevenueCat export (new/renewal split not available for those days).");
+
+    // 2. live ledger
+    if (env.ENTITLEMENTS) {
+      const startKey = "rev:" + String(Math.max(fromMs, Date.parse(REV_HISTORY_UNTIL + "T00:00:00Z") + 86400000)).padStart(13, "0");
+      const endKey = "rev:" + String(toMs).padStart(13, "0") + ":\uffff";
+      let cursor;
+      for (let page = 0; page < 20; page++) {
+        const listed = await env.ENTITLEMENTS.list({ prefix: "rev:", limit: 1000, cursor });
+        for (const k of listed.keys) {
+          if (k.name < startKey || k.name > endKey) continue;
+          const m = k.metadata || {};
+          if (m.e && m.e !== "PRODUCTION") continue;
+          const plat = m.s === "APP_STORE" || m.s === "MAC_APP_STORE" ? "ios" : m.s === "PLAY_STORE" || m.s === "AMAZON" ? "android" : null;
+          if (!plat) continue;
+          const ms = Number(k.name.slice(4, 17)) || 0;
+          const d = new Date(ms).toISOString().slice(0, 10);
+          const x = day(d);
+          const gbp = (m.cur === "GBP" && m.amt != null) ? m.amt : (m.usd != null ? m.usd * fx : 0);
+          const isRefund = m.t === "REFUND" || gbp < 0;
+          if (isRefund) { counts[plat].refund++; }
+          else if (m.t === "INITIAL_PURCHASE" || m.t === "NON_RENEWING_PURCHASE") { counts[plat].new++; if (m.tc) counts[plat].trial++; }
+          else if (m.t === "RENEWAL" || m.t === "PRODUCT_CHANGE") { counts[plat].renewal++; }
+          else continue;                         // cancellations, billing issues etc. carry no money
+          x[plat] += gbp; x[plat + "N"] += isRefund ? -1 : 1;
+          if (m.tk != null) net[plat] += gbp * m.tk; else { net[plat] += gbp * REV_HISTORY_TAKEHOME; net[plat + "Known"] = false; }
+        }
+        if (!listed.list_complete) cursor = listed.cursor; else break;
+      }
+    }
+
+    // 3. Shopify web orders with a Plus SKU
+    let webErr = null;
+    try {
+      const plans = plusPlans(env);
+      const skuQ = [...plans.keys()].map(s => "sku:" + s).join(" OR ");
+      const q = "(" + skuQ + ") AND created_at:>=" + from + " AND created_at:<=" + to;
+      const seen = new Map();   // email -> count of earlier plus orders in range (new vs renewal)
+      let cursor = null;
+      for (let page = 0; page < 20; page++) {
+        const data = await adminQuery(env, REV_ORDERS_QUERY, { q, cursor });
+        const orders = data && data.orders;
+        if (!orders) break;
+        for (const o of orders.nodes) {
+          const d = String(o.createdAt).slice(0, 10);
+          if (d < from || d > to) continue;
+          let amt = 0, hasPlus = false, voided = false;
+          for (const li of o.lineItems.nodes) {
+            if (!li.sku || !plans.has(String(li.sku).trim().toUpperCase())) continue;
+            hasPlus = true;
+            if (lineIsVoid(o, li)) { voided = true; continue; }
+            const unit = li.discountedUnitPriceSet && li.discountedUnitPriceSet.shopMoney ? Number(li.discountedUnitPriceSet.shopMoney.amount) : 0;
+            amt += unit * (li.quantity | 0);
+          }
+          if (!hasPlus) continue;
+          const x = day(d);
+          if (voided && amt === 0) { counts.web.refund++; continue; }
+          x.web += amt; x.webN++;
+          const em = String((o.customer && o.customer.email) || o.email || "").toLowerCase();
+          const prior = em ? (seen.get(em) || 0) : 0;
+          if (em) seen.set(em, prior + 1);
+          if (prior > 0 || (o.customer && (o.customer.numberOfOrders | 0) > 1)) counts.web.renewal++; else counts.web.new++;
+        }
+        if (!orders.pageInfo.hasNextPage) break;
+        cursor = orders.pageInfo.endCursor;
+      }
+    } catch (e) { webErr = e.message || String(e); }
+    if (webErr) notes.push("Shopify web figures unavailable: " + webErr);
+
+    // 4. active subscribers right now
+    const active = { ios:0, android:0, storeUnknown:0, web:null };
+    if (env.ENTITLEMENTS) {
+      try {
+        let cursor;
+        for (let page = 0; page < 5; page++) {
+          const listed = await env.ENTITLEMENTS.list({ prefix: "plusiap:", limit: 1000, cursor });
+          for (const k of listed.keys) {
+            let rec = null; try { rec = JSON.parse((await env.ENTITLEMENTS.get(k.name)) || "null"); } catch (e) {}
+            if (!rec || !rec.active || (rec.expiresMs && rec.expiresMs < Date.now())) continue;
+            if (rec.store === "APP_STORE" || rec.store === "MAC_APP_STORE") active.ios++;
+            else if (rec.store === "PLAY_STORE" || rec.store === "AMAZON") active.android++;
+            else active.storeUnknown++;
+          }
+          if (!listed.list_complete) cursor = listed.cursor; else break;
+        }
+      } catch (e) {}
+    }
+    try {
+      const tag = String(env.PLUS_TAG || "patternly-plus").trim().toLowerCase();
+      const dc = await adminQuery(env, `query($q:String!){ customersCount(query:$q){ count } }`, { q: "tag:" + tag });
+      if (dc && dc.customersCount) active.web = dc.customersCount.count | 0;
+    } catch (e) {}
+
+    const series = [...days.values()].sort((a, b) => a.d < b.d ? -1 : 1).map(x => ({ d:x.d, web:r2(x.web), ios:r2(x.ios), android:r2(x.android), webN:x.webN, iosN:x.iosN, androidN:x.androidN }));
+    const totals = { web:0, ios:0, android:0, webN:0, iosN:0, androidN:0 };
+    for (const x of days.values()) { totals.web += x.web; totals.ios += x.ios; totals.android += x.android; totals.webN += x.webN; totals.iosN += x.iosN; totals.androidN += x.androidN; }
+    for (const k of ["web","ios","android"]) totals[k] = r2(totals[k]);
+    totals.all = r2(totals.web + totals.ios + totals.android);
+    totals.allN = totals.webN + totals.iosN + totals.androidN;
+    return partnerJson(200, { ok:true, from, to, currency:"GBP", fxUsdGbp: fx, totals, series, counts,
+      net: { ios: r2(net.ios), android: r2(net.android), iosEstimated: !net.iosKnown || from <= REV_HISTORY_UNTIL, androidEstimated: !net.androidKnown || from <= REV_HISTORY_UNTIL, storeTakeHomeAssumed: REV_HISTORY_TAKEHOME },
+      active, notes });
+  }
   if (sub === "admin/users" && request.method === "GET") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
     if (!ADM.master) return partnerJson(403, { ok:false, error:"Only the owner can manage team users." });
@@ -2367,6 +2503,63 @@ async function ownedSkus(customerId, env) {
 // order for twelve months, so judging them on the monthly window would revoke
 // access at day 35 from someone who has paid for a year. Each plan therefore
 // carries its own grace period, keyed on the SKU that appears on the order.
+// ── v91: revenue reporting ────────────────────────────────────────────────────
+// USD->GBP used for RevenueCat figures (override with env FX_USD_GBP).
+const REV_FX_USD_GBP = 0.78;
+// Apple Small Business Programme / Google 15% tier: what the stores pass on.
+const REV_HISTORY_TAKEHOME = 0.85;
+// RevenueCat "Revenue" export (USD, gross, by store) covers store sales up to
+// this day; the live rev: ledger (v90) takes over from the next day.
+// Columns: [day, iosUsd, iosTx, androidUsd, androidTx] — zero days omitted.
+const REV_HISTORY_UNTIL = "2026-10-18";
+const REV_HISTORY = [
+  ["2026-08-24", 0.0, 0, 4.0, 1],
+  ["2026-09-04", 4.05, 1, 0.0, 0],
+  ["2026-09-10", 52.13, 6, 0.0, 0],
+  ["2026-09-11", 9.05, 3, 27.46, 1],
+  ["2026-09-12", 33.97, 2, 40.49, 3],
+  ["2026-09-13", 3.99, 1, 4.02, 1],
+  ["2026-09-14", 7.5, 2, 0.0, 0],
+  ["2026-09-15", 0.0, 0, 4.03, 1],
+  ["2026-09-19", 66.36, 2, 0.0, 0],
+  ["2026-09-20", 32.37, 3, 0.0, 0],
+  ["2026-09-24", 0.0, 0, 7.88, 2],
+  ["2026-09-25", 3.99, 1, 31.7, 1],
+  ["2026-09-26", 0.0, 0, 4.02, 1],
+  ["2026-09-29", 0.0, 0, 4.01, 1],
+  ["2026-09-30", 36.84, 2, 0.0, 0],
+  ["2026-10-01", 0.0, 0, 7.84, 2],
+  ["2026-10-02", 0.0, 0, 3.85, 1],
+  ["2026-10-03", 3.99, 1, 0.0, 0],
+  ["2026-10-04", 3.96, 1, 0.0, 0],
+  ["2026-10-06", 3.35, 1, 0.0, 0],
+  ["2026-10-08", 3.28, 1, 0.0, 0],
+  ["2026-10-09", 3.35, 1, 3.96, 1],
+  ["2026-10-10", 19.4, 5, 0.0, 0],
+  ["2026-10-11", 11.97, 3, 0.0, 0],
+  ["2026-10-12", 3.9, 1, 7.9, 2],
+  ["2026-10-13", 3.99, 1, 0.0, 0],
+  ["2026-10-14", 3.96, 1, 0.0, 0],
+  ["2026-10-16", 26.26, 1, 7.92, 2],
+  ["2026-10-18", 3.99, 1, 0.0, 0]
+];
+const REV_ORDERS_QUERY = `
+query RevOrders($q: String!, $cursor: String) {
+  orders(first: 50, query: $q, after: $cursor, sortKey: CREATED_AT) {
+    pageInfo { hasNextPage endCursor }
+    nodes {
+      createdAt
+      cancelledAt
+      displayFinancialStatus
+      email
+      customer { email numberOfOrders }
+      lineItems(first: 50) {
+        nodes { sku quantity refundableQuantity discountedUnitPriceSet { shopMoney { amount currencyCode } } }
+      }
+    }
+  }
+}`;
+
 const PLUS_WINDOW_DAYS = 35;        // monthly: 30-day cycle + card-retry grace
 const PLUS_YEAR_WINDOW_DAYS = 400;  // annual: 365 + the same kind of grace
 const TRIAL_DAYS = 14;
@@ -3041,7 +3234,7 @@ async function handleRequest(context) {
     else if (INACTIVE.has(type)) active = false;
     else if (ACTIVE.has(type))   active = expiresMs ? expiresMs > Date.now() : true;
     else                         active = expiresMs ? expiresMs > Date.now() : undefined;
-    const rec = { active: !!active, expiresMs, productId, plan, type, updatedMs: Date.now() };
+    const rec = { active: !!active, expiresMs, productId, plan, type, store: String(ev.store || ""), updatedMs: Date.now() };
     if (env.ENTITLEMENTS) {
       try { await env.ENTITLEMENTS.put("plusiap:" + customerId, JSON.stringify(rec)); }
       catch (e) { console.warn("iap put failed:", e.message); }
