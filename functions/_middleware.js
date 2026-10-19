@@ -12,7 +12,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v86";
+const MW_VERSION = "v87";
 
 const enc = new TextEncoder();
 
@@ -520,15 +520,73 @@ async function adminAuth(key, env) {
   if (env.PARTNER_ADMIN_KEY && timingSafeEqual(key, env.PARTNER_ADMIN_KEY)) {
     return { ok:true, master:true, name:"Owner", scopes: USER_SCOPES.slice() };
   }
-  if (!/^PU-/.test(key) || !env.PARTNERS) return { ok:false };
+  if (!env.PARTNERS) return { ok:false };
   let rec = null, uid = null;
   try {
-    uid = await env.PARTNERS.get("ukey:" + key);
+    if (/^ST-/.test(key)) {                       // v87: browser session token
+      const s = JSON.parse((await env.PARTNERS.get("sess:" + await sha256b64(key.slice(3)))) || "null");
+      if (s && s.uid && (!s.exp || s.exp > Date.now())) uid = s.uid;
+    } else if (/^PU-/.test(key)) {                // v86: legacy user key
+      uid = await env.PARTNERS.get("ukey:" + key);
+    }
     if (uid) rec = JSON.parse((await env.PARTNERS.get("user:" + uid)) || "null");
   } catch (e) {}
   if (!uid || !rec) return { ok:false };
   const scopes = Array.isArray(rec.scopes) ? rec.scopes.filter(s => USER_SCOPES.includes(s)) : [];
   return { ok:true, master:false, uid, name: rec.name || "", scopes };
+}
+// ── v87: staff email + password sign-in ──────────────────────────────────────
+// KV layout (PARTNERS):
+//   uemail:<email>   -> uid
+//   user:<uid>       -> {name, email, scopes, pw:{salt,hash,iter}, created, lastSeen, hint?}
+//   setup:<token>    -> {uid, exp}          one-time password set-up link (48 h)
+//   sess:<token>     -> {uid, exp}          browser session (30 d)
+//   ulock:<email>    -> {n, until}          failed-login counter (15 min window)
+// Session and set-up tokens are stored hashed (SHA-256) so a KV read-out
+// cannot be replayed. Old PU- keys keep working until the user is revoked.
+const SESSION_TTL_S = 30 * 24 * 3600;
+const SETUP_TTL_S = 48 * 3600;
+const PW_ITER = 200000;
+const PW_MIN = 10;
+async function sha256b64(s) {
+  const d = await crypto.subtle.digest("SHA-256", enc.encode(s));
+  return b64urlFromBytes(new Uint8Array(d));
+}
+async function pwHash(password, saltB64, iter) {
+  const salt = Uint8Array.from(atob(saltB64.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0));
+  const km = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name:"PBKDF2", hash:"SHA-256", salt, iterations: iter }, km, 256);
+  return b64urlFromBytes(new Uint8Array(bits));
+}
+async function pwMake(password) {
+  const salt = randToken(16);
+  return { salt, iter: PW_ITER, hash: await pwHash(password, salt, PW_ITER) };
+}
+async function pwCheck(password, pw) {
+  if (!pw || !pw.salt || !pw.hash) return false;
+  const h = await pwHash(password, pw.salt, +pw.iter || PW_ITER);
+  return timingSafeEqual(h, pw.hash);
+}
+function normEmail(e) { return String(e || "").trim().toLowerCase(); }
+function emailOk(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.length <= 120; }
+async function userGet(env, uid) {
+  try { return JSON.parse((await env.PARTNERS.get("user:" + uid)) || "null"); } catch (e) { return null; }
+}
+async function setupLinkMake(env, uid, url) {
+  const tok = randToken(24);
+  await env.PARTNERS.put("setup:" + await sha256b64(tok), JSON.stringify({ uid, exp: Date.now() + SETUP_TTL_S * 1000 }), { expirationTtl: SETUP_TTL_S });
+  const base = env.STUDIO_PUBLIC_URL || "https://luca-s.com/apps/patternly/brands";
+  return base + "?setup=" + tok;
+}
+async function sessionsRevoke(env, uid) {
+  let cursor;
+  for (let page = 0; page < 5; page++) {
+    const listed = await env.PARTNERS.list({ prefix: "sess:", limit: 1000, cursor });
+    for (const k of listed.keys) {
+      try { const s = JSON.parse((await env.PARTNERS.get(k.name)) || "null"); if (s && s.uid === uid) await env.PARTNERS.delete(k.name); } catch (e) {}
+    }
+    if (!listed.list_complete) cursor = listed.cursor; else break;
+  }
 }
 function scopeDenied(adm, scope) {
   if (adm.master || (adm.scopes && adm.scopes.includes(scope))) return null;
@@ -821,6 +879,62 @@ async function handlePartnerApi(request, url, env) {
     if (!ptlyKey && !chart) return partnerJson(200, { ok:true, found:false });
     if (ptlyKey) { kit.ptly = true; kit.files = { ptly: ptlyKey }; }
     return partnerJson(200, { ok:true, found:true, kit });
+  }
+
+  // ── v87: staff sign-in (public) ───────────────────────────────────────────
+  if (sub === "staff/setup-info" && request.method === "GET") {
+    if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"not configured" });
+    const tok = String(url.searchParams.get("t") || "").trim();
+    let s = null; try { s = JSON.parse((await env.PARTNERS.get("setup:" + await sha256b64(tok))) || "null"); } catch (e) {}
+    if (!tok || !s || (s.exp && s.exp < Date.now())) return partnerJson(410, { ok:false, error:"This link has expired or was already used. Ask the owner for a new one." });
+    const rec = await userGet(env, s.uid);
+    if (!rec) return partnerJson(410, { ok:false, error:"This account no longer exists." });
+    return partnerJson(200, { ok:true, name: rec.name || "", email: rec.email || "" });
+  }
+  if (sub === "staff/setup" && request.method === "POST") {
+    if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"not configured" });
+    let body = {}; try { body = await request.json(); } catch (e) {}
+    const tok = String(body.token || "").trim();
+    const password = String(body.password || "");
+    const skey = "setup:" + await sha256b64(tok);
+    let s = null; try { s = JSON.parse((await env.PARTNERS.get(skey)) || "null"); } catch (e) {}
+    if (!tok || !s || (s.exp && s.exp < Date.now())) return partnerJson(410, { ok:false, error:"This link has expired or was already used. Ask the owner for a new one." });
+    if (password.length < PW_MIN) return partnerJson(400, { ok:false, error:"Use at least " + PW_MIN + " characters." });
+    const rec = await userGet(env, s.uid);
+    if (!rec) return partnerJson(410, { ok:false, error:"This account no longer exists." });
+    rec.pw = await pwMake(password);
+    await env.PARTNERS.put("user:" + s.uid, JSON.stringify(rec));
+    await env.PARTNERS.delete(skey);
+    return partnerJson(200, { ok:true, email: rec.email || "" });
+  }
+  if (sub === "staff/login" && request.method === "POST") {
+    if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"not configured" });
+    let body = {}; try { body = await request.json(); } catch (e) {}
+    const email = normEmail(body.email), password = String(body.password || "");
+    const bad = () => partnerJson(401, { ok:false, error:"That email and password don\u2019t match." });
+    if (!emailOk(email) || !password) return bad();
+    // Rate limit: 10 failed tries per email per 15 minutes.
+    const lkey = "ulock:" + email;
+    let lock = null; try { lock = JSON.parse((await env.PARTNERS.get(lkey)) || "null"); } catch (e) {}
+    if (lock && lock.n >= 10 && lock.until > Date.now()) return partnerJson(429, { ok:false, error:"Too many attempts. Try again in a few minutes." });
+    const uid = await env.PARTNERS.get("uemail:" + email);
+    const rec = uid ? await userGet(env, uid) : null;
+    if (!rec || !(await pwCheck(password, rec.pw))) {
+      const n = (lock && lock.until > Date.now()) ? lock.n + 1 : 1;
+      await env.PARTNERS.put(lkey, JSON.stringify({ n, until: Date.now() + 15 * 60000 }), { expirationTtl: 900 });
+      return bad();
+    }
+    await env.PARTNERS.delete(lkey);
+    const tok = randToken(32);
+    await env.PARTNERS.put("sess:" + await sha256b64(tok), JSON.stringify({ uid, exp: Date.now() + SESSION_TTL_S * 1000 }), { expirationTtl: SESSION_TTL_S });
+    rec.lastSeen = Date.now(); await env.PARTNERS.put("user:" + uid, JSON.stringify(rec));
+    const scopes = Array.isArray(rec.scopes) ? rec.scopes.filter(x => USER_SCOPES.includes(x)) : [];
+    return partnerJson(200, { ok:true, token: "ST-" + tok, name: rec.name || "", email: rec.email || "", scopes });
+  }
+  if (sub === "staff/logout" && request.method === "POST") {
+    const k = (request.headers.get("x-admin-key") || "").trim();
+    if (env.PARTNERS && /^ST-/.test(k)) { try { await env.PARTNERS.delete("sess:" + await sha256b64(k.slice(3))); } catch (e) {} }
+    return partnerJson(200, { ok:true });
   }
 
   if (sub === "signin" && request.method === "POST") {
@@ -1176,8 +1290,8 @@ async function handlePartnerApi(request, url, env) {
         let rec = null;
         try { rec = JSON.parse((await env.PARTNERS.get(k.name)) || "null"); } catch (e) {}
         if (!rec) continue;
-        users.push({ uid: k.name.slice(5), name: rec.name || "", scopes: Array.isArray(rec.scopes) ? rec.scopes : [],
-          hint: rec.hint || "", created: +rec.created || 0, lastSeen: +rec.lastSeen || 0 });
+        users.push({ uid: k.name.slice(5), name: rec.name || "", email: rec.email || "", scopes: Array.isArray(rec.scopes) ? rec.scopes : [],
+          hint: rec.hint || "", hasPassword: !!(rec.pw && rec.pw.hash), created: +rec.created || 0, lastSeen: +rec.lastSeen || 0 });
       }
       if (!listed.list_complete) cursor = listed.cursor; else break;
     }
@@ -1193,18 +1307,29 @@ async function handlePartnerApi(request, url, env) {
     if (!name) return partnerJson(400, { ok:false, error:"Give the user a name." });
     const scopes = (Array.isArray(body.scopes) ? body.scopes : []).map(s => String(s).toLowerCase()).filter(s => USER_SCOPES.includes(s));
     if (!scopes.length) return partnerJson(400, { ok:false, error:"Tick at least one permission." });
-    let key = null;
-    for (let tries = 0; tries < 3 && !key; tries++) {
-      const cand = "PU-" + randAlpha(4) + "-" + randAlpha(12);
-      if (!(await env.PARTNERS.get("ukey:" + cand))) key = cand;
-    }
-    if (!key) return partnerJson(500, { ok:false, error:"could not generate a key" });
+    // v87: email + one-time set-up link. The user picks their own password.
+    const email = normEmail(body.email);
+    if (!emailOk(email)) return partnerJson(400, { ok:false, error:"Enter a valid email address." });
+    if (await env.PARTNERS.get("uemail:" + email)) return partnerJson(409, { ok:false, error:"A user with that email already exists." });
     const uid = randAlpha(10);
-    const rec = { name, scopes, created: Date.now(), lastSeen: 0, hint: key.slice(-4) };
+    const rec = { name, email, scopes, created: Date.now(), lastSeen: 0 };
     await env.PARTNERS.put("user:" + uid, JSON.stringify(rec));
-    await env.PARTNERS.put("ukey:" + key, uid);
-    return partnerJson(200, { ok:true, uid, key, name, scopes,
-      note: "Save this key now \u2014 it is shown once. The user signs into the Studio with their email and this key." });
+    await env.PARTNERS.put("uemail:" + email, uid);
+    const setup = await setupLinkMake(env, uid, url);
+    return partnerJson(200, { ok:true, uid, name, email, scopes, setup,
+      note: "Send this link to " + name + ". It works once, for 48 hours, and lets them choose their password." });
+  }
+  if (sub === "admin/user-reset" && request.method === "POST") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    if (!ADM.master) return partnerJson(403, { ok:false, error:"Only the owner can manage team users." });
+    if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"partner system not configured" });
+    let body = {}; try { body = await request.json(); } catch (e) {}
+    const uid = String(body.uid || "").trim();
+    const rec = uid ? await userGet(env, uid) : null;
+    if (!rec) return partnerJson(404, { ok:false, error:"no such user" });
+    await sessionsRevoke(env, uid);                 // a reset signs them out everywhere
+    const setup = await setupLinkMake(env, uid, url);
+    return partnerJson(200, { ok:true, uid, setup, note:"Send this link to " + (rec.name || "the user") + " \u2014 it works once, for 48 hours." });
   }
   if (sub === "admin/user-update" && request.method === "POST") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
@@ -1216,13 +1341,21 @@ async function handlePartnerApi(request, url, env) {
     try { rec = JSON.parse((await env.PARTNERS.get("user:" + uid)) || "null"); } catch (e) {}
     if (!uid || !rec) return partnerJson(404, { ok:false, error:"no such user" });
     if (typeof body.name === "string" && body.name.trim()) rec.name = body.name.trim().slice(0, 60);
+    if (typeof body.email === "string" && normEmail(body.email) && normEmail(body.email) !== rec.email) {
+      const ne = normEmail(body.email);
+      if (!emailOk(ne)) return partnerJson(400, { ok:false, error:"Enter a valid email address." });
+      if (await env.PARTNERS.get("uemail:" + ne)) return partnerJson(409, { ok:false, error:"A user with that email already exists." });
+      if (rec.email) await env.PARTNERS.delete("uemail:" + rec.email);
+      await env.PARTNERS.put("uemail:" + ne, uid);
+      rec.email = ne;
+    }
     if (Array.isArray(body.scopes)) {
       const scopes = body.scopes.map(s => String(s).toLowerCase()).filter(s => USER_SCOPES.includes(s));
       if (!scopes.length) return partnerJson(400, { ok:false, error:"Tick at least one permission." });
       rec.scopes = scopes;
     }
     await env.PARTNERS.put("user:" + uid, JSON.stringify(rec));
-    return partnerJson(200, { ok:true, uid, name: rec.name, scopes: rec.scopes });
+    return partnerJson(200, { ok:true, uid, name: rec.name, email: rec.email || "", scopes: rec.scopes });
   }
   if (sub === "admin/user-revoke" && request.method === "POST") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
@@ -1230,8 +1363,11 @@ async function handlePartnerApi(request, url, env) {
     if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"partner system not configured" });
     let body = {}; try { body = await request.json(); } catch (e) {}
     const uid = String(body.uid || "").trim();
-    if (!uid || !(await env.PARTNERS.get("user:" + uid))) return partnerJson(404, { ok:false, error:"no such user" });
-    // Find and delete the key entry so the user is locked out at once.
+    const urec = uid ? await userGet(env, uid) : null;
+    if (!urec) return partnerJson(404, { ok:false, error:"no such user" });
+    if (urec.email) await env.PARTNERS.delete("uemail:" + urec.email);
+    await sessionsRevoke(env, uid);
+    // Find and delete any legacy key entry so the user is locked out at once.
     let cursor;
     for (let page = 0; page < 5; page++) {
       const listed = await env.PARTNERS.list({ prefix: "ukey:", limit: 1000, cursor });
@@ -1241,7 +1377,7 @@ async function handlePartnerApi(request, url, env) {
       if (!listed.list_complete) cursor = listed.cursor; else break;
     }
     await env.PARTNERS.delete("user:" + uid);
-    return partnerJson(200, { ok:true, uid, revoked:true, note:"Their key stops working immediately." });
+    return partnerJson(200, { ok:true, uid, revoked:true, note:"They are signed out everywhere immediately." });
   }
 
   // ── admin: brand management (v70) — powers the Studio's Admin mode ────────
