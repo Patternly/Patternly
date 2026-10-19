@@ -12,7 +12,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v89";
+const MW_VERSION = "v90";
 
 const enc = new TextEncoder();
 
@@ -2993,6 +2993,34 @@ async function handleRequest(context) {
     try { body = await request.json(); }
     catch (e) { return new Response(JSON.stringify({ error: "bad json" }), { status: 400, headers: { "content-type": "application/json" } }); }
     const ev = (body && body.event) || {};
+    // v90: revenue ledger. Every RevenueCat event is kept as one KV key whose
+    // metadata carries the figures, so a single list() call over a date range
+    // returns everything the Overview needs without per-key reads.
+    //   rev:<13-digit ms>:<event id>   (RevenueCat retries reuse the id -> no dupes)
+    // price / price_in_purchased_currency are negative for refunds.
+    if (env.ENTITLEMENTS && ev.id) {
+      try {
+        const ts = Number(ev.event_timestamp_ms || ev.purchased_at_ms || Date.now()) || Date.now();
+        const num = v => (v === null || v === undefined || v === "" || !isFinite(+v)) ? null : +v;
+        const meta = {
+          t: String(ev.type || "").toUpperCase(),
+          s: String(ev.store || ""),                       // APP_STORE | PLAY_STORE | ...
+          e: String(ev.environment || ""),                 // PRODUCTION | SANDBOX
+          p: String(ev.product_id || "").slice(0, 80),
+          pt: String(ev.period_type || ""),                // TRIAL | INTRO | NORMAL
+          usd: num(ev.price),                              // USD, gross
+          amt: num(ev.price_in_purchased_currency),        // buyer's currency, gross
+          cur: String(ev.currency || ""),
+          tk: num(ev.takehome_percentage),                 // share kept after store fee
+          tx: num(ev.tax_percentage),
+          cc: String(ev.country_code || ""),
+          tc: ev.is_trial_conversion === true ? 1 : 0,
+          u: String(ev.original_app_user_id || ev.app_user_id || "").replace(/^gid:\/\/shopify\/Customer\//, "").slice(0, 40)
+        };
+        const rk = "rev:" + String(ts).padStart(13, "0") + ":" + String(ev.id).slice(0, 64);
+        if ((await env.ENTITLEMENTS.get(rk)) === null) await env.ENTITLEMENTS.put(rk, "1", { metadata: meta });   // first write wins
+      } catch (e) { console.warn("rev ledger put failed:", e.message); }
+    }
     const rawUid = String(ev.app_user_id || ev.original_app_user_id || "");
     // Accept either a bare customer id or a Shopify gid; store the bare id.
     const customerId = rawUid.replace(/^gid:\/\/shopify\/Customer\//, "").trim();
