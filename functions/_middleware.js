@@ -12,7 +12,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v87";
+const MW_VERSION = "v88";
 
 const enc = new TextEncoder();
 
@@ -532,6 +532,8 @@ async function adminAuth(key, env) {
     if (uid) rec = JSON.parse((await env.PARTNERS.get("user:" + uid)) || "null");
   } catch (e) {}
   if (!uid || !rec) return { ok:false };
+  // v88: a user flagged owner is a full master, same as the PA- key.
+  if (rec.owner === true) return { ok:true, master:true, owner:true, uid, name: rec.name || "", scopes: USER_SCOPES.slice() };
   const scopes = Array.isArray(rec.scopes) ? rec.scopes.filter(s => USER_SCOPES.includes(s)) : [];
   return { ok:true, master:false, uid, name: rec.name || "", scopes };
 }
@@ -1276,7 +1278,7 @@ async function handlePartnerApi(request, url, env) {
         if (rec) { rec.lastSeen = Date.now(); await env.PARTNERS.put("user:" + ADM.uid, JSON.stringify(rec)); }
       } catch (e) {}
     }
-    return partnerJson(200, { ok:true, master: ADM.master, name: ADM.name, scopes: ADM.scopes });
+    return partnerJson(200, { ok:true, master: ADM.master, owner: !!ADM.owner, uid: ADM.uid || "", name: ADM.name, scopes: ADM.scopes });
   }
   if (sub === "admin/users" && request.method === "GET") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
@@ -1290,7 +1292,7 @@ async function handlePartnerApi(request, url, env) {
         let rec = null;
         try { rec = JSON.parse((await env.PARTNERS.get(k.name)) || "null"); } catch (e) {}
         if (!rec) continue;
-        users.push({ uid: k.name.slice(5), name: rec.name || "", email: rec.email || "", scopes: Array.isArray(rec.scopes) ? rec.scopes : [],
+        users.push({ uid: k.name.slice(5), name: rec.name || "", email: rec.email || "", owner: rec.owner === true, scopes: Array.isArray(rec.scopes) ? rec.scopes : [],
           hint: rec.hint || "", hasPassword: !!(rec.pw && rec.pw.hash), created: +rec.created || 0, lastSeen: +rec.lastSeen || 0 });
       }
       if (!listed.list_complete) cursor = listed.cursor; else break;
@@ -1305,18 +1307,20 @@ async function handlePartnerApi(request, url, env) {
     let body = {}; try { body = await request.json(); } catch (e) {}
     const name = String(body.name || "").trim().slice(0, 60);
     if (!name) return partnerJson(400, { ok:false, error:"Give the user a name." });
-    const scopes = (Array.isArray(body.scopes) ? body.scopes : []).map(s => String(s).toLowerCase()).filter(s => USER_SCOPES.includes(s));
+    const owner = body.owner === true;
+    let scopes = (Array.isArray(body.scopes) ? body.scopes : []).map(s => String(s).toLowerCase()).filter(s => USER_SCOPES.includes(s));
+    if (owner) scopes = USER_SCOPES.slice();
     if (!scopes.length) return partnerJson(400, { ok:false, error:"Tick at least one permission." });
     // v87: email + one-time set-up link. The user picks their own password.
     const email = normEmail(body.email);
     if (!emailOk(email)) return partnerJson(400, { ok:false, error:"Enter a valid email address." });
     if (await env.PARTNERS.get("uemail:" + email)) return partnerJson(409, { ok:false, error:"A user with that email already exists." });
     const uid = randAlpha(10);
-    const rec = { name, email, scopes, created: Date.now(), lastSeen: 0 };
+    const rec = { name, email, scopes, owner, created: Date.now(), lastSeen: 0 };
     await env.PARTNERS.put("user:" + uid, JSON.stringify(rec));
     await env.PARTNERS.put("uemail:" + email, uid);
     const setup = await setupLinkMake(env, uid, url);
-    return partnerJson(200, { ok:true, uid, name, email, scopes, setup,
+    return partnerJson(200, { ok:true, uid, name, email, scopes, owner, setup,
       note: "Send this link to " + name + ". It works once, for 48 hours, and lets them choose their password." });
   }
   if (sub === "admin/user-reset" && request.method === "POST") {
@@ -1349,13 +1353,19 @@ async function handlePartnerApi(request, url, env) {
       await env.PARTNERS.put("uemail:" + ne, uid);
       rec.email = ne;
     }
-    if (Array.isArray(body.scopes)) {
+    if (typeof body.owner === "boolean" && body.owner !== (rec.owner === true)) {
+      if (!body.owner && rec.owner === true && ADM.uid === uid) return partnerJson(400, { ok:false, error:"You can\u2019t remove your own owner access. Ask another owner." });
+      rec.owner = body.owner;
+      if (body.owner) rec.scopes = USER_SCOPES.slice();
+      if (body.owner) await sessionsRevoke(env, uid);   // force a fresh session with the new role
+    }
+    if (Array.isArray(body.scopes) && rec.owner !== true) {
       const scopes = body.scopes.map(s => String(s).toLowerCase()).filter(s => USER_SCOPES.includes(s));
       if (!scopes.length) return partnerJson(400, { ok:false, error:"Tick at least one permission." });
       rec.scopes = scopes;
     }
     await env.PARTNERS.put("user:" + uid, JSON.stringify(rec));
-    return partnerJson(200, { ok:true, uid, name: rec.name, email: rec.email || "", scopes: rec.scopes });
+    return partnerJson(200, { ok:true, uid, name: rec.name, email: rec.email || "", owner: rec.owner === true, scopes: rec.scopes });
   }
   if (sub === "admin/user-revoke" && request.method === "POST") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
@@ -1365,6 +1375,7 @@ async function handlePartnerApi(request, url, env) {
     const uid = String(body.uid || "").trim();
     const urec = uid ? await userGet(env, uid) : null;
     if (!urec) return partnerJson(404, { ok:false, error:"no such user" });
+    if (ADM.uid === uid) return partnerJson(400, { ok:false, error:"You can\u2019t revoke your own account." });
     if (urec.email) await env.PARTNERS.delete("uemail:" + urec.email);
     await sessionsRevoke(env, uid);
     // Find and delete any legacy key entry so the user is locked out at once.
