@@ -12,7 +12,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v91";
+const MW_VERSION = "v92";
 
 const enc = new TextEncoder();
 
@@ -1391,20 +1391,51 @@ async function handlePartnerApi(request, url, env) {
           const listed = await env.ENTITLEMENTS.list({ prefix: "plusiap:", limit: 1000, cursor });
           for (const k of listed.keys) {
             let rec = null; try { rec = JSON.parse((await env.ENTITLEMENTS.get(k.name)) || "null"); } catch (e) {}
-            if (!rec || !rec.active || (rec.expiresMs && rec.expiresMs < Date.now())) continue;
-            if (rec.store === "APP_STORE" || rec.store === "MAC_APP_STORE") active.ios++;
-            else if (rec.store === "PLAY_STORE" || rec.store === "AMAZON") active.android++;
+            // v92: a subscription always carries an expiry; records without one
+            // (or already past it) are stale and do not count.
+            if (!rec || !rec.active || !(rec.expiresMs > Date.now())) continue;
+            let st = rec.store || "";
+            // Records written before v91 have no store. Play Store product ids
+            // are "subscription:base-plan"; Apple ids never contain a colon.
+            if (!st && rec.productId) st = String(rec.productId).indexOf(":") >= 0 ? "PLAY_STORE" : "APP_STORE";
+            if (st === "APP_STORE" || st === "MAC_APP_STORE") active.ios++;
+            else if (st === "PLAY_STORE" || st === "AMAZON") active.android++;
             else active.storeUnknown++;
           }
           if (!listed.list_complete) cursor = listed.cursor; else break;
         }
       } catch (e) {}
     }
+    // v92: web subscribers = distinct customers with a paid, non-refunded Plus
+    // order still inside its window (same rule plusFromOrders uses to unlock).
     try {
-      const tag = String(env.PLUS_TAG || "patternly-plus").trim().toLowerCase();
-      const dc = await adminQuery(env, `query($q:String!){ customersCount(query:$q){ count } }`, { q: "tag:" + tag });
-      if (dc && dc.customersCount) active.web = dc.customersCount.count | 0;
-    } catch (e) {}
+      const plans = plusPlans(env);
+      const lookback = Math.max(...plans.values());
+      const since = new Date(Date.now() - lookback * 86400000).toISOString().slice(0, 10);
+      const q = "(" + [...plans.keys()].map(s => "sku:" + s).join(" OR ") + ") AND created_at:>=" + since;
+      const until = new Map();
+      let cursor = null;
+      for (let page = 0; page < 20; page++) {
+        const data = await adminQuery(env, REV_ORDERS_QUERY, { q, cursor });
+        const orders = data && data.orders;
+        if (!orders) break;
+        for (const o of orders.nodes) {
+          const em = String((o.customer && o.customer.email) || o.email || "").trim().toLowerCase();
+          if (!em) continue;
+          const t = Date.parse(o.createdAt) || 0;
+          for (const li of o.lineItems.nodes) {
+            const w = li.sku ? plans.get(String(li.sku).trim().toUpperCase()) : undefined;
+            if (w === undefined || lineIsVoid(o, li)) continue;
+            const u = t + w * 86400000;
+            if (u > (until.get(em) || 0)) until.set(em, u);
+          }
+        }
+        if (!orders.pageInfo.hasNextPage) break;
+        cursor = orders.pageInfo.endCursor;
+      }
+      const now = Date.now();
+      active.web = [...until.values()].filter(u => u > now).length;
+    } catch (e) { active.web = null; }
 
     const series = [...days.values()].sort((a, b) => a.d < b.d ? -1 : 1).map(x => ({ d:x.d, web:r2(x.web), ios:r2(x.ios), android:r2(x.android), webN:x.webN, iosN:x.iosN, androidN:x.androidN }));
     const totals = { web:0, ios:0, android:0, webN:0, iosN:0, androidN:0 };
