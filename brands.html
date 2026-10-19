@@ -43,6 +43,14 @@
   .seg{display:inline-flex;background:var(--bg);border:1.5px solid var(--border);border-radius:999px;padding:3px;gap:2px;margin:0 0 1rem}
   .seg button{font:inherit;font-size:.8rem;font-weight:700;border:0;background:none;color:var(--muted);border-radius:999px;padding:.38rem 1rem;cursor:pointer;transition:all .12s}
   .seg button.on{background:#fff;color:var(--red);box-shadow:0 1px 4px rgba(43,34,38,.12)}
+  /* v39: owner switch */
+  .switch{display:inline-flex;align-items:center;gap:.55rem;cursor:pointer;user-select:none;font-size:.86rem;font-weight:700}
+  .switch input{position:absolute;opacity:0;width:0;height:0}
+  .switch .knob{width:38px;height:22px;border-radius:999px;background:var(--border);position:relative;transition:background .15s;flex:none}
+  .switch .knob::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .15s}
+  .switch input:checked + .knob{background:var(--red)}
+  .switch input:checked + .knob::after{left:19px}
+  .pill.owner{background:#f3e3e6;color:var(--red)}
   /* v37: permission chips (Users tab) */
   .permchips{display:flex;flex-wrap:wrap;gap:.45rem}
   .permchip{font:inherit;font-size:.8rem;font-weight:700;border:1.5px solid var(--border);background:#fff;color:var(--muted);border-radius:999px;padding:.32rem .85rem;cursor:pointer;transition:all .12s}
@@ -597,6 +605,10 @@
           <div style="max-width:320px"><label for="uf-email">Email</label><input type="email" id="uf-email" maxlength="120" placeholder="ana@luca-s.com"></div>
         </div>
         <div style="margin-top:.8rem"><label>Can open</label><div class="permchips" id="uf-perms"></div></div>
+        <div style="margin-top:.9rem">
+          <label class="switch"><input type="checkbox" id="uf-owner"><span class="knob"></span><span>Owner — full access, can manage team users</span></label>
+          <div class="note" id="uf-owner-note" style="margin:.3rem 0 0 2.9rem">Owners see every tab including Users. Give this only to yourself and people you fully trust.</div>
+        </div>
         <div style="margin-top:1rem" class="row"><button class="primary" id="uf-save">Create user</button></div>
         <div class="note" id="uf-msg"></div>
         <div id="uf-keybox" style="display:none;margin-top:.8rem;border:1.5px solid var(--red);border-radius:10px;padding:.8rem .9rem;background:var(--bg)">
@@ -3116,8 +3128,8 @@ $('si-go').onclick = async () => {
       const ra = await fetch(API + 'admin/whoami', { headers:{ 'x-admin-key': key } });
       const da = await ra.json().catch(()=>({}));
       if(!ra.ok || !da.ok){ msg.innerHTML = '<span class="err">'+escA(da.error||'That key is not valid.')+'</span>'; return; }
-      SESSION = { admin:true, master:!!da.master, name:da.name||'', scopes:da.scopes||[],
-        brand: da.master ? 'Luca-S Admin' : ((da.name||'Team user')+' \u00b7 Luca-S'), prefix:'', email, key };
+      SESSION = { admin:true, master:!!da.master, uid:da.uid||'', name:da.name||'', scopes:da.scopes||[],
+        brand: da.master ? (da.owner ? (da.name||'Owner')+' \u00b7 Luca-S' : 'Luca-S Admin') : ((da.name||'Team user')+' \u00b7 Luca-S'), prefix:'', email, key };
       $('si-pw').value='';
       saveSession(); enterWorkspace(); return;
     }catch(e){ msg.innerHTML = '<span class="err">Network error — try again.</span>'; }
@@ -3986,31 +3998,36 @@ function ufBuildChips(selected){
     b.onclick=()=>b.classList.toggle('on'); box.appendChild(b);
   });
 }
+function ufOwnerSync(){
+  const on=$('uf-owner').checked;
+  ufChips().forEach(c=>{ if(on) c.classList.add('on'); c.style.pointerEvents=on?'none':''; c.style.opacity=on?'.55':''; });
+}
+$('uf-owner').onchange=ufOwnerSync;
 function ufReset(){
-  USER_EDIT=null; $('uf-title').textContent='Add a team user'; $('uf-cancel').style.display='none';
-  $('uf-save').textContent='Create user'; $('uf-name').value=''; $('uf-email').value=''; $('uf-msg').textContent=''; ufBuildChips([]);
+  USER_EDIT=null; $('uf-title').textContent='Add a team user'; $('uf-cancel').style.display='none'; $('uf-owner').checked=false;
+  $('uf-save').textContent='Create user'; $('uf-name').value=''; $('uf-email').value=''; $('uf-msg').textContent=''; ufBuildChips([]); ufOwnerSync();
 }
 function ufEdit(u){
   USER_EDIT=u.uid; $('uf-title').textContent='Edit '+u.name; $('uf-cancel').style.display='';
   $('uf-save').textContent='Save changes'; $('uf-name').value=u.name; $('uf-email').value=u.email||''; $('uf-msg').textContent=''; $('uf-keybox').style.display='none';
-  ufBuildChips(u.scopes); window.scrollTo({top:0,behavior:'smooth'});
+  $('uf-owner').checked=!!u.owner; ufBuildChips(u.scopes); ufOwnerSync(); window.scrollTo({top:0,behavior:'smooth'});
 }
 $('uf-cancel').onclick=(e)=>{ e.preventDefault(); ufReset(); };
 $('uf-copy').onclick=()=>{ navigator.clipboard.writeText($('uf-key').textContent).then(()=>{ $('uf-copy').textContent='Copied'; setTimeout(()=>$('uf-copy').textContent='Copy',1200); }); };
 $('uf-save').onclick=async()=>{
-  const name=$('uf-name').value.trim(), email=$('uf-email').value.trim().toLowerCase(), scopes=ufSelected(), msg=$('uf-msg');
+  const name=$('uf-name').value.trim(), email=$('uf-email').value.trim().toLowerCase(), scopes=ufSelected(), owner=$('uf-owner').checked, msg=$('uf-msg');
   if(!name){ msg.innerHTML='<span class="err">Give the user a name.</span>'; return; }
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ msg.innerHTML='<span class="err">Enter a valid email address.</span>'; return; }
   if(!scopes.length){ msg.innerHTML='<span class="err">Tick at least one tab.</span>'; return; }
   $('uf-save').disabled=true; msg.textContent='Saving\u2026';
   try{
     const ep=USER_EDIT?'admin/user-update':'admin/user-create';
-    const body=USER_EDIT?{uid:USER_EDIT,name,email,scopes}:{name,email,scopes};
+    const body=USER_EDIT?{uid:USER_EDIT,name,email,scopes,owner}:{name,email,scopes,owner};
     const r=await fetch(API+ep,{method:'POST',headers:adminHeaders(true),body:JSON.stringify(body)});
     const d=await r.json().catch(()=>({}));
     if(!r.ok||!d.ok){ msg.innerHTML='<span class="err">'+escA(d.error||'Could not save.')+'</span>'; return; }
     if(d.setup){ ufShowLink(d.setup, escA(name)+' created.'); }
-    else msg.innerHTML='<span style="color:var(--ok);font-weight:700">Saved.</span>';
+    else msg.innerHTML='<span style="color:var(--ok);font-weight:700">Saved.</span>'+(USER_EDIT&&USER_EDIT===(SESSION.uid||'')?' Sign out and back in to see your new role.':'');
     const keep=$('uf-keybox').style.display, keepMsg=$('uf-msg').innerHTML;
     ufReset(); $('uf-keybox').style.display=keep; $('uf-msg').innerHTML=keepMsg;
     loadUsers();
@@ -4032,10 +4049,10 @@ async function loadUsers(){
     if(!USERS.length){ box.innerHTML='<div class="note">No team users yet \u2014 add the first one above.</div>'; return; }
     let h='<table><thead><tr><th>Name</th><th>Email</th><th>Can open</th><th>Status</th><th>Last sign-in</th><th>Added</th><th></th></tr></thead><tbody>';
     for(const u of USERS){
-      const status = u.hasPassword ? '<span class="pill live">Active</span>' : (u.email ? '<span class="pill pending">Awaiting set-up</span>' : '<span class="pill pending">Key only</span>');
+      const status = (u.owner?'<span class="pill owner">Owner</span> ':'') + (u.hasPassword ? '<span class="pill live">Active</span>' : (u.email ? '<span class="pill pending">Awaiting set-up</span>' : '<span class="pill pending">Key only</span>'));
       h+='<tr><td style="font-weight:700">'+escA(u.name)+'</td>'
         +'<td style="color:var(--muted)">'+(u.email?escA(u.email):'\u2014')+'</td>'
-        +'<td>'+(u.scopes.length?u.scopes.map(s=>'<span class="permtag">'+escA(SCOPE_LABEL[s]||s)+'</span>').join(''):'<span class="err">none</span>')+'</td>'
+        +'<td>'+(u.owner?'<span class="note" style="margin:0">All tabs</span>':(u.scopes.length?u.scopes.map(s=>'<span class="permtag">'+escA(SCOPE_LABEL[s]||s)+'</span>').join(''):'<span class="err">none</span>'))+'</td>'
         +'<td>'+status+'</td>'
         +'<td style="color:var(--muted);font-size:.8rem">'+(u.lastSeen?fmtWhen(u.lastSeen):'never')+'</td>'
         +'<td style="color:var(--muted);font-size:.8rem">'+(u.created?fmtWhen(u.created):'\u2014')+'</td>'
@@ -4055,7 +4072,7 @@ async function loadUsers(){
           loadUsers();
         }},
         {sep:true},
-        {label:'Revoke key', danger:true, onClick:async()=>{
+        (u.uid===(SESSION.uid||'')) ? null : {label:'Revoke key', danger:true, onClick:async()=>{
           if(!confirm('Revoke '+u.name+'\u2019s key?\n\nThey are locked out immediately.')) return;
           const r2=await fetch(API+'admin/user-revoke',{method:'POST',headers:adminHeaders(true),body:JSON.stringify({uid:u.uid})});
           const d2=await r2.json().catch(()=>({}));
@@ -4394,7 +4411,9 @@ if(SETUP_TOKEN){
       const rl=await fetch(API+'staff/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:d.email,password:a})});
       const dl=await rl.json().catch(()=>({}));
       if(!rl.ok||!dl.ok){ msg.innerHTML='<span style="color:var(--ok);font-weight:700">Password saved.</span> Sign in with it now.'; $('si-email').value=d.email; setTimeout(()=>{ show('in'); siMode('staff'); },900); return; }
-      SESSION={ admin:true, master:false, name:dl.name||'', scopes:dl.scopes||[], brand:(dl.name||'Team user')+' \u00b7 Luca-S', prefix:'', email:dl.email, key:dl.token };
+      // Ask whoami so a freshly created owner enters with the right role.
+      const rw=await fetch(API+'admin/whoami',{headers:{'x-admin-key':dl.token}}); const dw=await rw.json().catch(()=>({}));
+      SESSION={ admin:true, master:!!dw.master, uid:dw.uid||'', name:dl.name||'', scopes:dw.scopes||dl.scopes||[], brand:(dl.name||'Team user')+' \u00b7 Luca-S', prefix:'', email:dl.email, key:dl.token };
       saveSession(); enterWorkspace();
     }catch(e){ msg.innerHTML='<span class="err">Network error.</span>'; }
     finally{ $('su-go').disabled=false; }
