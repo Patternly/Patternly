@@ -43,6 +43,26 @@
   .seg{display:inline-flex;background:var(--bg);border:1.5px solid var(--border);border-radius:999px;padding:3px;gap:2px;margin:0 0 1rem}
   .seg button{font:inherit;font-size:.8rem;font-weight:700;border:0;background:none;color:var(--muted);border-radius:999px;padding:.38rem 1rem;cursor:pointer;transition:all .12s}
   .seg button.on{background:#fff;color:var(--red);box-shadow:0 1px 4px rgba(43,34,38,.12)}
+  /* v40: revenue overview */
+  .rvbar{display:flex;flex-wrap:wrap;gap:.6rem 1rem;align-items:center;margin:0 0 1rem}
+  .rvbar .seg{margin:0}
+  .rvdates{display:none;align-items:center;gap:.4rem;font-size:.8rem;color:var(--muted)}
+  .rvdates.on{display:inline-flex}
+  .rvdates input[type=date]{font:inherit;font-size:.8rem;border:1.5px solid var(--border);border-radius:9px;padding:.3rem .5rem;background:#fff;color:var(--ink)}
+  .rvdates input[type=date]:focus{outline:none;border-color:var(--red)}
+  .rvsub{font-size:.76rem;color:var(--muted);margin-top:.25rem}
+  .rvtile .ovnum{color:var(--ink)}
+  .rvtile.hero .ovnum{color:var(--red);font-size:1.9rem}
+  .rvchart{position:relative;margin-top:1rem;border:1px solid var(--border);border-radius:12px;background:#fff;padding:.9rem .9rem .6rem}
+  .rvchart svg{display:block;width:100%;height:auto}
+  .rvlegend{display:flex;gap:1rem;flex-wrap:wrap;font-size:.76rem;font-weight:700;color:var(--muted);margin:0 0 .5rem}
+  .rvlegend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:.35rem;vertical-align:-1px;background:var(--c)}
+  .rvtip{position:absolute;pointer-events:none;background:#2b2226;color:#fff;font-size:.74rem;border-radius:8px;padding:.4rem .6rem;box-shadow:0 8px 24px rgba(43,34,38,.25);white-space:nowrap;display:none;z-index:5}
+  .rvtip b{display:block;font-size:.72rem;opacity:.75;margin-bottom:.15rem}
+  .rvsplit{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.7rem;margin-top:.8rem}
+  .rvsplit table{font-size:.8rem}
+  .rvsplit th,.rvsplit td{padding:.35rem .5rem}
+  .rvsplit td:not(:first-child),.rvsplit th:not(:first-child){text-align:right;font-variant-numeric:tabular-nums}
   /* v39: owner switch */
   .switch{display:inline-flex;align-items:center;gap:.55rem;cursor:pointer;user-select:none;font-size:.86rem;font-weight:700}
   .switch input{position:absolute;opacity:0;width:0;height:0}
@@ -455,6 +475,23 @@
 
     <!-- ── Admin mode (Luca-S team, PA- key) ── -->
     <div id="tab-aov" style="display:none">
+      <div class="card" id="rv-card" style="display:none">
+        <h2>Patternly Plus revenue <span class="pill owner" style="vertical-align:middle;margin-left:.3rem">Owner</span>
+          <button class="ghost" id="rv-refresh" style="float:right;padding:.3rem .7rem;font-size:.76rem">Refresh</button></h2>
+        <div class="rvbar">
+          <div class="seg" id="rv-plat"><button type="button" data-v="all" class="on">All</button><button type="button" data-v="web">Web</button><button type="button" data-v="ios">iOS</button><button type="button" data-v="android">Android</button></div>
+          <div class="seg" id="rv-range"><button type="button" data-v="7">7 days</button><button type="button" data-v="30" class="on">30 days</button><button type="button" data-v="90">90 days</button><button type="button" data-v="ytd">This year</button><button type="button" data-v="all">All time</button><button type="button" data-v="custom">Custom</button></div>
+          <div class="rvdates" id="rv-dates"><input type="date" id="rv-from"> <span>to</span> <input type="date" id="rv-to"> <button class="ghost" id="rv-apply" style="padding:.25rem .7rem;font-size:.74rem">Apply</button></div>
+        </div>
+        <div id="rv-tiles" class="ovgrid"><div class="note">Loading…</div></div>
+        <div class="rvchart" id="rv-chartwrap" style="display:none">
+          <div class="rvlegend" id="rv-legend"></div>
+          <div id="rv-chart"></div>
+          <div class="rvtip" id="rv-tip"></div>
+        </div>
+        <div class="rvsplit" id="rv-split"></div>
+        <div class="note" id="rv-notes" style="margin:.7rem 0 0"></div>
+      </div>
       <div class="card">
         <h2>Program overview
           <button class="ghost" id="aov-refresh" style="float:right;padding:.3rem .7rem;font-size:.76rem">Refresh</button></h2>
@@ -2953,7 +2990,7 @@ function showTab(name){
   if(name==='overview') loadOverview();
   if(name==='patterns') showPublish(false);
   if(name==='account'){ $('acct-brand').textContent=SESSION.brand; $('acct-prefix').textContent=SESSION.prefix; $('acct-email').textContent=SESSION.email||'\u2014'; }
-  if(name==='aov') loadAdminOverview();
+  if(name==='aov'){ loadAdminOverview(); if(SESSION&&SESSION.master&&!RV.data) rvLoad(); }
   if(name==='abrands' && !ABRANDS_LOADED){ ABRANDS_LOADED=true; loadBrands(); loadApplications(); }
   if(name==='apatterns' && !APAT_LOADED){ APAT_LOADED=true; loadAdminPatterns(); }
   if(name==='acustomers' && !ACUST_LOADED){ ACUST_LOADED=true; loadAdminCustomers(); }
@@ -3080,6 +3117,8 @@ function enterWorkspace(){
   buildTabbar();
   show('ws');
   if(SESSION.admin){
+    $('rv-card').style.display=SESSION.master?'':'none';
+    if(SESSION.master){ if(!RV_BOUND){ RV_BOUND=true; rvBind(); } RV.data=null; }
     showTab('aov');
     if(hasScope('branding')){
       refreshAdminLogoPrev();
@@ -3911,6 +3950,111 @@ async function loadAdminOverview(){
   }catch(e){ t.innerHTML='<div class="err">Network error.</div>'; }
 }
 $('aov-refresh').onclick=loadAdminOverview;
+// ===== v40: Plus revenue (owner only) =====
+const RV_COL={web:'#B83A4B',ios:'#2F6FB3',android:'#B07512'};
+const RV_LABEL={web:'Web (Shopify)',ios:'iOS (App Store)',android:'Android (Play Store)'};
+let RV={plat:'all',range:'30',from:'',to:'',data:null,loading:false};
+const rvDay=d=>d.toISOString().slice(0,10);
+function rvRangeDates(){
+  const now=new Date(); const to=rvDay(now);
+  if(RV.range==='custom') return {from:RV.from||to,to:RV.to||to};
+  if(RV.range==='all') return {from:'2026-08-01',to};
+  if(RV.range==='ytd') return {from:now.getUTCFullYear()+'-01-01',to};
+  const n=parseInt(RV.range,10)||30; return {from:rvDay(new Date(now.getTime()-(n-1)*86400000)),to};
+}
+const rvGBP=v=>'\u00a3'+(Math.abs(v)>=1000?Math.round(v).toLocaleString('en-GB'):v.toFixed(2));
+function rvBind(){
+  $('rv-plat').querySelectorAll('button').forEach(b=>{ b.onclick=()=>{ RV.plat=b.dataset.v; $('rv-plat').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); rvRender(); }; });
+  $('rv-range').querySelectorAll('button').forEach(b=>{ b.onclick=()=>{ RV.range=b.dataset.v; $('rv-range').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); $('rv-dates').classList.toggle('on',RV.range==='custom'); if(RV.range!=='custom') rvLoad(); else { const d=rvRangeDates(); if(!$('rv-from').value) $('rv-from').value=rvDay(new Date(Date.now()-29*86400000)); if(!$('rv-to').value) $('rv-to').value=d.to; } }; });
+  $('rv-apply').onclick=()=>{ RV.from=$('rv-from').value; RV.to=$('rv-to').value; if(RV.from&&RV.to) rvLoad(); };
+  $('rv-refresh').onclick=()=>rvLoad(true);
+}
+async function rvLoad(force){
+  if(RV.loading) return; RV.loading=true;
+  const {from,to}=rvRangeDates();
+  $('rv-tiles').innerHTML='<div class="note">Loading\u2026</div>';
+  try{
+    const r=await fetch(API+'admin/revenue?from='+from+'&to='+to+(force?'&_='+Date.now():''),{headers:adminHeaders(),cache:'no-store'});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok){ $('rv-tiles').innerHTML='<div class="err">'+escA(d.error||'Could not load revenue.')+'</div>'; return; }
+    RV.data=d; rvRender();
+  }catch(e){ $('rv-tiles').innerHTML='<div class="err">Network error.</div>'; }
+  finally{ RV.loading=false; }
+}
+function rvRender(){
+  const d=RV.data; if(!d) return;
+  const plats=RV.plat==='all'?['web','ios','android']:[RV.plat];
+  const sum=(k)=>plats.reduce((a,p)=>a+(+d.totals[p+k]||0),0);
+  const gross=plats.reduce((a,p)=>a+(+d.totals[p]||0),0), tx=sum('N');
+  const cnt={new:0,renewal:0,refund:0}; plats.forEach(p=>{ const c=d.counts[p]||{}; cnt.new+=c.new|0; cnt.renewal+=c.renewal|0; cnt.refund+=c.refund|0; });
+  const storeP=plats.filter(p=>p!=='web'); const netStore=storeP.reduce((a,p)=>a+(+d.net[p]||0),0); const netEst=storeP.some(p=>d.net[p+'Estimated']);
+  const act=plats.reduce((a,p)=>a+(p==='web'?(d.active.web|0):(d.active[p]|0)),0)+(RV.plat==='all'?(d.active.storeUnknown|0):0);
+  const days=Math.round((Date.parse(d.to)-Date.parse(d.from))/86400000)+1;
+  const tile=(num,lab,sub,hero)=>'<div class="ovtile rvtile'+(hero?' hero':'')+'"><div class="ovnum">'+num+'</div><div class="ovlab">'+lab+'</div>'+(sub?'<div class="rvsub">'+sub+'</div>':'')+'</div>';
+  let h=tile(rvGBP(gross),'Gross revenue',d.from+' \u2192 '+d.to+' \u00b7 '+days+' day'+(days===1?'':'s'),true)
+       +tile(String(tx),'Transactions',tx&&days?rvGBP(gross/days)+' per day':'')
+       +tile(String(cnt.new),'New subscriptions',(cnt.renewal?cnt.renewal+' renewal'+(cnt.renewal===1?'':'s'):'')+(cnt.refund?(cnt.renewal?' \u00b7 ':'')+cnt.refund+' refund'+(cnt.refund===1?'':'s'):''))
+       +tile(d.active.web==null&&RV.plat==='web'?'\u2014':String(act),'Active subscribers',RV.plat==='all'?('web '+(d.active.web==null?'?':d.active.web)+' \u00b7 iOS '+d.active.ios+' \u00b7 Android '+d.active.android+(d.active.storeUnknown?' \u00b7 app '+d.active.storeUnknown:'')):'right now');
+  if(storeP.length) h+=tile(rvGBP(netStore),'Est. net from stores',(netEst?'after ~'+Math.round((1-d.net.storeTakeHomeAssumed)*100)+'% store fee (estimated)':'after store fees')+(RV.plat==='all'?' \u00b7 web not included':''));
+  $('rv-tiles').innerHTML=h;
+  rvChart(d,plats);
+  // per-platform split table
+  let t='<div class="ovtile"><table><thead><tr><th>Platform</th><th>Gross</th><th>Tx</th><th>Share</th></tr></thead><tbody>';
+  ['web','ios','android'].forEach(p=>{ const g=+d.totals[p]||0; t+='<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:'+RV_COL[p]+';margin-right:.4rem;vertical-align:-1px"></span>'+RV_LABEL[p]+'</td><td>'+rvGBP(g)+'</td><td>'+(d.totals[p+'N']|0)+'</td><td>'+(d.totals.all?Math.round(g/d.totals.all*100):0)+'%</td></tr>'; });
+  t+='<tr><td style="font-weight:700">Total</td><td style="font-weight:700">'+rvGBP(+d.totals.all||0)+'</td><td style="font-weight:700">'+(d.totals.allN|0)+'</td><td></td></tr></tbody></table></div>';
+  let c='<div class="ovtile"><table><thead><tr><th></th><th>New</th><th>Renewals</th><th>Refunds</th></tr></thead><tbody>';
+  ['web','ios','android'].forEach(p=>{ const x=d.counts[p]||{}; c+='<tr><td>'+RV_LABEL[p].split(' ')[0]+'</td><td>'+(x.new|0)+'</td><td>'+(x.renewal|0)+'</td><td>'+(x.refund|0)+'</td></tr>'; });
+  c+='</tbody></table></div>';
+  $('rv-split').innerHTML=t+c;
+  const notes=(d.notes||[]).slice(); notes.push('Store amounts converted from USD at '+d.fxUsdGbp+' (set FX_USD_GBP in Cloudflare to change).');
+  $('rv-notes').innerHTML=notes.map(escA).join('<br>');
+}
+function rvChart(d,plats){
+  const wrap=$('rv-chartwrap'), box=$('rv-chart'), tip=$('rv-tip');
+  const from=Date.parse(d.from), to=Date.parse(d.to); const nDays=Math.round((to-from)/86400000)+1;
+  if(nDays<2){ wrap.style.display='none'; return; }
+  wrap.style.display='';
+  // bucket: daily up to 45 days, weekly up to 400, else monthly
+  const mode=nDays<=45?'day':nDays<=400?'week':'month';
+  const byDay=new Map(d.series.map(s=>[s.d,s]));
+  const buckets=[]; let cur=new Date(from);
+  while(cur.getTime()<=to){
+    let end; if(mode==='day') end=new Date(cur.getTime()); else if(mode==='week') end=new Date(cur.getTime()+6*86400000); else end=new Date(Date.UTC(cur.getUTCFullYear(),cur.getUTCMonth()+1,0));
+    if(end.getTime()>to) end=new Date(to);
+    const b={start:rvDay(cur),end:rvDay(end),web:0,ios:0,android:0};
+    for(let t=cur.getTime();t<=end.getTime();t+=86400000){ const s=byDay.get(rvDay(new Date(t))); if(s){ b.web+=s.web; b.ios+=s.ios; b.android+=s.android; } }
+    buckets.push(b); cur=new Date(end.getTime()+86400000);
+  }
+  const W=720,H=220,L=44,R=10,T=12,B=28; const n=buckets.length;
+  const max=Math.max(1,...buckets.map(b=>plats.reduce((a,p)=>a+b[p],0)));
+  const niceStep=(()=>{ const raw=max/4; const p=Math.pow(10,Math.floor(Math.log10(raw))); const m=raw/p; const k=m<=1?1:m<=2?2:m<=2.5?2.5:m<=5?5:10; return k*p; })();
+  const niceMax=niceStep*4;
+  const y=v=>T+(H-T-B)*(1-v/niceMax); const bw=(W-L-R)/n; const gap=Math.min(2,bw*0.15); const barW=Math.max(1,bw-gap-Math.max(2,bw*0.25));
+  let svg='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Revenue by '+mode+'">';
+  for(let i=0;i<=4;i++){ const v=niceStep*i; svg+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v).toFixed(1)+'" y2="'+y(v).toFixed(1)+'" stroke="#eee6e8" stroke-width="1"/><text x="'+(L-6)+'" y="'+(y(v)+3.5).toFixed(1)+'" text-anchor="end" font-size="10" fill="#8a7f83">'+(v>=1000?Math.round(v/1000)+'k':Math.round(v))+'</text>'; }
+  buckets.forEach((b,i)=>{
+    const x=L+i*bw+(bw-barW)/2; let acc=0;
+    const present=plats.filter(p=>b[p]>0); const top=present[present.length-1];
+    plats.forEach((p)=>{ const v=b[p]; if(v<=0) return; const y1=y(acc+v), y0=y(acc); const hh=Math.max(0,y0-y1-(acc>0?2:0));
+      if(p===top){ const r=Math.min(3,barW/3,hh/2); svg+='<path d="M'+x.toFixed(1)+' '+(y1+hh).toFixed(1)+'V'+(y1+r).toFixed(1)+'a'+r+' '+r+' 0 0 1 '+r+' -'+r+'h'+(barW-2*r).toFixed(1)+'a'+r+' '+r+' 0 0 1 '+r+' '+r+'V'+(y1+hh).toFixed(1)+'z" fill="'+RV_COL[p]+'"/>'; }
+      else svg+='<rect x="'+x.toFixed(1)+'" y="'+y1.toFixed(1)+'" width="'+barW.toFixed(1)+'" height="'+hh.toFixed(1)+'" fill="'+RV_COL[p]+'"/>';
+      acc+=v; });
+    svg+='<rect class="rvhit" data-i="'+i+'" x="'+(L+i*bw).toFixed(1)+'" y="'+T+'" width="'+bw.toFixed(1)+'" height="'+(H-T-B)+'" fill="transparent"/>';
+  });
+  // x labels: at most ~8
+  const lstep=Math.max(1,Math.ceil(n/8));
+  buckets.forEach((b,i)=>{ if(i%lstep) return; const lab=mode==='month'?new Date(b.start).toLocaleDateString('en-GB',{month:'short',year:'2-digit',timeZone:'UTC'}):new Date(b.start).toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'}); svg+='<text x="'+(L+i*bw+bw/2).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10" fill="#8a7f83">'+lab+'</text>'; });
+  svg+='</svg>';
+  box.innerHTML=svg;
+  $('rv-legend').innerHTML=plats.map(p=>'<span style="--c:'+RV_COL[p]+'">'+RV_LABEL[p]+'</span>').join('')+'<span style="margin-left:auto;font-weight:400">'+(mode==='day'?'daily':mode==='week'?'weekly':'monthly')+' \u00b7 GBP</span>';
+  box.querySelectorAll('.rvhit').forEach(r=>{
+    r.onmousemove=(ev)=>{ const b=buckets[+r.dataset.i]; const tot=plats.reduce((a,p)=>a+b[p],0);
+      tip.innerHTML='<b>'+(b.start===b.end?b.start:b.start+' \u2192 '+b.end)+'</b>'+plats.map(p=>'<span style="color:'+RV_COL[p]+'">\u25a0</span> '+RV_LABEL[p].split(' ')[0]+' '+rvGBP(b[p])).join('<br>')+(plats.length>1?'<br><b style="margin-top:.2rem">Total '+rvGBP(tot)+'</b>':'');
+      const wr=wrap.getBoundingClientRect(); tip.style.display='block'; let lx=ev.clientX-wr.left+12, ty=ev.clientY-wr.top-10; if(lx+tip.offsetWidth>wr.width-8) lx=ev.clientX-wr.left-tip.offsetWidth-12; tip.style.left=lx+'px'; tip.style.top=ty+'px'; };
+    r.onmouseleave=()=>{ tip.style.display='none'; };
+  });
+}
+let RV_BOUND=false;
 // ── brands ──
 function brandFormShow(mode, rec){
   BRAND_EDIT_KEY = (mode==='edit' && rec) ? rec.key : null;
