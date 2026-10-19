@@ -12,7 +12,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v88";
+const MW_VERSION = "v89";
 
 const enc = new TextEncoder();
 
@@ -548,7 +548,7 @@ async function adminAuth(key, env) {
 // cannot be replayed. Old PU- keys keep working until the user is revoked.
 const SESSION_TTL_S = 30 * 24 * 3600;
 const SETUP_TTL_S = 48 * 3600;
-const PW_ITER = 200000;
+const PW_ITER = 100000;               // Cloudflare Workers caps PBKDF2 at 100k
 const PW_MIN = 10;
 async function sha256b64(s) {
   const d = await crypto.subtle.digest("SHA-256", enc.encode(s));
