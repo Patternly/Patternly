@@ -5192,7 +5192,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v602';
+window.PATTERNLY_BUILD='v603';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -26064,6 +26064,31 @@ function updateTrackerProgressUI(){
         `<span class="lb">${label}<span style="display:block;font-size:.62rem;opacity:.7;font-weight:600">${FRACNAME[n]||'Part stitch'}</span></span>`+
         `<span class="ct">${nD}/${nT}</span>`;
       list.appendChild(prow);
+    }
+  }
+  // v603: symbols on the chart that have NO colour yet (legend gave none and
+  // the prompt was skipped) used to vanish from this list, leaving no way to
+  // fix them later. Keep them visible as "Needs a colour" rows; tapping one
+  // reopens the assignment prompt. Their cells still count toward progress.
+  {
+    const _unk=Object.keys(total).filter(s=>!trackerColourMap[s]).sort((a,b)=>(total[b]||0)-(total[a]||0));
+    if(_unk.length){
+      const uh=document.createElement('div');
+      uh.style.cssText='font-size:.64rem;font-weight:700;color:#b25f10;text-transform:uppercase;letter-spacing:.04em;margin:.8rem 0 .35rem;padding-top:.6rem;border-top:1px solid #ecdfe2';
+      uh.textContent=_unk.length===1?'1 symbol needs a colour':_unk.length+' symbols need a colour';
+      list.appendChild(uh);
+      for(const s of _unk){
+        const t=total[s]||0, d=done[s]||0;
+        const row=document.createElement('div'); row.className='trk-crow';
+        row.dataset.sym=s; row.style.cursor='pointer';
+        if(trkSelHas(s)) row.classList.add('sel');
+        row.innerHTML=`<span class="sw" style="background:repeating-linear-gradient(45deg,#f1e6e9 0 4px,#fff 4px 8px);border:1.5px dashed #c99aa6"></span>`+
+          symHtml(s, 17)+
+          `<span class="lb"><span style="color:#b25f10;font-weight:700">Needs a colour</span><span style="display:block;font-size:.62rem;opacity:.75;font-weight:600">Tap to set the thread</span></span>`+
+          `<span class="ct">${d}/${t}</span>`;
+        row.onclick=()=>{ try{ trkAskUnknownColours(); }catch(e){ console.warn('[trk] colour prompt failed', e); } };
+        list.appendChild(row);
+      }
     }
   }
   // Backstitch / outline threads — listed for reference, never counted.
