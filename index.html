@@ -5192,7 +5192,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v603';
+window.PATTERNLY_BUILD='v604';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -23319,7 +23319,16 @@ function assembleChartGrid(pages, expectedWidth, pageRulers, pageOrigins){
     // (fewer than 8 cells → junk, all-digit cells → ruler) mass-dropped rows
     // on sparse colour charts where digits are legitimate symbols.
     let gridLines = lines.filter(l => {
-      if(!l.length) return !!l.blankRow;   // an empty line is junk unless it is a real blank row
+      if(!l.length){
+        if(l.blankRow) return true;          // reconstructed blank row
+        // v604: a row-ruler label standing on its own line marks a chart row
+        // that printed no stitch glyphs — the label IS that row. Dropping the
+        // line lost the row (B1446 page 2: label "30" on an empty row; every
+        // row below shifted up one and the page's row vote landed one row
+        // low, seating the whole page a row down). Keep it as a blank row.
+        if(typeof l.rowLabel==='number' && l.rowLabel>=10 && l.rowLabel%10===0){ l.blankRow=true; return true; }
+        return false;                        // anything else empty is junk
+      }
       // column ruler: mostly multiples of ten, all numeric, several tokens
       if(l.length>=3 && l.every(c=>/^\d+$/.test(c))){
         const tens=l.map(Number).filter(v=>v%10===0 && v>=10);
