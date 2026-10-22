@@ -3469,6 +3469,7 @@ body.dark .trk-pcard .ren{background:#221b2d;border-color:#4a3d55;color:#b7a9b8}
 .trk-group{display:flex;align-items:center;gap:2px;background:#fff;border:1.5px solid #e6d9dd;border-radius:10px;padding:2px}
 .trk-group button,.trk-group select{border:none!important;background:none!important;height:26px;border-radius:8px!important;cursor:pointer;font-size:.72rem;font-weight:700;color:var(--lp-muted,#7d6b72);padding:0 .5rem}
 .trk-group button.active{background:#fdeef2!important;color:var(--lp-red,#8B1A2B)}
+#trk-canvas.picking{cursor:crosshair}
 .trk-group button:hover:not(.active){background:#faf3f5!important}
 body.dark .trk-group{background:#221b2d;border-color:#4a3d55}
 /* v353/v354: declutter the normal tracker toolbar on MOBILE ONLY — keep zoom,
@@ -5192,7 +5193,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v606';
+window.PATTERNLY_BUILD='v607';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -6090,7 +6091,7 @@ document.addEventListener('DOMContentLoaded', function(){
             <div id="trk-minimap" style="display:none" title="Click a page to jump to it"></div>
             </span><!-- /trk-secondary -->
             <span class="trk-group" id="trk-modes">
-              <button id="trk-mode-pan" class="active">✋ Pan</button><button id="trk-mode-mark">✏️ Mark</button><button id="trk-mode-erase" title="Remove marks by dragging">🧽 Erase</button><button id="trk-undo" title="Undo the last stroke" disabled style="opacity:.45">↶ Undo</button><button id="trk-tips" title="Gestures">💡</button>
+              <button id="trk-mode-pan" class="active">✋ Pan</button><button id="trk-mode-mark">✏️ Mark</button><button id="trk-mode-erase" title="Remove marks by dragging">🧽 Erase</button><button id="trk-undo" title="Undo the last stroke" disabled style="opacity:.45">↶ Undo</button><button id="trk-pick" title="Tap a stitch on the chart to select its colour">🎯 Pick</button><button id="trk-tips" title="Gestures">💡</button>
             </span>
             <span class="trk-group" id="trk-fsgroup">
               <button id="trk-fs-btn" type="button" onclick="trkToggleFullscreen()" title="Fill the screen with the chart">⛶ Full screen</button>
@@ -6109,6 +6110,7 @@ document.addEventListener('DOMContentLoaded', function(){
             <button id="fsb-mark" title="Mark">✏️<span>Mark</span></button>
             <button id="fsb-erase" title="Erase">🧽<span>Erase</span></button>
             <button id="fsb-undo" title="Undo last stroke">↶<span>Undo</span></button>
+            <button id="fsb-pick" title="Pick a colour from the chart">🎯<span>Pick</span></button>
             <button id="fsb-colours" title="Colours">🎨<span>Colours</span></button>
             <button id="fsb-settings" title="Settings">⚙<span>Settings</span></button>
             <button id="fsb-exit" title="Leave full screen">✕<span>Close</span></button>
@@ -25784,6 +25786,25 @@ function trkUndoSync(){
   const on=trkUndoStack.length>0;
   for(const id of ['trk-undo','fsb-undo']){ const b=document.getElementById(id); if(!b) continue; b.disabled=!on; b.style.opacity=on?'':'.45'; }
 }
+// v607: pick a colour straight from the chart ("pipette"). Arming Pick makes
+// the next tap on any cell select that cell's thread (same focus as tapping
+// its row in the colour list) and then returns to the previous mode. A
+// press-and-hold on a cell does the same in every mode, not only Pan.
+let trkPickArm=false;
+function trkPickSync(){
+  for(const id of ['trk-pick','fsb-pick']){ const b=document.getElementById(id); if(b) b.classList.toggle('active', trkPickArm); }
+  trkCanvas.classList.toggle('picking', trkPickArm);
+}
+function trkPickToggle(on){
+  trkPickArm = (on===undefined) ? !trkPickArm : !!on;
+  trkPickSync();
+  if(trkPickArm && typeof toast==='function') toast('Tap a stitch to select its colour');
+}
+function trkPickAt(cell){
+  trkPickArm=false; trkPickSync();
+  trkSelectSymbolAt(cell);
+}
+document.getElementById('trk-pick').addEventListener('click',()=>trkPickToggle());
 function trkUndoStroke(){
   const s=trkUndoStack.pop(); if(!s||!trackerStitched) { trkUndoSync(); return; }
   let n=0;
@@ -25844,14 +25865,14 @@ document.getElementById('trk-grid-btn').addEventListener('click',function(){
 })();
 function trkShowTips(){
   pjShowModal({title:'Gestures', confirmLabel:'Got it',
-    body:'<b>✋ Pan mode</b> — move around only; it never marks stitches.<br><b>✏️ Mark mode</b> — tap or drag across cells to mark them (dragging never un-marks; a still tap on a marked cell clears it).<br><b>🧽 Erase</b> — drag to remove marks. <b>↶ Undo</b> reverts your last stroke.<br><b>Press & hold</b> a stitch (or right-click) — highlight its colour everywhere.<br><b>Pinch</b> or Ctrl+scroll — zoom.'});
+    body:'<b>✋ Pan mode</b> — move around only; it never marks stitches.<br><b>✏️ Mark mode</b> — tap or drag across cells to mark them (dragging never un-marks; a still tap on a marked cell clears it).<br><b>🧽 Erase</b> — drag to remove marks. <b>↶ Undo</b> reverts your last stroke.<br><b>🎯 Pick</b> — then tap any stitch to select its colour (or press and hold a stitch in any mode).<br><b>Press & hold</b> a stitch (or right-click) — highlight its colour everywhere.<br><b>Pinch</b> or Ctrl+scroll — zoom.'});
 }
 (function(){ const t=document.getElementById('trk-tips'); if(t) t.addEventListener('click', trkShowTips); })();
 trkApplyMode();
 
 trkCanvas.addEventListener('pointerdown', e=>{
   if(!trackerGrid||!trackerStitched) return;
-  trkPtrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  trkPtrs.set(e.pointerId,{x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY});
   if(trkPtrs.size===2){
     // second finger: cancel any marking, start pinch-zoom
     e.preventDefault();
@@ -25861,10 +25882,23 @@ trkCanvas.addEventListener('pointerdown', e=>{
     return;
   }
   const cell=trkCellAt(e); if(!cell) return;
+  if(trkPickArm){ e.preventDefault(); trkPickAt(cell); return; }
   if(trkMode==='mark' || trkMode==='erase'){
     trkCanvas.setPointerCapture(e.pointerId);
     trkStrokeBegin();
     trkTapCell=null;
+    // press-and-hold = pick this colour (v607). If the hold fires, any change
+    // the press made to this one cell is reverted and no stroke is recorded.
+    trkCancelLong();
+    const _px=e.clientX, _py=e.clientY;
+    trkLongT=setTimeout(()=>{ trkLongT=null;
+      if(trkMarking===null) return;
+      const p=trkPtrs.get(e.pointerId); if(p && Math.hypot(p.x-_px,p.y-_py)>8) return;
+      if(trkStroke){ for(let i=trkStroke.length-1;i>=0;i--){ const ch=trkStroke[i]; trackerStitched[ch.r][ch.c]=ch.prev; } trkStroke=null; }
+      trkMarking=null; trkTapCell=null; trkLongDone=Date.now();
+      try{ trkCanvas.releasePointerCapture(e.pointerId); }catch(_e){}
+      trkSelectSymbolAt(cell);
+    },500);
     if(trkMode==='erase'){
       trkMarking=false;
       trkSetCell(cell.r,cell.c,false);
@@ -25946,6 +25980,7 @@ trkCanvas.addEventListener('pointermove', e=>{
     wrap.scrollTop=trkDragScroll.st-(e.clientY-trkDragScroll.y);
   }
   if(trkMarking===null) return;
+  if(trkLongT){ const p0=trkPtrs.get(e.pointerId); if(!p0 || Math.hypot(e.clientX-p0.x0, e.clientY-p0.y0)>8) trkCancelLong(); }   // moved: not a hold
   const cell=trkCellAt(e); if(!cell) return;
   if(trkTapCell){
     if((cell.r===trkTapCell.r && cell.c===trkTapCell.c) && Math.hypot(e.clientX-trkTapCell.x,e.clientY-trkTapCell.y)<=8) return;
@@ -30644,6 +30679,7 @@ function trkSheetDrag(header, sheet, opts){
   on('fsb-mark',()=>{ trkMode='mark'; trkApplyMode(); trkFsSyncMode(); });
   on('fsb-erase',()=>{ trkMode='erase'; trkApplyMode(); trkFsSyncMode(); });
   on('fsb-undo',()=>trkUndoStroke());
+  on('fsb-pick',()=>trkPickToggle());
   on('fsb-colours', ()=>{ if(trkMobileUI()) trkToggleColourBar();
     else trkFsPanel(document.getElementById('fsb-colours').classList.contains('active')?null:'colours'); });
   on('fsb-settings',()=>trkFsPanel(document.getElementById('fsb-settings').classList.contains('active')?null:'settings'));
