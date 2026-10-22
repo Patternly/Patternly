@@ -5192,7 +5192,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v604';
+window.PATTERNLY_BUILD='v605';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -6075,7 +6075,7 @@ document.addEventListener('DOMContentLoaded', function(){
             <div id="trk-minimap" style="display:none" title="Click a page to jump to it"></div>
             </span><!-- /trk-secondary -->
             <span class="trk-group" id="trk-modes">
-              <button id="trk-mode-pan" class="active">✋ Pan</button><button id="trk-mode-mark">✏️ Mark</button><button id="trk-tips" title="Gestures">💡</button>
+              <button id="trk-mode-pan" class="active">✋ Pan</button><button id="trk-mode-mark">✏️ Mark</button><button id="trk-mode-erase" title="Remove marks by dragging">🧽 Erase</button><button id="trk-undo" title="Undo the last stroke" disabled style="opacity:.45">↶ Undo</button><button id="trk-tips" title="Gestures">💡</button>
             </span>
             <span class="trk-group" id="trk-fsgroup">
               <button id="trk-fs-btn" type="button" onclick="trkToggleFullscreen()" title="Fill the screen with the chart">⛶ Full screen</button>
@@ -6092,6 +6092,8 @@ document.addEventListener('DOMContentLoaded', function(){
           <div id="trk-fsbar">
             <button id="fsb-pan" class="active" title="Pan">✋<span>Pan</span></button>
             <button id="fsb-mark" title="Mark">✏️<span>Mark</span></button>
+            <button id="fsb-erase" title="Erase">🧽<span>Erase</span></button>
+            <button id="fsb-undo" title="Undo last stroke">↶<span>Undo</span></button>
             <button id="fsb-colours" title="Colours">🎨<span>Colours</span></button>
             <button id="fsb-settings" title="Settings">⚙<span>Settings</span></button>
             <button id="fsb-exit" title="Leave full screen">✕<span>Close</span></button>
@@ -25678,6 +25680,8 @@ function trkSetCell(r,c,state){
   if(sym===' ') return;
   if(trkBsSelActive()) return;                  // backstitch focus: marking paused (lines aren't counted)
   if(trkSelActive() && !trkSelHas(sym)) return; // focused colours: other threads are protected
+  if(trackerStitched[r][c]===state) return;
+  if(trkStroke) trkStroke.push({r,c,prev:trackerStitched[r][c]});
   trackerStitched[r][c]=state;
 }
 function trkSelectSymbolAt(cell){
@@ -25718,9 +25722,41 @@ function trkApplyMode(){
   trkCanvas.classList.toggle('panning', trkMode==='pan');
   document.getElementById('trk-mode-pan').classList.toggle('active', trkMode==='pan');
   document.getElementById('trk-mode-mark').classList.toggle('active', trkMode==='mark');
+  const _er=document.getElementById('trk-mode-erase'); if(_er) _er.classList.toggle('active', trkMode==='erase');
+  trkUndoSync();
 }
 document.getElementById('trk-mode-pan').addEventListener('click',()=>{ trkMode='pan'; trkApplyMode(); });
 document.getElementById('trk-mode-mark').addEventListener('click',()=>{ trkMode='mark'; trkApplyMode(); });
+document.getElementById('trk-mode-erase').addEventListener('click',()=>{ trkMode='erase'; trkApplyMode(); });
+document.getElementById('trk-undo').addEventListener('click',()=>trkUndoStroke());
+// ── v605: strokes and undo ───────────────────────────────────────────────
+// A drag in Mark mode only ADDS marks; starting a stroke on a cell that is
+// already marked no longer flips the whole stroke to un-marking (the #1 way
+// progress got lost by accident). Un-marking is deliberate: a still tap on a
+// marked cell clears that one cell, Erase mode clears by dragging, and Undo
+// reverts the last stroke. Display/interaction only — the progress bitmap
+// and its sync are untouched.
+let trkStroke=null;          // cells changed by the stroke in progress: [{r,c,prev}]
+const trkUndoStack=[];       // last strokes, newest last
+const TRK_UNDO_MAX=30;
+let trkTapCell=null;         // mark mode: press on an already-marked cell, waiting to see if it is a tap
+function trkStrokeBegin(){ trkStroke=[]; }
+function trkStrokeEnd(){
+  if(trkStroke && trkStroke.length){ trkUndoStack.push(trkStroke); if(trkUndoStack.length>TRK_UNDO_MAX) trkUndoStack.shift(); }
+  trkStroke=null; trkUndoSync();
+}
+function trkUndoSync(){
+  const on=trkUndoStack.length>0;
+  for(const id of ['trk-undo','fsb-undo']){ const b=document.getElementById(id); if(!b) continue; b.disabled=!on; b.style.opacity=on?'':'.45'; }
+}
+function trkUndoStroke(){
+  const s=trkUndoStack.pop(); if(!s||!trackerStitched) { trkUndoSync(); return; }
+  let n=0;
+  for(let i=s.length-1;i>=0;i--){ const ch=s[i]; if(trackerStitched[ch.r] && trackerStitched[ch.r][ch.c]!==ch.prev){ trackerStitched[ch.r][ch.c]=ch.prev; n++; } }
+  trkUndoSync();
+  renderTracker(); updateTrackerProgressUI(); saveTrackerProgress();
+  if(typeof toast==='function') toast('Undone \u2014 '+n+' stitch'+(n===1?'':'es')+' restored');
+}
 document.getElementById('tg-bs').addEventListener('change',function(){
   trkShowBackstitch=this.checked;
   try{ localStorage.setItem('patternly_trk_bs', this.checked?'1':'0'); }catch(e){}
@@ -25769,7 +25805,7 @@ document.getElementById('trk-grid-btn').addEventListener('click',function(){
 })();
 function trkShowTips(){
   pjShowModal({title:'Gestures', confirmLabel:'Got it',
-    body:'<b>✋ Pan mode</b> — move around only; it never marks stitches.<br><b>✏️ Mark mode</b> — tap or drag across cells to mark/unmark them.<br><b>Press & hold</b> a stitch (or right-click) — highlight its colour everywhere.<br><b>Pinch</b> or Ctrl+scroll — zoom.'});
+    body:'<b>✋ Pan mode</b> — move around only; it never marks stitches.<br><b>✏️ Mark mode</b> — tap or drag across cells to mark them (dragging never un-marks; a still tap on a marked cell clears it).<br><b>🧽 Erase</b> — drag to remove marks. <b>↶ Undo</b> reverts your last stroke.<br><b>Press & hold</b> a stitch (or right-click) — highlight its colour everywhere.<br><b>Pinch</b> or Ctrl+scroll — zoom.'});
 }
 (function(){ const t=document.getElementById('trk-tips'); if(t) t.addEventListener('click', trkShowTips); })();
 trkApplyMode();
@@ -25780,16 +25816,28 @@ trkCanvas.addEventListener('pointerdown', e=>{
   if(trkPtrs.size===2){
     // second finger: cancel any marking, start pinch-zoom
     e.preventDefault();
-    trkMarking=null; trkTap=null; trkCancelLong();
+    trkMarking=null; trkTap=null; trkTapCell=null; trkCancelLong(); trkStrokeEnd();
     const p=[...trkPtrs.values()];
     trkPinch={d:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y), idx:trkZoomIdx, scale:trkPageScale, px:trackerCellPx};
     return;
   }
   const cell=trkCellAt(e); if(!cell) return;
-  if(trkMode==='mark'){
+  if(trkMode==='mark' || trkMode==='erase'){
     trkCanvas.setPointerCapture(e.pointerId);
-    trkMarking=!trackerStitched[cell.r][cell.c];
-    trkSetCell(cell.r,cell.c,trkMarking);
+    trkStrokeBegin();
+    trkTapCell=null;
+    if(trkMode==='erase'){
+      trkMarking=false;
+      trkSetCell(cell.r,cell.c,false);
+    } else if(trackerStitched[cell.r][cell.c]){
+      // Already marked: wait. A still tap clears this one cell; movement turns
+      // it into an ordinary add-stroke that leaves this cell as it is.
+      trkMarking=true;
+      trkTapCell={r:cell.r, c:cell.c, x:e.clientX, y:e.clientY};
+    } else {
+      trkMarking=true;
+      trkSetCell(cell.r,cell.c,true);
+    }
     renderTracker();
   } else {
     // Pan mode: a still press is a potential tap-to-toggle; movement pans.
@@ -25860,6 +25908,10 @@ trkCanvas.addEventListener('pointermove', e=>{
   }
   if(trkMarking===null) return;
   const cell=trkCellAt(e); if(!cell) return;
+  if(trkTapCell){
+    if((cell.r===trkTapCell.r && cell.c===trkTapCell.c) && Math.hypot(e.clientX-trkTapCell.x,e.clientY-trkTapCell.y)<=8) return;
+    trkTapCell=null;                            // moved: it is a stroke, not a tap
+  }
   trkSetCell(cell.r,cell.c,trkMarking);
   renderTracker();
 });
@@ -25871,7 +25923,10 @@ function trkPointerEnd(e){
   trkDragScroll=null;
   // Pan mode never marks — it only navigates (long-press/right-click highlights)
   trkTap=null;
-  if(trkMarking!==null){ trkMarking=null; updateTrackerProgressUI(); saveTrackerProgress(); }
+  if(trkMarking!==null){
+    if(trkTapCell && e.type==='pointerup'){ trkSetCell(trkTapCell.r,trkTapCell.c,false); renderTracker(); }   // still tap on a marked cell: clear it
+    trkTapCell=null; trkMarking=null; trkStrokeEnd(); updateTrackerProgressUI(); saveTrackerProgress();
+  }
 }
 trkCanvas.addEventListener('pointerup', trkPointerEnd);
 trkCanvas.addEventListener('pointercancel', trkPointerEnd);
@@ -25881,7 +25936,7 @@ trkCanvas.addEventListener('pointercancel', trkPointerEnd);
 // touchmove listener can. This removes the tug-of-war that made the canvas
 // wobble and made the pinch drop out (forcing a lift-and-re-touch to resume).
 trkCanvas.addEventListener('touchmove', e=>{ if(e.touches && e.touches.length>=2) e.preventDefault(); }, {passive:false});
-window.addEventListener('pointerup', ()=>{ if(trkMarking!==null){ trkMarking=null; updateTrackerProgressUI(); saveTrackerProgress(); } });
+window.addEventListener('pointerup', ()=>{ if(trkMarking!==null){ trkTapCell=null; trkMarking=null; trkStrokeEnd(); updateTrackerProgressUI(); saveTrackerProgress(); } });
 trkCanvas.addEventListener('selectstart', e=>e.preventDefault());
 // Right-click a stitch: highlight its colour (both modes)
 trkCanvas.addEventListener('contextmenu', e=>{
@@ -30548,6 +30603,8 @@ function trkSheetDrag(header, sheet, opts){
   const on=(id,fn)=>{ const e=document.getElementById(id); if(e) e.addEventListener('click',fn); };
   on('fsb-pan', ()=>{ trkMode='pan'; trkApplyMode(); trkFsSyncMode(); });
   on('fsb-mark',()=>{ trkMode='mark'; trkApplyMode(); trkFsSyncMode(); });
+  on('fsb-erase',()=>{ trkMode='erase'; trkApplyMode(); trkFsSyncMode(); });
+  on('fsb-undo',()=>trkUndoStroke());
   on('fsb-colours', ()=>{ if(trkMobileUI()) trkToggleColourBar();
     else trkFsPanel(document.getElementById('fsb-colours').classList.contains('active')?null:'colours'); });
   on('fsb-settings',()=>trkFsPanel(document.getElementById('fsb-settings').classList.contains('active')?null:'settings'));
@@ -30602,9 +30659,10 @@ function trkFsRestore(){
   if(body) body.innerHTML='';
 }
 function trkFsSyncMode(){
-  const p=document.getElementById('fsb-pan'), m=document.getElementById('fsb-mark');
+  const p=document.getElementById('fsb-pan'), m=document.getElementById('fsb-mark'), er=document.getElementById('fsb-erase');
   if(p) p.classList.toggle('active', trkMode==='pan');
   if(m) m.classList.toggle('active', trkMode==='mark');
+  if(er) er.classList.toggle('active', trkMode==='erase');
 }
 // ── Pricing ───────────────────────────────────────────────────────────────
 // Prices are set per currency, not converted from a base. A live conversion of
