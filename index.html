@@ -5192,7 +5192,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v595';
+window.PATTERNLY_BUILD='v599';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -27448,7 +27448,11 @@ async function trkHandleChartOxs(file, preText){
               back:info.n, backStrands:strandsArr.length?strandsArr:undefined,
               lineColor:info.lc||undefined, backLines:linesArr.length?linesArr:undefined, backOnly:true};
             const lc=info.lc||{r:120,g:120,b:120};
-            trackerColourMap[key]={r:lc.r, g:lc.g, b:lc.b, code:code, stitches:0, label:(code?('Luca-S '+code):'Backstitch')};
+            // v599: write into the NEW colour map (assigned to trackerColourMap just
+            // below). Writing trackerColourMap directly was wiped by that
+            // assignment, so backstitch-only threads lost their name and colour
+            // and showed as "Symbol NN" with a grey swatch.
+            map[key]={r:lc.r, g:lc.g, b:lc.b, code:code, stitches:0, label:(code?('Luca-S '+code):'Backstitch')};
           }
         }
         console.log('[tracker] backstitch legend: '+Object.keys(bsInfo).length+' outline thread(s) surfaced from '+bsSegs.length+' segments');
