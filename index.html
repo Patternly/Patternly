@@ -5192,7 +5192,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v601';
+window.PATTERNLY_BUILD='v602';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -24288,7 +24288,7 @@ function trackerShowVerification(){
   const box = document.getElementById('trk-verify');
   const dims = trackerLegend.stitchesSize;
   const _dd = trkGridDimsOk(dims); const dimOk = _dd.ok;
-  const pend = (trackerLegend.pending||[]);
+  const pend = trkPendingUnresolved();   // v602
   if(v.mismatches.length===0 && v.unknown===0 && dimOk && v.totalGrid===v.totalLegend && pend.length===0){
     box.style.borderColor='#3f8f5f';
     box.innerHTML = `<b style="color:#2E7D32">✓ 100% verified.</b> All ${trackerLegend.rowCount} colours match the legend exactly — ${v.totalGrid.toLocaleString()} stitches on a ${_dd.w}×${_dd.h} grid.`;
@@ -24508,8 +24508,13 @@ function trkBindPending(){
   // chart symbol by stitch count, so they'd vanish. Surface them as backstitch
   // entries keyed by a synthetic symbol, using the thread's own colour — they are
   // listed as outline threads and never counted in progress.
+  // v602: a row that is surfaced here (or already was) is resolved — it must
+  // not stay in the pending list, or verification keeps reporting it as
+  // "could not be matched" while it sits in the outline section (B1446: 277,
+  // 451). Pending keeps only rows that genuinely have nowhere to go.
+  const stillPending=[];
   for(const p of remaining){
-    if(!(p.back>0)) continue;
+    if(!(p.back>0)){ stillPending.push(p); continue; }
     const key='\u0002bs_'+p.code;
     if(trackerLegend.bySymbol[key]) continue;
     trackerLegend.bySymbol[key]={nr:p.nr, symbol:key, code:p.code, stitches:0, back:p.back, backStrands:p.backStrands, lineColor:p.lineColor, backOnly:true};
@@ -24519,7 +24524,19 @@ function trkBindPending(){
       : {r:160, g:160, b:160, code:p.code, stitches:0, label:'Luca-S '+p.code+' (not found)'};
     console.log('[tracker] backstitch-only colour '+p.code+' ('+p.back+' backstitch) added as outline thread');
   }
-  trackerLegend.pending = remaining;
+  trackerLegend.pending = stillPending;
+}
+// v602: pending rows that were resolved later by another route (a saved
+// manual colour choice, a backstitch-only outline entry) are not unmatched.
+// A code may legitimately own two rows (dual-strand kits), so a row counts as
+// resolved only when an entry with the same code carries its count (±2 for
+// legend drift), is a manual assignment, or is an outline entry for a 0-cross row.
+function trkPendingUnresolved(){
+  const pend=(trackerLegend && trackerLegend.pending)||[];
+  if(!pend.length) return [];
+  const ents=Object.values(trackerLegend.bySymbol||{});
+  const same=(a,b)=>String(a==null?'':a).trim().toLowerCase()===String(b==null?'':b).trim().toLowerCase();
+  return pend.filter(p=>!ents.some(e=>same(e.code,p.code) && (e.manual || (e.backOnly && !(p.stitches>0)) || Math.abs((e.stitches|0)-(p.stitches|0))<=2)));
 }
 
 // ── Exact symbol sprites: crop each unique glyph from the rendered PDF page,
