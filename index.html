@@ -5192,7 +5192,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v599';
+window.PATTERNLY_BUILD='v600';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -23864,6 +23864,26 @@ function trkCellWeight(r,c){
   if(m!==undefined) return trkPopCount(m)/4;
   return (g.halfCells && g.halfCells.has(r+':'+c)) ? 0.5 : 1;   // pre-quadrant saves
 }
+// v600: does the parsed grid match the legend's declared size? The grid is
+// sized from the printed rulers (needed for sparse, multi-page designs), and a
+// ruler whose labels run past the last column (225 wide, ruler to 230) leaves
+// a few EMPTY columns or rows on the far edge. Those are padding, not a
+// mismatch: accept a grid that is the declared size or larger, as long as
+// every column/row beyond the declared size holds no stitch. Returns the
+// effective (declared) size so messages can quote it. Grid shape is not
+// changed, so saved progress on every device keeps its layout.
+function trkGridDimsOk(dims){
+  const g=trackerGrid; if(!g) return {ok:false, w:0, h:0};
+  if(!dims || !(dims.w>0) || !(dims.h>0)) return {ok:true, w:g.cols, h:g.rows};
+  if(g.cols===dims.w && g.rows===dims.h) return {ok:true, w:g.cols, h:g.rows, padded:false};
+  if(g.cols<dims.w || g.rows<dims.h) return {ok:false, w:g.cols, h:g.rows};
+  for(let r=0;r<g.rows;r++){
+    const row=g.cells[r];
+    const from = r>=dims.h ? 0 : dims.w;          // whole row if it is a padding row
+    for(let c=from;c<row.length;c++) if(row[c]!==' ') return {ok:false, w:g.cols, h:g.rows};
+  }
+  return {ok:true, w:dims.w, h:dims.h, padded:true};
+}
 function trackerVerifyCounts(){
   const found = {}; let totalGrid = 0, unknown = 0; const unknownBy = {};
   for(let r=0;r<trackerGrid.cells.length;r++){
@@ -24243,10 +24263,10 @@ function trackerShowVerification(){
     const v = trackerVerifyCounts();
     const box=document.getElementById('trk-verify');
     const dims=trackerLegend.stitchesSize;
-    const dimOk=!dims || (trackerGrid.cols===dims.w && trackerGrid.rows===dims.h);
+    const _dd=trkGridDimsOk(dims); const dimOk=_dd.ok;
     if(v.unknown===0 && dimOk){
       box.style.borderColor='#3f8f5f';
-      box.innerHTML=`<b style="color:#2E7D32">✓ Verified by symbols.</b> ${trackerLegend.rowCount} colours on a ${trackerGrid.cols}×${trackerGrid.rows} grid. This legend has no per-symbol stitch counts, so it was checked by symbol coverage — every symbol used in the chart is present in the legend.`;
+      box.innerHTML=`<b style="color:#2E7D32">✓ Verified by symbols.</b> ${trackerLegend.rowCount} colours on a ${_dd.w}×${_dd.h} grid. This legend has no per-symbol stitch counts, so it was checked by symbol coverage — every symbol used in the chart is present in the legend.`;
       return true;
     }
     box.style.borderColor='#d9822b';
@@ -24264,11 +24284,11 @@ function trackerShowVerification(){
   const v = trackerVerifyCounts();
   const box = document.getElementById('trk-verify');
   const dims = trackerLegend.stitchesSize;
-  const dimOk = !dims || (trackerGrid.cols===dims.w && trackerGrid.rows===dims.h);
+  const _dd = trkGridDimsOk(dims); const dimOk = _dd.ok;
   const pend = (trackerLegend.pending||[]);
   if(v.mismatches.length===0 && v.unknown===0 && dimOk && v.totalGrid===v.totalLegend && pend.length===0){
     box.style.borderColor='#3f8f5f';
-    box.innerHTML = `<b style="color:#2E7D32">✓ 100% verified.</b> All ${trackerLegend.rowCount} colours match the legend exactly — ${v.totalGrid.toLocaleString()} stitches on a ${trackerGrid.cols}×${trackerGrid.rows} grid.`;
+    box.innerHTML = `<b style="color:#2E7D32">✓ 100% verified.</b> All ${trackerLegend.rowCount} colours match the legend exactly — ${v.totalGrid.toLocaleString()} stitches on a ${_dd.w}×${_dd.h} grid.`;
     return true;
   }
   box.style.borderColor='#d9822b';
@@ -24284,7 +24304,7 @@ function trackerShowVerification(){
        Math.abs(netSum)<=2 && absSum <= Math.max(8, Math.round(v.totalLegend*0.0015))){
       const cells = Math.round(absSum/2);
       box.style.borderColor='#3f8f5f';
-      box.innerHTML = `<b style="color:#2E7D32">✓ Verified.</b> ${trackerLegend.rowCount} colours — ${Math.round(v.totalGrid).toLocaleString()} stitches on a ${trackerGrid.cols}×${trackerGrid.rows} grid, chart parsed with full fidelity. ` +
+      box.innerHTML = `<b style="color:#2E7D32">✓ Verified.</b> ${trackerLegend.rowCount} colours — ${Math.round(v.totalGrid).toLocaleString()} stitches on a ${_dd.w}×${_dd.h} grid, chart parsed with full fidelity. ` +
         `<span style="color:var(--lp-muted,#7d6b72)">Note: the kit's printed legend differs from its own chart on ${cells} stitch${cells===1?'':'es'} of ${Math.round(v.totalLegend).toLocaleString()} (${(100*cells/v.totalLegend).toFixed(3)}%). The chart is what you stitch from, so the chart wins.</span>`;
       return true;
     }
