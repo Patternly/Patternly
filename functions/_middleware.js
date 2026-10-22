@@ -12,7 +12,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v92";
+const MW_VERSION = "v93";
 
 const enc = new TextEncoder();
 
@@ -809,6 +809,108 @@ async function partnerRemoveKit(env, sku) {
   return true;
 }
 
+// ── v93: push notifications ──────────────────────────────────────────────────
+// Devices register from the app (POST /push/register) and live in ENTITLEMENTS:
+//   push:<platform>:<token> -> {token, platform, lang, cid, plus, app, ts, seen}
+// Sending is a job (pushjob:<id>) processed in chunks of PUSH_CHUNK devices per
+// request, so a big audience never trips the per-invocation subrequest limit;
+// the Studio keeps calling admin/push/run until the job reports done.
+//   pushlog:<ts>  -> {id, title, body, url, audience, sent, failed, pruned, by, ts}
+// Secrets (Cloudflare → Settings → Variables): APNS_KEY_ID, APNS_TEAM_ID,
+// APNS_KEY_P8 (the .p8 file contents), FCM_SA_JSON (Firebase service-account
+// JSON). APNS_BUNDLE_ID defaults to the iOS bundle id. Nothing here is logged.
+const PUSH_CHUNK = 40;
+const PUSH_BUNDLE_ID_DEFAULT = "com.lucas.patternly";
+const PUSH_PLATFORMS = ["ios", "android"];
+const PUSH_LANGS = ["en", "fr", "de", "nl", "ru", "uk", "es", "it"];
+function pemToDer(pem) {
+  const b64 = String(pem || "").replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
+  return Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer;
+}
+const b64urlStr = s => b64urlFromBytes(enc.encode(s));
+let apnsJwtCache = { tok: null, iat: 0 };
+async function apnsJwt(env) {
+  const now = Math.floor(Date.now() / 1000);
+  if (apnsJwtCache.tok && now - apnsJwtCache.iat < 45 * 60) return apnsJwtCache.tok;
+  const key = await crypto.subtle.importKey("pkcs8", pemToDer(env.APNS_KEY_P8), { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+  const head = b64urlStr(JSON.stringify({ alg: "ES256", kid: env.APNS_KEY_ID }));
+  const body = b64urlStr(JSON.stringify({ iss: env.APNS_TEAM_ID, iat: now }));
+  const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, enc.encode(head + "." + body));
+  apnsJwtCache = { tok: head + "." + body + "." + b64urlFromBytes(new Uint8Array(sig)), iat: now };
+  return apnsJwtCache.tok;
+}
+let fcmTokCache = { tok: null, exp: 0, pid: null };
+async function fcmToken(env) {
+  const now = Math.floor(Date.now() / 1000);
+  if (fcmTokCache.tok && fcmTokCache.exp > now + 60) return fcmTokCache;
+  const sa = JSON.parse(env.FCM_SA_JSON);
+  const key = await crypto.subtle.importKey("pkcs8", pemToDer(sa.private_key), { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
+  const head = b64urlStr(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const body = b64urlStr(JSON.stringify({ iss: sa.client_email, scope: "https://www.googleapis.com/auth/firebase.messaging", aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3000 }));
+  const sig = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, enc.encode(head + "." + body));
+  const r = await fetch("https://oauth2.googleapis.com/token", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=" + head + "." + body + "." + b64urlFromBytes(new Uint8Array(sig)) });
+  const j = await r.json();
+  if (!j.access_token) throw new Error("FCM token: " + (j.error_description || j.error || r.status));
+  fcmTokCache = { tok: j.access_token, exp: now + (j.expires_in || 3000), pid: sa.project_id };
+  return fcmTokCache;
+}
+// Returns {ok, gone} — gone=true means the token is dead and should be pruned.
+async function pushSendOne(env, dev, msg) {
+  try {
+    if (dev.platform === "ios") {
+      const r = await fetch("https://api.push.apple.com/3/device/" + dev.token, { method: "POST",
+        headers: { authorization: "bearer " + await apnsJwt(env), "apns-topic": env.APNS_BUNDLE_ID || PUSH_BUNDLE_ID_DEFAULT, "apns-push-type": "alert", "apns-priority": "10", "content-type": "application/json" },
+        body: JSON.stringify({ aps: { alert: { title: msg.title, body: msg.body }, sound: "default" }, url: msg.url || "" }) });
+      if (r.ok) return { ok: true };
+      let reason = ""; try { reason = (await r.json()).reason || ""; } catch (e) {}
+      return { ok: false, gone: r.status === 410 || reason === "BadDeviceToken" || reason === "Unregistered" || reason === "DeviceTokenNotForTopic", err: r.status + " " + reason };
+    }
+    const f = await fcmToken(env);
+    const r = await fetch("https://fcm.googleapis.com/v1/projects/" + f.pid + "/messages:send", { method: "POST",
+      headers: { authorization: "Bearer " + f.tok, "content-type": "application/json" },
+      body: JSON.stringify({ message: { token: dev.token, notification: { title: msg.title, body: msg.body }, data: { url: msg.url || "" }, android: { priority: "high", notification: { sound: "default" } } } }) });
+    if (r.ok) return { ok: true };
+    let code = ""; try { const j = await r.json(); code = (j.error && (j.error.status || "")) + " " + ((j.error && j.error.details || []).map(d => d.errorCode).join(",")); } catch (e) {}
+    return { ok: false, gone: r.status === 404 || /UNREGISTERED|INVALID_ARGUMENT/.test(code), err: r.status + " " + code };
+  } catch (e) { return { ok: false, gone: false, err: String(e.message || e) }; }
+}
+function pushAudienceOk(dev, aud) {
+  if (aud.platform && aud.platform !== "all" && dev.platform !== aud.platform) return false;
+  if (aud.lang && aud.lang !== "all" && (dev.lang || "en") !== aud.lang) return false;
+  if (aud.plus === "plus" && !dev.plus) return false;
+  if (aud.plus === "free" && dev.plus) return false;
+  if (aud.cid && String(dev.cid || "") !== String(aud.cid)) return false;
+  return true;
+}
+// One chunk of a job: walk the device list from job.cursor, send to matches,
+// prune dead tokens, save progress. Returns the updated job.
+async function pushJobRun(env, job) {
+  const listed = await env.ENTITLEMENTS.list({ prefix: "push:", limit: PUSH_CHUNK, cursor: job.cursor || undefined });
+  const devs = [];
+  for (const k of listed.keys) {
+    try { const d = JSON.parse((await env.ENTITLEMENTS.get(k.name)) || "null"); if (d && d.token) devs.push({ key: k.name, ...d }); } catch (e) {}
+  }
+  const targets = devs.filter(d => pushAudienceOk(d, job.audience || {}));
+  const results = await Promise.all(targets.map(d => pushSendOne(env, d, job.msg)));
+  for (let i = 0; i < targets.length; i++) {
+    const r = results[i];
+    if (r.ok) job.sent++;
+    else { job.failed++; if (r.gone) { job.pruned++; try { await env.ENTITLEMENTS.delete(targets[i].key); } catch (e) {} } else if (job.errors.length < 5) job.errors.push(targets[i].platform + ": " + r.err); }
+  }
+  job.scanned += devs.length;
+  job.cursor = listed.list_complete ? null : listed.cursor;
+  job.done = !job.cursor;
+  job.updated = Date.now();
+  if (job.done) {
+    job.finished = Date.now();
+    try { await env.ENTITLEMENTS.put("pushlog:" + String(job.created).padStart(14, "0"), JSON.stringify({ id: job.id, title: job.msg.title, body: job.msg.body, url: job.msg.url || "", audience: job.audience, test: !!job.test, sent: job.sent, failed: job.failed, pruned: job.pruned, by: job.by, ts: job.created, finished: job.finished }), { expirationTtl: 400 * 86400 }); } catch (e) {}
+  }
+  await env.ENTITLEMENTS.put("pushjob:" + job.id, JSON.stringify(job), { expirationTtl: 86400 });
+  return job;
+}
+function pushJobPublic(job) { return { id: job.id, done: job.done, scanned: job.scanned, sent: job.sent, failed: job.failed, pruned: job.pruned, errors: job.errors, test: !!job.test }; }
+
 async function handlePartnerApi(request, url, env) {
   const sub = url.pathname.slice(url.pathname.indexOf("/partner/") + "/partner/".length).replace(/\/+$/, "");
 
@@ -1279,6 +1381,64 @@ async function handlePartnerApi(request, url, env) {
       } catch (e) {}
     }
     return partnerJson(200, { ok:true, master: ADM.master, owner: !!ADM.owner, uid: ADM.uid || "", name: ADM.name, scopes: ADM.scopes });
+  }
+  // ── v93: push notifications (owner only) ─────────────────────────────────
+  if (sub.startsWith("admin/push/")) {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    if (!ADM.master) return partnerJson(403, { ok:false, error:"Only the owner can send notifications." });
+    if (!env.ENTITLEMENTS) return partnerJson(500, { ok:false, error:"storage not configured" });
+    const configured = { ios: !!(env.APNS_KEY_ID && env.APNS_TEAM_ID && env.APNS_KEY_P8), android: !!env.FCM_SA_JSON };
+    if (sub === "admin/push/devices" && request.method === "GET") {
+      const by = { platform: {}, lang: {}, plus: { plus: 0, free: 0 }, total: 0 };
+      let cursor;
+      for (let page = 0; page < 20; page++) {
+        const listed = await env.ENTITLEMENTS.list({ prefix: "push:", limit: 1000, cursor });
+        for (const k of listed.keys) {
+          const m = /^push:(\w+):/.exec(k.name); const plat = m ? m[1] : "?";
+          by.total++; by.platform[plat] = (by.platform[plat] || 0) + 1;
+          const md = k.metadata || {};
+          const lang = md.lang || "?"; by.lang[lang] = (by.lang[lang] || 0) + 1;
+          if (md.plus) by.plus.plus++; else by.plus.free++;
+        }
+        if (!listed.list_complete) cursor = listed.cursor; else break;
+      }
+      return partnerJson(200, { ok:true, configured, ...by });
+    }
+    if (sub === "admin/push/log" && request.method === "GET") {
+      const listed = await env.ENTITLEMENTS.list({ prefix: "pushlog:", limit: 1000 });
+      const keys = listed.keys.map(k => k.name).sort().reverse().slice(0, 50);
+      const log = [];
+      for (const k of keys) { try { const j = JSON.parse((await env.ENTITLEMENTS.get(k)) || "null"); if (j) log.push(j); } catch (e) {} }
+      return partnerJson(200, { ok:true, log });
+    }
+    if (sub === "admin/push/send" && request.method === "POST") {
+      let b; try { b = await request.json(); } catch (e) { return partnerJson(400, { ok:false, error:"bad json" }); }
+      const title = String(b.title || "").trim().slice(0, 80), body = String(b.body || "").trim().slice(0, 240);
+      let link = String(b.url || "").trim().slice(0, 300);
+      if (!title || !body) return partnerJson(400, { ok:false, error:"Title and message are required." });
+      if (link && !/^https:\/\/|^patternly:\/\/|^\/|^#/.test(link)) return partnerJson(400, { ok:false, error:"Link must be an https:// address or an in-app path." });
+      const a = b.audience || {};
+      const audience = { platform: PUSH_PLATFORMS.includes(a.platform) ? a.platform : "all", lang: PUSH_LANGS.includes(a.lang) ? a.lang : "all", plus: ["plus", "free"].includes(a.plus) ? a.plus : "all" };
+      const test = !!b.test;
+      if (test) { const cid = String(b.testCustomerId || "").trim(); if (!cid) return partnerJson(400, { ok:false, error:"A test needs your customer id (sign in to the app, then Account shows it)." }); audience.cid = cid; }
+      if ((audience.platform !== "android" && !configured.ios) || (audience.platform !== "ios" && !configured.android)) {
+        const miss = []; if (!configured.ios) miss.push("iOS (APNS_KEY_ID / APNS_TEAM_ID / APNS_KEY_P8)"); if (!configured.android) miss.push("Android (FCM_SA_JSON)");
+        if ((audience.platform === "all") || (audience.platform === "ios" && !configured.ios) || (audience.platform === "android" && !configured.android))
+          return partnerJson(400, { ok:false, error:"Not configured yet for " + miss.join(" and ") + ". Add the secrets in Cloudflare, or pick a platform that is set up." });
+      }
+      const job = { id: randToken(9), created: Date.now(), by: ADM.name || "owner", msg: { title, body, url: link }, audience, test, cursor: null, scanned: 0, sent: 0, failed: 0, pruned: 0, errors: [], done: false };
+      await pushJobRun(env, job);
+      return partnerJson(200, { ok:true, job: pushJobPublic(job) });
+    }
+    if (sub === "admin/push/run" && request.method === "POST") {
+      let b; try { b = await request.json(); } catch (e) { return partnerJson(400, { ok:false, error:"bad json" }); }
+      const id = String(b.id || "").replace(/[^\w-]/g, "");
+      let job = null; try { job = JSON.parse((await env.ENTITLEMENTS.get("pushjob:" + id)) || "null"); } catch (e) {}
+      if (!job) return partnerJson(404, { ok:false, error:"job not found" });
+      if (!job.done) await pushJobRun(env, job);
+      return partnerJson(200, { ok:true, job: pushJobPublic(job) });
+    }
+    return partnerJson(404, { ok:false, error:"unknown push endpoint" });
   }
   // ── v91: Patternly Plus revenue (owner only) ──────────────────────────────
   // GET admin/revenue?from=YYYY-MM-DD&to=YYYY-MM-DD
@@ -3279,6 +3439,29 @@ async function handleRequest(context) {
   // For populating the Shopify metafield and building QR links. Returns the
   // derived code plus a ready-made deep link. Gated behind an admin key so the
   // full code list can't be scraped by anyone hitting the endpoint.
+  // ── v93: /push/register, /push/unregister (the app's device token) ────────
+  // Anyone can register a device (notifications are not a paid feature); a
+  // signed-in customer's id and Plus state ride along so audiences can be
+  // targeted. Re-registering the same token just refreshes it.
+  if (url.pathname.endsWith("/push/register") || url.pathname.endsWith("/push/unregister")) {
+    const bad = (msg, code) => new Response(JSON.stringify({ ok: false, error: msg }), { status: code, headers: { "content-type": "application/json", "cache-control": "no-store" } });
+    if (request.method !== "POST") return bad("method not allowed", 405);
+    if (!env.ENTITLEMENTS) return bad("storage not configured", 500);
+    let b; try { b = await request.json(); } catch (e) { return bad("bad json", 400); }
+    const token = String(b.token || "").trim();
+    const platform = String(b.platform || "").toLowerCase();
+    if (!PUSH_PLATFORMS.includes(platform) || !/^[A-Za-z0-9_:\-]{20,400}$/.test(token)) return bad("bad token", 400);
+    const key = "push:" + platform + ":" + token;
+    if (url.pathname.endsWith("/push/unregister")) { await env.ENTITLEMENTS.delete(key); return new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json", "cache-control": "no-store" } }); }
+    const lang = PUSH_LANGS.includes(String(b.lang || "").slice(0, 2)) ? String(b.lang).slice(0, 2) : "en";
+    let plus = false;
+    if (auth.loggedIn && auth.customerId) { try { plus = !!(await plusState(auth, env)).plus; } catch (e) {} }
+    let prev = null; try { prev = JSON.parse((await env.ENTITLEMENTS.get(key)) || "null"); } catch (e) {}
+    const rec = { token, platform, lang, cid: auth.customerId || (prev && prev.cid) || null, plus, app: String(b.app || "").slice(0, 20), ts: (prev && prev.ts) || Date.now(), seen: Date.now() };
+    await env.ENTITLEMENTS.put(key, JSON.stringify(rec), { metadata: { lang, plus, cid: rec.cid } });
+    return new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
+  }
+
   if (url.pathname.indexOf("/partner/") >= 0) {
     return handlePartnerApi(request, url, env);
   }

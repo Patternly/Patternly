@@ -43,6 +43,19 @@
   .seg{display:inline-flex;background:var(--bg);border:1.5px solid var(--border);border-radius:999px;padding:3px;gap:2px;margin:0 0 1rem}
   .seg button{font:inherit;font-size:.8rem;font-weight:700;border:0;background:none;color:var(--muted);border-radius:999px;padding:.38rem 1rem;cursor:pointer;transition:all .12s}
   .seg button.on{background:#fff;color:var(--red);box-shadow:0 1px 4px rgba(43,34,38,.12)}
+  /* v41: notifications */
+  .pn-prog{height:8px;border-radius:999px;background:var(--bg);border:1px solid var(--border);overflow:hidden;margin:.5rem 0}
+  .pn-prog i{display:block;height:100%;background:var(--red);width:0;transition:width .3s}
+  .pn-log{width:100%;border-collapse:collapse;font-size:.82rem}
+  .pn-log th,.pn-log td{text-align:left;padding:.45rem .5rem;border-bottom:1px solid var(--border);vertical-align:top}
+  .pn-log th{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+  .pn-aud{display:flex;flex-wrap:wrap;gap:.6rem 1.2rem;align-items:center;margin:.3rem 0 0}
+  .pn-aud .seg{margin:0}
+  .pn-aud label{font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin:0 0 .25rem}
+  .pn-prev{border:1.5px solid var(--border);border-radius:14px;padding:.7rem .9rem;background:var(--bg);max-width:360px;display:flex;gap:.6rem;align-items:flex-start}
+  .pn-prev .ic{width:34px;height:34px;border-radius:9px;background:var(--red);flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800}
+  .pn-prev b{display:block;font-size:.86rem}
+  .pn-prev span{font-size:.82rem;color:var(--ink);white-space:pre-wrap}
   /* v40: revenue overview */
   .rvbar{display:flex;flex-wrap:wrap;gap:.6rem 1rem;align-items:center;margin:0 0 1rem}
   .rvbar .seg{margin:0}
@@ -661,6 +674,41 @@
         <h2>Team users
           <button class="ghost" id="users-refresh" style="float:right;padding:.3rem .7rem;font-size:.76rem">Refresh</button></h2>
         <div id="users-box"><div class="note">Loading…</div></div>
+      </div>
+    </div>
+    <div id="tab-apush" style="display:none">
+      <div class="card">
+        <h2>Send a notification</h2>
+        <div class="note" style="margin:0 0 .8rem">Goes to everyone who installed the iOS or Android app and allowed notifications. Keep it short: the title is cut at about 40 characters on a lock screen. Always send a test to your own phone first.</div>
+        <div class="row">
+          <div style="max-width:360px"><label for="pn-title">Title</label><input type="text" id="pn-title" maxlength="80" placeholder="New: tint your finished stitches"></div>
+          <div style="max-width:420px"><label for="pn-url">Opens (optional)</label><input type="url" id="pn-url" maxlength="300" placeholder="https://luca-s.com/… or #tracker"></div>
+        </div>
+        <div style="margin-top:.7rem"><label for="pn-body">Message</label>
+          <textarea id="pn-body" maxlength="240" rows="3" placeholder="Update the app to choose the colour of completed stitches, erase mistakes and undo." style="width:100%;box-sizing:border-box;padding:.62rem .7rem;border:1.5px solid var(--border);border-radius:9px;font:inherit;resize:vertical"></textarea></div>
+        <div class="pn-aud">
+          <div><label>Platform</label><div class="seg" id="pn-platform"><button class="on" data-v="all">Both</button><button data-v="ios">iOS</button><button data-v="android">Android</button></div></div>
+          <div><label>Language</label><div class="seg" id="pn-lang"><button class="on" data-v="all">All</button><button data-v="en">EN</button><button data-v="fr">FR</button><button data-v="de">DE</button><button data-v="nl">NL</button><button data-v="es">ES</button><button data-v="it">IT</button><button data-v="ru">RU</button><button data-v="uk">UK</button></div></div>
+          <div><label>Subscription</label><div class="seg" id="pn-plus"><button class="on" data-v="all">Everyone</button><button data-v="plus">Plus only</button><button data-v="free">Not on Plus</button></div></div>
+        </div>
+        <div style="margin-top:1rem"><label>Preview</label>
+          <div class="pn-prev"><div class="ic">P</div><div><b id="pn-pv-title">Title</b><span id="pn-pv-body">Message</span></div></div></div>
+        <div class="row" style="margin-top:1rem;align-items:flex-end">
+          <div style="max-width:260px"><label for="pn-testcid">My customer id (for tests)</label><input type="text" id="pn-testcid" maxlength="30" placeholder="from the app’s Account tab"></div>
+          <button class="ghost" id="pn-test">Send test to my devices</button>
+          <button class="primary" id="pn-send">Send to audience</button>
+        </div>
+        <div class="pn-prog" id="pn-prog" style="display:none"><i id="pn-prog-i"></i></div>
+        <div class="note" id="pn-msg"></div>
+      </div>
+      <div class="card">
+        <h2>Devices <button class="ghost" id="pn-refresh" style="float:right;padding:.3rem .7rem;font-size:.76rem">Refresh</button></h2>
+        <div class="ovgrid" id="pn-devices"><div class="note">Loading…</div></div>
+        <div class="note" id="pn-conf" style="margin:.6rem 0 0"></div>
+      </div>
+      <div class="card">
+        <h2>Sent</h2>
+        <div id="pn-log"><div class="note">Loading…</div></div>
       </div>
     </div>
   </div>
@@ -2976,7 +3024,7 @@ function convUrl(){
 // ── tabs (v7) ────────────────────────────────────────────────────
 let CUST_LOADED=false;
 function showTab(name){
-  ['overview','patterns','converter','customers','account','aov','abrands','apatterns','acustomers','abranding','ausers'].forEach(t=>{
+  ['overview','patterns','converter','customers','account','aov','abrands','apatterns','acustomers','abranding','ausers','apush'].forEach(t=>{
     const el=$('tab-'+t); if(el) el.style.display = (t===name)?'':'none';
   });
   document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
@@ -2995,6 +3043,7 @@ function showTab(name){
   if(name==='apatterns' && !APAT_LOADED){ APAT_LOADED=true; loadAdminPatterns(); }
   if(name==='acustomers' && !ACUST_LOADED){ ACUST_LOADED=true; loadAdminCustomers(); }
   if(name==='ausers' && !AUSERS_LOADED){ AUSERS_LOADED=true; loadUsers(); }
+  if(name==='apush'){ pnBind(); pnLoad(); }
 }
 document.querySelectorAll('#tabbar button').forEach(b=>{ b.onclick=()=>showTab(b.dataset.tab); });
 function showPublish(on){
@@ -3092,7 +3141,7 @@ $('ov-refresh').onclick=loadOverview;
 
 const TABS_PARTNER=[['overview','Overview'],['patterns','My Patterns'],['converter','Converter'],['customers','My Customers'],['account','My Account']];
 // v37: third element = scope a team user needs; 'owner' = master key only.
-const TABS_ADMIN=[['aov','Overview',null],['abrands','Brands','brands'],['apatterns','Patterns','patterns'],['converter','Converter','converter'],['acustomers','Customers','customers'],['abranding','Branding','branding'],['ausers','Users','owner']];
+const TABS_ADMIN=[['aov','Overview',null],['abrands','Brands','brands'],['apatterns','Patterns','patterns'],['converter','Converter','converter'],['acustomers','Customers','customers'],['abranding','Branding','branding'],['ausers','Users','owner'],['apush','Notifications','owner']];
 const ALL_SCOPES=['patterns','converter','customers','brands','branding'];
 function hasScope(s){
   if(!SESSION||!SESSION.admin) return false;
@@ -3950,6 +3999,70 @@ async function loadAdminOverview(){
   }catch(e){ t.innerHTML='<div class="err">Network error.</div>'; }
 }
 $('aov-refresh').onclick=loadAdminOverview;
+// ===== v41: push notifications (owner only) =====
+let PN_BOUND=false, PN_BUSY=false;
+const pnEsc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+const PN_LANG_NAMES={en:'English',fr:'French',de:'German',nl:'Dutch',ru:'Russian',uk:'Ukrainian',es:'Spanish',it:'Italian'};
+function pnSeg(id){ const on=$(id).querySelector('button.on'); return on?on.dataset.v:'all'; }
+function pnBind(){
+  if(PN_BOUND) return; PN_BOUND=true;
+  ['pn-platform','pn-lang','pn-plus'].forEach(id=>$(id).addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; $(id).querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); }));
+  const pv=()=>{ $('pn-pv-title').textContent=$('pn-title').value.trim()||'Title'; $('pn-pv-body').textContent=$('pn-body').value.trim()||'Message'; };
+  $('pn-title').addEventListener('input',pv); $('pn-body').addEventListener('input',pv);
+  try{ const c=localStorage.getItem('pn_testcid'); if(c) $('pn-testcid').value=c; }catch(e){}
+  $('pn-testcid').addEventListener('change',()=>{ try{ localStorage.setItem('pn_testcid',$('pn-testcid').value.trim()); }catch(e){} });
+  $('pn-test').addEventListener('click',()=>pnSend(true));
+  $('pn-send').addEventListener('click',()=>pnSend(false));
+  $('pn-refresh').addEventListener('click',pnLoad);
+}
+async function pnLoad(){
+  try{
+    const [rd,rl]=await Promise.all([fetch(API+'admin/push/devices',{headers:adminHeaders()}),fetch(API+'admin/push/log',{headers:adminHeaders()})]);
+    const d=await rd.json(), l=await rl.json();
+    if(!d.ok){ $('pn-devices').innerHTML='<div class="note">'+pnEsc(d.error||'Could not load')+'</div>'; }
+    else{
+      const tile=(lab,n)=>'<div class="ovbox"><div class="ovlab">'+lab+'</div><div class="ovnum">'+(n||0)+'</div></div>';
+      let h=tile('Devices',d.total)+tile('iOS',d.platform.ios)+tile('Android',d.platform.android)+tile('On Plus',d.plus.plus)+tile('Not on Plus',d.plus.free);
+      Object.keys(d.lang||{}).sort((a,b)=>d.lang[b]-d.lang[a]).slice(0,8).forEach(k=>{ h+=tile(PN_LANG_NAMES[k]||k.toUpperCase(),d.lang[k]); });
+      $('pn-devices').innerHTML=h;
+      const c=d.configured||{};
+      $('pn-conf').innerHTML=(c.ios?'✓ iOS sending configured':'✗ iOS not configured — add APNS_KEY_ID, APNS_TEAM_ID and APNS_KEY_P8 in Cloudflare')+' · '+(c.android?'✓ Android sending configured':'✗ Android not configured — add FCM_SA_JSON in Cloudflare');
+    }
+    if(l.ok){
+      if(!l.log.length) $('pn-log').innerHTML='<div class="note">Nothing sent yet.</div>';
+      else{
+        const aud=a=>[a.platform==='all'?'both':a.platform, a.lang==='all'?'all languages':PN_LANG_NAMES[a.lang]||a.lang, a.plus==='all'?'':a.plus==='plus'?'Plus only':'not on Plus'].filter(Boolean).join(' · ');
+        $('pn-log').innerHTML='<table class="pn-log"><tr><th>When</th><th>Notification</th><th>Audience</th><th>Sent</th><th>Failed</th></tr>'+l.log.map(x=>'<tr><td style="white-space:nowrap">'+new Date(x.ts).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})+(x.test?'<br><span class="pill" style="background:var(--bg)">test</span>':'')+'</td><td><b>'+pnEsc(x.title)+'</b><br>'+pnEsc(x.body)+(x.url?'<br><span class="note">'+pnEsc(x.url)+'</span>':'')+'</td><td>'+pnEsc(aud(x.audience||{}))+'</td><td>'+x.sent+'</td><td>'+x.failed+(x.pruned?' <span class="note">('+x.pruned+' dead tokens removed)</span>':'')+'</td></tr>').join('')+'</table>';
+      }
+    }
+  }catch(e){ $('pn-devices').innerHTML='<div class="note">Could not load: '+pnEsc(e.message)+'</div>'; }
+}
+async function pnSend(test){
+  if(PN_BUSY) return;
+  const title=$('pn-title').value.trim(), body=$('pn-body').value.trim(), url=$('pn-url').value.trim();
+  const msg=$('pn-msg');
+  if(!title||!body){ msg.textContent='Title and message are required.'; return; }
+  const audience={platform:pnSeg('pn-platform'),lang:pnSeg('pn-lang'),plus:pnSeg('pn-plus')};
+  const testCustomerId=$('pn-testcid').value.trim();
+  if(test && !testCustomerId){ msg.textContent='Enter your customer id first (sign in to the app → Account).'; return; }
+  if(!test){ const who=[audience.platform==='all'?'both platforms':audience.platform, audience.lang==='all'?'all languages':PN_LANG_NAMES[audience.lang], audience.plus==='all'?'everyone':audience.plus==='plus'?'Plus subscribers only':'people not on Plus'].join(', '); if(!confirm('Send “'+title+'” to '+who+'? This cannot be recalled.')) return; }
+  PN_BUSY=true; $('pn-send').disabled=$('pn-test').disabled=true; $('pn-prog').style.display=''; $('pn-prog-i').style.width='5%'; msg.textContent=test?'Sending test…':'Sending…';
+  try{
+    let r=await fetch(API+'admin/push/send',{method:'POST',headers:adminHeaders(true),body:JSON.stringify({title,body,url,audience,test,testCustomerId})});
+    let j=await r.json();
+    if(!j.ok) throw new Error(j.error||'Send failed');
+    let job=j.job, n=1;
+    while(!job.done){
+      n++; $('pn-prog-i').style.width=Math.min(95,5+n*6)+'%'; msg.textContent='Sending… '+job.sent+' delivered so far';
+      r=await fetch(API+'admin/push/run',{method:'POST',headers:adminHeaders(true),body:JSON.stringify({id:job.id})}); j=await r.json();
+      if(!j.ok) throw new Error(j.error||'Send interrupted'); job=j.job;
+    }
+    $('pn-prog-i').style.width='100%';
+    msg.textContent=(test?'Test: ':'Done: ')+job.sent+' delivered, '+job.failed+' failed'+(job.pruned?' ('+job.pruned+' dead tokens removed)':'')+(job.sent===0&&job.scanned===0?' — no registered devices yet':'')+(job.errors&&job.errors.length?' · '+job.errors.join(' · '):'');
+    pnLoad();
+  }catch(e){ msg.textContent=e.message; }
+  PN_BUSY=false; $('pn-send').disabled=$('pn-test').disabled=false; setTimeout(()=>{ $('pn-prog').style.display='none'; },1500);
+}
 // ===== v40: Plus revenue (owner only) =====
 const RV_COL={web:'#B83A4B',ios:'#2F6FB3',android:'#B07512'};
 const RV_LABEL={web:'Web (Shopify)',ios:'iOS (App Store)',android:'Android (Play Store)'};
