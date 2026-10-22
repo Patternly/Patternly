@@ -5192,7 +5192,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v605';
+window.PATTERNLY_BUILD='v606';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -6025,8 +6025,23 @@ document.addEventListener('DOMContentLoaded', function(){
                      workspace ⚙ menu and the full-screen Settings (which borrows
                      this same node) show the identical control. -->
                 <div id="tg-lightup-row" style="display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin:0 0 .55rem;padding:0 0 .55rem;border-bottom:1px solid var(--lp-border,#f0e6ea)">
-                  <span style="font-size:.72rem;font-weight:700;color:var(--lp-ink,#2b2226)">Light up completed stitches<span style="display:block;font-size:.64rem;font-weight:500;color:var(--lp-muted,#7d6b72);margin-top:.1rem">Finished stitches glow so your progress reads from a distance</span></span>
+                  <span style="font-size:.72rem;font-weight:700;color:var(--lp-ink,#2b2226)">Tint completed stitches<span style="display:block;font-size:.64rem;font-weight:500;color:var(--lp-muted,#7d6b72);margin-top:.1rem">Finished stitches are shaded in a colour you choose instead of crossed out, so they can’t be mistaken for an X symbol</span></span>
                   <label class="trk-lu-switch"><input type="checkbox" id="tg-lightup"><span class="trk-lu-slider"></span></label>
+                </div>
+                <!-- v606: the tint is the customer's choice, not a fixed magenta — colour
+                     and opacity, with the symbol kept readable on top. -->
+                <div id="tg-done-rows" style="display:none;margin:-.2rem 0 .55rem;padding:0 0 .55rem;border-bottom:1px solid var(--lp-border,#f0e6ea)">
+                  <div class="tg-row" style="margin-top:.2rem"><span>Tint colour</span>
+                    <span style="display:inline-flex;align-items:center;gap:.35rem">
+                      <button type="button" class="tg-done-col" data-c="#ff3df0" title="Magenta" style="width:18px;height:18px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #c9b3ba;background:#ff3df0;padding:0;cursor:pointer"></button>
+                      <button type="button" class="tg-done-col" data-c="#2fb344" title="Green" style="width:18px;height:18px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #c9b3ba;background:#2fb344;padding:0;cursor:pointer"></button>
+                      <button type="button" class="tg-done-col" data-c="#2f80ed" title="Blue" style="width:18px;height:18px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #c9b3ba;background:#2f80ed;padding:0;cursor:pointer"></button>
+                      <button type="button" class="tg-done-col" data-c="#ffd400" title="Yellow" style="width:18px;height:18px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #c9b3ba;background:#ffd400;padding:0;cursor:pointer"></button>
+                      <button type="button" class="tg-done-col" data-c="#8B1A2B" title="Wine" style="width:18px;height:18px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #c9b3ba;background:#8B1A2B;padding:0;cursor:pointer"></button>
+                      <input type="color" id="tg-done-custom" title="Custom colour" style="width:22px;height:22px;padding:0;border:none;background:none;cursor:pointer">
+                    </span></div>
+                  <div class="tg-row"><span>Tint opacity</span><span id="tg-done-op-val">70%</span></div>
+                  <input type="range" id="tg-done-op" min="15" max="100" value="70">
                 </div>
                 <label class="tg-row"><span>Grid</span><input type="checkbox" id="tg-on" checked></label>
                 <label class="tg-row" id="tg-bs-row" style="display:none"><span>Backstitch</span><input type="checkbox" id="tg-bs" checked></label>
@@ -25264,10 +25279,22 @@ const trkCtx=trkCanvas.getContext('2d');
 // dimming, so finished areas read from a distance. Persisted across sessions.
 let trkLightUpOn=false;
 try{ trkLightUpOn = localStorage.getItem('patternly_trk_lightup')==='1'; }catch(e){}
+// v606: the tint's colour and opacity are the stitcher's choice. Display only.
+let trkDoneCfg={color:'#ff3df0', op:70};
+try{ const _d=JSON.parse(localStorage.getItem('patternly_trk_done')||'null'); if(_d && /^#[0-9a-fA-F]{6}$/.test(_d.color||'') && _d.op>=15 && _d.op<=100) trkDoneCfg=_d; }catch(e){}
+function trkDoneSave(){ try{ localStorage.setItem('patternly_trk_done', JSON.stringify(trkDoneCfg)); }catch(e){} }
+function trkDoneSyncUI(){
+  const rows=document.getElementById('tg-done-rows'); if(rows) rows.style.display=trkLightUpOn?'':'none';
+  document.querySelectorAll('.tg-done-col').forEach(b=>{ b.style.outline = b.dataset.c.toLowerCase()===trkDoneCfg.color.toLowerCase() ? '2px solid var(--lp-red,#8B1A2B)' : 'none'; b.style.outlineOffset='2px'; });
+  const ci=document.getElementById('tg-done-custom'); if(ci && ci.value.toLowerCase()!==trkDoneCfg.color.toLowerCase()) ci.value=trkDoneCfg.color;
+  const op=document.getElementById('tg-done-op'); if(op && +op.value!==trkDoneCfg.op) op.value=trkDoneCfg.op;
+  const ov=document.getElementById('tg-done-op-val'); if(ov) ov.textContent=trkDoneCfg.op+'%';
+}
 function trkSetLightUp(on){
   trkLightUpOn=!!on;
   try{ localStorage.setItem('patternly_trk_lightup', on?'1':'0'); }catch(e){}
   const _lu=document.getElementById('tg-lightup'); if(_lu && _lu.checked!==trkLightUpOn) _lu.checked=trkLightUpOn;
+  trkDoneSyncUI();
   if(typeof renderTracker==='function' && trackerGrid) renderTracker();
 }
 function renderTracker(){
@@ -25275,6 +25302,12 @@ function renderTracker(){
   // v588: light-up applies in the normal view too — the toggle now lives in the
   // shared ⚙ popover, so its effect must not be full-screen-only.
   const trkLightUpDraw = trkLightUpOn;
+  // v606: tint colour/opacity from settings; glyph contrast judged on the tint
+  // as it actually appears (blended over the cell's own colour or white).
+  const _dh=trkDoneCfg.color, _da=Math.max(0.15,Math.min(1,trkDoneCfg.op/100));
+  const _dr=parseInt(_dh.slice(1,3),16)||0, _dg=parseInt(_dh.slice(3,5),16)||0, _db=parseInt(_dh.slice(5,7),16)||0;
+  const trkDoneFill=`rgba(${_dr},${_dg},${_db},${_da})`;
+  const trkDoneLum=(cr,cg,cb)=>0.299*(_dr*_da+cr*(1-_da))+0.587*(_dg*_da+cg*(1-_da))+0.114*(_db*_da+cb*(1-_da));
   const vp=trkViewport();
   // Coordinate-ruler gutter: a fixed margin (px) reserved along the top and left
   // so the 10/20/30 numbers sit OUTSIDE the stitches, never on top of them. Width
@@ -25455,20 +25488,22 @@ function renderTracker(){
           // magenta (#ff3df0) — a colour no real thread has, so worked areas pop
           // against ANY pattern, including red-heavy ones where the old red fill
           // disappeared. Single colour by design. Symbol stays on top. (v587)
-          trkCtx.fillStyle='rgba(255,61,240,0.95)';
+          // The cell keeps its thread colour underneath; the tint sits over it at
+          // the chosen opacity, so the symbol AND the colour stay readable.
+          trkCtx.fillStyle=trkDoneFill;
           trkCtx.fillRect(x+1,y+1,cell-1,cell-1);
-          // Keep the cell's symbol readable ON TOP when zoomed in (white glyph /
-          // light sprite, since the red fill is dark).
           if(showSymbol){
             const part=partAt(r,c);
+            const _lum=trkDoneLum(col?col.r:255, col?col.g:255, col?col.b:255);
+            const _dark=_lum>140;
             if(useChartFont){
               const g=chartGlyphAt(r,c);
-              if(g && fontMiss(g)){ const spr=trackerSprites[sym]; if(spr) drawSprite(spr.light, x, y, part); }
-              else if(g){ trkCtx.fillStyle='rgba(255,255,255,0.95)'; drawGlyph(g, chartFontPx, x, y, part, trkChartFontStack); }
+              if(g && fontMiss(g)){ const spr=trackerSprites[sym]; if(spr) drawSprite(_dark?spr.dark:spr.light, x, y, part); }
+              else if(g){ trkCtx.fillStyle=_dark?'rgba(0,0,0,0.85)':'rgba(255,255,255,0.95)'; drawGlyph(g, chartFontPx, x, y, part, trkChartFontStack); }
             } else {
               const spr=trackerSprites[sym];
-              if(spr){ drawSprite(spr.light, x, y, part); }
-              else { trkCtx.fillStyle='rgba(255,255,255,0.95)'; drawGlyph((sym.length>1?sym[0]:sym)+'\uFE0E', fontSize, x, y, part, '"PatternlySymbols","Segoe UI Symbol","Noto Sans Symbols",Arial,sans-serif'); }
+              if(spr){ drawSprite(_dark?spr.dark:spr.light, x, y, part); }
+              else { trkCtx.fillStyle=_dark?'rgba(0,0,0,0.8)':'rgba(255,255,255,0.95)'; drawGlyph((sym.length>1?sym[0]:sym)+'\uFE0E', fontSize, x, y, part, '"PatternlySymbols","Segoe UI Symbol","Noto Sans Symbols",Arial,sans-serif'); }
             }
           }
         } else {
@@ -25796,6 +25831,10 @@ document.getElementById('trk-grid-btn').addEventListener('click',function(){
   on.addEventListener('change',()=>{ trkGridCfg.on=on.checked; trkGridSave(); renderTracker(); });
   { const lu=document.getElementById('tg-lightup');
     if(lu){ lu.checked=trkLightUpOn; lu.addEventListener('change',()=>trkSetLightUp(lu.checked)); } }
+  document.querySelectorAll('.tg-done-col').forEach(b=>b.addEventListener('click',()=>{ trkDoneCfg.color=b.dataset.c; trkDoneSave(); trkDoneSyncUI(); if(trackerGrid) renderTracker(); }));
+  { const ci=document.getElementById('tg-done-custom'); if(ci) ci.addEventListener('input',()=>{ if(/^#[0-9a-fA-F]{6}$/.test(ci.value)){ trkDoneCfg.color=ci.value; trkDoneSave(); trkDoneSyncUI(); if(trackerGrid) renderTracker(); } }); }
+  { const op=document.getElementById('tg-done-op'); if(op) op.addEventListener('input',()=>{ trkDoneCfg.op=Math.max(15,Math.min(100,+op.value||70)); trkDoneSave(); trkDoneSyncUI(); if(trackerGrid) renderTracker(); }); }
+  trkDoneSyncUI();
   document.querySelectorAll('.tg-color-row').forEach(row=>{ const key=cfgKey(row.dataset.target);
     row.querySelectorAll('.tg-col').forEach(b=>b.addEventListener('click',()=>{ trkGridCfg[key]=b.dataset.c; syncCol(); trkGridSave(); renderTracker(); }));
     const ci=row.querySelector('.tg-colcustom'); if(ci) ci.addEventListener('input',()=>{ trkGridCfg[key]=ci.value; syncCol(); trkGridSave(); renderTracker(); });
