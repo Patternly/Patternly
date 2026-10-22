@@ -5192,7 +5192,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v600';
+window.PATTERNLY_BUILD='v601';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -21612,8 +21612,11 @@ function parseLegendText(text){
     }
     // Stitch counts arrive as "678" or "678/203" (crosses/backstitches) — the
     // cross-stitch count is the first number.
-    const countOf = t => { const m=/^(\d{1,6})(?:\/\d{1,6})?$/.exec(t||''); return m?parseInt(m[1],10):null; };
-    const backOf = t => { const m=/^\d{1,6}\/(\d{1,6})$/.exec(t||''); return m?parseInt(m[1],10):0; };  // backstitch count = the Y in "X/Y"
+    // v601: counts print as "X", "X/Y" (cross/backstitch) or "X/Y/Z" (cross/
+    // backstitch/French knots — BU5062 Black "522/937/9"). The third figure is
+    // knots, which are overlay ornaments and never counted, so it is ignored.
+    const countOf = t => { const m=/^(\d{1,6})(?:\/\d{1,6}){0,2}$/.exec(t||''); return m?parseInt(m[1],10):null; };
+    const backOf = t => { const m=/^\d{1,6}\/(\d{1,6})(?:\/\d{1,6})?$/.exec(t||''); return m?parseInt(m[1],10):0; };  // backstitch count = the Y in "X/Y[/Z]"
     // ── Nr-less full row (evidence BU5060 row 23): the row number can drift to
     //    a NEIGHBOURING baseline bucket while the rest of the row stays whole:
     //    "T T X 2 400 791 …". Accept when the complete strict structure is
@@ -21867,8 +21870,8 @@ function parseLegendText(text){
   //    mistake a strand count "X 2" or a backstitch note for a colour row. Runs
   //    after the main handlers and ONLY adds codes+symbols they didn't already
   //    capture, so rows that parsed correctly are never altered.
-  const recCountOf = t => { const m=/^(\d{1,6})(?:\/\d{1,6})?$/.exec(t||''); return m?parseInt(m[1],10):null; };
-  const recBackOf = t => { const m=/^\d{1,6}\/(\d{1,6})$/.exec(t||''); return m?parseInt(m[1],10):0; };
+  const recCountOf = t => { const m=/^(\d{1,6})(?:\/\d{1,6}){0,2}$/.exec(t||''); return m?parseInt(m[1],10):null; };   // v601: X, X/Y or X/Y/Z
+  const recBackOf = t => { const m=/^\d{1,6}\/(\d{1,6})(?:\/\d{1,6})?$/.exec(t||''); return m?parseInt(m[1],10):0; };
   for(let li=0; li<lines.length; li++){
     const ts = lines[li].trim().split(/\s+/).filter(Boolean);
     if(ts.length<5 || !/^\d{1,3}$/.test(ts[0])) continue; // "Nr S S code count …"
