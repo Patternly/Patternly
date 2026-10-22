@@ -5193,7 +5193,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v608';
+window.PATTERNLY_BUILD='v609';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -30552,12 +30552,12 @@ function trkFsPanel(kind){
   if(kind){ document.body.classList.remove('trk-cbopen','cb-exp'); }
   if(!kind){ panel.classList.remove('open'); document.body.classList.remove('trk-setopen','trk-setexp'); return; }
   if(kind==='colours'){
-    title.textContent='Colours';
+    title.textContent=(typeof plT==='function'?plT('trk.colours'):'')||'Colours';
     const side=document.getElementById('trk-side');
     if(side){ side.style.display=''; side.style.width='auto'; side.style.maxWidth='none'; body.appendChild(side); }
     const btn=document.getElementById('fsb-colours'); if(btn) btn.classList.add('active');
   } else if(kind==='settings'){
-    title.textContent='Settings';
+    title.textContent=(typeof plT==='function'?plT('trk.settings'):'')||'Settings';
     // (v588) The light-up toggle now lives inside #trk-grid-pop itself, which is
     // borrowed into this panel below — no separate injection needed.
     const pop=document.getElementById('trk-grid-pop');
