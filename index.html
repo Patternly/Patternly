@@ -26334,7 +26334,7 @@ function updateTrackerProgressUI(){
     if(!cbar){
       cbar=document.createElement('div'); cbar.id='trk-colorbar';
       cbar.innerHTML='<div id="trk-cb-head"><span class="cb-grab"></span>'
-        +'<span class="cb-title">Colours</span>'
+        +'<span class="cb-title" data-i18n="trk.colours">'+((typeof plT==='function'&&plT('trk.colours'))||'Colours')+'</span>'
         +'<span id="trk-cb-viewtog"><button data-v="grid" title="Grid view">\u25A6</button><button data-v="list" title="List view">\u2630</button></span>'
         +'<button id="trk-cb-close" title="Close">\u2715</button></div>'
         +'<div id="trk-cb-body"></div>';
