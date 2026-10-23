@@ -12,7 +12,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v97";
+const MW_VERSION = "v98";
 
 const enc = new TextEncoder();
 
@@ -950,7 +950,8 @@ async function pushJobRun(env, job) {
     try { const d = JSON.parse((await env.ENTITLEMENTS.get(k.name)) || "null"); if (d && d.token) devs.push({ key: k.name, ...d }); } catch (e) {}
   }
   const targets = devs.filter(d => pushAudienceOk(d, job.audience || {}));
-  const results = await Promise.all(targets.map(d => pushSendOne(env, d, job.msg)));
+  const pick = d => { const v = job.msg.i18n && job.msg.i18n[d.lang || "en"]; return v ? { title: v.title, body: v.body, url: job.msg.url } : job.msg; };   // v98: per-device language
+  const results = await Promise.all(targets.map(d => pushSendOne(env, d, pick(d))));
   for (let i = 0; i < targets.length; i++) {
     const r = results[i];
     if (r.ok) job.sent++;
@@ -962,7 +963,7 @@ async function pushJobRun(env, job) {
   job.updated = Date.now();
   if (job.done) {
     job.finished = Date.now();
-    try { await env.ENTITLEMENTS.put("pushlog:" + String(job.created).padStart(14, "0"), JSON.stringify({ id: job.id, title: job.msg.title, body: job.msg.body, url: job.msg.url || "", audience: job.audience, test: !!job.test, sent: job.sent, failed: job.failed, pruned: job.pruned, by: job.by, ts: job.created, finished: job.finished }), { expirationTtl: 400 * 86400 }); } catch (e) {}
+    try { await env.ENTITLEMENTS.put("pushlog:" + String(job.created).padStart(14, "0"), JSON.stringify({ id: job.id, title: job.msg.title, body: job.msg.body, url: job.msg.url || "", langs: Object.keys(job.msg.i18n || {}), audience: job.audience, test: !!job.test, sent: job.sent, failed: job.failed, pruned: job.pruned, by: job.by, ts: job.created, finished: job.finished }), { expirationTtl: 400 * 86400 }); } catch (e) {}
   }
   await env.ENTITLEMENTS.put("pushjob:" + job.id, JSON.stringify(job), { expirationTtl: 86400 });
   return job;
@@ -1762,6 +1763,9 @@ async function handlePartnerApi(request, url, env) {
       if (link && !/^https:\/\/|^patternly:\/\/|^\/|^#/.test(link)) return partnerJson(400, { ok:false, error:"Link must be an https:// address or an in-app path." });
       const a = b.audience || {};
       const audience = { platform: PUSH_PLATFORMS.includes(a.platform) ? a.platform : "all", lang: PUSH_LANGS.includes(a.lang) ? a.lang : "all", plus: ["plus", "free"].includes(a.plus) ? a.plus : "all" };
+      // v98: optional translations {fr:{title,body},...}; devices without one get the main text
+      const i18n = {};
+      if (b.i18n && typeof b.i18n === "object") for (const l of PUSH_LANGS) { const v = b.i18n[l]; if (v && String(v.title || "").trim() && String(v.body || "").trim()) i18n[l] = { title: String(v.title).trim().slice(0, 80), body: String(v.body).trim().slice(0, 240) }; }
       const test = !!b.test;
       if (test) { const cid = String(b.testCustomerId || "").trim(); if (!cid) return partnerJson(400, { ok:false, error:"A test needs your customer id (sign in to the app, then Account shows it)." }); audience.cid = cid; }
       if ((audience.platform !== "android" && !configured.ios) || (audience.platform !== "ios" && !configured.android)) {
@@ -1769,7 +1773,7 @@ async function handlePartnerApi(request, url, env) {
         if ((audience.platform === "all") || (audience.platform === "ios" && !configured.ios) || (audience.platform === "android" && !configured.android))
           return partnerJson(400, { ok:false, error:"Not configured yet for " + miss.join(" and ") + ". Add the secrets in Cloudflare, or pick a platform that is set up." });
       }
-      const job = { id: randToken(9), created: Date.now(), by: ADM.name || "owner", msg: { title, body, url: link }, audience, test, cursor: null, scanned: 0, sent: 0, failed: 0, pruned: 0, errors: [], done: false };
+      const job = { id: randToken(9), created: Date.now(), by: ADM.name || "owner", msg: { title, body, url: link, i18n }, audience, test, cursor: null, scanned: 0, sent: 0, failed: 0, pruned: 0, errors: [], done: false };
       await pushJobRun(env, job);
       return partnerJson(200, { ok:true, job: pushJobPublic(job) });
     }

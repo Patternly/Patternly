@@ -697,9 +697,10 @@
           <textarea id="pn-body" maxlength="240" rows="3" placeholder="Update the app to choose the colour of completed stitches, erase mistakes and undo." style="width:100%;box-sizing:border-box;padding:.62rem .7rem;border:1.5px solid var(--border);border-radius:9px;font:inherit;resize:vertical"></textarea></div>
         <div class="pn-aud">
           <div><label>Platform</label><div class="seg" id="pn-platform"><button class="on" data-v="all">Both</button><button data-v="ios">iOS</button><button data-v="android">Android</button></div></div>
-          <div><label>Language</label><div class="seg" id="pn-lang"><button class="on" data-v="all">All</button><button data-v="en">EN</button><button data-v="fr">FR</button><button data-v="de">DE</button><button data-v="nl">NL</button><button data-v="es">ES</button><button data-v="it">IT</button><button data-v="ru">RU</button><button data-v="uk">UK</button></div></div>
           <div><label>Subscription</label><div class="seg" id="pn-plus"><button class="on" data-v="all">Everyone</button><button data-v="plus">Plus only</button><button data-v="free">Not on Plus</button></div></div>
         </div>
+        <div style="margin-top:.9rem"><a href="#" id="pn-i18n-toggle" style="font-size:.82rem;font-weight:700">+ Add translations</a> <span class="note" style="display:inline;margin:0 0 0 .4rem">Each phone gets its own app language; anyone without a translation gets the text above.</span></div>
+        <div id="pn-i18n" style="display:none;margin-top:.6rem;display:none"></div>
         <div style="margin-top:1rem"><label>Preview</label>
           <div class="pn-prev"><div class="ic">P</div><div><b id="pn-pv-title">Title</b><span id="pn-pv-body">Message</span></div></div></div>
         <div class="row" style="margin-top:1rem;align-items:flex-end">
@@ -4022,10 +4023,14 @@ $('aov-refresh').onclick=loadAdminOverview;
 let PN_BOUND=false, PN_BUSY=false;
 const pnEsc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 const PN_LANG_NAMES={en:'English',fr:'French',de:'German',nl:'Dutch',ru:'Russian',uk:'Ukrainian',es:'Spanish',it:'Italian'};
+const PN_TR_LANGS=['fr','de','nl','es','it','ru','uk'];
+function pnI18nBuild(){ $('pn-i18n').innerHTML=PN_TR_LANGS.map(l=>'<div class="row" style="margin-top:.5rem;align-items:flex-start"><div style="max-width:120px;padding-top:.6rem;font-size:.8rem;font-weight:700;color:var(--muted)">'+PN_LANG_NAMES[l]+'</div><div style="max-width:300px"><input type="text" data-tl="'+l+'" data-f="title" maxlength="80" placeholder="Title"></div><div><input type="text" data-tl="'+l+'" data-f="body" maxlength="240" placeholder="Message"></div></div>').join(''); }
+function pnI18n(){ const o={}; $('pn-i18n').querySelectorAll('input[data-tl]').forEach(i=>{ const v=i.value.trim(); if(!v) return; (o[i.dataset.tl]=o[i.dataset.tl]||{})[i.dataset.f]=v; }); Object.keys(o).forEach(l=>{ if(!o[l].title||!o[l].body) delete o[l]; }); return o; }
 function pnSeg(id){ const on=$(id).querySelector('button.on'); return on?on.dataset.v:'all'; }
 function pnBind(){
   if(PN_BOUND) return; PN_BOUND=true;
-  ['pn-platform','pn-lang','pn-plus'].forEach(id=>$(id).addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; $(id).querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); }));
+  pnI18nBuild(); $('pn-i18n-toggle').addEventListener('click',e=>{ e.preventDefault(); const b=$('pn-i18n'); const open=b.style.display==='none'; b.style.display=open?'':'none'; $('pn-i18n-toggle').textContent=open?'– Hide translations':'+ Add translations'; });
+  ['pn-platform','pn-plus'].forEach(id=>$(id).addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; $(id).querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); }));
   const pv=()=>{ $('pn-pv-title').textContent=$('pn-title').value.trim()||'Title'; $('pn-pv-body').textContent=$('pn-body').value.trim()||'Message'; };
   $('pn-title').addEventListener('input',pv); $('pn-body').addEventListener('input',pv);
   try{ const c=localStorage.getItem('pn_testcid'); if(c) $('pn-testcid').value=c; }catch(e){}
@@ -4091,8 +4096,8 @@ async function pnLoad(){
     if(l.ok){
       if(!l.log.length) $('pn-log').innerHTML='<div class="note">Nothing sent yet.</div>';
       else{
-        const aud=a=>[a.platform==='all'?'both':a.platform, a.lang==='all'?'all languages':PN_LANG_NAMES[a.lang]||a.lang, a.plus==='all'?'':a.plus==='plus'?'Plus only':'not on Plus'].filter(Boolean).join(' · ');
-        $('pn-log').innerHTML='<table class="pn-log"><tr><th>When</th><th>Notification</th><th>Audience</th><th>Sent</th><th>Failed</th></tr>'+l.log.map(x=>'<tr><td style="white-space:nowrap">'+new Date(x.ts).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})+(x.test?'<br><span class="pill" style="background:var(--bg)">test</span>':'')+'</td><td><b>'+pnEsc(x.title)+'</b><br>'+pnEsc(x.body)+(x.url?'<br><span class="note">'+pnEsc(x.url)+'</span>':'')+'</td><td>'+pnEsc(aud(x.audience||{}))+'</td><td>'+x.sent+'</td><td>'+x.failed+(x.pruned?' <span class="note">('+x.pruned+' dead tokens removed)</span>':'')+'</td></tr>').join('')+'</table>';
+        const aud=(a,x)=>[a.platform==='all'?'both':a.platform, (x.langs&&x.langs.length)?('+ '+x.langs.map(l=>l.toUpperCase()).join('/')):(a.lang&&a.lang!=='all'?PN_LANG_NAMES[a.lang]||a.lang:''), a.plus==='all'?'':a.plus==='plus'?'Plus only':'not on Plus'].filter(Boolean).join(' · ');
+        $('pn-log').innerHTML='<table class="pn-log"><tr><th>When</th><th>Notification</th><th>Audience</th><th>Sent</th><th>Failed</th></tr>'+l.log.map(x=>'<tr><td style="white-space:nowrap">'+new Date(x.ts).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})+(x.test?'<br><span class="pill" style="background:var(--bg)">test</span>':'')+'</td><td><b>'+pnEsc(x.title)+'</b><br>'+pnEsc(x.body)+(x.url?'<br><span class="note">'+pnEsc(x.url)+'</span>':'')+'</td><td>'+pnEsc(aud(x.audience||{},x))+'</td><td>'+x.sent+'</td><td>'+x.failed+(x.pruned?' <span class="note">('+x.pruned+' dead tokens removed)</span>':'')+'</td></tr>').join('')+'</table>';
       }
     }
   }catch(e){ $('pn-devices').innerHTML='<div class="note">Could not load: '+pnEsc(e.message)+'</div>'; }
@@ -4102,13 +4107,13 @@ async function pnSend(test){
   const title=$('pn-title').value.trim(), body=$('pn-body').value.trim(), url=$('pn-url').value.trim();
   const msg=$('pn-msg');
   if(!title||!body){ msg.textContent='Title and message are required.'; return; }
-  const audience={platform:pnSeg('pn-platform'),lang:pnSeg('pn-lang'),plus:pnSeg('pn-plus')};
+  const audience={platform:pnSeg('pn-platform'),lang:'all',plus:pnSeg('pn-plus')}; const i18n=pnI18n();
   const testCustomerId=$('pn-testcid').value.trim();
   if(test && !testCustomerId){ msg.textContent='Enter your customer id first (sign in to the app → Account).'; return; }
-  if(!test){ const who=[audience.platform==='all'?'both platforms':audience.platform, audience.lang==='all'?'all languages':PN_LANG_NAMES[audience.lang], audience.plus==='all'?'everyone':audience.plus==='plus'?'Plus subscribers only':'people not on Plus'].join(', '); if(!confirm('Send “'+title+'” to '+who+'? This cannot be recalled.')) return; }
+  if(!test){ const tl=Object.keys(i18n); const who=[audience.platform==='all'?'both platforms':audience.platform, tl.length?('with '+tl.length+' translation'+(tl.length>1?'s':'')):'English text for everyone', audience.plus==='all'?'everyone':audience.plus==='plus'?'Plus subscribers only':'people not on Plus'].join(', '); if(!confirm('Send “'+title+'” to '+who+'? This cannot be recalled.')) return; }
   PN_BUSY=true; $('pn-send').disabled=$('pn-test').disabled=true; $('pn-prog').style.display=''; $('pn-prog-i').style.width='5%'; msg.textContent=test?'Sending test…':'Sending…';
   try{
-    let r=await fetch(API+'admin/push/send',{method:'POST',headers:adminHeaders(true),body:JSON.stringify({title,body,url,audience,test,testCustomerId})});
+    let r=await fetch(API+'admin/push/send',{method:'POST',headers:adminHeaders(true),body:JSON.stringify({title,body,url,audience,test,testCustomerId,i18n})});
     let j=await r.json();
     if(!j.ok) throw new Error(j.error||'Send failed');
     let job=j.job, n=1;
