@@ -252,10 +252,7 @@
   <!-- ── sign in ─────────────────────────────────────────────────────────── -->
   <div id="signin" class="card">
     <h2>Sign in <a href="#" id="land-back" style="float:right;font-size:.78rem;font-weight:700">← About Patternly for Brands</a></h2>
-    <div class="seg" id="si-seg" role="tablist">
-      <button type="button" data-mode="staff" class="on">Luca-S team</button>
-      <button type="button" data-mode="key">Partner brand</button>
-    </div>
+    <div class="note" style="margin:0 0 .8rem">One sign-in for the Luca-S team and partner brands: your email and password.</div>
     <div class="row">
       <div>
         <label for="si-email">Email</label>
@@ -264,10 +261,6 @@
       <div id="si-pw-wrap">
         <label for="si-pw">Password</label>
         <input type="password" id="si-pw" autocomplete="current-password">
-      </div>
-      <div id="si-key-wrap" style="display:none">
-        <label for="si-key">Brand key</label>
-        <input type="password" id="si-key" autocomplete="off" spellcheck="false" placeholder="PK-…">
       </div>
     </div>
     <div style="margin-top:.9rem" class="row">
@@ -465,7 +458,15 @@
           <div class="ovtile"><div class="ovnum" style="font-size:1.05rem" id="acct-prefix"></div><div class="ovlab">SKU prefix</div></div>
           <div class="ovtile"><div class="ovnum" style="font-size:1.05rem" id="acct-email"></div><div class="ovlab">Sign-in email</div></div>
         </div>
-        <div class="note" style="margin-top:.7rem">Your brand key is your password — keep it safe. If it's ever exposed, contact Luca-S and we'll issue a new one instantly.</div>
+        <div id="acct-keybox" style="display:none;margin-top:.9rem;border:1.5px solid var(--border);border-radius:10px;padding:.8rem .9rem;background:var(--bg)">
+          <div class="ovlab">Brand key</div>
+          <div style="display:flex;align-items:center;gap:.6rem;margin-top:.3rem;flex-wrap:wrap">
+            <span id="acct-key" class="skucell" style="font-size:.95rem;word-break:break-all"></span>
+            <button class="ghost" id="acct-key-copy" style="padding:.2rem .7rem;font-size:.74rem">Copy</button>
+          </div>
+          <div class="note" style="margin:.5rem 0 0">Used by Patternly tools that connect to your brand. Keep it private — it isn’t needed to sign in here. If it’s ever exposed, contact Luca-S and we’ll issue a new one.</div>
+        </div>
+        <div class="note" style="margin-top:.7rem">You sign in with your email and password. Use “Forgot password?” on the sign-in page to reset it.</div>
       </div>
     </div>
 
@@ -538,11 +539,12 @@
         <div style="margin-top:1rem" class="row"><button class="primary" id="bf-save">Save</button></div>
         <div class="note" id="bf-msg"></div>
         <div id="bf-keybox" style="display:none;margin-top:.8rem;border:1.5px solid var(--red);border-radius:10px;padding:.8rem .9rem;background:var(--bg)">
-          <div class="ovlab">Brand key — shown once</div>
-          <div style="display:flex;align-items:center;gap:.6rem;margin-top:.3rem">
-            <span id="bf-key" class="skucell" style="font-size:1.05rem"></span>
+          <div class="ovlab" id="bf-keylab">Set-up link — send this to the partner</div>
+          <div style="display:flex;align-items:center;gap:.6rem;margin-top:.3rem;flex-wrap:wrap">
+            <span id="bf-key" class="skucell" style="font-size:.9rem;word-break:break-all"></span>
             <button class="ghost" id="bf-copy" style="padding:.2rem .7rem;font-size:.74rem">Copy</button>
           </div>
+          <div class="note" id="bf-keynote" style="margin:.5rem 0 0">Works once, for 48 hours. They open it, choose a password, and are signed in. Their brand key is shown inside their account.</div>
         </div>
       </div>
       <div class="card" id="brands-card">
@@ -3039,7 +3041,7 @@ function showTab(name){
   if(name==='customers' && !CUST_LOADED){ CUST_LOADED=true; loadCustomers(); }
   if(name==='overview') loadOverview();
   if(name==='patterns') showPublish(false);
-  if(name==='account'){ $('acct-brand').textContent=SESSION.brand; $('acct-prefix').textContent=SESSION.prefix; $('acct-email').textContent=SESSION.email||'\u2014'; }
+  if(name==='account'){ $('acct-brand').textContent=SESSION.brand; $('acct-prefix').textContent=SESSION.prefix; $('acct-email').textContent=SESSION.email||'\u2014'; const bk=SESSION.brandKey||(/^PK-/.test(SESSION.key||'')?SESSION.key:''); $('acct-keybox').style.display=bk?'':'none'; $('acct-key').textContent=bk; }
   if(name==='aov'){ loadAdminOverview(); if(SESSION&&SESSION.master&&!RV.data) rvLoad(); }
   if(name==='abrands' && !ABRANDS_LOADED){ ABRANDS_LOADED=true; loadBrands(); loadApplications(); }
   if(name==='apatterns' && !APAT_LOADED){ APAT_LOADED=true; loadAdminPatterns(); }
@@ -3197,20 +3199,11 @@ function enterWorkspace(){
 // ── sign in ──────────────────────────────────────────────────────────────────
 // v38: two ways in. Luca-S team: email + password (or the PA-/PU- key typed in
 // the password box as a fallback). Partner brands: email + PK- key as before.
-let SI_MODE='staff';
-const SI_HINT={ staff:'Luca-S team members sign in with the email and password set up by the owner. Forgot it? Use the link to get a reset email.',
-                key:'Your brand key came with your Patternly for Brands welcome email. Both fields must match what Luca-S registered for you.' };
-function siMode(m){
-  SI_MODE=m;
-  $('si-seg').querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset.mode===m));
-  $('si-pw-wrap').style.display = m==='staff' ? '' : 'none';
-  $('si-key-wrap').style.display = m==='key' ? '' : 'none';
-  $('si-forgot').style.display = m==='staff' ? '' : 'none';
-  $('si-msg').textContent = SI_HINT[m];
-}
-$('si-seg').querySelectorAll('button').forEach(b=>{ b.onclick=()=>siMode(b.dataset.mode); });
-siMode('staff');
-['si-email','si-pw','si-key'].forEach(id=>{ $(id).onkeydown=(e)=>{ if(e.key==='Enter') $('si-go').click(); }; });
+// v44: one sign-in for everyone (team users and partner brands), email + password.
+const SI_MODE='staff';
+function siMode(){ $('si-msg').textContent='Forgot your password? Type your email and use the link below.'; }
+siMode();
+['si-email','si-pw'].forEach(id=>{ $(id).onkeydown=(e)=>{ if(e.key==='Enter') $('si-go').click(); }; });
 // v42: forgot password → emailed one-hour reset link
 $('si-forgot').onclick = async (e) => {
   e.preventDefault();
@@ -3238,6 +3231,10 @@ $('si-go').onclick = async () => {
         const rl = await fetch(API + 'staff/login', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ email, password: pw }) });
         const dl = await rl.json().catch(()=>({}));
         if(!rl.ok || !dl.ok){ msg.innerHTML = '<span class="err">'+escA(dl.error||'Sign-in failed.')+'</span>'; return; }
+        if(dl.kind==='partner'){   // v44: a partner brand — same door, their own workspace
+          SESSION = { brand:dl.brand, prefix:dl.prefix, email:dl.email, buy:dl.buy||'', key:dl.token, brandKey:dl.brandKey||'' };
+          $('si-pw').value=''; saveSession(); enterWorkspace(); return;
+        }
         key = dl.token;
       }
       const ra = await fetch(API + 'admin/whoami', { headers:{ 'x-admin-key': key } });
@@ -3251,34 +3248,11 @@ $('si-go').onclick = async () => {
     finally{ $('si-go').disabled = false; }
     return;
   }
-  const key = $('si-key').value.trim();
-  if(!email || !key){ msg.innerHTML = '<span class="err">Enter both your email and your brand key.</span>'; return; }
-  $('si-go').disabled = true; msg.textContent = 'Signing in…';
-  try{
-    // v9: the Luca-S team signs into the same page with the PA- admin key.
-    // v37: PA- (owner) and PU- (team user) keys both sign in here; the
-    // middleware tells us which tabs this key may open.
-    if(/^P[AU]-/i.test(key)){
-      const ra = await fetch(API + 'admin/whoami', { headers:{ 'x-admin-key': key } });
-      const da = await ra.json().catch(()=>({}));
-      if(!ra.ok || !da.ok){ msg.innerHTML = '<span class="err">'+(da.error||'That key is not valid.')+'</span>'; return; }
-      SESSION = { admin:true, master:!!da.master, name:da.name||'', scopes:da.scopes||[],
-        brand: da.master ? 'Luca-S Admin' : ((da.name||'Team user')+' \u00b7 Luca-S'), prefix:'', email, key };
-      saveSession(); enterWorkspace(); return;
-    }
-    const r = await fetch(API + 'signin', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ email, key }) });
-    const d = await r.json().catch(()=>({}));
-    if(!r.ok || !d.ok){ msg.innerHTML = '<span class="err">' + (d.error || 'Sign-in failed.') + '</span>'; return; }
-    SESSION = { brand:d.brand, prefix:d.prefix, email:d.email, buy:d.buy||'', key };
-    saveSession(); enterWorkspace();
-  }catch(e){ msg.innerHTML = '<span class="err">Network error — try again.</span>'; }
-  finally{ $('si-go').disabled = false; }
 };
-$('si-key').addEventListener('keydown', e => { if(e.key==='Enter') $('si-go').click(); });
 $('signout').onclick = () => {
   const k = SESSION && SESSION.key;
   if(k && /^ST-/.test(k)){ fetch(API+'staff/logout',{method:'POST',headers:{'x-admin-key':k}}).catch(()=>{}); }
-  clearSession(); show('landing'); siMode('staff');
+  clearSession(); show('landing'); siMode();
 };
 
 // ── file pickers ─────────────────────────────────────────────────────────────
@@ -4207,7 +4181,7 @@ function brandFormShow(mode, rec){
   $('bf-limit').value = rec?String(rec.limit||''):'';
   $('bf-msg').textContent = BRAND_EDIT_KEY
     ? 'The prefix is permanent — it names the brand’s storage and SKUs.'
-    : 'The sign-in key is generated when you create the brand and shown once.';
+    : 'When you create the brand you get a set-up link to send them — they choose their password there.';
   $('bf-keybox').style.display='none';
   $('brand-form-card').style.display='';
   $('brands-card').style.display='none';
@@ -4228,7 +4202,7 @@ $('bf-save').onclick=async()=>{
     const d=await r.json().catch(()=>({}));
     if(!r.ok||!d.ok){ msg.innerHTML='<span class="err">'+(d.error||'Save failed.')+'</span>'; return; }
     if(!BRAND_EDIT_KEY && d.key){
-      $('bf-key').textContent=d.key;
+      $('bf-key').textContent=d.setupLink||d.key;
       $('bf-keybox').style.display='';
       msg.innerHTML='<span class="okmsg">'+escA(d.brand)+' created — copy the key now, it is shown once.</span>';
     }else{
@@ -4239,6 +4213,7 @@ $('bf-save').onclick=async()=>{
   }catch(e){ msg.innerHTML='<span class="err">Network error.</span>'; }
   finally{ $('bf-save').disabled=false; }
 };
+$('acct-key-copy').onclick=()=>{ navigator.clipboard.writeText($('acct-key').textContent).then(()=>{ $('acct-key-copy').textContent='Copied'; setTimeout(()=>$('acct-key-copy').textContent='Copy',1200); }); };
 $('bf-copy').onclick=()=>{ navigator.clipboard.writeText($('bf-key').textContent).then(()=>{ $('bf-copy').textContent='Copied'; setTimeout(()=>$('bf-copy').textContent='Copy',1200); }); };
 async function loadBrands(){
   const box=$('brands-box'); box.innerHTML='<div class="note">Loading…</div>';
@@ -4246,7 +4221,7 @@ async function loadBrands(){
     const d=await adminBrandsFetch();
     if(!d.ok){ box.innerHTML='<div class="err">'+(d.error||'Could not load brands.')+'</div>'; return; }
     if(!d.brands.length){ box.innerHTML='<div class="note">No partner brands yet — create the first one with + Add Brand.</div>'; return; }
-    let h='<table><thead><tr><th>Brand</th><th>Prefix</th><th>Patterns</th><th>Limit</th><th>Customers stitching</th><th>Last customer activity</th><th>Sign-in email</th><th></th></tr></thead><tbody>';
+    let h='<table><thead><tr><th>Brand</th><th>Prefix</th><th>Patterns</th><th>Limit</th><th>Customers stitching</th><th>Last customer activity</th><th>Sign-in email</th><th>Password</th><th></th></tr></thead><tbody>';
     for(const b of d.brands){
       h+='<tr><td style="font-weight:700">'+escA(b.brand)+'</td><td class="skucell">'+escA(b.prefix)+'</td>'
         +'<td>'+b.kits+'</td><td>'+b.limit+'</td>'
@@ -4255,11 +4230,26 @@ async function loadBrands(){
         +'<td>'+((b.customers|0)>0?('<b>'+(b.customers|0)+'</b>'):((b.kits|0)>0?'<span class="err" style="font-weight:700">0</span>':'0'))+'</td>'
         +'<td style="color:var(--muted);font-size:.8rem">'+(b.lastActive?fmtWhen(b.lastActive):'—')+'</td>'
         +'<td>'+escA(b.email)+'</td>'
-        +'<td style="white-space:nowrap"><button class="ghost bedit" data-key="'+escA(b.key)+'" style="padding:.15rem .55rem;font-size:.7rem">Edit</button>'
+        +'<td style="white-space:nowrap">'+(b.hasPassword?'<span class="pill" style="background:#e7f3ea;color:#1d6b3a">set</span>':'<span class="pill" style="background:var(--bg);color:var(--muted)">not yet</span>')+'</td>'
+        +'<td style="white-space:nowrap"><button class="ghost bsetup" data-key="'+escA(b.key)+'" data-brand="'+escA(b.brand)+'" style="padding:.15rem .55rem;font-size:.7rem">Set-up link</button>'
+        +' <button class="ghost bedit" data-key="'+escA(b.key)+'" style="padding:.15rem .55rem;font-size:.7rem">Edit</button>'
         +' <button class="ghost brevoke" data-key="'+escA(b.key)+'" data-brand="'+escA(b.brand)+'" style="padding:.15rem .55rem;font-size:.7rem;color:#b3261e;border-color:#e8c9c9">Revoke key</button></td></tr>';
     }
     box.innerHTML=h+'</tbody></table>';
     box.querySelectorAll('.bedit').forEach(btn=>{ btn.onclick=()=>{ const rec=ADMIN_BRANDS.find(x=>x.key===btn.dataset.key); if(rec) brandFormShow('edit',rec); }; });
+    // v44: password set-up link per brand (48 h, single use) — shown in the form's link box
+    box.querySelectorAll('.bsetup').forEach(btn=>{ btn.onclick=async()=>{
+      btn.disabled=true;
+      try{
+        const r2=await fetch(API+'admin/brand-setup-link',{method:'POST',headers:adminHeaders(true),body:JSON.stringify({key:btn.dataset.key})});
+        const d2=await r2.json().catch(()=>({}));
+        if(!r2.ok||!d2.ok){ alert(d2.error||'Could not make a link.'); return; }
+        { const rec=ADMIN_BRANDS.find(x=>x.key===btn.dataset.key); if(rec) brandFormShow('edit',rec); else { $('brand-form-card').style.display=''; $('brands-card').style.display='none'; } }
+        $('bf-keylab').textContent='Set-up link for '+(d2.brand||btn.dataset.brand)+' — send to '+(d2.email||'the partner');
+        $('bf-key').textContent=d2.link; $('bf-keybox').style.display=''; $('bf-msg').textContent=d2.hasPassword?'They already have a password; this link lets them choose a new one.':'';
+        $('bf-keybox').scrollIntoView({behavior:'smooth',block:'center'});
+      }finally{ btn.disabled=false; }
+    }; });
     box.querySelectorAll('.brevoke').forEach(btn=>{ btn.onclick=async()=>{
       if(!confirm('Revoke '+btn.dataset.brand+'’s key?\n\nTheir sign-in and uploads stop immediately. Their published kits stay live — hide or remove those separately.')) return;
       const r2=await fetch(API+'admin/revoke',{method:'POST',headers:adminHeaders(true),body:JSON.stringify({key:btn.dataset.key})});
@@ -4695,7 +4685,8 @@ if(SETUP_TOKEN){
       // Sign them straight in.
       const rl=await fetch(API+'staff/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:d.email,password:a})});
       const dl=await rl.json().catch(()=>({}));
-      if(!rl.ok||!dl.ok){ msg.innerHTML='<span style="color:var(--ok);font-weight:700">Password saved.</span> Sign in with it now.'; $('si-email').value=d.email; setTimeout(()=>{ show('in'); siMode('staff'); },900); return; }
+      if(!rl.ok||!dl.ok){ msg.innerHTML='<span style="color:var(--ok);font-weight:700">Password saved.</span> Sign in with it now.'; $('si-email').value=d.email; setTimeout(()=>{ show('in'); siMode(); },900); return; }
+      if(dl.kind==='partner'){ SESSION={ brand:dl.brand, prefix:dl.prefix, email:dl.email, buy:dl.buy||'', key:dl.token, brandKey:dl.brandKey||'' }; saveSession(); enterWorkspace(); return; }
       // Ask whoami so a freshly created owner enters with the right role.
       const rw=await fetch(API+'admin/whoami',{headers:{'x-admin-key':dl.token}}); const dw=await rw.json().catch(()=>({}));
       SESSION={ admin:true, master:!!dw.master, uid:dw.uid||'', name:dl.name||'', scopes:dw.scopes||dl.scopes||[], brand:(dl.name||'Team user')+' \u00b7 Luca-S', prefix:'', email:dl.email, key:dl.token };

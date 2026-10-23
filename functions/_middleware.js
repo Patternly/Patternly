@@ -12,7 +12,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v94";
+const MW_VERSION = "v95";
 
 const enc = new TextEncoder();
 
@@ -574,6 +574,12 @@ function emailOk(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.length <=
 async function userGet(env, uid) {
   try { return JSON.parse((await env.PARTNERS.get("user:" + uid)) || "null"); } catch (e) { return null; }
 }
+async function setupLinkMakeFor(env, payload) {
+  const tok = randToken(24);
+  await env.PARTNERS.put("setup:" + await sha256b64(tok), JSON.stringify({ ...payload, exp: Date.now() + SETUP_TTL_S * 1000 }), { expirationTtl: SETUP_TTL_S });
+  const base = env.STUDIO_PUBLIC_URL || "https://luca-s.com/apps/patternly/brands";
+  return base + "?setup=" + tok;
+}
 async function setupLinkMake(env, uid, url) {
   const tok = randToken(24);
   await env.PARTNERS.put("setup:" + await sha256b64(tok), JSON.stringify({ uid, exp: Date.now() + SETUP_TTL_S * 1000 }), { expirationTtl: SETUP_TTL_S });
@@ -611,10 +617,34 @@ function partnerCleanQrStyle(body) {
   const size = (+body.size === 600) ? 600 : 1200;
   return { shape, color, caption: !!body.caption, size };
 }
+// v95: partners sign in with email + password like staff. Their record stays
+// keyed on the PK- brand key; pemail:<email> -> PK- key is the lookup index
+// (written on create/update, back-filled lazily for brands made before v95).
+async function partnerKeyByEmail(env, email) {
+  if (!email) return null;
+  let k = await env.PARTNERS.get("pemail:" + email);
+  if (k) return k;
+  let cursor;
+  for (let page = 0; page < 5; page++) {
+    const listed = await env.PARTNERS.list({ prefix: "PK-", limit: 1000, cursor });
+    for (const kk of listed.keys) {
+      try { const rec = JSON.parse((await env.PARTNERS.get(kk.name)) || "null");
+        if (rec && rec.prefix && normEmail(rec.email) === email) { await env.PARTNERS.put("pemail:" + email, kk.name); return kk.name; } } catch (e) {}
+    }
+    if (!listed.list_complete) cursor = listed.cursor; else break;
+  }
+  return null;
+}
 async function partnerAuth(request, env) {
   if (!env.PARTNERS) return { err: partnerJson(503, { ok:false, error:"partner-system-not-configured" }) };
-  const key = (request.headers.get("x-brand-key") || "").trim();
+  let key = (request.headers.get("x-brand-key") || "").trim();
   if (!key) return { err: partnerJson(401, { ok:false, error:"missing-key" }) };
+  // v95: a Studio session token stands in for the brand key.
+  if (/^ST-/.test(key)) {
+    let s = null; try { s = JSON.parse((await env.PARTNERS.get("sess:" + await sha256b64(key.slice(3)))) || "null"); } catch (e) {}
+    if (!s || !s.pkey || (s.exp && s.exp < Date.now())) return { err: partnerJson(401, { ok:false, error:"session-expired" }) };
+    key = s.pkey;
+  }
   let rec = null;
   try { rec = JSON.parse((await env.PARTNERS.get(key)) || "null"); } catch (e) {}
   if (!rec || !rec.prefix || !rec.brand) return { err: partnerJson(401, { ok:false, error:"bad-key" }) };
@@ -991,6 +1021,11 @@ async function handlePartnerApi(request, url, env) {
     const tok = String(url.searchParams.get("t") || "").trim();
     let s = null; try { s = JSON.parse((await env.PARTNERS.get("setup:" + await sha256b64(tok))) || "null"); } catch (e) {}
     if (!tok || !s || (s.exp && s.exp < Date.now())) return partnerJson(410, { ok:false, error:"This link has expired or was already used. Ask the owner for a new one." });
+    if (s.pkey) {   // v95: partner brand
+      let prec = null; try { prec = JSON.parse((await env.PARTNERS.get(s.pkey)) || "null"); } catch (e) {}
+      if (!prec) return partnerJson(410, { ok:false, error:"This account no longer exists." });
+      return partnerJson(200, { ok:true, name: prec.brand || "", email: prec.email || "", partner: true });
+    }
     const rec = await userGet(env, s.uid);
     if (!rec) return partnerJson(410, { ok:false, error:"This account no longer exists." });
     return partnerJson(200, { ok:true, name: rec.name || "", email: rec.email || "" });
@@ -1004,6 +1039,15 @@ async function handlePartnerApi(request, url, env) {
     let s = null; try { s = JSON.parse((await env.PARTNERS.get(skey)) || "null"); } catch (e) {}
     if (!tok || !s || (s.exp && s.exp < Date.now())) return partnerJson(410, { ok:false, error:"This link has expired or was already used. Ask the owner for a new one." });
     if (password.length < PW_MIN) return partnerJson(400, { ok:false, error:"Use at least " + PW_MIN + " characters." });
+    if (s.pkey) {   // v95: partner brand
+      let prec = null; try { prec = JSON.parse((await env.PARTNERS.get(s.pkey)) || "null"); } catch (e) {}
+      if (!prec) return partnerJson(410, { ok:false, error:"This account no longer exists." });
+      prec.pw = await pwMake(password);
+      await env.PARTNERS.put(s.pkey, JSON.stringify(prec));
+      if (prec.email) await env.PARTNERS.put("pemail:" + normEmail(prec.email), s.pkey);
+      await env.PARTNERS.delete(skey);
+      return partnerJson(200, { ok:true, email: prec.email || "", partner: true });
+    }
     const rec = await userGet(env, s.uid);
     if (!rec) return partnerJson(410, { ok:false, error:"This account no longer exists." });
     rec.pw = await pwMake(password);
@@ -1023,7 +1067,23 @@ async function handlePartnerApi(request, url, env) {
     if (lock && lock.n >= 10 && lock.until > Date.now()) return partnerJson(429, { ok:false, error:"Too many attempts. Try again in a few minutes." });
     const uid = await env.PARTNERS.get("uemail:" + email);
     const rec = uid ? await userGet(env, uid) : null;
-    if (!rec || !(await pwCheck(password, rec.pw))) {
+    if (!rec) {
+      // v95: not a team user — maybe a partner brand.
+      const pkey = await partnerKeyByEmail(env, email);
+      let prec = null; if (pkey) { try { prec = JSON.parse((await env.PARTNERS.get(pkey)) || "null"); } catch (e) {} }
+      if (prec && !prec.pw) return partnerJson(403, { ok:false, error:"This brand account has no password yet. Use \u201cForgot password?\u201d to set one, or ask Luca-S for a set-up link.", nopw: true });
+      if (!prec || !(await pwCheck(password, prec.pw))) {
+        const n = (lock && lock.until > Date.now()) ? lock.n + 1 : 1;
+        await env.PARTNERS.put(lkey, JSON.stringify({ n, until: Date.now() + 15 * 60000 }), { expirationTtl: 900 });
+        return bad();
+      }
+      await env.PARTNERS.delete(lkey);
+      const ptok = randToken(32);
+      await env.PARTNERS.put("sess:" + await sha256b64(ptok), JSON.stringify({ pkey, exp: Date.now() + SESSION_TTL_S * 1000 }), { expirationTtl: SESSION_TTL_S });
+      prec.lastSeen = Date.now(); await env.PARTNERS.put(pkey, JSON.stringify(prec));
+      return partnerJson(200, { ok:true, kind: "partner", token: "ST-" + ptok, brand: prec.brand, prefix: String(prec.prefix).toUpperCase(), email: prec.email || "", buy: prec.buy || "", brandKey: pkey });
+    }
+    if (!(await pwCheck(password, rec.pw))) {
       const n = (lock && lock.until > Date.now()) ? lock.n + 1 : 1;
       await env.PARTNERS.put(lkey, JSON.stringify({ n, until: Date.now() + 15 * 60000 }), { expirationTtl: 900 });
       return bad();
@@ -1033,7 +1093,7 @@ async function handlePartnerApi(request, url, env) {
     await env.PARTNERS.put("sess:" + await sha256b64(tok), JSON.stringify({ uid, exp: Date.now() + SESSION_TTL_S * 1000 }), { expirationTtl: SESSION_TTL_S });
     rec.lastSeen = Date.now(); await env.PARTNERS.put("user:" + uid, JSON.stringify(rec));
     const scopes = Array.isArray(rec.scopes) ? rec.scopes.filter(x => USER_SCOPES.includes(x)) : [];
-    return partnerJson(200, { ok:true, token: "ST-" + tok, name: rec.name || "", email: rec.email || "", scopes });
+    return partnerJson(200, { ok:true, kind: "staff", token: "ST-" + tok, name: rec.name || "", email: rec.email || "", scopes });
   }
   // ── v94: forgot password → emailed reset link ────────────────────────────
   // Always answers ok (so an attacker can't probe which emails exist); the
@@ -1050,10 +1110,12 @@ async function handlePartnerApi(request, url, env) {
     if (rl && rl.n >= 3 && rl.until > Date.now()) return partnerJson(429, { ok:false, error:"A reset link was already sent. Check your inbox (and spam), or try again in an hour." });
     await env.PARTNERS.put(rkey, JSON.stringify({ n: (rl && rl.until > Date.now()) ? rl.n + 1 : 1, until: Date.now() + 3600000 }), { expirationTtl: 3600 });
     const uid = await env.PARTNERS.get("uemail:" + email);
-    const rec = uid ? await userGet(env, uid) : null;
+    let rec = uid ? await userGet(env, uid) : null;
+    let pkey = null;
+    if (!rec) { pkey = await partnerKeyByEmail(env, email); if (pkey) { try { const prec = JSON.parse((await env.PARTNERS.get(pkey)) || "null"); if (prec) rec = { name: prec.brand, email: prec.email }; } catch (e) {} } }
     if (rec && rec.email) {
       const tok = randToken(24);
-      await env.PARTNERS.put("setup:" + await sha256b64(tok), JSON.stringify({ uid, exp: Date.now() + 3600000, reset: true }), { expirationTtl: 3600 });
+      await env.PARTNERS.put("setup:" + await sha256b64(tok), JSON.stringify(pkey ? { pkey, exp: Date.now() + 3600000, reset: true } : { uid, exp: Date.now() + 3600000, reset: true }), { expirationTtl: 3600 });
       const base = env.STUDIO_PUBLIC_URL || "https://luca-s.com/apps/patternly/brands";
       const link = base + "?setup=" + tok + "&reset=1";
       const name = rec.name || "there";
@@ -1813,7 +1875,8 @@ async function handlePartnerApi(request, url, env) {
           limit: (Number.isFinite(+rec.limit) && +rec.limit > 0) ? +rec.limit : 200,
           kits: kitsByPrefix[prefix] || 0,
           customers: (actByPrefix[prefix] && actByPrefix[prefix].c.size) || 0,
-          lastActive: (actByPrefix[prefix] && actByPrefix[prefix].last) || 0
+          lastActive: (actByPrefix[prefix] && actByPrefix[prefix].last) || 0,
+          hasPassword: !!(rec.pw && rec.pw.hash), lastSeen: +rec.lastSeen || 0   // v95
         });
       }
       if (!listed.list_complete) cursor = listed.cursor; else break;
@@ -1863,8 +1926,24 @@ async function handlePartnerApi(request, url, env) {
     if (buy) rec.buy = buy;
     if (Number.isFinite(limit) && limit > 0) rec.limit = Math.floor(limit);
     await env.PARTNERS.put(key, JSON.stringify(rec));
-    return partnerJson(200, { ok:true, key, brand, prefix, email,
-      note: "Save this key now — it is shown once. Send it to the partner with their sign-in email." });
+    if (email) await env.PARTNERS.put("pemail:" + normEmail(email), key);
+    // v95: the partner signs in with email + password; hand back a set-up link.
+    const setupLink = await setupLinkMakeFor(env, { pkey: key });
+    return partnerJson(200, { ok:true, key, brand, prefix, email, setupLink,
+      note: "Send the partner the set-up link — they choose their password there. The brand key is shown in their account." });
+  }
+  // v95: a fresh password set-up link for an existing brand (48 h, single use)
+  if (sub === "admin/brand-setup-link" && request.method === "POST") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "brands"); if (d) return d; }
+    if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"partner system not configured" });
+    let body = {}; try { body = await request.json(); } catch (e) {}
+    const key = String(body.key || "").trim();
+    let rec = null; try { rec = JSON.parse((await env.PARTNERS.get(key)) || "null"); } catch (e) {}
+    if (!rec || !rec.prefix) return partnerJson(404, { ok:false, error:"no such brand key" });
+    if (rec.email) await env.PARTNERS.put("pemail:" + normEmail(rec.email), key);
+    const link = await setupLinkMakeFor(env, { pkey: key });
+    return partnerJson(200, { ok:true, link, email: rec.email || "", brand: rec.brand || "", hasPassword: !!rec.pw });
   }
 
   if (sub === "admin/update-brand" && request.method === "POST") {
@@ -1879,7 +1958,9 @@ async function handlePartnerApi(request, url, env) {
     if (body.email !== undefined) {
       const email = String(body.email || "").trim().toLowerCase();
       if (!email || email.indexOf("@") <= 0) return partnerJson(400, { ok:false, error:"bad email" });
+      if (rec.email && normEmail(rec.email) !== email) { try { await env.PARTNERS.delete("pemail:" + normEmail(rec.email)); } catch (e) {} }
       rec.email = email;
+      await env.PARTNERS.put("pemail:" + email, key);
     }
     if (body.buy !== undefined) {
       const buy = String(body.buy || "").trim();
