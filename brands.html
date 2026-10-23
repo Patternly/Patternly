@@ -272,13 +272,14 @@
     </div>
     <div style="margin-top:.9rem" class="row">
       <button class="primary" id="si-go">Sign in</button>
+      <a href="#" id="si-forgot" style="font-size:.82rem;font-weight:700;align-self:center;margin-left:.4rem">Forgot password?</a>
     </div>
     <div class="note" id="si-msg"></div>
   </div>
 
   <!-- ── v38: staff set-password screen (opened by ?setup=… link) ───────── -->
   <div id="setup" class="card" style="display:none;max-width:520px">
-    <h2>Choose your password</h2>
+    <h2 id="su-title">Choose your password</h2>
     <div class="note" id="su-who" style="margin:0 0 .8rem">Checking your link…</div>
     <div id="su-form" style="display:none">
       <label for="su-pw1">New password <span style="font-weight:400;color:var(--muted)">(at least 10 characters)</span></label>
@@ -3186,18 +3187,33 @@ function enterWorkspace(){
 // v38: two ways in. Luca-S team: email + password (or the PA-/PU- key typed in
 // the password box as a fallback). Partner brands: email + PK- key as before.
 let SI_MODE='staff';
-const SI_HINT={ staff:'Luca-S team members sign in with the email and password set up by the owner. Forgot it? Ask the owner for a reset link.',
+const SI_HINT={ staff:'Luca-S team members sign in with the email and password set up by the owner. Forgot it? Use the link to get a reset email.',
                 key:'Your brand key came with your Patternly for Brands welcome email. Both fields must match what Luca-S registered for you.' };
 function siMode(m){
   SI_MODE=m;
   $('si-seg').querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset.mode===m));
   $('si-pw-wrap').style.display = m==='staff' ? '' : 'none';
   $('si-key-wrap').style.display = m==='key' ? '' : 'none';
+  $('si-forgot').style.display = m==='staff' ? '' : 'none';
   $('si-msg').textContent = SI_HINT[m];
 }
 $('si-seg').querySelectorAll('button').forEach(b=>{ b.onclick=()=>siMode(b.dataset.mode); });
 siMode('staff');
 ['si-email','si-pw','si-key'].forEach(id=>{ $(id).onkeydown=(e)=>{ if(e.key==='Enter') $('si-go').click(); }; });
+// v42: forgot password → emailed one-hour reset link
+$('si-forgot').onclick = async (e) => {
+  e.preventDefault();
+  const email = $('si-email').value.trim(); const msg = $('si-msg');
+  if(!email){ msg.innerHTML = '<span class="err">Type your email above first, then click “Forgot password?”.</span>'; $('si-email').focus(); return; }
+  $('si-forgot').style.pointerEvents='none'; msg.textContent = 'Sending…';
+  try{
+    const r = await fetch(API + 'staff/forgot', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ email }) });
+    const d = await r.json().catch(()=>({}));
+    if(!r.ok || !d.ok){ msg.innerHTML = '<span class="err">'+escA(d.error||'Could not send the reset email.')+'</span>'; return; }
+    msg.textContent = 'If that email has a Studio account, a reset link is on its way. It works once and expires in 1 hour — check spam if it doesn’t arrive.';
+  }catch(err){ msg.innerHTML = '<span class="err">Network error — try again.</span>'; }
+  finally{ $('si-forgot').style.pointerEvents=''; }
+};
 $('si-go').onclick = async () => {
   const email = $('si-email').value.trim();
   const msg = $('si-msg');
@@ -4646,6 +4662,7 @@ $('acl-email').addEventListener('keydown',e=>{ if(e.key==='Enter') $('acl-go').c
 SESSION=loadSession();
 // v38: a set-up link opens the password screen first, whatever else is going on.
 const SETUP_TOKEN=(()=>{ try{ return new URLSearchParams(location.search).get('setup')||''; }catch(e){ return ''; } })();
+try{ if(SETUP_TOKEN && new URLSearchParams(location.search).get('reset')==='1'){ const t=document.getElementById('su-title'); if(t) t.textContent='Choose a new password'; } }catch(e){}
 if(SETUP_TOKEN){
   try{ history.replaceState(null,'',location.pathname); }catch(e){}
   show('setup');

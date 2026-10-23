@@ -12,7 +12,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v93";
+const MW_VERSION = "v94";
 
 const enc = new TextEncoder();
 
@@ -1034,6 +1034,43 @@ async function handlePartnerApi(request, url, env) {
     rec.lastSeen = Date.now(); await env.PARTNERS.put("user:" + uid, JSON.stringify(rec));
     const scopes = Array.isArray(rec.scopes) ? rec.scopes.filter(x => USER_SCOPES.includes(x)) : [];
     return partnerJson(200, { ok:true, token: "ST-" + tok, name: rec.name || "", email: rec.email || "", scopes });
+  }
+  // ── v94: forgot password → emailed reset link ────────────────────────────
+  // Always answers ok (so an attacker can't probe which emails exist); the
+  // reset link is a one-hour set-up token, sent with Resend (RESEND_API_KEY,
+  // MAIL_FROM). Three requests per email per hour.
+  if (sub === "staff/forgot" && request.method === "POST") {
+    if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"not configured" });
+    if (!env.RESEND_API_KEY || !env.MAIL_FROM) return partnerJson(503, { ok:false, error:"Password reset emails aren’t set up yet. Ask the owner to reset your password from the Users tab." });
+    let body = {}; try { body = await request.json(); } catch (e) {}
+    const email = normEmail(body.email);
+    if (!emailOk(email)) return partnerJson(400, { ok:false, error:"Enter the email you sign in with." });
+    const rkey = "ufor:" + email;
+    let rl = null; try { rl = JSON.parse((await env.PARTNERS.get(rkey)) || "null"); } catch (e) {}
+    if (rl && rl.n >= 3 && rl.until > Date.now()) return partnerJson(429, { ok:false, error:"A reset link was already sent. Check your inbox (and spam), or try again in an hour." });
+    await env.PARTNERS.put(rkey, JSON.stringify({ n: (rl && rl.until > Date.now()) ? rl.n + 1 : 1, until: Date.now() + 3600000 }), { expirationTtl: 3600 });
+    const uid = await env.PARTNERS.get("uemail:" + email);
+    const rec = uid ? await userGet(env, uid) : null;
+    if (rec && rec.email) {
+      const tok = randToken(24);
+      await env.PARTNERS.put("setup:" + await sha256b64(tok), JSON.stringify({ uid, exp: Date.now() + 3600000, reset: true }), { expirationTtl: 3600 });
+      const base = env.STUDIO_PUBLIC_URL || "https://luca-s.com/apps/patternly/brands";
+      const link = base + "?setup=" + tok + "&reset=1";
+      const name = rec.name || "there";
+      const html = `<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;max-width:520px;margin:0 auto;padding:28px 24px;color:#2B2226">
+        <div style="font-size:22px;font-weight:800;color:#8B1A2B;margin-bottom:18px">Patternly <span style="color:#2B2226;font-weight:600">Partner Studio</span></div>
+        <p style="font-size:16px;line-height:1.5">Hi ${name.replace(/[<>&]/g, "")},</p>
+        <p style="font-size:16px;line-height:1.5">Someone asked to reset the password for this Studio account. If that was you, choose a new password here:</p>
+        <p style="margin:26px 0"><a href="${link}" style="background:#8B1A2B;color:#fff;text-decoration:none;font-weight:700;padding:13px 22px;border-radius:10px;display:inline-block">Choose a new password</a></p>
+        <p style="font-size:13px;color:#7a6a6e;line-height:1.5">The link works once and expires in 1 hour. If you didn’t ask for this, you can ignore this email — your password stays as it is.</p>
+        <p style="font-size:13px;color:#7a6a6e;line-height:1.5;word-break:break-all">${link}</p></div>`;
+      try {
+        const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { authorization: "Bearer " + env.RESEND_API_KEY, "content-type": "application/json" },
+          body: JSON.stringify({ from: env.MAIL_FROM, to: [rec.email], subject: "Reset your Patternly Studio password", html, text: `Hi ${name},\n\nChoose a new password for your Patternly Studio account (link works once, 1 hour):\n${link}\n\nIf you didn’t ask for this, ignore this email.` }) });
+        if (!r.ok) { console.warn("resend failed", r.status, (await r.text()).slice(0, 200)); return partnerJson(502, { ok:false, error:"The reset email could not be sent. Try again in a minute." }); }
+      } catch (e) { return partnerJson(502, { ok:false, error:"The reset email could not be sent. Try again in a minute." }); }
+    }
+    return partnerJson(200, { ok:true });
   }
   if (sub === "staff/logout" && request.method === "POST") {
     const k = (request.headers.get("x-admin-key") || "").trim();
