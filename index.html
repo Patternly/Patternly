@@ -3573,6 +3573,15 @@ body.fsbar-hidden #trk-fsbar{transform:translateX(-50%) translateY(180%);opacity
 #trk-fsbar button{display:flex;flex-direction:column;align-items:center;gap:.16rem;border:none;background:none;
   font-family:inherit;font-size:1.45rem;line-height:1;padding:.58rem .7rem;border-radius:13px;cursor:pointer;color:#5a4a51}
 #trk-fsbar button span{font-size:.68rem;font-weight:700;letter-spacing:.01em}
+/* v614: the bar never grows wider than the screen and every button shrinks to
+   fit — on a narrow phone the last button (Close) used to be clipped off. */
+#trk-fsbar button{flex:1 1 0;min-width:0}
+#trk-fsbar button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:520px){
+  #trk-fsbar{width:calc(100vw - .8rem);padding:.35rem;gap:.1rem}
+  #trk-fsbar button{padding:.5rem .15rem;font-size:1.25rem}
+  #trk-fsbar button span{font-size:.62rem}
+}
 #trk-fsbar button.active{background:var(--lp-red,#8B1A2B);color:#fff}
 /* ── Full-View colour sheet (v348): opens from the Colours tab, hidden by
    default. A bottom sheet with a header (grid/list toggle + close) and a
@@ -5216,7 +5225,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v613';
+window.PATTERNLY_BUILD='v614';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -6130,7 +6139,7 @@ document.addEventListener('DOMContentLoaded', function(){
             <div id="trk-minimap" style="display:none" data-i18n-title="t.minimap" title="Click a page to jump to it"></div>
             </span><!-- /trk-secondary -->
             <span class="trk-group" id="trk-modes">
-              <button id="trk-mode-pan" class="active">✋ <span data-i18n="trk.pan">Pan</span></button><button id="trk-mode-mark">✏️ <span data-i18n="trk.mark">Mark</span></button><button id="trk-mode-erase" data-i18n-title="t.erase" title="Remove marks by dragging">🧽 <span data-i18n="trk.erase">Erase</span></button><button id="trk-undo" data-i18n-title="t.undo" title="Undo the last stroke" disabled style="opacity:.45">↶ <span data-i18n="trk.undo">Undo</span></button><button id="trk-pick" data-i18n-title="t.pick" title="Tap a stitch on the chart to select its colour">🎯 <span data-i18n="trk.pick">Pick</span></button><button id="trk-tips" data-i18n-title="t.tips" title="Gestures">💡</button>
+              <button id="trk-mode-pan" class="active">✋ <span data-i18n="trk.pan">Pan</span></button><button id="trk-mode-mark">✏️ <span data-i18n="trk.mark">Mark</span></button><button id="trk-mode-erase" data-i18n-title="t.erase" title="Remove marks by dragging">🧽 <span data-i18n="trk.erase">Erase</span></button><button id="trk-pick" data-i18n-title="t.pick" title="Tap a stitch on the chart to select its colour">🎯 <span data-i18n="trk.pick">Pick</span></button><button id="trk-tips" data-i18n-title="t.tips" title="Gestures">💡</button>
             </span>
             <span class="trk-group" id="trk-fsgroup">
               <button id="trk-fs-btn" type="button" onclick="trkToggleFullscreen()" data-i18n-title="t.fs" title="Fill the screen with the chart">⛶ <span data-i18n="trk.fullscreen">Full screen</span></button>
@@ -6148,7 +6157,6 @@ document.addEventListener('DOMContentLoaded', function(){
             <button id="fsb-pan" class="active" title="Pan">✋<span data-i18n="trk.pan">Pan</span></button>
             <button id="fsb-mark" title="Mark">✏️<span data-i18n="trk.mark">Mark</span></button>
             <button id="fsb-erase" title="Erase">🧽<span data-i18n="trk.erase">Erase</span></button>
-            <button id="fsb-undo" title="Undo last stroke">↶<span data-i18n="trk.undo">Undo</span></button>
             <button id="fsb-pick" title="Pick a colour from the chart">🎯<span data-i18n="trk.pick">Pick</span></button>
             <button id="fsb-colours" title="Colours">🎨<span data-i18n="trk.colours">Colours</span></button>
             <button id="fsb-settings" title="Settings">⚙<span data-i18n="trk.settings">Settings</span></button>
@@ -25811,7 +25819,7 @@ function trkApplyMode(){
 document.getElementById('trk-mode-pan').addEventListener('click',()=>{ trkMode='pan'; trkApplyMode(); });
 document.getElementById('trk-mode-mark').addEventListener('click',()=>{ trkMode='mark'; trkApplyMode(); });
 document.getElementById('trk-mode-erase').addEventListener('click',()=>{ trkMode='erase'; trkApplyMode(); });
-document.getElementById('trk-undo').addEventListener('click',()=>trkUndoStroke());
+{ const _u=document.getElementById('trk-undo'); if(_u) _u.addEventListener('click',()=>trkUndoStroke()); }   // v614: Undo removed from the UI
 // ── v605: strokes and undo ───────────────────────────────────────────────
 // A drag in Mark mode only ADDS marks; starting a stroke on a cell that is
 // already marked no longer flips the whole stroke to un-marking (the #1 way
