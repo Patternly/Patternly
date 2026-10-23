@@ -30059,6 +30059,12 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.acct-wrap')) acctC
             _dbg('appUrlOpen fired:\n'+raw);
             // Only react to our own scheme — never to the https URLs mid-flow.
             if(raw.indexOf('com.lucas.patternly:')!==0){ _dbg('ignored (not our scheme)'); return; }
+            // v613: home-screen widget tap -> open the tracker (and the project it showed)
+            if(/:\/\/widget/.test(raw)){
+              var wm=raw.match(/[?&]project=([^&#]+)/); var pid=wm?decodeURIComponent(wm[1]):'';
+              Promise.resolve(typeof openTracker==='function'?openTracker():null).then(function(){ try{ if(pid && typeof trkOpenProject==='function' && (typeof trkIndex!=='function' || trkIndex().some(function(x){ return x.id===pid; }))) trkOpenProject(pid); }catch(e){} });
+              return;
+            }
             var m=raw.match(/[?&]pl_session=([^&#]+)/);
             if(!m){ _dbg('deep link had NO pl_session'); return; }
             try{ localStorage.setItem('pl_session', decodeURIComponent(m[1])); }catch(e){}
