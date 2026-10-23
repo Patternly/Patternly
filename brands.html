@@ -3029,6 +3029,7 @@ function showTab(name){
     const el=$('tab-'+t); if(el) el.style.display = (t===name)?'':'none';
   });
   document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+  try{ const slug=TAB_SLUGS[name]; if(slug && location.hash!=='#'+slug) history.replaceState(null,'','#'+slug); }catch(e){}
   // The converter is ~350 KB of embedded tooling — decode it the first time
   // the tab is opened, not at sign-in.
   if(name==='converter' && !$('conv-frame').src){
@@ -3140,6 +3141,16 @@ async function loadOverview(){
 }
 $('ov-refresh').onclick=loadOverview;
 
+// v43: every tab has its own URL (#overview, #users, #notifications …) so a
+// reload lands on the same page. Internal tab ids stay as they are.
+const TAB_SLUGS={aov:'overview',abrands:'brands',apatterns:'patterns',converter:'converter',acustomers:'customers',abranding:'branding',ausers:'users',apush:'notifications',overview:'overview',patterns:'patterns',customers:'customers',account:'account'};
+function tabFromHash(){
+  const h=(location.hash||'').replace(/^#\/?/,'').toLowerCase(); if(!h) return null;
+  const admin=!!(SESSION&&SESSION.admin);
+  const list=admin?TABS_ADMIN.filter(t=>hasScope(t[2])):TABS_PARTNER;
+  const hit=list.find(t=>TAB_SLUGS[t[0]]===h); return hit?hit[0]:null;
+}
+window.addEventListener('hashchange',()=>{ if(SESSION){ const t=tabFromHash(); if(t) showTab(t); } });
 const TABS_PARTNER=[['overview','Overview'],['patterns','My Patterns'],['converter','Converter'],['customers','My Customers'],['account','My Account']];
 // v37: third element = scope a team user needs; 'owner' = master key only.
 const TABS_ADMIN=[['aov','Overview',null],['abrands','Brands','brands'],['apatterns','Patterns','patterns'],['converter','Converter','converter'],['acustomers','Customers','customers'],['abranding','Branding','branding'],['ausers','Users','owner'],['apush','Notifications','owner']];
@@ -3169,7 +3180,7 @@ function enterWorkspace(){
   if(SESSION.admin){
     $('rv-card').style.display=SESSION.master?'':'none';
     if(SESSION.master){ if(!RV_BOUND){ RV_BOUND=true; rvBind(); } RV.data=null; }
-    showTab('aov');
+    showTab(tabFromHash()||'aov');
     if(hasScope('branding')){
       refreshAdminLogoPrev();
       loadBrandStyle(API+'admin/qr-style', adminHeaders()).then(()=>ADMIN_BRANDING.refresh());
@@ -3177,7 +3188,7 @@ function enterWorkspace(){
     return;
   }
   $('up-prefix').textContent = SESSION.prefix + '-';
-  showTab('overview');
+  showTab(tabFromHash()||'overview');
   loadMine();
   loadBrandLogo().then(()=>PARTNER_BRANDING.refresh());
   loadBrandStyle(API+'qr-style', {'x-brand-key':SESSION.key}).then(()=>PARTNER_BRANDING.refresh());
