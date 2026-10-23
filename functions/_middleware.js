@@ -12,7 +12,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v96";
+const MW_VERSION = "v97";
 
 const enc = new TextEncoder();
 
@@ -969,6 +969,199 @@ async function pushJobRun(env, job) {
 }
 function pushJobPublic(job) { return { id: job.id, done: job.done, scanned: job.scanned, sent: job.sent, failed: job.failed, pruned: job.pruned, errors: job.errors, test: !!job.test }; }
 
+// ── v97: automatic notifications ────────────────────────────────────────────
+// Rules fire from events (progress sync) or from the hourly job (admin/push/
+// auto-run, called by GitHub Actions with x-cron-key = PUSH_CRON_KEY):
+//   milestone 25/50/75 %, finished, first stitches  — on sync, instant
+//   inactive (unfinished project untouched X days), win-back (all done,
+//   nothing new for Y weeks)                          — rolling daily scan
+// Guard rails: one automatic message per person per cap_days; quiet hours in
+// the device's own timezone (queued, sent by the next hourly run); a project
+// seen for the first time is baselined, never congratulated retroactively.
+// KV (ENTITLEMENTS): pushauto:cfg · pushauto:u:<cid> {last, sent:{}} ·
+// pushauto:pending:<cid> · pushauto:scan {cursor,daily} · pushauto:stats:<day>
+// · pushauto:titles (6 h cache) · pushcid:<cid>:<sha(token)> -> device key
+const PUSH_AUTO_DEFAULT = { milestones: true, finished: true, first: true, inactive: { on: true, days: 7 }, winback: { on: false, weeks: 4 }, cap_days: 3, quiet: { from: 22, to: 8 }, shop_url: "https://luca-s.com/collections/needlecraft-kits" };
+const PUSH_AUTO_T = {
+  en: { m: ["{pct}% done — keep going!", "You’re {pct}% through {name}. Lovely progress!"], f: ["You finished {name}! 🎉", "Ready for a new project? Explore the kits →"], s: ["Great start on {name}", "Tap each stitch as you finish it — Patternly keeps your place."], i: ["{name} is waiting", "You’re {pct}% done — a few stitches today?"], w: ["Time for a new project?", "Explore the latest kits and start something fresh."] },
+  fr: { m: ["{pct} % réalisés — continuez !", "Vous en êtes à {pct} % de {name}. Beau travail !"], f: ["Vous avez terminé {name} ! 🎉", "Envie d’un nouveau projet ? Découvrez les kits →"], s: ["Beau début sur {name}", "Touchez chaque point terminé — Patternly garde votre place."], i: ["{name} vous attend", "Vous en êtes à {pct} % — quelques points aujourd’hui ?"], w: ["Un nouveau projet ?", "Découvrez les derniers kits et lancez-vous."] },
+  de: { m: ["{pct} % geschafft — weiter so!", "Du bist bei {pct} % von {name}. Toller Fortschritt!"], f: ["{name} ist fertig! 🎉", "Bereit für ein neues Projekt? Kits entdecken →"], s: ["Guter Start mit {name}", "Tippe jeden fertigen Stich an — Patternly merkt sich deine Stelle."], i: ["{name} wartet auf dich", "Du bist bei {pct} % — ein paar Stiche heute?"], w: ["Zeit für ein neues Projekt?", "Entdecke die neuesten Kits und fang etwas Neues an."] },
+  nl: { m: ["{pct}% klaar — ga zo door!", "Je bent op {pct}% van {name}. Mooie voortgang!"], f: ["Je hebt {name} afgemaakt! 🎉", "Klaar voor een nieuw project? Bekijk de kits →"], s: ["Goed begin met {name}", "Tik elke steek aan als hij klaar is — Patternly onthoudt waar je bent."], i: ["{name} wacht op je", "Je bent op {pct}% — een paar steken vandaag?"], w: ["Tijd voor een nieuw project?", "Bekijk de nieuwste kits en begin iets nieuws."] },
+  ru: { m: ["{pct}% готово — так держать!", "Вы прошли {pct}% работы {name}. Отличный прогресс!"], f: ["{name} завершена! 🎉", "Готовы к новому проекту? Смотрите наборы →"], s: ["Отличное начало: {name}", "Отмечайте каждый готовый стежок — Patternly запомнит, где вы остановились."], i: ["{name} ждёт вас", "Готово {pct}% — несколько стежков сегодня?"], w: ["Пора начать новый проект?", "Посмотрите новые наборы и начните что-то новое."] },
+  uk: { m: ["{pct}% готово — так тримати!", "Ви пройшли {pct}% роботи {name}. Чудовий прогрес!"], f: ["{name} завершено! 🎉", "Готові до нового проєкту? Перегляньте набори →"], s: ["Чудовий початок: {name}", "Позначайте кожен готовий стібок — Patternly запам’ятає, де ви зупинилися."], i: ["{name} чекає на вас", "Готово {pct}% — кілька стібків сьогодні?"], w: ["Час для нового проєкту?", "Перегляньте нові набори й почніть щось нове."] },
+  es: { m: ["{pct}% hecho — ¡sigue así!", "Llevas el {pct}% de {name}. ¡Qué buen progreso!"], f: ["¡Has terminado {name}! 🎉", "¿Lista para un nuevo proyecto? Descubre los kits →"], s: ["Buen comienzo con {name}", "Toca cada puntada al terminarla — Patternly guarda tu sitio."], i: ["{name} te espera", "Llevas el {pct}% — ¿unas puntadas hoy?"], w: ["¿Hora de un nuevo proyecto?", "Descubre los últimos kits y empieza algo nuevo."] },
+  it: { m: ["{pct}% fatto — continua così!", "Sei al {pct}% di {name}. Ottimi progressi!"], f: ["Hai finito {name}! 🎉", "Pronta per un nuovo progetto? Scopri i kit →"], s: ["Ottimo inizio con {name}", "Tocca ogni punto appena finito — Patternly ricorda dove sei."], i: ["{name} ti aspetta", "Sei al {pct}% — qualche punto oggi?"], w: ["Tempo di un nuovo progetto?", "Scopri gli ultimi kit e inizia qualcosa di nuovo."] }
+};
+function pushAutoText(lang, kind, vars) {
+  const T = PUSH_AUTO_T[lang] || PUSH_AUTO_T.en;
+  const k = { milestone: "m", finished: "f", first: "s", inactive: "i", winback: "w" }[kind];
+  const fill = s => s.replace(/\{(\w+)\}/g, (m, v) => vars[v] != null ? String(vars[v]) : m);
+  return { title: fill(T[k][0]), body: fill(T[k][1]) };
+}
+const qh = (v, d) => (Number.isFinite(+v) && v !== null && v !== "" && +v >= 0 && +v <= 23) ? Math.floor(+v) : d;
+async function pushAutoCfg(env) {
+  let c = null; try { c = JSON.parse((await env.ENTITLEMENTS.get("pushauto:cfg")) || "null"); } catch (e) {}
+  const d = PUSH_AUTO_DEFAULT;
+  if (!c) return JSON.parse(JSON.stringify(d));
+  return { milestones: c.milestones !== false, finished: c.finished !== false, first: c.first !== false,
+    inactive: { on: c.inactive ? !!c.inactive.on : d.inactive.on, days: Math.min(60, Math.max(2, +(c.inactive && c.inactive.days) || d.inactive.days)) },
+    winback: { on: c.winback ? !!c.winback.on : d.winback.on, weeks: Math.min(26, Math.max(1, +(c.winback && c.winback.weeks) || d.winback.weeks)) },
+    cap_days: Math.min(30, Math.max(0, +c.cap_days >= 0 ? +c.cap_days : d.cap_days)),
+    quiet: { from: qh(c.quiet && c.quiet.from, d.quiet.from), to: qh(c.quiet && c.quiet.to, d.quiet.to) },
+    shop_url: /^https:\/\//.test(c.shop_url || "") ? String(c.shop_url).slice(0, 300) : d.shop_url };
+}
+function pushQuietNow(cfg, tz) {
+  if (cfg.quiet.from === cfg.quiet.to) return false;
+  let h;
+  try { h = +new Intl.DateTimeFormat("en-GB", { hour: "numeric", hour12: false, timeZone: tz || "Europe/London" }).format(new Date()); } catch (e) { h = new Date().getUTCHours(); }
+  if (!Number.isFinite(h)) h = new Date().getUTCHours();
+  const f = cfg.quiet.from, t = cfg.quiet.to;
+  return f < t ? (h >= f && h < t) : (h >= f || h < t);
+}
+async function pushDevicesForCid(env, cid) {
+  const out = [];
+  const listed = await env.ENTITLEMENTS.list({ prefix: "pushcid:" + cid + ":", limit: 50 });
+  for (const k of listed.keys) {
+    const dk = await env.ENTITLEMENTS.get(k.name);
+    let d = null; if (dk) { try { d = JSON.parse((await env.ENTITLEMENTS.get(dk)) || "null"); } catch (e) {} }
+    if (!d || String(d.cid || "") !== String(cid)) { try { await env.ENTITLEMENTS.delete(k.name); } catch (e) {} continue; }
+    out.push({ key: dk, ...d });
+  }
+  return out;
+}
+async function pushAutoStat(env, kind, n) {
+  const day = new Date().toISOString().slice(0, 10), key = "pushauto:stats:" + day;
+  let s = null; try { s = JSON.parse((await env.ENTITLEMENTS.get(key)) || "null"); } catch (e) {}
+  s = s || {}; s[kind] = (s[kind] || 0) + n;
+  await env.ENTITLEMENTS.put(key, JSON.stringify(s), { expirationTtl: 40 * 86400 });
+}
+// Deliver one automatic message to a customer (all their devices, each in its
+// own language), or queue it if they are in quiet hours. Returns sent count.
+async function pushAutoDeliver(env, cfg, cid, kind, vars, url, opts) {
+  const devs = await pushDevicesForCid(env, cid);
+  if (!devs.length) return 0;
+  const tz = devs[0].tz || "";
+  if (!(opts && opts.fromQueue) && pushQuietNow(cfg, tz)) {
+    await env.ENTITLEMENTS.put("pushauto:pending:" + cid, JSON.stringify({ kind, vars, url, ts: Date.now() }), { expirationTtl: 36 * 3600 });
+    return 0;
+  }
+  let sent = 0;
+  const results = await Promise.all(devs.map(d => pushSendOne(env, d, { ...pushAutoText(d.lang || "en", kind, vars), url })));
+  for (let i = 0; i < results.length; i++) { if (results[i].ok) sent++; else if (results[i].gone) { try { await env.ENTITLEMENTS.delete(devs[i].key); } catch (e) {} } }
+  if (sent) await pushAutoStat(env, kind, 1);
+  return sent;
+}
+async function pushAutoUser(env, cid) { let u = null; try { u = JSON.parse((await env.ENTITLEMENTS.get("pushauto:u:" + cid)) || "null"); } catch (e) {} return u || { last: 0, sent: {} }; }
+async function pushAutoUserSave(env, cid, u) { await env.ENTITLEMENTS.put("pushauto:u:" + cid, JSON.stringify(u), { expirationTtl: 400 * 86400 }); }
+async function kitTitleFor(env, sku) {
+  let map = null; try { map = JSON.parse((await env.ENTITLEMENTS.get("pushauto:titles")) || "null"); } catch (e) {}
+  if (!map) {
+    map = {};
+    try { for (const k of (await partnerManifestRaw(env))) if (k && k.sku && k.title) map[String(k.sku).toUpperCase()] = String(k.title); } catch (e) {}
+    try { const kits = await buildCatalogue(env); if (kits) for (const k of kits) if (k && k.sku && k.title) map[String(k.sku).toUpperCase()] = String(k.title); } catch (e) {}
+    try { await env.ENTITLEMENTS.put("pushauto:titles", JSON.stringify(map), { expirationTtl: 6 * 3600 }); } catch (e) {}
+  }
+  return map[String(sku || "").toUpperCase()] || "";
+}
+// Called (via waitUntil) after a progress record is saved. Never throws.
+async function pushAutoOnProgress(env, cid, id, rec, nameHint) {
+  try {
+    if (!env.ENTITLEMENTS || !cid) return;
+    const total = rec.total | 0, done = rec.done | 0;
+    if (total <= 0) return;
+    const pct = Math.min(100, Math.floor(done * 100 / total));
+    const cfg = await pushAutoCfg(env);
+    const u = await pushAutoUser(env, cid);
+    const sent = u.sent || (u.sent = {});
+    const base = String(id);
+    // First sight of this project: baseline every milestone already passed.
+    if (!sent[base + ":seen"]) {
+      sent[base + ":seen"] = Date.now();
+      for (const m of [25, 50, 75, 100]) if (pct >= m) sent[base + ":m" + m] = Date.now();
+      if (pct > 0) sent[base + ":first"] = Date.now();
+      await pushAutoUserSave(env, cid, u);
+      return;
+    }
+    const capMs = cfg.cap_days * 86400000;
+    const capped = u.last && (Date.now() - u.last) < capMs;
+    let kind = null, m = 0;
+    if (pct >= 100 && !sent[base + ":m100"]) { kind = cfg.finished ? "finished" : null; m = 100; }
+    else { for (const mm of [75, 50, 25]) { if (pct >= mm && !sent[base + ":m" + mm]) { kind = cfg.milestones ? "milestone" : null; m = mm; break; } } }
+    if (!m && pct > 0 && pct < 10 && !sent[base + ":first"] && done >= 20) { kind = cfg.first ? "first" : null; m = -1; }
+    if (m === 100) for (const mm of [25, 50, 75, 100]) sent[base + ":m" + mm] = Date.now();
+    else if (m > 0) for (const mm of [25, 50, 75]) if (mm <= m) sent[base + ":m" + mm] = Date.now();
+    else if (m === -1) sent[base + ":first"] = Date.now();
+    sent[base + ":pct"] = pct;
+    if (kind && !capped) {
+      const name = nameHint || (await kitTitleFor(env, id)) || (/^[A-Z0-9_-]{1,12}$/.test(base) ? base : "your project");
+      const n = await pushAutoDeliver(env, cfg, cid, kind, { pct: m > 0 ? m : pct, name }, kind === "finished" ? cfg.shop_url : "#tracker");
+      if (n || await env.ENTITLEMENTS.get("pushauto:pending:" + cid)) u.last = Date.now();
+    }
+    await pushAutoUserSave(env, cid, u);
+  } catch (e) { try { console.warn("pushAuto progress hook:", e.message); } catch (_) {} }
+}
+// Hourly job: flush the quiet-hours queue, then advance the rolling scan for
+// inactive projects / win-back. Bounded work per call.
+async function pushAutoRun(env) {
+  const cfg = await pushAutoCfg(env);
+  const out = { queued_sent: 0, inactive: 0, winback: 0, scanned: 0 };
+  // 1. pending queue
+  const pend = await env.ENTITLEMENTS.list({ prefix: "pushauto:pending:", limit: 200 });
+  for (const k of pend.keys) {
+    const cid = k.name.slice("pushauto:pending:".length);
+    let p = null; try { p = JSON.parse((await env.ENTITLEMENTS.get(k.name)) || "null"); } catch (e) {}
+    if (!p) { await env.ENTITLEMENTS.delete(k.name); continue; }
+    const devs = await pushDevicesForCid(env, cid);
+    if (!devs.length) { await env.ENTITLEMENTS.delete(k.name); continue; }
+    if (pushQuietNow(cfg, devs[0].tz || "")) continue;
+    const n = await pushAutoDeliver(env, cfg, cid, p.kind, p.vars, p.url, { fromQueue: true });
+    out.queued_sent += n; await env.ENTITLEMENTS.delete(k.name);
+  }
+  // 2. rolling scan of progress records (inactive / win-back)
+  if (cfg.inactive.on || cfg.winback.on) {
+    let st = null; try { st = JSON.parse((await env.ENTITLEMENTS.get("pushauto:scan")) || "null"); } catch (e) {}
+    st = st || { cursor: null };
+    const listed = await env.ENTITLEMENTS.list({ prefix: "prog:", limit: 150, cursor: st.cursor || undefined });
+    const byCid = {};
+    for (const k of listed.keys) {
+      const parts = k.name.split(":"); if (parts.length < 3) continue;
+      const cid = parts.slice(1, -1).join(":"), sku = parts[parts.length - 1];
+      let r = null; try { r = JSON.parse((await env.ENTITLEMENTS.get(k.name)) || "null"); } catch (e) {}
+      if (!r || !(r.total | 0)) continue;
+      (byCid[cid] = byCid[cid] || []).push({ sku, pct: Math.min(100, Math.floor((r.done | 0) * 100 / (r.total | 0))), ts: +r.ts || 0 });
+    }
+    out.scanned = listed.keys.length;
+    const now = Date.now();
+    for (const cid of Object.keys(byCid)) {
+      const u = await pushAutoUser(env, cid); const sent = u.sent || (u.sent = {});
+      if (u.last && now - u.last < cfg.cap_days * 86400000) continue;
+      const projs = byCid[cid];
+      const open = projs.filter(p => p.pct > 0 && p.pct < 100).sort((a, b) => b.ts - a.ts);
+      let did = false;
+      if (cfg.inactive.on && open.length) {
+        const p = open[0], idle = now - p.ts;
+        if (idle > cfg.inactive.days * 86400000 && (!sent[p.sku + ":inactive"] || now - sent[p.sku + ":inactive"] > cfg.inactive.days * 86400000)) {
+          const name = (await kitTitleFor(env, p.sku)) || p.sku;
+          const n = await pushAutoDeliver(env, cfg, cid, "inactive", { pct: p.pct, name }, "#tracker");
+          sent[p.sku + ":inactive"] = now; if (n || await env.ENTITLEMENTS.get("pushauto:pending:" + cid)) { u.last = now; out.inactive += n; } did = true;
+        }
+      }
+      if (!did && cfg.winback.on && !open.length && projs.length) {
+        const last = Math.max(...projs.map(p => p.ts));
+        if (now - last > cfg.winback.weeks * 7 * 86400000 && (!sent["winback"] || now - sent["winback"] > cfg.winback.weeks * 7 * 86400000)) {
+          const n = await pushAutoDeliver(env, cfg, cid, "winback", {}, cfg.shop_url);
+          sent["winback"] = now; if (n || await env.ENTITLEMENTS.get("pushauto:pending:" + cid)) { u.last = now; out.winback += n; } did = true;
+        }
+      }
+      if (did) await pushAutoUserSave(env, cid, u);
+    }
+    st.cursor = listed.list_complete ? null : listed.cursor; st.last = now;
+    await env.ENTITLEMENTS.put("pushauto:scan", JSON.stringify(st));
+  }
+  await env.ENTITLEMENTS.put("pushauto:lastrun", JSON.stringify({ ts: Date.now(), ...out }));
+  return out;
+}
+
 async function handlePartnerApi(request, url, env) {
   const sub = url.pathname.slice(url.pathname.indexOf("/partner/") + "/partner/".length).replace(/\/+$/, "");
 
@@ -1509,6 +1702,13 @@ async function handlePartnerApi(request, url, env) {
     }
     return partnerJson(200, { ok:true, master: ADM.master, owner: !!ADM.owner, uid: ADM.uid || "", name: ADM.name, scopes: ADM.scopes });
   }
+  // ── v97: hourly automatic-notification job (GitHub Actions cron) ─────────
+  if (sub === "admin/push/auto-run" && request.method === "POST" && !adminKey) {
+    const ck = (request.headers.get("x-cron-key") || url.searchParams.get("k") || "").trim();
+    if (!env.PUSH_CRON_KEY || !ck || !timingSafeEqual(ck, env.PUSH_CRON_KEY)) return partnerJson(401, { ok:false, error:"cron key required" });
+    if (!env.ENTITLEMENTS) return partnerJson(500, { ok:false, error:"storage not configured" });
+    return partnerJson(200, { ok:true, ...(await pushAutoRun(env)) });
+  }
   // ── v93: push notifications (owner only) ─────────────────────────────────
   if (sub.startsWith("admin/push/")) {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
@@ -1530,6 +1730,22 @@ async function handlePartnerApi(request, url, env) {
         if (!listed.list_complete) cursor = listed.cursor; else break;
       }
       return partnerJson(200, { ok:true, configured, ...by });
+    }
+    if (sub === "admin/push/auto" && request.method === "GET") {
+      const cfg = await pushAutoCfg(env);
+      let lastrun = null; try { lastrun = JSON.parse((await env.ENTITLEMENTS.get("pushauto:lastrun")) || "null"); } catch (e) {}
+      const stats = {}; const listed = await env.ENTITLEMENTS.list({ prefix: "pushauto:stats:", limit: 60 });
+      for (const k of listed.keys.slice(-14)) { try { stats[k.name.slice("pushauto:stats:".length)] = JSON.parse((await env.ENTITLEMENTS.get(k.name)) || "{}"); } catch (e) {} }
+      const pending = (await env.ENTITLEMENTS.list({ prefix: "pushauto:pending:", limit: 1000 })).keys.length;
+      return partnerJson(200, { ok:true, cfg, lastrun, stats, pending, cron: !!env.PUSH_CRON_KEY, preview: Object.fromEntries(["milestone", "finished", "first", "inactive", "winback"].map(k => [k, pushAutoText("en", k, { pct: 50, name: "Summer Roses" })])) });
+    }
+    if (sub === "admin/push/auto" && request.method === "POST") {
+      let b; try { b = await request.json(); } catch (e) { return partnerJson(400, { ok:false, error:"bad json" }); }
+      await env.ENTITLEMENTS.put("pushauto:cfg", JSON.stringify(b.cfg || b));
+      return partnerJson(200, { ok:true, cfg: await pushAutoCfg(env) });
+    }
+    if (sub === "admin/push/auto-run" && request.method === "POST") {
+      return partnerJson(200, { ok:true, ...(await pushAutoRun(env)) });
     }
     if (sub === "admin/push/log" && request.method === "GET") {
       const listed = await env.ENTITLEMENTS.list({ prefix: "pushlog:", limit: 1000 });
@@ -3602,13 +3818,20 @@ async function handleRequest(context) {
     const platform = String(b.platform || "").toLowerCase();
     if (!PUSH_PLATFORMS.includes(platform) || !/^[A-Za-z0-9_:\-]{20,400}$/.test(token)) return bad("bad token", 400);
     const key = "push:" + platform + ":" + token;
-    if (url.pathname.endsWith("/push/unregister")) { await env.ENTITLEMENTS.delete(key); return new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json", "cache-control": "no-store" } }); }
+    if (url.pathname.endsWith("/push/unregister")) {
+      let old = null; try { old = JSON.parse((await env.ENTITLEMENTS.get(key)) || "null"); } catch (e) {}
+      await env.ENTITLEMENTS.delete(key);
+      if (old && old.cid) { try { await env.ENTITLEMENTS.delete("pushcid:" + old.cid + ":" + await sha256b64(token)); } catch (e) {} }
+      return new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
+    }
     const lang = PUSH_LANGS.includes(String(b.lang || "").slice(0, 2)) ? String(b.lang).slice(0, 2) : "en";
     let plus = false;
     if (auth.loggedIn && auth.customerId) { try { plus = !!(await plusState(auth, env)).plus; } catch (e) {} }
     let prev = null; try { prev = JSON.parse((await env.ENTITLEMENTS.get(key)) || "null"); } catch (e) {}
-    const rec = { token, platform, lang, cid: auth.customerId || (prev && prev.cid) || null, plus, app: String(b.app || "").slice(0, 20), ts: (prev && prev.ts) || Date.now(), seen: Date.now() };
+    const tz = /^[A-Za-z_]+(?:\/[A-Za-z0-9_+\-]+){0,2}$/.test(String(b.tz || "")) ? String(b.tz).slice(0, 60) : "";
+    const rec = { token, platform, lang, tz, cid: auth.customerId || (prev && prev.cid) || null, plus, app: String(b.app || "").slice(0, 20), ts: (prev && prev.ts) || Date.now(), seen: Date.now() };
     await env.ENTITLEMENTS.put(key, JSON.stringify(rec), { metadata: { lang, plus, cid: rec.cid } });
+    if (rec.cid) { try { await env.ENTITLEMENTS.put("pushcid:" + rec.cid + ":" + await sha256b64(token), key); } catch (e) {} }   // v97: per-customer device index
     return new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
   }
 
@@ -4014,6 +4237,8 @@ async function handleRequest(context) {
         ts: Date.now()
       };
       await env.ENTITLEMENTS.put(key, JSON.stringify(rec));
+      // v97: automatic notifications run after the save, off the response path.
+      try { const job = pushAutoOnProgress(env, auth.customerId, sku, rec, ""); if (context.waitUntil) context.waitUntil(job); } catch (e) {}
       return new Response(JSON.stringify({ ok: true, ts: rec.ts }), {
         headers: { "content-type": "application/json", "cache-control": "no-store" }
       });
@@ -4173,6 +4398,8 @@ async function handleRequest(context) {
             thumb: (typeof body.thumb === "string" && body.thumb.length <= 200000) ? body.thumb : null
           };
           await env.ENTITLEMENTS.put(metaKey, JSON.stringify(rec));
+          // v97: automatic notifications, after the save, off the response path.
+          try { const job = pushAutoOnProgress(env, auth.customerId, "up:" + id, rec, rec.name); if (context.waitUntil) context.waitUntil(job); } catch (e) {}
           // Re-creating an id clears its tombstone so other devices don't prune it.
           try { await env.ENTITLEMENTS.delete("updel:" + auth.customerId + ":" + id); } catch (e) {}
           try {

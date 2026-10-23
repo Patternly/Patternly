@@ -44,6 +44,12 @@
   .seg button{font:inherit;font-size:.8rem;font-weight:700;border:0;background:none;color:var(--muted);border-radius:999px;padding:.38rem 1rem;cursor:pointer;transition:all .12s}
   .seg button.on{background:#fff;color:var(--red);box-shadow:0 1px 4px rgba(43,34,38,.12)}
   /* v41: notifications */
+  .pa-rule{display:grid;grid-template-columns:auto 1fr auto;gap:.3rem 1rem;align-items:center;padding:.65rem 0;border-top:1px solid var(--border)}
+  .pa-rule:first-child{border-top:0}
+  .pa-rule b{font-size:.88rem}
+  .pa-rule .ex{grid-column:2;font-size:.8rem;color:var(--muted)}
+  .pa-rule .ex i{font-style:normal;color:var(--ink)}
+  .pa-rule input[type=number]{width:62px;padding:.35rem .45rem;border:1.5px solid var(--border);border-radius:8px;font:inherit}
   .pn-prog{height:8px;border-radius:999px;background:var(--bg);border:1px solid var(--border);overflow:hidden;margin:.5rem 0}
   .pn-prog i{display:block;height:100%;background:var(--red);width:0;transition:width .3s}
   .pn-log{width:100%;border-collapse:collapse;font-size:.82rem}
@@ -703,6 +709,18 @@
         </div>
         <div class="pn-prog" id="pn-prog" style="display:none"><i id="pn-prog-i"></i></div>
         <div class="note" id="pn-msg"></div>
+      </div>
+      <div class="card">
+        <h2>Automatic notifications <button class="primary" id="pa-save" style="float:right;padding:.3rem .8rem;font-size:.76rem">Save</button></h2>
+        <div class="note" style="margin:0 0 .8rem">Sent by the app on its own, in the person’s language, with their project name and progress. Events fire instantly; the reminder scan runs hourly in the background. Nobody gets more than one automatic message per <b>cap</b> period, and nothing is sent during quiet hours (it waits until morning, their time).</div>
+        <div id="pa-rules"></div>
+        <div class="pn-aud" style="margin-top:.9rem;gap:.8rem 1.6rem">
+          <div><label>Cap</label><div style="display:flex;align-items:center;gap:.4rem"><input type="number" id="pa-cap" min="0" max="30" style="width:70px;padding:.45rem .5rem;border:1.5px solid var(--border);border-radius:9px;font:inherit"> <span class="note" style="margin:0">days between automatic messages (0 = no cap)</span></div></div>
+          <div><label>Quiet hours</label><div style="display:flex;align-items:center;gap:.4rem"><input type="number" id="pa-qf" min="0" max="23" style="width:60px;padding:.45rem .5rem;border:1.5px solid var(--border);border-radius:9px;font:inherit"><span class="note" style="margin:0">:00 to</span><input type="number" id="pa-qt" min="0" max="23" style="width:60px;padding:.45rem .5rem;border:1.5px solid var(--border);border-radius:9px;font:inherit"><span class="note" style="margin:0">:00, their local time</span></div></div>
+          <div style="flex:1;min-width:260px"><label>“Explore kits” link</label><input type="url" id="pa-shop" maxlength="300" placeholder="https://luca-s.com/collections/…"></div>
+        </div>
+        <div class="note" id="pa-msg" style="margin:.7rem 0 0"></div>
+        <div class="note" id="pa-status" style="margin:.4rem 0 0"></div>
       </div>
       <div class="card">
         <h2>Devices <button class="ghost" id="pn-refresh" style="float:right;padding:.3rem .7rem;font-size:.76rem">Refresh</button></h2>
@@ -4015,8 +4033,49 @@ function pnBind(){
   $('pn-test').addEventListener('click',()=>pnSend(true));
   $('pn-send').addEventListener('click',()=>pnSend(false));
   $('pn-refresh').addEventListener('click',pnLoad);
+  $('pa-save').addEventListener('click',paSave);
+}
+// v46: automatic notification rules
+const PA_RULES=[
+  {k:'milestones',name:'Milestones',desc:'at 25 %, 50 % and 75 % of a project'},
+  {k:'finished',name:'Finished a project',desc:'with the “Explore kits” link'},
+  {k:'first',name:'First stitches',desc:'a short tip when a new project gets going'},
+  {k:'inactive',name:'Reminder',desc:'an unfinished project untouched for',unit:'days',sub:'days',min:2,max:60},
+  {k:'winback',name:'Win-back',desc:'everything finished, nothing new for',unit:'weeks',sub:'weeks',min:1,max:26}
+];
+let PA_CFG=null;
+function paRender(d){
+  PA_CFG=d.cfg; const pv=d.preview||{};
+  $('pa-rules').innerHTML=PA_RULES.map(r=>{
+    const on=r.sub?!!(PA_CFG[r.k]&&PA_CFG[r.k].on):!!PA_CFG[r.k];
+    const n=r.sub?(PA_CFG[r.k]&&PA_CFG[r.k][r.sub])||'':'';
+    const ex=pv[r.k==='milestones'?'milestone':r.k]||{};
+    return '<div class="pa-rule"><label class="switch" style="margin:0"><input type="checkbox" data-k="'+r.k+'"'+(on?' checked':'')+'><span class="knob"></span></label>'
+      +'<div><b>'+r.name+'</b> <span class="note" style="margin:0;display:inline">'+r.desc+(r.sub?' <input type="number" data-sub="'+r.k+'" min="'+r.min+'" max="'+r.max+'" value="'+n+'"> '+r.unit:'')+'</span></div>'
+      +'<div></div><div class="ex">e.g. <i>'+pnEsc(ex.title||'')+'</i> — '+pnEsc(ex.body||'')+'</div></div>';
+  }).join('');
+  PA_CFG.quiet=PA_CFG.quiet||{from:22,to:8}; $('pa-cap').value=PA_CFG.cap_days==null?3:PA_CFG.cap_days; $('pa-qf').value=PA_CFG.quiet.from; $('pa-qt').value=PA_CFG.quiet.to; $('pa-shop').value=PA_CFG.shop_url||'';
+  const lr=d.lastrun; const days=Object.keys(d.stats||{}).sort(); let tot={};
+  days.forEach(day=>Object.entries(d.stats[day]).forEach(([k,v])=>tot[k]=(tot[k]||0)+v));
+  const sum=Object.keys(tot).length?Object.entries(tot).map(([k,v])=>v+' '+k).join(' · '):'none yet';
+  $('pa-status').innerHTML=(d.cron?'✓ Hourly job connected':'✗ Hourly job not connected — add the PUSH_CRON_KEY secret in Cloudflare and GitHub (reminders and quiet-hour delivery need it; milestone and finished messages still work)')
+    +(lr?' · last run '+new Date(lr.ts).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'')+(d.pending?' · '+d.pending+' waiting for morning':'')+' · last 14 days: '+sum;
+}
+async function paLoad(){
+  try{ const r=await fetch(API+'admin/push/auto',{headers:adminHeaders()}); const d=await r.json(); if(d.ok) paRender(d); else $('pa-msg').textContent=d.error||'Could not load'; }catch(e){ $('pa-msg').textContent='Could not load: '+e.message; }
+}
+async function paSave(){
+  if(!PA_CFG) return;
+  const cfg=JSON.parse(JSON.stringify(PA_CFG));
+  $('pa-rules').querySelectorAll('input[type=checkbox]').forEach(c=>{ const k=c.dataset.k, r=PA_RULES.find(x=>x.k===k); if(r.sub){ cfg[k]=(cfg[k]&&typeof cfg[k]==='object')?cfg[k]:{}; cfg[k].on=c.checked; } else cfg[k]=c.checked; });
+  $('pa-rules').querySelectorAll('input[data-sub]').forEach(i=>{ const r=PA_RULES.find(x=>x.k===i.dataset.sub); cfg[r.k]=(cfg[r.k]&&typeof cfg[r.k]==='object')?cfg[r.k]:{on:false}; cfg[r.k][r.sub]=+i.value||cfg[r.k][r.sub]; });
+  cfg.cap_days=+$('pa-cap').value; cfg.quiet={from:+$('pa-qf').value,to:+$('pa-qt').value}; cfg.shop_url=$('pa-shop').value.trim();
+  $('pa-save').disabled=true; $('pa-msg').textContent='Saving…';
+  try{ const r=await fetch(API+'admin/push/auto',{method:'POST',headers:adminHeaders(true),body:JSON.stringify({cfg})}); const d=await r.json(); if(!d.ok) throw new Error(d.error||'Save failed'); $('pa-msg').textContent='Saved.'; paLoad(); }
+  catch(e){ $('pa-msg').textContent=e.message; } finally{ $('pa-save').disabled=false; }
 }
 async function pnLoad(){
+  paLoad();
   try{
     const [rd,rl]=await Promise.all([fetch(API+'admin/push/devices',{headers:adminHeaders()}),fetch(API+'admin/push/log',{headers:adminHeaders()})]);
     const d=await rd.json(), l=await rl.json();
