@@ -12,7 +12,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v99";
+const MW_VERSION = "v100";
 
 const enc = new TextEncoder();
 
@@ -982,7 +982,7 @@ function pushJobPublic(job) { return { id: job.id, done: job.done, scanned: job.
 // KV (ENTITLEMENTS): pushauto:cfg · pushauto:u:<cid> {last, sent:{}} ·
 // pushauto:pending:<cid> · pushauto:scan {cursor,daily} · pushauto:stats:<day>
 // · pushauto:titles (6 h cache) · pushcid:<cid>:<sha(token)> -> device key
-const PUSH_AUTO_DEFAULT = { milestones: true, finished: true, first: true, inactive: { on: true, days: 7 }, winback: { on: false, weeks: 4 }, weekly: { on: true, days: 7 }, cap_days: 3, quiet: { from: 22, to: 8 }, shop_url: "https://luca-s.com/collections/needlecraft-kits" };
+const PUSH_AUTO_DEFAULT = { milestones: true, finished: true, first: true, inactive: { on: true, days: 7 }, winback: { on: false, weeks: 4 }, weekly: { on: true, days: 7 }, unopened: { on: true, days: 7 }, nearly: { on: true, days: 3 }, newkit: { on: true }, plus: { on: true }, summary: { on: true }, streak: { on: true }, monthly: { on: true, min: 3 }, cap_days: 3, quiet: { from: 22, to: 8 }, shop_url: "https://luca-s.com/collections/needlecraft-kits" };
 const PUSH_AUTO_T = {
   en: { m: ["{pct}% done — keep going!", "You’re {pct}% through {name}. Lovely progress!"], f: ["You finished {name}! 🎉", "Ready for a new project? Explore the kits →"], s: ["Great start on {name}", "Tap each stitch as you finish it — Patternly keeps your place."], i: ["{name} is waiting", "You’re {pct}% done — a few stitches today?"], w: ["Time for a new project?", "Explore the latest kits and start something fresh."] },
   fr: { m: ["{pct} % réalisés — continuez !", "Vous en êtes à {pct} % de {name}. Beau travail !"], f: ["Vous avez terminé {name} ! 🎉", "Envie d’un nouveau projet ? Découvrez les kits →"], s: ["Beau début sur {name}", "Touchez chaque point terminé — Patternly garde votre place."], i: ["{name} vous attend", "Vous en êtes à {pct} % — quelques points aujourd’hui ?"], w: ["Un nouveau projet ?", "Découvrez les derniers kits et lancez-vous."] },
@@ -1005,7 +1005,20 @@ const PUSH_WEEKLY = {
   es: [["Encuentra un color rápido", "Mantén pulsada una puntada para iluminar solo ese hilo.", "t"], ["A tu gusto", "Colorea las puntadas terminadas con tu color favorito — Ajustes del gráfico.", "t"], ["Poco y a menudo", "15 minutos hoy son unas filas más.", "t"], ["¿Algo nuevo?", "Llegan kits nuevos con regularidad — echa un vistazo.", "s"], ["Borda donde quieras", "Tu progreso se sincroniza en todos tus dispositivos.", "t"], ["¿Un despiste?", "El modo borrar y Deshacer lo arreglan en segundos.", "t"], ["¿Qué hilo sigue?", "Abre Colores para ver las puntadas que faltan por hilo.", "t"], ["Presúmelo", "Una pieza terminada merece una foto — nos encantaría verla.", "t"]],
   it: [["Trova un colore al volo", "Tieni premuto un punto per evidenziare solo quel filo.", "t"], ["A modo tuo", "Colora i punti finiti con il tuo colore preferito — Impostazioni dello schema.", "t"], ["Poco ma spesso", "15 minuti oggi sono qualche riga in più.", "t"], ["Qualcosa di nuovo?", "Arrivano kit nuovi regolarmente — dai un’occhiata.", "s"], ["Ricama ovunque", "I tuoi progressi si sincronizzano su tutti i dispositivi.", "t"], ["Un errore?", "Modalità gomma e Annulla lo sistemano in pochi secondi.", "t"], ["Quale filo adesso?", "Apri Colori per vedere i punti rimasti per ogni filo.", "t"], ["Fallo vedere", "Un lavoro finito merita una foto — ci piacerebbe vederlo.", "t"]]
 };
+// v100: more rule texts — same shape, one entry per kind per language
+const PUSH_AUTO_T2 = {
+  en: { u: ["Your {name} chart is ready", "Open it in the app and make the first stitch."], n: ["Only {left} stitches left!", "{name} is {pct}% done — you can finish it this week."], k: ["New from {brand}: {name}", "Just published — have a look."], t: ["Your Plus trial ends in {d} days", "Keep syncing and tracking on every device — continue with Patternly Plus."], l: ["Your Plus has ended", "Your projects are safe. Resubscribe to keep syncing across devices."], y: ["This week: {n} stitches", "Across {k} project(s). Lovely work — see you next week!"], r: ["{n} days in a row! 🔥", "You’ve stitched {n} days running. Keep the streak alive today."], o: ["{n} new kits this month", "Fresh designs just arrived — take a look."] },
+  fr: { u: ["Votre diagramme {name} est prêt", "Ouvrez-le dans l’appli et faites le premier point."], n: ["Plus que {left} points !", "{name} est à {pct} % — vous pouvez le finir cette semaine."], k: ["Nouveau chez {brand} : {name}", "Tout juste publié — jetez un œil."], t: ["Votre essai Plus se termine dans {d} jours", "Gardez la synchronisation sur tous vos appareils — continuez avec Patternly Plus."], l: ["Votre Plus est terminé", "Vos projets sont en sécurité. Réabonnez-vous pour continuer la synchronisation."], y: ["Cette semaine : {n} points", "Sur {k} projet(s). Beau travail — à la semaine prochaine !"], r: ["{n} jours d’affilée ! 🔥", "Vous brodez depuis {n} jours. Gardez la série aujourd’hui."], o: ["{n} nouveaux kits ce mois-ci", "De nouveaux modèles viennent d’arriver — regardez."] },
+  de: { u: ["Dein Chart {name} ist bereit", "Öffne es in der App und mach den ersten Stich."], n: ["Nur noch {left} Stiche!", "{name} ist zu {pct} % fertig — diese Woche schaffst du es."], k: ["Neu von {brand}: {name}", "Gerade veröffentlicht — schau mal rein."], t: ["Dein Plus-Test endet in {d} Tagen", "Behalte Sync und Tracking auf allen Geräten — weiter mit Patternly Plus."], l: ["Dein Plus ist abgelaufen", "Deine Projekte sind sicher. Abonniere erneut, um weiter zu synchronisieren."], y: ["Diese Woche: {n} Stiche", "In {k} Projekt(en). Tolle Arbeit — bis nächste Woche!"], r: ["{n} Tage am Stück! 🔥", "Du stickst seit {n} Tagen. Halte die Serie heute am Leben."], o: ["{n} neue Kits diesen Monat", "Frische Designs sind da — schau sie dir an."] },
+  nl: { u: ["Je patroon {name} staat klaar", "Open het in de app en zet de eerste steek."], n: ["Nog maar {left} steken!", "{name} is {pct}% klaar — deze week kun je het afmaken."], k: ["Nieuw van {brand}: {name}", "Net gepubliceerd — neem een kijkje."], t: ["Je Plus-proefperiode eindigt over {d} dagen", "Blijf synchroniseren op al je apparaten — ga door met Patternly Plus."], l: ["Je Plus is afgelopen", "Je projecten zijn veilig. Abonneer opnieuw om te blijven synchroniseren."], y: ["Deze week: {n} steken", "In {k} project(en). Mooi werk — tot volgende week!"], r: ["{n} dagen op rij! 🔥", "Je borduurt al {n} dagen achter elkaar. Houd de reeks vandaag vol."], o: ["{n} nieuwe kits deze maand", "Nieuwe ontwerpen zijn binnen — kijk eens."] },
+  ru: { u: ["Схема {name} готова", "Откройте её в приложении и сделайте первый стежок."], n: ["Осталось всего {left} стежков!", "{name} готова на {pct}% — можно закончить на этой неделе."], k: ["Новинка от {brand}: {name}", "Только что опубликовано — взгляните."], t: ["Пробный период Plus закончится через {d} дн.", "Сохраните синхронизацию на всех устройствах — продолжите с Patternly Plus."], l: ["Подписка Plus закончилась", "Ваши проекты в сохранности. Оформите подписку снова, чтобы продолжить синхронизацию."], y: ["За неделю: {n} стежков", "В {k} проект(ах). Отличная работа — до следующей недели!"], r: ["{n} дней подряд! 🔥", "Вы вышиваете уже {n} дней подряд. Не прерывайте серию сегодня."], o: ["{n} новых наборов в этом месяце", "Свежие дизайны уже здесь — посмотрите."] },
+  uk: { u: ["Схема {name} готова", "Відкрийте її в застосунку й зробіть перший стібок."], n: ["Лишилося всього {left} стібків!", "{name} готова на {pct}% — можна завершити цього тижня."], k: ["Новинка від {brand}: {name}", "Щойно опубліковано — погляньте."], t: ["Пробний період Plus закінчиться через {d} дн.", "Збережіть синхронізацію на всіх пристроях — продовжте з Patternly Plus."], l: ["Підписка Plus закінчилася", "Ваші проєкти в безпеці. Оформіть підписку знову, щоб продовжити синхронізацію."], y: ["За тиждень: {n} стібків", "У {k} проєкт(ах). Чудова робота — до наступного тижня!"], r: ["{n} днів поспіль! 🔥", "Ви вишиваєте вже {n} днів поспіль. Не переривайте серію сьогодні."], o: ["{n} нових наборів цього місяця", "Свіжі дизайни вже тут — погляньте."] },
+  es: { u: ["Tu gráfico {name} está listo", "Ábrelo en la app y da la primera puntada."], n: ["¡Solo quedan {left} puntadas!", "{name} va por el {pct}% — puedes terminarlo esta semana."], k: ["Novedad de {brand}: {name}", "Recién publicado — échale un vistazo."], t: ["Tu prueba de Plus termina en {d} días", "Sigue sincronizando en todos tus dispositivos — continúa con Patternly Plus."], l: ["Tu Plus ha terminado", "Tus proyectos están a salvo. Vuelve a suscribirte para seguir sincronizando."], y: ["Esta semana: {n} puntadas", "En {k} proyecto(s). Buen trabajo — ¡hasta la semana que viene!"], r: ["¡{n} días seguidos! 🔥", "Llevas {n} días bordando. Mantén la racha hoy."], o: ["{n} kits nuevos este mes", "Acaban de llegar diseños nuevos — míralos."] },
+  it: { u: ["Il tuo schema {name} è pronto", "Aprilo nell’app e fai il primo punto."], n: ["Solo {left} punti rimasti!", "{name} è al {pct}% — puoi finirlo questa settimana."], k: ["Novità da {brand}: {name}", "Appena pubblicato — dai un’occhiata."], t: ["La tua prova Plus finisce tra {d} giorni", "Continua a sincronizzare su tutti i dispositivi — prosegui con Patternly Plus."], l: ["Il tuo Plus è terminato", "I tuoi progetti sono al sicuro. Riabbonati per continuare a sincronizzare."], y: ["Questa settimana: {n} punti", "Su {k} progetto/i. Ottimo lavoro — alla prossima settimana!"], r: ["{n} giorni di fila! 🔥", "Ricami da {n} giorni consecutivi. Mantieni la serie oggi."], o: ["{n} nuovi kit questo mese", "Nuovi design appena arrivati — dai un’occhiata."] }
+};
 function pushAutoText(lang, kind, vars) {
+  const k2 = { unopened: "u", nearly: "n", newkit: "k", trial: "t", lapsed: "l", summary: "y", streak: "r", monthly: "o" }[kind];
+  if (k2) { const T2 = PUSH_AUTO_T2[lang] || PUSH_AUTO_T2.en; const fill = s => s.replace(/\{(\w+)\}/g, (m, v) => vars[v] != null ? String(vars[v]) : m); return { title: fill(T2[k2][0]), body: fill(T2[k2][1]), shop: kind === "newkit" || kind === "monthly" }; }
   if (kind === "weekly") {
     const P = PUSH_WEEKLY[lang] || PUSH_WEEKLY.en; const i = ((vars.i | 0) % P.length + P.length) % P.length;
     return { title: P[i][0], body: P[i][1], shop: P[i][2] === "s" };
@@ -1024,6 +1037,10 @@ async function pushAutoCfg(env) {
     inactive: { on: c.inactive ? !!c.inactive.on : d.inactive.on, days: Math.min(60, Math.max(2, +(c.inactive && c.inactive.days) || d.inactive.days)) },
     winback: { on: c.winback ? !!c.winback.on : d.winback.on, weeks: Math.min(26, Math.max(1, +(c.winback && c.winback.weeks) || d.winback.weeks)) },
     weekly: { on: c.weekly ? !!c.weekly.on : d.weekly.on, days: Math.min(60, Math.max(3, +(c.weekly && c.weekly.days) || d.weekly.days)) },
+    unopened: { on: c.unopened ? !!c.unopened.on : d.unopened.on, days: Math.min(60, Math.max(1, +(c.unopened && c.unopened.days) || d.unopened.days)) },
+    nearly: { on: c.nearly ? !!c.nearly.on : d.nearly.on, days: Math.min(30, Math.max(1, +(c.nearly && c.nearly.days) || d.nearly.days)) },
+    newkit: { on: c.newkit ? !!c.newkit.on : d.newkit.on }, plus: { on: c.plus ? !!c.plus.on : d.plus.on }, summary: { on: c.summary ? !!c.summary.on : d.summary.on }, streak: { on: c.streak ? !!c.streak.on : d.streak.on },
+    monthly: { on: c.monthly ? !!c.monthly.on : d.monthly.on, min: Math.min(20, Math.max(1, +(c.monthly && c.monthly.min) || d.monthly.min)) },
     cap_days: Math.min(30, Math.max(0, +c.cap_days >= 0 ? +c.cap_days : d.cap_days)),
     quiet: { from: qh(c.quiet && c.quiet.from, d.quiet.from), to: qh(c.quiet && c.quiet.to, d.quiet.to) },
     shop_url: /^https:\/\//.test(c.shop_url || "") ? String(c.shop_url).slice(0, 300) : d.shop_url };
@@ -1092,6 +1109,17 @@ async function pushAutoOnProgress(env, cid, id, rec, nameHint) {
     const u = await pushAutoUser(env, cid);
     const sent = u.sent || (u.sent = {});
     const base = String(id);
+    // v100: activity days + streak (only when stitches were added since last sync of this project)
+    let streakMsg = 0;
+    if (done > (sent[base + ":done"] | 0)) {
+      const day = new Date(Date.now()).toISOString().slice(0, 10);
+      const act = Array.isArray(u.act) ? u.act : (u.act = []);
+      if (act[act.length - 1] !== day) { act.push(day); if (act.length > 60) act.splice(0, act.length - 60); }
+      let st = 1; for (let i = act.length - 1; i > 0; i--) { const a = Date.parse(act[i]), b = Date.parse(act[i - 1]); if (a - b === 86400000) st++; else break; }
+      u.streak = st; u.best = Math.max(u.best | 0, st);
+      if (cfg.streak && [3, 7, 14, 30, 60].includes(st) && sent["streak:" + st] !== act[act.length - 1]) { sent["streak:" + st] = act[act.length - 1]; streakMsg = st; }
+    }
+    sent[base + ":done"] = done;
     // First sight of this project: baseline every milestone already passed.
     if (!sent[base + ":seen"]) {
       sent[base + ":seen"] = Date.now();
@@ -1113,6 +1141,9 @@ async function pushAutoOnProgress(env, cid, id, rec, nameHint) {
     if (kind && !capped) {
       const name = nameHint || (await kitTitleFor(env, id)) || (/^[A-Z0-9_-]{1,12}$/.test(base) ? base : "your project");
       const n = await pushAutoDeliver(env, cfg, cid, kind, { pct: m > 0 ? m : pct, name }, kind === "finished" ? cfg.shop_url : "#tracker");
+      if (n || await env.ENTITLEMENTS.get("pushauto:pending:" + cid)) u.last = Date.now();
+    } else if (streakMsg && !capped) {
+      const n = await pushAutoDeliver(env, cfg, cid, "streak", { n: streakMsg }, "#tracker");
       if (n || await env.ENTITLEMENTS.get("pushauto:pending:" + cid)) u.last = Date.now();
     }
     await pushAutoUserSave(env, cid, u);
@@ -1136,7 +1167,41 @@ async function pushAutoRun(env) {
     out.queued_sent += n; await env.ENTITLEMENTS.delete(k.name);
   }
   // 2. rolling scan of progress records (inactive / win-back)
-  if (cfg.inactive.on || cfg.winback.on) {
+  // v100: catalogue diff (every 6 h) → recent new kits; first run only baselines
+  let newKits = [];
+  try {
+    let cat = null; try { cat = JSON.parse((await env.ENTITLEMENTS.get("pushauto:cat")) || "null"); } catch (e) {}
+    let nk = null; try { nk = JSON.parse((await env.ENTITLEMENTS.get("pushauto:newkits")) || "null"); } catch (e) {}
+    nk = Array.isArray(nk) ? nk.filter(k => Date.now() - k.ts < 30 * 86400000) : [];
+    if (!cat || Date.now() - cat.ts > 6 * 3600000) {
+      await kitTitleFor(env, "__refresh__");   // ensures the 6 h title cache exists
+      let map = {}; try { map = JSON.parse((await env.ENTITLEMENTS.get("pushauto:titles")) || "{}"); } catch (e) {}
+      const skus = Object.keys(map);
+      if (cat && Array.isArray(cat.skus)) {
+        const old = new Set(cat.skus);
+        let brands = {}; try { for (const b of (await partnerManifestRaw(env))) if (b && b.sku) brands[String(b.sku).toUpperCase()] = b.brand || ""; } catch (e) {}
+        for (const sku of skus) if (!old.has(sku) && !nk.find(k => k.sku === sku)) nk.push({ sku, title: map[sku], prefix: sku.includes("-") ? sku.split("-")[0] : "LUCA", brand: brands[sku] || "Luca-S", ts: Date.now() });
+      }
+      await env.ENTITLEMENTS.put("pushauto:cat", JSON.stringify({ skus, ts: Date.now() }));
+      await env.ENTITLEMENTS.put("pushauto:newkits", JSON.stringify(nk));
+    }
+    newKits = nk.filter(k => Date.now() - k.ts < 14 * 86400000);
+    // monthly "new kits" broadcast: ≥ min new SKUs in 30 days, at most once per 30 days
+    if (cfg.monthly.on && nk.length >= cfg.monthly.min) {
+      let last = null; try { last = JSON.parse((await env.ENTITLEMENTS.get("pushauto:monthly")) || "null"); } catch (e) {}
+      if (!last || Date.now() - last.ts > 30 * 86400000) {
+        const i18n = {}; for (const l of PUSH_LANGS) { const t = pushAutoText(l, "monthly", { n: nk.length }); i18n[l] = { title: t.title, body: t.body }; }
+        const en = i18n.en; const job = { id: randToken(9), created: Date.now(), by: "auto", msg: { title: en.title, body: en.body, url: cfg.shop_url, i18n }, audience: { platform: "all", lang: "all", plus: "all" }, test: false, cursor: null, scanned: 0, sent: 0, failed: 0, pruned: 0, errors: [], done: false };
+        await pushJobRun(env, job);
+        await env.ENTITLEMENTS.put("pushauto:monthly", JSON.stringify({ ts: Date.now(), n: nk.length, job: job.id }));
+        await env.ENTITLEMENTS.put("pushauto:runjob", job.id);   // continued below on later runs
+        out.monthly = job.sent;
+      }
+    }
+    const rj = await env.ENTITLEMENTS.get("pushauto:runjob");
+    if (rj) { let job = null; try { job = JSON.parse((await env.ENTITLEMENTS.get("pushjob:" + rj)) || "null"); } catch (e) {} if (job && !job.done) { await pushJobRun(env, job); out.monthly = (out.monthly || 0) + job.sent; } else await env.ENTITLEMENTS.delete("pushauto:runjob"); }
+  } catch (e) { try { console.warn("pushAuto catalogue:", e.message); } catch (_) {} }
+  if (cfg.inactive.on || cfg.winback.on || cfg.nearly.on || cfg.newkit.on || cfg.summary.on) {
     let st = null; try { st = JSON.parse((await env.ENTITLEMENTS.get("pushauto:scan")) || "null"); } catch (e) {}
     st = st || { cursor: null };
     const listed = await env.ENTITLEMENTS.list({ prefix: "prog:", limit: 150, cursor: st.cursor || undefined });
@@ -1146,7 +1211,7 @@ async function pushAutoRun(env) {
       const cid = parts.slice(1, -1).join(":"), sku = parts[parts.length - 1];
       let r = null; try { r = JSON.parse((await env.ENTITLEMENTS.get(k.name)) || "null"); } catch (e) {}
       if (!r || !(r.total | 0)) continue;
-      (byCid[cid] = byCid[cid] || []).push({ sku, pct: Math.min(100, Math.floor((r.done | 0) * 100 / (r.total | 0))), ts: +r.ts || 0 });
+      (byCid[cid] = byCid[cid] || []).push({ sku, pct: Math.min(100, Math.floor((r.done | 0) * 100 / (r.total | 0))), ts: +r.ts || 0, done: r.done | 0, total: r.total | 0 });
     }
     out.scanned = listed.keys.length;
     const now = Date.now();
@@ -1156,6 +1221,36 @@ async function pushAutoRun(env) {
       const projs = byCid[cid];
       const open = projs.filter(p => p.pct > 0 && p.pct < 100).sort((a, b) => b.ts - a.ts);
       let did = false;
+      // v100: weekly summary — Sunday from 17:00 local, once per week, real numbers only
+      if (cfg.summary.on) {
+        const devs = await pushDevicesForCid(env, cid);
+        if (devs.length) {
+          const tz = devs[0].tz || "Europe/London";
+          let wd = 0, hh = 12; try { const f = new Intl.DateTimeFormat("en-GB", { weekday: "short", hour: "numeric", hour12: false, timeZone: tz }).formatToParts(new Date()); wd = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf((f.find(x => x.type === "weekday") || {}).value); hh = +(f.find(x => x.type === "hour") || {}).value; } catch (e) {}
+          const weekId = Math.floor((now + 3 * 86400000) / (7 * 86400000));   // week index (Sunday-based enough for once-a-week)
+          if (wd === 0 && hh >= 17 && u.sumwk !== weekId) {
+            const total = projs.reduce((a, p) => a + (p.done | 0), 0);
+            const touched = projs.filter(p => now - p.ts < 7 * 86400000).length;
+            if (u.snap && total > u.snap.total && touched) {
+              const n = await pushAutoDeliver(env, cfg, cid, "summary", { n: (total - u.snap.total).toLocaleString("en-GB"), k: touched }, "#tracker");
+              if (n || await env.ENTITLEMENTS.get("pushauto:pending:" + cid)) { u.last = now; out.summary = (out.summary || 0) + n; did = true; }
+            }
+            u.snap = { ts: now, total }; u.sumwk = weekId; await pushAutoUserSave(env, cid, u);
+            if (did) continue;
+          }
+        }
+      }
+      // v100: nearly there — 90 %+ and idle N days, once per project
+      if (!did && cfg.nearly.on) {
+        const p = open.find(x => x.pct >= 90 && now - x.ts > cfg.nearly.days * 86400000 && !sent[x.sku + ":near"]);
+        if (p) { const name = (await kitTitleFor(env, p.sku)) || p.sku; const n = await pushAutoDeliver(env, cfg, cid, "nearly", { left: Math.max(1, p.total - p.done).toLocaleString("en-GB"), pct: p.pct, name }, "#tracker"); sent[p.sku + ":near"] = now; if (n || await env.ENTITLEMENTS.get("pushauto:pending:" + cid)) { u.last = now; out.nearly = (out.nearly || 0) + n; } did = true; }
+      }
+      // v100: new kit from a brand this person has stitched (last 14 days of catalogue additions)
+      if (!did && cfg.newkit.on && newKits.length) {
+        const prefixes = new Set(projs.map(p => p.sku.includes("-") ? p.sku.split("-")[0] : "LUCA"));
+        const nk = newKits.find(k => prefixes.has(k.prefix) && !sent["newkit:" + k.sku]);
+        if (nk) { const n = await pushAutoDeliver(env, cfg, cid, "newkit", { brand: nk.brand, name: nk.title }, cfg.shop_url); sent["newkit:" + nk.sku] = now; if (n || await env.ENTITLEMENTS.get("pushauto:pending:" + cid)) { u.last = now; out.newkit = (out.newkit || 0) + n; } did = true; }
+      }
       if (cfg.inactive.on && open.length) {
         const p = open[0], idle = now - p.ts;
         if (idle > cfg.inactive.days * 86400000 && (!sent[p.sku + ":inactive"] || now - sent[p.sku + ":inactive"] > cfg.inactive.days * 86400000)) {
@@ -1178,7 +1273,7 @@ async function pushAutoRun(env) {
   }
   // 3. weekly touch: anyone (with or without projects) silent for weekly.days
   out.weekly = 0;
-  if (cfg.weekly.on) {
+  if (cfg.weekly.on || cfg.unopened.on || cfg.plus.on) {
     let ws = null; try { ws = JSON.parse((await env.ENTITLEMENTS.get("pushauto:wscan")) || "null"); } catch (e) {}
     ws = ws || { cursor: null };
     const listed = await env.ENTITLEMENTS.list({ prefix: "push:", limit: 120, cursor: ws.cursor || undefined });
@@ -1189,6 +1284,32 @@ async function pushAutoRun(env) {
       const sid = d.cid ? String(d.cid) : ("anon:" + k.name.slice(-24));
       if (seenCid.has(sid)) continue; seenCid.add(sid);
       const u = await pushAutoUser(env, sid);
+      // v100: per-customer checks that need no project — kit bought but never opened; Plus trial / lapsed
+      if (d.cid && !(u.last && now - u.last < cfg.cap_days * 86400000)) {
+        let didc = false;
+        if (cfg.plus.on) {
+          try {
+            const tr = JSON.parse((await env.ENTITLEMENTS.get("trial:" + d.cid)) || "null");
+            if (tr && tr.endsAt) { const left = Math.ceil((tr.endsAt - now) / 86400000); if (left >= 1 && left <= 2 && !u.sent["trialend"]) { const n = await pushAutoDeliver(env, cfg, sid, "trial", { d: left }, "#pricing"); u.sent["trialend"] = now; if (n) { u.last = now; out.plus = (out.plus || 0) + n; } didc = true; } }
+            if (!didc) { const ia = JSON.parse((await env.ENTITLEMENTS.get("plusiap:" + d.cid)) || "null"); if (ia && ia.active === false && ia.expiresMs && now - ia.expiresMs > 3 * 86400000 && now - ia.expiresMs < 10 * 86400000 && u.sent["lapsed"] !== ia.expiresMs) { const n = await pushAutoDeliver(env, cfg, sid, "lapsed", {}, "#pricing"); u.sent["lapsed"] = ia.expiresMs; if (n) { u.last = now; out.plus = (out.plus || 0) + n; } didc = true; } }
+          } catch (e) {}
+        }
+        if (!didc && cfg.unopened.on && (!u.ownts || now - u.ownts > 86400000)) {
+          try {
+            const owned = await ownedSkus(d.cid, env); u.ownts = now;
+            if (owned && owned.size) {
+              const first = u.ownfirst || (u.ownfirst = {});
+              const have = new Set((await env.ENTITLEMENTS.list({ prefix: "prog:" + d.cid + ":", limit: 500 })).keys.map(k => k.name.split(":").pop()));
+              for (const sku of owned) if (!have.has(sku) && !first[sku]) first[sku] = now;
+              const due = [...owned].find(sku => !have.has(sku) && first[sku] && now - first[sku] > cfg.unopened.days * 86400000 && !u.sent["unopened:" + sku]);
+              if (due) { const name = (await kitTitleFor(env, due)) || due; const n = await pushAutoDeliver(env, cfg, sid, "unopened", { name }, "#tracker"); u.sent["unopened:" + due] = now; if (n) { u.last = now; out.unopened = (out.unopened || 0) + n; } didc = true; }
+            }
+          } catch (e) {}
+        }
+        if (didc) { await pushAutoUserSave(env, sid, u); continue; }
+        if (u.ownts === now) await pushAutoUserSave(env, sid, u);
+      }
+      if (!cfg.weekly.on) continue;
       const since = Math.max(u.last || 0, d.ts || 0);
       if (now - since < gap) continue;
       if (await env.ENTITLEMENTS.get("pushauto:pending:" + sid)) continue;
@@ -1780,7 +1901,7 @@ async function handlePartnerApi(request, url, env) {
       const stats = {}; const listed = await env.ENTITLEMENTS.list({ prefix: "pushauto:stats:", limit: 60 });
       for (const k of listed.keys.slice(-14)) { try { stats[k.name.slice("pushauto:stats:".length)] = JSON.parse((await env.ENTITLEMENTS.get(k.name)) || "{}"); } catch (e) {} }
       const pending = (await env.ENTITLEMENTS.list({ prefix: "pushauto:pending:", limit: 1000 })).keys.length;
-      return partnerJson(200, { ok:true, cfg, lastrun, stats, pending, cron: !!env.PUSH_CRON_KEY, preview: Object.fromEntries(["milestone", "finished", "first", "inactive", "winback", "weekly"].map(k => [k, pushAutoText("en", k, { pct: 50, name: "Summer Roses", i: 0 })])), weeklyPool: PUSH_WEEKLY.en.map(x => ({ title: x[0], body: x[1] })) });
+      return partnerJson(200, { ok:true, cfg, lastrun, stats, pending, cron: !!env.PUSH_CRON_KEY, preview: Object.fromEntries(["milestone", "finished", "first", "inactive", "winback", "weekly", "unopened", "nearly", "newkit", "trial", "lapsed", "summary", "streak", "monthly"].map(k => [k, pushAutoText("en", k, { pct: 92, name: "Summer Roses", i: 0, left: "230", brand: "HobbyJobby", d: 2, n: k === "streak" ? 7 : k === "monthly" ? 4 : "1,240", k: 2 })])), weeklyPool: PUSH_WEEKLY.en.map(x => ({ title: x[0], body: x[1] })) });
     }
     if (sub === "admin/push/auto" && request.method === "POST") {
       let b; try { b = await request.json(); } catch (e) { return partnerJson(400, { ok:false, error:"bad json" }); }
@@ -3879,6 +4000,18 @@ async function handleRequest(context) {
     await env.ENTITLEMENTS.put(key, JSON.stringify(rec), { metadata: { lang, plus, cid: rec.cid } });
     if (rec.cid) { try { await env.ENTITLEMENTS.put("pushcid:" + rec.cid + ":" + await sha256b64(token), key); } catch (e) {} }   // v97: per-customer device index
     return new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
+  }
+
+  // v100: GET /streak -> {streak, best, days:[...]} for the signed-in customer
+  if (url.pathname.endsWith("/streak") && request.method === "GET") {
+    const h = { "content-type": "application/json", "cache-control": "no-store" };
+    if (!auth.loggedIn || !auth.customerId || !env.ENTITLEMENTS) return new Response(JSON.stringify({ streak: 0, best: 0, days: [] }), { headers: h });
+    const u = await pushAutoUser(env, auth.customerId);
+    const act = Array.isArray(u.act) ? u.act : [];
+    // a streak is only alive if the last active day is today or yesterday (UTC)
+    const today = new Date(Date.now()).toISOString().slice(0, 10), yday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const alive = act.length && (act[act.length - 1] === today || act[act.length - 1] === yday);
+    return new Response(JSON.stringify({ streak: alive ? (u.streak | 0) : 0, best: u.best | 0, days: act.slice(-35), today }), { headers: h });
   }
 
   if (url.pathname.indexOf("/partner/") >= 0) {

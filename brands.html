@@ -4047,15 +4047,23 @@ const PA_RULES=[
   {k:'first',name:'First stitches',desc:'a short tip when a new project gets going'},
   {k:'inactive',name:'Reminder',desc:'an unfinished project untouched for',unit:'days',sub:'days',min:2,max:60},
   {k:'winback',name:'Win-back',desc:'everything finished, nothing new for',unit:'weeks',sub:'weeks',min:1,max:26},
+  {k:'streak',name:'Streaks',desc:'a cheer at 3, 7, 14, 30 and 60 days of stitching in a row',pv:'streak'},
+  {k:'nearly',name:'Nearly there',desc:'90 %+ finished and untouched for',unit:'days',sub:'days',min:1,max:30},
+  {k:'unopened',name:'Kit bought, never opened',desc:'a kit on their account with no stitching after',unit:'days',sub:'days',min:1,max:60},
+  {k:'summary',name:'Weekly summary',desc:'Sunday evening, their time — stitches this week across their projects',pv:'summary'},
+  {k:'newkit',name:'New kit from a brand they stitch',desc:'when a brand they have stitched publishes a new kit',pv:'newkit'},
+  {k:'plus',name:'Plus trial ending / lapsed',desc:'2 days before a trial ends, and 3 days after a store subscription lapses',pv:'trial'},
+  {k:'monthly',name:'New kits this month',desc:'to everyone, at most once a month, when at least',unit:'new kits arrived',sub:'min',min:1,max:20,pv:'monthly'},
   {k:'weekly',name:'Weekly touch',desc:'a rotating tip or nudge for anyone with no automatic message for',unit:'days',sub:'days',min:3,max:60,pool:true}
 ];
 let PA_CFG=null;
 function paRender(d){
   PA_CFG=d.cfg; const pv=d.preview||{};
   $('pa-rules').innerHTML=PA_RULES.map(r=>{
-    const on=r.sub?!!(PA_CFG[r.k]&&PA_CFG[r.k].on):!!PA_CFG[r.k];
+    const isObj=r.sub||['streak','summary','newkit','plus'].includes(r.k);
+    const on=isObj?!!(PA_CFG[r.k]&&PA_CFG[r.k].on):!!PA_CFG[r.k];
     const n=r.sub?(PA_CFG[r.k]&&PA_CFG[r.k][r.sub])||'':'';
-    const ex=pv[r.k==='milestones'?'milestone':r.k]||{};
+    const ex=pv[r.pv||(r.k==='milestones'?'milestone':r.k)]||{};
     return '<div class="pa-rule"><label class="switch" style="margin:0"><input type="checkbox" data-k="'+r.k+'"'+(on?' checked':'')+'><span class="knob"></span></label>'
       +'<div><b>'+r.name+'</b> <span class="note" style="margin:0;display:inline">'+r.desc+(r.sub?' <input type="number" data-sub="'+r.k+'" min="'+r.min+'" max="'+r.max+'" value="'+n+'"> '+r.unit:'')+'</span></div>'
       +'<div></div><div class="ex">'+(r.pool&&d.weeklyPool?('<details><summary style="cursor:pointer">'+d.weeklyPool.length+' messages in rotation (English shown; sent in each app language)</summary>'+d.weeklyPool.map(m=>'<div style="margin:.3rem 0 0"><i>'+pnEsc(m.title)+'</i> — '+pnEsc(m.body)+'</div>').join('')+'</details>'):('e.g. <i>'+pnEsc(ex.title||'')+'</i> — '+pnEsc(ex.body||'')))+'</div></div>';
@@ -4073,7 +4081,7 @@ async function paLoad(){
 async function paSave(){
   if(!PA_CFG) return;
   const cfg=JSON.parse(JSON.stringify(PA_CFG));
-  $('pa-rules').querySelectorAll('input[type=checkbox]').forEach(c=>{ const k=c.dataset.k, r=PA_RULES.find(x=>x.k===k); if(r.sub){ cfg[k]=(cfg[k]&&typeof cfg[k]==='object')?cfg[k]:{}; cfg[k].on=c.checked; } else cfg[k]=c.checked; });
+  $('pa-rules').querySelectorAll('input[type=checkbox]').forEach(c=>{ const k=c.dataset.k, r=PA_RULES.find(x=>x.k===k); if(r.sub||['streak','summary','newkit','plus'].includes(k)){ cfg[k]=(cfg[k]&&typeof cfg[k]==='object')?cfg[k]:{}; cfg[k].on=c.checked; } else cfg[k]=c.checked; });
   $('pa-rules').querySelectorAll('input[data-sub]').forEach(i=>{ const r=PA_RULES.find(x=>x.k===i.dataset.sub); cfg[r.k]=(cfg[r.k]&&typeof cfg[r.k]==='object')?cfg[r.k]:{on:false}; cfg[r.k][r.sub]=+i.value||cfg[r.k][r.sub]; });
   cfg.cap_days=+$('pa-cap').value; cfg.quiet={from:+$('pa-qf').value,to:+$('pa-qt').value}; cfg.shop_url=$('pa-shop').value.trim();
   $('pa-save').disabled=true; $('pa-msg').textContent='Saving…';
