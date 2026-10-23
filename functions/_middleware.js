@@ -12,7 +12,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v95";
+const MW_VERSION = "v96";
 
 const enc = new TextEncoder();
 
@@ -579,6 +579,34 @@ async function setupLinkMakeFor(env, payload) {
   await env.PARTNERS.put("setup:" + await sha256b64(tok), JSON.stringify({ ...payload, exp: Date.now() + SETUP_TTL_S * 1000 }), { expirationTtl: SETUP_TTL_S });
   const base = env.STUDIO_PUBLIC_URL || "https://luca-s.com/apps/patternly/brands";
   return base + "?setup=" + tok;
+}
+// v96: email an invitation / set-up link (Resend). Returns true when sent;
+// false when email isn't configured or sending failed — callers still hand
+// the link back so the owner can send it by hand.
+function mailEsc(v) { return String(v || "").replace(/[<>&]/g, ""); }
+async function setupEmailSend(env, { to, name, link, kind, brand }) {
+  if (!env.RESEND_API_KEY || !env.MAIL_FROM || !to) return false;
+  const who = mailEsc(name || "there");
+  const isPartner = kind === "partner";
+  const subject = isPartner ? "Your Patternly Partner Studio account" : "Your Patternly Studio account";
+  const intro = isPartner
+    ? `Welcome to Patternly for Brands. Your brand <b>${mailEsc(brand || name)}</b> now has a Partner Studio account where you publish kit charts to the Patternly Stitch Tracker and see your customers stitching.`
+    : `You’ve been given access to the Patternly Studio by Luca-S.`;
+  const html = `<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;max-width:520px;margin:0 auto;padding:28px 24px;color:#2B2226">
+    <div style="font-size:22px;font-weight:800;color:#8B1A2B;margin-bottom:18px">Patternly <span style="color:#2B2226;font-weight:600">${isPartner ? "Partner Studio" : "Studio"}</span></div>
+    <p style="font-size:16px;line-height:1.5">Hi ${who},</p>
+    <p style="font-size:16px;line-height:1.5">${intro} Choose your password to get started:</p>
+    <p style="margin:26px 0"><a href="${link}" style="background:#8B1A2B;color:#fff;text-decoration:none;font-weight:700;padding:13px 22px;border-radius:10px;display:inline-block">Choose my password</a></p>
+    <p style="font-size:14px;line-height:1.5">You sign in at <a href="${(env.STUDIO_PUBLIC_URL || "https://luca-s.com/apps/patternly/brands")}" style="color:#8B1A2B">${(env.STUDIO_PUBLIC_URL || "https://luca-s.com/apps/patternly/brands").replace(/^https?:\/\//, "")}</a> with this email address (<b>${mailEsc(to)}</b>) and the password you choose.</p>
+    <p style="font-size:13px;color:#7a6a6e;line-height:1.5">The link works once and expires in 48 hours. If it has expired, use “Forgot password?” on the sign-in page to get a new one.</p>
+    <p style="font-size:13px;color:#7a6a6e;line-height:1.5;word-break:break-all">${link}</p></div>`;
+  const text = `Hi ${who},\n\n${intro.replace(/<[^>]+>/g, "")} Choose your password here (link works once, 48 hours):\n${link}\n\nSign in at ${(env.STUDIO_PUBLIC_URL || "https://luca-s.com/apps/patternly/brands")} with ${to} and your password.`;
+  try {
+    const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { authorization: "Bearer " + env.RESEND_API_KEY, "content-type": "application/json" },
+      body: JSON.stringify({ from: env.MAIL_FROM, to: [to], subject, html, text }) });
+    if (!r.ok) { console.warn("setup email failed", r.status); return false; }
+    return true;
+  } catch (e) { return false; }
 }
 async function setupLinkMake(env, uid, url) {
   const tok = randToken(24);
@@ -1746,8 +1774,9 @@ async function handlePartnerApi(request, url, env) {
     await env.PARTNERS.put("user:" + uid, JSON.stringify(rec));
     await env.PARTNERS.put("uemail:" + email, uid);
     const setup = await setupLinkMake(env, uid, url);
-    return partnerJson(200, { ok:true, uid, name, email, scopes, owner, setup,
-      note: "Send this link to " + name + ". It works once, for 48 hours, and lets them choose their password." });
+    const emailed = await setupEmailSend(env, { to: email, name, link: setup, kind: "staff" });
+    return partnerJson(200, { ok:true, uid, name, email, scopes, owner, setup, emailed,
+      note: emailed ? "An invitation email with the set-up link went to " + email + "." : "Send this link to " + name + ". It works once, for 48 hours, and lets them choose their password." });
   }
   if (sub === "admin/user-reset" && request.method === "POST") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
@@ -1759,7 +1788,8 @@ async function handlePartnerApi(request, url, env) {
     if (!rec) return partnerJson(404, { ok:false, error:"no such user" });
     await sessionsRevoke(env, uid);                 // a reset signs them out everywhere
     const setup = await setupLinkMake(env, uid, url);
-    return partnerJson(200, { ok:true, uid, setup, note:"Send this link to " + (rec.name || "the user") + " \u2014 it works once, for 48 hours." });
+    const emailed = await setupEmailSend(env, { to: rec.email, name: rec.name, link: setup, kind: "staff" });
+    return partnerJson(200, { ok:true, uid, setup, emailed, note: emailed ? "A reset email went to " + rec.email + "." : "Send this link to " + (rec.name || "the user") + " \u2014 it works once, for 48 hours." });
   }
   if (sub === "admin/user-update" && request.method === "POST") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
@@ -1929,8 +1959,9 @@ async function handlePartnerApi(request, url, env) {
     if (email) await env.PARTNERS.put("pemail:" + normEmail(email), key);
     // v95: the partner signs in with email + password; hand back a set-up link.
     const setupLink = await setupLinkMakeFor(env, { pkey: key });
-    return partnerJson(200, { ok:true, key, brand, prefix, email, setupLink,
-      note: "Send the partner the set-up link — they choose their password there. The brand key is shown in their account." });
+    const emailed = await setupEmailSend(env, { to: email, name: brand, brand, link: setupLink, kind: "partner" });
+    return partnerJson(200, { ok:true, key, brand, prefix, email, setupLink, emailed,
+      note: emailed ? "An invitation email with the set-up link went to " + email + "." : "Send the partner the set-up link — they choose their password there. The brand key is shown in their account." });
   }
   // v95: a fresh password set-up link for an existing brand (48 h, single use)
   if (sub === "admin/brand-setup-link" && request.method === "POST") {
@@ -1943,7 +1974,8 @@ async function handlePartnerApi(request, url, env) {
     if (!rec || !rec.prefix) return partnerJson(404, { ok:false, error:"no such brand key" });
     if (rec.email) await env.PARTNERS.put("pemail:" + normEmail(rec.email), key);
     const link = await setupLinkMakeFor(env, { pkey: key });
-    return partnerJson(200, { ok:true, link, email: rec.email || "", brand: rec.brand || "", hasPassword: !!rec.pw });
+    const emailed = await setupEmailSend(env, { to: rec.email, name: rec.brand, brand: rec.brand, link, kind: "partner" });
+    return partnerJson(200, { ok:true, link, emailed, email: rec.email || "", brand: rec.brand || "", hasPassword: !!rec.pw });
   }
 
   if (sub === "admin/update-brand" && request.method === "POST") {

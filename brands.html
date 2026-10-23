@@ -4204,7 +4204,8 @@ $('bf-save').onclick=async()=>{
     if(!BRAND_EDIT_KEY && d.key){
       $('bf-key').textContent=d.setupLink||d.key;
       $('bf-keybox').style.display='';
-      msg.innerHTML='<span class="okmsg">'+escA(d.brand)+' created — copy the key now, it is shown once.</span>';
+      $('bf-keylab').textContent=d.emailed?'Set-up link — also emailed to '+d.email:'Set-up link — send this to the partner';
+      msg.innerHTML='<span class="okmsg">'+escA(d.brand)+' created.'+(d.emailed?' An invitation email went to '+escA(d.email)+'.':' Copy the set-up link and send it to them.')+'</span>';
     }else{
       msg.innerHTML='<span class="okmsg">Saved.</span>';
       brandFormHide();
@@ -4246,7 +4247,8 @@ async function loadBrands(){
         if(!r2.ok||!d2.ok){ alert(d2.error||'Could not make a link.'); return; }
         { const rec=ADMIN_BRANDS.find(x=>x.key===btn.dataset.key); if(rec) brandFormShow('edit',rec); else { $('brand-form-card').style.display=''; $('brands-card').style.display='none'; } }
         $('bf-keylab').textContent='Set-up link for '+(d2.brand||btn.dataset.brand)+' — send to '+(d2.email||'the partner');
-        $('bf-key').textContent=d2.link; $('bf-keybox').style.display=''; $('bf-msg').textContent=d2.hasPassword?'They already have a password; this link lets them choose a new one.':'';
+        $('bf-keylab').textContent=(d2.emailed?'Emailed to '+(d2.email||'the partner')+' — ':'')+'set-up link for '+(d2.brand||btn.dataset.brand);
+        $('bf-key').textContent=d2.link; $('bf-keybox').style.display=''; $('bf-msg').textContent=(d2.emailed?'Invitation email sent. ':'')+(d2.hasPassword?'They already have a password; this link lets them choose a new one.':'');
         $('bf-keybox').scrollIntoView({behavior:'smooth',block:'center'});
       }finally{ btn.disabled=false; }
     }; });
@@ -4300,7 +4302,7 @@ $('uf-save').onclick=async()=>{
     const r=await fetch(API+ep,{method:'POST',headers:adminHeaders(true),body:JSON.stringify(body)});
     const d=await r.json().catch(()=>({}));
     if(!r.ok||!d.ok){ msg.innerHTML='<span class="err">'+escA(d.error||'Could not save.')+'</span>'; return; }
-    if(d.setup){ ufShowLink(d.setup, escA(name)+' created.'); }
+    if(d.setup){ ufShowLink(d.setup, escA(name)+' created.', d.emailed, d.email); }
     else msg.innerHTML='<span style="color:var(--ok);font-weight:700">Saved.</span>'+(USER_EDIT&&USER_EDIT===(SESSION.uid||'')?' Sign out and back in to see your new role.':'');
     const keep=$('uf-keybox').style.display, keepMsg=$('uf-msg').innerHTML;
     ufReset(); $('uf-keybox').style.display=keep; $('uf-msg').innerHTML=keepMsg;
@@ -4308,9 +4310,10 @@ $('uf-save').onclick=async()=>{
   }catch(e){ msg.innerHTML='<span class="err">Network error.</span>'; }
   finally{ $('uf-save').disabled=false; }
 };
-function ufShowLink(link, lead){
+function ufShowLink(link, lead, emailed, email){
   $('uf-key').textContent=link; $('uf-keybox').style.display='';
-  $('uf-msg').innerHTML='<span style="color:var(--ok);font-weight:700">'+lead+'</span> Copy the set-up link now \u2014 it will not be shown again.';
+  $('uf-keylab').textContent=emailed?'Set-up link \u2014 also emailed to '+(email||'them'):'Set-up link \u2014 send this to them';
+  $('uf-msg').innerHTML='<span style="color:var(--ok);font-weight:700">'+lead+'</span> '+(emailed?'An invitation email with this link has been sent.':'Copy the set-up link now \u2014 it will not be shown again.');
 }
 async function loadUsers(){
   const box=$('users-box'); box.innerHTML='<div class="note">Loading\u2026</div>';
@@ -4342,7 +4345,7 @@ async function loadUsers(){
           const r2=await fetch(API+'admin/user-reset',{method:'POST',headers:adminHeaders(true),body:JSON.stringify({uid:u.uid})});
           const d2=await r2.json().catch(()=>({}));
           if(!r2.ok||!d2.ok){ alert(d2.error||'Reset failed.'); return; }
-          ufReset(); ufShowLink(d2.setup, 'New set-up link for '+escA(u.name)+'.'); window.scrollTo({top:0,behavior:'smooth'});
+          ufReset(); ufShowLink(d2.setup, 'New set-up link for '+escA(u.name)+'.', d2.emailed, u.email); window.scrollTo({top:0,behavior:'smooth'});
           loadUsers();
         }},
         {sep:true},
