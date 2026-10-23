@@ -4048,6 +4048,7 @@ const PA_RULES=[
   {k:'inactive',name:'Reminder',desc:'an unfinished project untouched for',unit:'days',sub:'days',min:2,max:60},
   {k:'winback',name:'Win-back',desc:'everything finished, nothing new for',unit:'weeks',sub:'weeks',min:1,max:26},
   {k:'streak',name:'Streaks',desc:'a cheer at 3, 7, 14, 30 and 60 days of stitching in a row',pv:'streak'},
+  {k:'atrisk',name:'Streak at risk',desc:'evening reminder (19–22 h their time) when nothing is stitched yet and the streak is at least',unit:'days — ignores the cap',sub:'min',min:2,max:365,pv:'atrisk'},
   {k:'nearly',name:'Nearly there',desc:'90 %+ finished and untouched for',unit:'days',sub:'days',min:1,max:30},
   {k:'unopened',name:'Kit bought, never opened',desc:'a kit on their account with no stitching after',unit:'days',sub:'days',min:1,max:60},
   {k:'summary',name:'Weekly summary',desc:'Sunday evening, their time — stitches this week across their projects',pv:'summary'},
