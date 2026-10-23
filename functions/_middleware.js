@@ -12,7 +12,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v98";
+const MW_VERSION = "v99";
 
 const enc = new TextEncoder();
 
@@ -982,7 +982,7 @@ function pushJobPublic(job) { return { id: job.id, done: job.done, scanned: job.
 // KV (ENTITLEMENTS): pushauto:cfg · pushauto:u:<cid> {last, sent:{}} ·
 // pushauto:pending:<cid> · pushauto:scan {cursor,daily} · pushauto:stats:<day>
 // · pushauto:titles (6 h cache) · pushcid:<cid>:<sha(token)> -> device key
-const PUSH_AUTO_DEFAULT = { milestones: true, finished: true, first: true, inactive: { on: true, days: 7 }, winback: { on: false, weeks: 4 }, cap_days: 3, quiet: { from: 22, to: 8 }, shop_url: "https://luca-s.com/collections/needlecraft-kits" };
+const PUSH_AUTO_DEFAULT = { milestones: true, finished: true, first: true, inactive: { on: true, days: 7 }, winback: { on: false, weeks: 4 }, weekly: { on: true, days: 7 }, cap_days: 3, quiet: { from: 22, to: 8 }, shop_url: "https://luca-s.com/collections/needlecraft-kits" };
 const PUSH_AUTO_T = {
   en: { m: ["{pct}% done — keep going!", "You’re {pct}% through {name}. Lovely progress!"], f: ["You finished {name}! 🎉", "Ready for a new project? Explore the kits →"], s: ["Great start on {name}", "Tap each stitch as you finish it — Patternly keeps your place."], i: ["{name} is waiting", "You’re {pct}% done — a few stitches today?"], w: ["Time for a new project?", "Explore the latest kits and start something fresh."] },
   fr: { m: ["{pct} % réalisés — continuez !", "Vous en êtes à {pct} % de {name}. Beau travail !"], f: ["Vous avez terminé {name} ! 🎉", "Envie d’un nouveau projet ? Découvrez les kits →"], s: ["Beau début sur {name}", "Touchez chaque point terminé — Patternly garde votre place."], i: ["{name} vous attend", "Vous en êtes à {pct} % — quelques points aujourd’hui ?"], w: ["Un nouveau projet ?", "Découvrez les derniers kits et lancez-vous."] },
@@ -993,7 +993,23 @@ const PUSH_AUTO_T = {
   es: { m: ["{pct}% hecho — ¡sigue así!", "Llevas el {pct}% de {name}. ¡Qué buen progreso!"], f: ["¡Has terminado {name}! 🎉", "¿Lista para un nuevo proyecto? Descubre los kits →"], s: ["Buen comienzo con {name}", "Toca cada puntada al terminarla — Patternly guarda tu sitio."], i: ["{name} te espera", "Llevas el {pct}% — ¿unas puntadas hoy?"], w: ["¿Hora de un nuevo proyecto?", "Descubre los últimos kits y empieza algo nuevo."] },
   it: { m: ["{pct}% fatto — continua così!", "Sei al {pct}% di {name}. Ottimi progressi!"], f: ["Hai finito {name}! 🎉", "Pronta per un nuovo progetto? Scopri i kit →"], s: ["Ottimo inizio con {name}", "Tocca ogni punto appena finito — Patternly ricorda dove sei."], i: ["{name} ti aspetta", "Sei al {pct}% — qualche punto oggi?"], w: ["Tempo di un nuovo progetto?", "Scopri gli ultimi kit e inizia qualcosa di nuovo."] }
 };
+// v99: weekly-touch pool — rotating tips/nudges for people who had no automatic
+// message for `weekly.days`. Index per person so nothing repeats back-to-back.
+const PUSH_WEEKLY = {
+  en: [["Find a colour fast", "Long-press any stitch to light up just that thread.", "t"], ["Make it yours", "Tint finished stitches in your favourite colour — Settings in the chart.", "t"], ["Little and often", "15 minutes today is a few more rows done.", "t"], ["Something new?", "New kits arrive regularly — have a look at what’s new.", "s"], ["Stitch anywhere", "Your progress syncs to all your devices — tablet at home, phone on the go.", "t"], ["Made a slip?", "Erase mode and Undo fix it in seconds.", "t"], ["Which thread next?", "Open Colours to see the stitches left for each thread.", "t"], ["Show it off", "A finished piece deserves a photo — we’d love to see it.", "t"]],
+  fr: [["Trouvez une couleur vite", "Appuyez longuement sur un point pour n’éclairer que ce fil.", "t"], ["À votre goût", "Teintez les points terminés de votre couleur préférée — Réglages du diagramme.", "t"], ["Peu mais souvent", "15 minutes aujourd’hui, c’est quelques rangs de plus.", "t"], ["Du nouveau ?", "De nouveaux kits arrivent régulièrement — jetez un œil.", "s"], ["Brodez partout", "Votre progression se synchronise sur tous vos appareils.", "t"], ["Une erreur ?", "Le mode gomme et Annuler la corrigent en quelques secondes.", "t"], ["Quel fil ensuite ?", "Ouvrez Couleurs pour voir les points restants par fil.", "t"], ["Montrez-le", "Un ouvrage terminé mérite une photo — on adorerait le voir.", "t"]],
+  de: [["Farbe schnell finden", "Halte einen Stich gedrückt, um nur diesen Faden hervorzuheben.", "t"], ["Ganz nach dir", "Färbe fertige Stiche in deiner Lieblingsfarbe — Einstellungen im Chart.", "t"], ["Wenig, aber oft", "15 Minuten heute sind ein paar Reihen mehr.", "t"], ["Lust auf Neues?", "Regelmäßig kommen neue Kits — schau mal rein.", "s"], ["Sticken überall", "Dein Fortschritt synchronisiert sich auf allen Geräten.", "t"], ["Verstickt?", "Radiermodus und Rückgängig richten es in Sekunden.", "t"], ["Welcher Faden als Nächstes?", "Öffne Farben und sieh die restlichen Stiche pro Faden.", "t"], ["Zeig es her", "Ein fertiges Stück verdient ein Foto — wir würden es gern sehen.", "t"]],
+  nl: [["Snel een kleur vinden", "Houd een steek ingedrukt om alleen die draad op te lichten.", "t"], ["Helemaal jouw stijl", "Kleur voltooide steken in je favoriete kleur — Instellingen in het patroon.", "t"], ["Klein maar vaak", "15 minuten vandaag is weer een paar rijen verder.", "t"], ["Iets nieuws?", "Er komen regelmatig nieuwe kits — neem eens een kijkje.", "s"], ["Overal borduren", "Je voortgang synchroniseert op al je apparaten.", "t"], ["Foutje?", "Wismodus en Ongedaan maken lossen het in seconden op.", "t"], ["Welke draad nu?", "Open Kleuren om de resterende steken per draad te zien.", "t"], ["Laat het zien", "Een afgewerkt werk verdient een foto — we zien het graag.", "t"]],
+  ru: [["Быстро найти цвет", "Удерживайте стежок, чтобы подсветить только эту нить.", "t"], ["По-вашему", "Окрасьте готовые стежки в любимый цвет — Настройки схемы.", "t"], ["Понемногу, но часто", "15 минут сегодня — ещё несколько рядов.", "t"], ["Что-то новое?", "Новые наборы появляются регулярно — загляните.", "s"], ["Вышивайте где угодно", "Прогресс синхронизируется на всех ваших устройствах.", "t"], ["Ошиблись?", "Режим стирания и Отмена исправят за секунды.", "t"], ["Какая нить дальше?", "Откройте Цвета и посмотрите остаток стежков по нитям.", "t"], ["Покажите работу", "Готовая вышивка заслуживает фото — нам будет приятно увидеть.", "t"]],
+  uk: [["Швидко знайти колір", "Утримуйте стібок, щоб підсвітити лише цю нитку.", "t"], ["По-вашому", "Зафарбуйте готові стібки улюбленим кольором — Налаштування схеми.", "t"], ["Потроху, але часто", "15 хвилин сьогодні — ще кілька рядів.", "t"], ["Щось нове?", "Нові набори з’являються регулярно — зазирніть.", "s"], ["Вишивайте будь-де", "Прогрес синхронізується на всіх ваших пристроях.", "t"], ["Помилилися?", "Режим стирання та Скасувати виправлять за секунди.", "t"], ["Яка нитка далі?", "Відкрийте Кольори й перегляньте залишок стібків по нитках.", "t"], ["Покажіть роботу", "Готова вишивка заслуговує на фото — нам буде приємно побачити.", "t"]],
+  es: [["Encuentra un color rápido", "Mantén pulsada una puntada para iluminar solo ese hilo.", "t"], ["A tu gusto", "Colorea las puntadas terminadas con tu color favorito — Ajustes del gráfico.", "t"], ["Poco y a menudo", "15 minutos hoy son unas filas más.", "t"], ["¿Algo nuevo?", "Llegan kits nuevos con regularidad — echa un vistazo.", "s"], ["Borda donde quieras", "Tu progreso se sincroniza en todos tus dispositivos.", "t"], ["¿Un despiste?", "El modo borrar y Deshacer lo arreglan en segundos.", "t"], ["¿Qué hilo sigue?", "Abre Colores para ver las puntadas que faltan por hilo.", "t"], ["Presúmelo", "Una pieza terminada merece una foto — nos encantaría verla.", "t"]],
+  it: [["Trova un colore al volo", "Tieni premuto un punto per evidenziare solo quel filo.", "t"], ["A modo tuo", "Colora i punti finiti con il tuo colore preferito — Impostazioni dello schema.", "t"], ["Poco ma spesso", "15 minuti oggi sono qualche riga in più.", "t"], ["Qualcosa di nuovo?", "Arrivano kit nuovi regolarmente — dai un’occhiata.", "s"], ["Ricama ovunque", "I tuoi progressi si sincronizzano su tutti i dispositivi.", "t"], ["Un errore?", "Modalità gomma e Annulla lo sistemano in pochi secondi.", "t"], ["Quale filo adesso?", "Apri Colori per vedere i punti rimasti per ogni filo.", "t"], ["Fallo vedere", "Un lavoro finito merita una foto — ci piacerebbe vederlo.", "t"]]
+};
 function pushAutoText(lang, kind, vars) {
+  if (kind === "weekly") {
+    const P = PUSH_WEEKLY[lang] || PUSH_WEEKLY.en; const i = ((vars.i | 0) % P.length + P.length) % P.length;
+    return { title: P[i][0], body: P[i][1], shop: P[i][2] === "s" };
+  }
   const T = PUSH_AUTO_T[lang] || PUSH_AUTO_T.en;
   const k = { milestone: "m", finished: "f", first: "s", inactive: "i", winback: "w" }[kind];
   const fill = s => s.replace(/\{(\w+)\}/g, (m, v) => vars[v] != null ? String(vars[v]) : m);
@@ -1007,6 +1023,7 @@ async function pushAutoCfg(env) {
   return { milestones: c.milestones !== false, finished: c.finished !== false, first: c.first !== false,
     inactive: { on: c.inactive ? !!c.inactive.on : d.inactive.on, days: Math.min(60, Math.max(2, +(c.inactive && c.inactive.days) || d.inactive.days)) },
     winback: { on: c.winback ? !!c.winback.on : d.winback.on, weeks: Math.min(26, Math.max(1, +(c.winback && c.winback.weeks) || d.winback.weeks)) },
+    weekly: { on: c.weekly ? !!c.weekly.on : d.weekly.on, days: Math.min(60, Math.max(3, +(c.weekly && c.weekly.days) || d.weekly.days)) },
     cap_days: Math.min(30, Math.max(0, +c.cap_days >= 0 ? +c.cap_days : d.cap_days)),
     quiet: { from: qh(c.quiet && c.quiet.from, d.quiet.from), to: qh(c.quiet && c.quiet.to, d.quiet.to) },
     shop_url: /^https:\/\//.test(c.shop_url || "") ? String(c.shop_url).slice(0, 300) : d.shop_url };
@@ -1047,7 +1064,7 @@ async function pushAutoDeliver(env, cfg, cid, kind, vars, url, opts) {
     return 0;
   }
   let sent = 0;
-  const results = await Promise.all(devs.map(d => pushSendOne(env, d, { ...pushAutoText(d.lang || "en", kind, vars), url })));
+  const results = await Promise.all(devs.map(d => { const t = pushAutoText(d.lang || "en", kind, vars); return pushSendOne(env, d, { title: t.title, body: t.body, url: t.shop ? cfg.shop_url : url }); }));
   for (let i = 0; i < results.length; i++) { if (results[i].ok) sent++; else if (results[i].gone) { try { await env.ENTITLEMENTS.delete(devs[i].key); } catch (e) {} } }
   if (sent) await pushAutoStat(env, kind, 1);
   return sent;
@@ -1158,6 +1175,31 @@ async function pushAutoRun(env) {
     }
     st.cursor = listed.list_complete ? null : listed.cursor; st.last = now;
     await env.ENTITLEMENTS.put("pushauto:scan", JSON.stringify(st));
+  }
+  // 3. weekly touch: anyone (with or without projects) silent for weekly.days
+  out.weekly = 0;
+  if (cfg.weekly.on) {
+    let ws = null; try { ws = JSON.parse((await env.ENTITLEMENTS.get("pushauto:wscan")) || "null"); } catch (e) {}
+    ws = ws || { cursor: null };
+    const listed = await env.ENTITLEMENTS.list({ prefix: "push:", limit: 120, cursor: ws.cursor || undefined });
+    const now = Date.now(), gap = cfg.weekly.days * 86400000, seenCid = new Set();
+    for (const k of listed.keys) {
+      let d = null; try { d = JSON.parse((await env.ENTITLEMENTS.get(k.name)) || "null"); } catch (e) {}
+      if (!d || !d.token) continue;
+      const sid = d.cid ? String(d.cid) : ("anon:" + k.name.slice(-24));
+      if (seenCid.has(sid)) continue; seenCid.add(sid);
+      const u = await pushAutoUser(env, sid);
+      const since = Math.max(u.last || 0, d.ts || 0);
+      if (now - since < gap) continue;
+      if (await env.ENTITLEMENTS.get("pushauto:pending:" + sid)) continue;
+      const idx = (u.wk | 0);
+      let n = 0;
+      if (d.cid) n = await pushAutoDeliver(env, cfg, sid, "weekly", { i: idx }, "#tracker");
+      else { if (pushQuietNow(cfg, d.tz || "")) continue; const t = pushAutoText(d.lang || "en", "weekly", { i: idx }); const r = await pushSendOne(env, { key: k.name, ...d }, { title: t.title, body: t.body, url: t.shop ? cfg.shop_url : "#tracker" }); if (r.ok) { n = 1; await pushAutoStat(env, "weekly", 1); } else if (r.gone) { try { await env.ENTITLEMENTS.delete(k.name); } catch (e) {} } }
+      if (n || await env.ENTITLEMENTS.get("pushauto:pending:" + sid)) { u.last = now; u.wk = idx + 1; await pushAutoUserSave(env, sid, u); out.weekly += n; }
+    }
+    ws.cursor = listed.list_complete ? null : listed.cursor; ws.last = now;
+    await env.ENTITLEMENTS.put("pushauto:wscan", JSON.stringify(ws));
   }
   await env.ENTITLEMENTS.put("pushauto:lastrun", JSON.stringify({ ts: Date.now(), ...out }));
   return out;
@@ -1738,7 +1780,7 @@ async function handlePartnerApi(request, url, env) {
       const stats = {}; const listed = await env.ENTITLEMENTS.list({ prefix: "pushauto:stats:", limit: 60 });
       for (const k of listed.keys.slice(-14)) { try { stats[k.name.slice("pushauto:stats:".length)] = JSON.parse((await env.ENTITLEMENTS.get(k.name)) || "{}"); } catch (e) {} }
       const pending = (await env.ENTITLEMENTS.list({ prefix: "pushauto:pending:", limit: 1000 })).keys.length;
-      return partnerJson(200, { ok:true, cfg, lastrun, stats, pending, cron: !!env.PUSH_CRON_KEY, preview: Object.fromEntries(["milestone", "finished", "first", "inactive", "winback"].map(k => [k, pushAutoText("en", k, { pct: 50, name: "Summer Roses" })])) });
+      return partnerJson(200, { ok:true, cfg, lastrun, stats, pending, cron: !!env.PUSH_CRON_KEY, preview: Object.fromEntries(["milestone", "finished", "first", "inactive", "winback", "weekly"].map(k => [k, pushAutoText("en", k, { pct: 50, name: "Summer Roses", i: 0 })])), weeklyPool: PUSH_WEEKLY.en.map(x => ({ title: x[0], body: x[1] })) });
     }
     if (sub === "admin/push/auto" && request.method === "POST") {
       let b; try { b = await request.json(); } catch (e) { return partnerJson(400, { ok:false, error:"bad json" }); }

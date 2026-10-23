@@ -4046,7 +4046,8 @@ const PA_RULES=[
   {k:'finished',name:'Finished a project',desc:'with the “Explore kits” link'},
   {k:'first',name:'First stitches',desc:'a short tip when a new project gets going'},
   {k:'inactive',name:'Reminder',desc:'an unfinished project untouched for',unit:'days',sub:'days',min:2,max:60},
-  {k:'winback',name:'Win-back',desc:'everything finished, nothing new for',unit:'weeks',sub:'weeks',min:1,max:26}
+  {k:'winback',name:'Win-back',desc:'everything finished, nothing new for',unit:'weeks',sub:'weeks',min:1,max:26},
+  {k:'weekly',name:'Weekly touch',desc:'a rotating tip or nudge for anyone with no automatic message for',unit:'days',sub:'days',min:3,max:60,pool:true}
 ];
 let PA_CFG=null;
 function paRender(d){
@@ -4057,7 +4058,7 @@ function paRender(d){
     const ex=pv[r.k==='milestones'?'milestone':r.k]||{};
     return '<div class="pa-rule"><label class="switch" style="margin:0"><input type="checkbox" data-k="'+r.k+'"'+(on?' checked':'')+'><span class="knob"></span></label>'
       +'<div><b>'+r.name+'</b> <span class="note" style="margin:0;display:inline">'+r.desc+(r.sub?' <input type="number" data-sub="'+r.k+'" min="'+r.min+'" max="'+r.max+'" value="'+n+'"> '+r.unit:'')+'</span></div>'
-      +'<div></div><div class="ex">e.g. <i>'+pnEsc(ex.title||'')+'</i> — '+pnEsc(ex.body||'')+'</div></div>';
+      +'<div></div><div class="ex">'+(r.pool&&d.weeklyPool?('<details><summary style="cursor:pointer">'+d.weeklyPool.length+' messages in rotation (English shown; sent in each app language)</summary>'+d.weeklyPool.map(m=>'<div style="margin:.3rem 0 0"><i>'+pnEsc(m.title)+'</i> — '+pnEsc(m.body)+'</div>').join('')+'</details>'):('e.g. <i>'+pnEsc(ex.title||'')+'</i> — '+pnEsc(ex.body||'')))+'</div></div>';
   }).join('');
   PA_CFG.quiet=PA_CFG.quiet||{from:22,to:8}; $('pa-cap').value=PA_CFG.cap_days==null?3:PA_CFG.cap_days; $('pa-qf').value=PA_CFG.quiet.from; $('pa-qt').value=PA_CFG.quiet.to; $('pa-shop').value=PA_CFG.shop_url||'';
   const lr=d.lastrun; const days=Object.keys(d.stats||{}).sort(); let tot={};
