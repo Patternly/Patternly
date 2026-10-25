@@ -5225,7 +5225,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v614';
+window.PATTERNLY_BUILD='v615';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -26003,24 +26003,7 @@ trkCanvas.addEventListener('pointermove', e=>{
       if(Math.abs(target-trackerCellPx)>0.01){
         // Keep the point between the fingers under the fingers. The gutter is a
         // fixed margin that must NOT scale, so anchor only the grid portion.
-        const wrap=document.getElementById('trk-canvas-wrap');
-        const rect=trkCanvas.getBoundingClientRect();
-        const g=(trkView&&trkView.gut)||0;
-        const mx=(pts[0].x+pts[1].x)/2-rect.left+ (wrap?wrap.scrollLeft:0);
-        const my=(pts[0].y+pts[1].y)/2-rect.top + (wrap?wrap.scrollTop:0);
-        const k=target/trackerCellPx;
-        trkSetZoomPx(target);
-        if(wrap){
-          wrap.scrollLeft = g + (mx-g)*k - ((pts[0].x+pts[1].x)/2-rect.left);
-          wrap.scrollTop  = g + (my-g)*k - ((pts[0].y+pts[1].y)/2-rect.top);
-          // trkSetZoomPx rendered BEFORE the anchored scroll above was applied,
-          // i.e. at the old scroll position — the frame the user saw was pinned
-          // to the top-left, and correcting it depended on a scroll-event
-          // re-render winning a race it loses in the app webview. Redraw now
-          // that the scroll matches the anchor; the canvas only paints the
-          // visible window, so the second pass is cheap.
-          renderTracker();
-        }
+        trkZoomTo(target, (pts[0].x+pts[1].x)/2, (pts[0].y+pts[1].y)/2);   // v615: shared anchored zoom
         // keep +/- sensible afterwards
         let best=0;
         for(let i=0;i<trkZoomLevels.length;i++)
@@ -26081,7 +26064,7 @@ trkCanvas.addEventListener('contextmenu', e=>{
 document.getElementById('trk-canvas-wrap').addEventListener('wheel', e=>{
   if(!e.ctrlKey) return;
   e.preventDefault();
-  trkZoomBy(e.deltaY<0?1:-1);
+  trkZoomBy(e.deltaY<0?1:-1, e.clientX, e.clientY);   // v615: zoom around the mouse
 },{passive:false});
 
 // ── Progress panel ──
@@ -26536,7 +26519,30 @@ function trkSetZoomPx(px){
   document.getElementById('trk-zoom-label').textContent=Math.round(px/16*100)+'%';
   renderTracker();
 }
-function applyTrackerZoom(){ trkSetZoomPx(trkZoomLevels[trkZoomIdx]); }
+// v615: zoom around an anchor. Every zoom path (buttons, wheel, pinch) keeps
+// the chart point under the anchor fixed on screen; without this the scroll
+// offset stayed put while cells grew, so the view drifted to the top-left.
+// anchorX/Y are client coordinates; default = centre of the visible window.
+function trkZoomTo(px, anchorX, anchorY){
+  const wrap=document.getElementById('trk-canvas-wrap');
+  if(!wrap||!trackerGrid){ trkSetZoomPx(px); return; }
+  const rect=trkCanvas.getBoundingClientRect();
+  const g=(trkView&&trkView.gut)||0;
+  // Default anchor = centre of the part of the chart that is actually on
+  // screen (in the normal view the chart box can be taller than the phone and
+  // the page itself scrolls, so the box centre may be off-screen).
+  const vx0=Math.max(rect.left,0), vx1=Math.min(rect.right,window.innerWidth);
+  const vy0=Math.max(rect.top,0),  vy1=Math.min(rect.bottom,window.innerHeight);
+  const ax = (anchorX==null) ? (vx1>vx0 ? (vx0+vx1)/2 : rect.left+rect.width/2)  : anchorX;
+  const ay = (anchorY==null) ? (vy1>vy0 ? (vy0+vy1)/2 : rect.top +rect.height/2) : anchorY;
+  const mx=ax-rect.left+wrap.scrollLeft, my=ay-rect.top+wrap.scrollTop;   // content point under the anchor
+  const k=px/trackerCellPx;
+  trkSetZoomPx(px);                                                        // renders + resizes the scroll sizer
+  wrap.scrollLeft = g + (mx-g)*k - (ax-rect.left);                          // the gutter is a fixed margin: scale only the grid part
+  wrap.scrollTop  = g + (my-g)*k - (ay-rect.top);
+  renderTracker();                                                         // repaint at the corrected scroll (no race with the scroll event)
+}
+function applyTrackerZoom(anchorX, anchorY){ trkZoomTo(trkZoomLevels[trkZoomIdx], anchorX, anchorY); }
 function trkFit(){
   if(!trackerGrid) return;
   const wrap=document.getElementById('trk-canvas-wrap');
@@ -26568,14 +26574,14 @@ document.getElementById('trk-view-pages').addEventListener('click',()=>trkSetPag
 document.getElementById('trk-page-cells').addEventListener('change',function(){ trkPageCells=+this.value; trkPageIdx=0; trkPageScale=1; document.getElementById('trk-minimap').innerHTML=''; renderTracker(); });
 document.getElementById('trk-page-prev').addEventListener('click',()=>{ trkPageIdx--; renderTracker(); });
 document.getElementById('trk-page-next').addEventListener('click',()=>{ trkPageIdx++; renderTracker(); });
-function trkZoomBy(steps){
+function trkZoomBy(steps, anchorX, anchorY){
   if(trkPageMode){
     trkPageScale=Math.max(1, Math.min(4, trkPageScale*Math.pow(1.25,steps)));
     if(Math.abs(trkPageScale-1)<0.08) trkPageScale=1;
     renderTracker();
   } else {
     trkZoomIdx=Math.max(0,Math.min(trkZoomLevels.length-1,trkZoomIdx+steps));
-    applyTrackerZoom();
+    applyTrackerZoom(anchorX, anchorY);
   }
 }
 document.getElementById('trk-zoom-in').addEventListener('click',()=>trkZoomBy(1));
