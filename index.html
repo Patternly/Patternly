@@ -5295,7 +5295,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v619';
+window.PATTERNLY_BUILD='v620';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -26121,16 +26121,21 @@ trkCanvas.addEventListener('pointermove', e=>{
       // fingers; with only the visible window being drawn, any cell size costs
       // the same to render, so there is no reason to quantise.
       const target=Math.max(1.5, Math.min(64, (trkPinch.px||trackerCellPx)*ratio));
-      if(Math.abs(target-trackerCellPx)>0.01){
-        // Keep the point between the fingers under the fingers. The gutter is a
-        // fixed margin that must NOT scale, so anchor only the grid portion.
-        trkZoomTo(target, (pts[0].x+pts[1].x)/2, (pts[0].y+pts[1].y)/2);   // v615: shared anchored zoom
-        // keep +/- sensible afterwards
-        let best=0;
-        for(let i=0;i<trkZoomLevels.length;i++)
-          if(Math.abs(trkZoomLevels[i]-target)<Math.abs(trkZoomLevels[best]-target)) best=i;
-        trkZoomIdx=best;
+      // v620: while the fingers are down, only PREVIEW the zoom with a CSS scale of
+      // the canvas about the pinch point. The real zoom (re-render + scroll to keep
+      // that point under the fingers) is committed on release — iOS ignores
+      // programmatic scrollLeft/Top while a touch is in progress, which is why the
+      // v615 anchoring held on desktop but drifted to the top-left on iPhone.
+      if(!trkPinch.mid){
+        trkPinch.mid={x:(pts[0].x+pts[1].x)/2, y:(pts[0].y+pts[1].y)/2};
+        const r=trkCanvas.getBoundingClientRect();
+        trkPinch.origin={x:trkPinch.mid.x-r.left, y:trkPinch.mid.y-r.top};
       }
+      trkPinch.target=target;
+      const k=target/(trkPinch.px||trackerCellPx);
+      trkCanvas.style.transformOrigin=trkPinch.origin.x+'px '+trkPinch.origin.y+'px';
+      trkCanvas.style.transform='scale('+k+')';
+      document.getElementById('trk-zoom-label').textContent=Math.round(target/16*100)+'%';
     }
     return;
   }
@@ -26150,11 +26155,25 @@ trkCanvas.addEventListener('pointermove', e=>{
   trkSetCell(cell.r,cell.c,trkMarking);
   renderTracker();
 });
+// v620: end of a pinch — drop the CSS preview and apply the real zoom, anchored on
+// the pinch point. Touch is over now, so the scroll assignment sticks (re-applied
+// once more a moment later for WebKit, which can still swallow the first one).
+function trkPinchCommit(P){
+  trkCanvas.style.transform=''; trkCanvas.style.transformOrigin='';
+  if(!P || !P.target || !P.mid || trkPageMode){ renderTracker(); return; }
+  const want=trkZoomTo(P.target, P.mid.x, P.mid.y);
+  let best=0;
+  for(let i=0;i<trkZoomLevels.length;i++)
+    if(Math.abs(trkZoomLevels[i]-P.target)<Math.abs(trkZoomLevels[best]-P.target)) best=i;
+  trkZoomIdx=best;
+  if(want){ setTimeout(()=>{ const w=document.getElementById('trk-canvas-wrap'); if(!w) return;
+    if(Math.abs(w.scrollLeft-want.sl)>1 || Math.abs(w.scrollTop-want.st)>1){ w.scrollLeft=want.sl; w.scrollTop=want.st; renderTracker(); } }, 60); }
+}
 function trkPointerEnd(e){
   trkCancelLong();
   if(e.type==='pointercancel') trkTap=null; // browser took over (scroll) — not a tap
   trkPtrs.delete(e.pointerId);
-  if(trkPtrs.size<2) trkPinch=null;
+  if(trkPtrs.size<2 && trkPinch){ const P=trkPinch; trkPinch=null; trkPinchCommit(P); }
   trkDragScroll=null;
   // Pan mode never marks — it only navigates (long-press/right-click highlights)
   trkTap=null;
@@ -26659,9 +26678,10 @@ function trkZoomTo(px, anchorX, anchorY){
   const mx=ax-rect.left+wrap.scrollLeft, my=ay-rect.top+wrap.scrollTop;   // content point under the anchor
   const k=px/trackerCellPx;
   trkSetZoomPx(px);                                                        // renders + resizes the scroll sizer
-  wrap.scrollLeft = g + (mx-g)*k - (ax-rect.left);                          // the gutter is a fixed margin: scale only the grid part
-  wrap.scrollTop  = g + (my-g)*k - (ay-rect.top);
+  const _sl = g + (mx-g)*k - (ax-rect.left), _st = g + (my-g)*k - (ay-rect.top);   // the gutter is a fixed margin: scale only the grid part
+  wrap.scrollLeft = _sl; wrap.scrollTop = _st;
   renderTracker();                                                         // repaint at the corrected scroll (no race with the scroll event)
+  return {sl:_sl, st:_st};                                                 // v620: the pinch commit re-applies these if WebKit swallowed them
 }
 function applyTrackerZoom(anchorX, anchorY){ trkZoomTo(trkZoomLevels[trkZoomIdx], anchorX, anchorY); }
 function trkFit(){
