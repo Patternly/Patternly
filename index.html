@@ -3379,6 +3379,30 @@ body.dark #trk-kits-sort{background:#221b2d;border-color:#4a3d55;color:#e7dcea}
 .pls-legtotal{margin:.6rem 0 .4rem!important;color:var(--lp-ink,#2b2226)!important}
 .pls-note{flex-basis:100%;font-size:.82rem;color:#b25f10;line-height:1.4}
 .pls-beta{display:inline-block;vertical-align:middle;margin-left:.35rem;padding:.12rem .5rem;border-radius:999px;background:#fff1cc;color:#8a5a00;font-size:.62rem;font-weight:800;letter-spacing:.08em;font-family:'Inter',system-ui,sans-serif}
+#pls-review{display:flex;align-items:center;gap:.7rem;max-width:1100px;margin:.4rem auto .6rem;background:#fff6e5;border:1.5px solid #f2d59a;border-radius:14px;padding:.6rem .9rem;font-size:.9rem;color:#5c3d00}
+#pls-review .pls-rv-ic{flex:none;width:28px;height:28px;border-radius:50%;background:#e07a00;color:#fff;font-weight:900;display:flex;align-items:center;justify-content:center}
+#pls-review .pls-rv-txt{flex:1;min-width:0;line-height:1.35}
+#pls-review .pls-rv-btn{flex:none;border:0;border-radius:10px;background:var(--lp-red,#8B1A2B);color:#fff;font-weight:700;padding:.55rem 1.1rem;cursor:pointer}
+#pls-rev{position:fixed;left:50%;bottom:max(10px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(560px,calc(100vw - 20px));max-height:62vh;overflow:auto;background:#fff;border:1.5px solid #eadde1;border-radius:18px;box-shadow:0 16px 48px rgba(40,25,32,.28);padding:.8rem .95rem 1rem;z-index:10060;font-size:.88rem;color:#43303a}
+#pls-rev .pls-rv-head{display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem;color:var(--lp-muted,#6a626f)}
+#pls-rev .pls-rv-head b{color:var(--lp-ink,#2b2226)}
+#pls-rev .pls-rv-x{margin-left:auto;border:0;background:#f3ebe9;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:.85rem}
+#pls-rev .pls-rv-row{display:flex;align-items:center;gap:.9rem;flex-wrap:wrap;margin-bottom:.6rem}
+#pls-rev canvas{width:88px;height:88px;image-rendering:pixelated;border-radius:10px;border:1.5px solid #eadde1}
+#pls-rev .pls-rv-nocrop{width:88px;height:88px;border-radius:10px;border:1.5px dashed #eadde1;display:flex;align-items:center;justify-content:center;text-align:center;font-size:.72rem;color:var(--lp-muted,#6a626f);padding:.3rem}
+#pls-rev .pls-rv-lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--lp-muted,#6a626f);margin:.2rem 0 .3rem}
+#pls-rev .pls-rv-sym{width:56px;height:56px;border-radius:12px;border:3px solid #ddd;background:#fff;display:flex;align-items:center;justify-content:center}
+#pls-rev .pls-rv-sym img{width:40px;height:40px}
+#pls-rev .pls-rv-acts{display:flex;flex-direction:column;gap:.4rem;margin-left:auto}
+#pls-rev .pls-rv-acts .btn{padding:.6rem 1.1rem;border-radius:10px}
+#pls-rev .pls-rv-skip{border:1.5px solid #eadde1;background:#fff;border-radius:10px;padding:.45rem 1rem;cursor:pointer;color:var(--lp-ink,#2b2226);font-weight:700}
+#pls-rev .pls-rv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:.35rem}
+#pls-rev .pls-rv-pick{height:44px;border:1.5px solid #eadde1;border-bottom-width:4px;border-radius:9px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+#pls-rev .pls-rv-pick img{width:30px;height:30px}
+#pls-rev .pls-rv-pick.cur{outline:2px solid var(--lp-red,#8B1A2B);outline-offset:1px}
+#pls-rev .pls-rv-pick.empty{grid-column:span 2;font-size:.75rem;color:var(--lp-muted,#6a626f)}
+#pls-rev .pls-rv-ch{font-family:'CrossStitch3','PatternlySymbols',monospace;font-size:22px}
+body.dark #pls-rev{background:#221b2d;border-color:#4a3d55;color:#eee}
 .pls-betanote{background:#fff8e6;border:1px solid #f1dfae;border-radius:10px;padding:.55rem .75rem;font-size:.82rem!important;color:#6b4a00!important;margin:0 0 1rem!important}
 body.dark .pls-card,body.dark .pls-add{background:#221b2d;border-color:#4a3d55}
 body.dark .pls-page{background:#2a2235;border-color:#4a3d55}
@@ -5271,7 +5295,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v617';
+window.PATTERNLY_BUILD='v618';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -19547,7 +19571,14 @@ function trkSaveProject(){
                  let prev=0; return a.map(o=>{ const d=o.v-prev; prev=o.v; return d.toString(36)+o.m.toString(16); }).join('.'); })()
         : null,
       backstitch: (trackerGrid.backstitch&&trackerGrid.backstitch.length)?trackerGrid.backstitch:null,
-      knotsList: (trackerGrid.knotsList&&trackerGrid.knotsList.length)?trackerGrid.knotsList:null
+      knotsList: (trackerGrid.knotsList&&trackerGrid.knotsList.length)?trackerGrid.knotsList:null,
+      // Scanned charts (v618): cells the recogniser was unsure about, delta-coded
+      // in base 36, so the review list survives a reload.
+      scanned: trackerGrid.scanned?true:undefined,
+      unsure: (trackerGrid.unsure && trackerGrid.unsure.size)
+        ? (()=>{ const a=[...trackerGrid.unsure].map(k=>{ const i=k.indexOf(':'); return +k.slice(0,i)*trackerGrid.cols + +k.slice(i+1); }).sort((x,y)=>x-y);
+                 let prev=0; return a.map(v=>{ const d=v-prev; prev=v; return d.toString(36); }).join('.'); })()
+        : null
     }));
     const prev=trkIndex().find(p=>p.id===id);
     const curSku=trkCloudSku||(prev&&prev.sku)||null;
@@ -19735,6 +19766,9 @@ async function trkOpenProject(id){
     // plain deltas and fall back to a half stitch, which is what they were.
     trackerGrid.halfCells = new Set();
     trackerGrid.partMask = new Map();
+    trackerGrid.scanned=!!s.scanned;
+    trackerGrid.unsure=new Set();
+    if(s.unsure){ let p=0; for(const t of s.unsure.split('.')){ const d=parseInt(t,36); if(!(d>=0)) continue; p+=d; trackerGrid.unsure.add(Math.floor(p/s.cols)+':'+(p%s.cols)); } }
     if(s.half){
       let p=0;
       for(const t of s.half.split('.')){
@@ -19790,6 +19824,7 @@ async function trkOpenProject(id){
     box.innerHTML=`<b style="color:#2E7D32">${trackerProjectName}</b> — loaded from this browser. ${trackerLegend.rowCount} colours · ${s.cols}×${s.rows} stitches.`;
     applyTrackerZoom(); updateTrackerProgressUI();
     requestAnimationFrame(trkFit);
+    try{ if(typeof plReviewBanner==='function') plReviewBanner(); }catch(_e){}
     // Re-register the saved chart font, then repaint with crisp vector symbols.
     if(s.chartFont && s.chartFontB64){
       const _fb64=(s.chartFontB64==='CS3' && window.PATTERNLY_CS3_FONT_B64)?window.PATTERNLY_CS3_FONT_B64:s.chartFontB64;
@@ -25669,6 +25704,21 @@ function renderTracker(){
       if(cy>=trkView.sy-1 && cy<=trkView.sy+trkView.viewH+1){ trkCtx.beginPath(); trkCtx.moveTo(trkView.sx,cy); trkCtx.lineTo(trkView.sx+trkView.viewW,cy); trkCtx.stroke(); }
       trkCtx.restore();
     }
+  }
+  // ── Unsure cells (scanned charts, v618): the recogniser's own doubt, drawn as an
+  // amber frame so the person checks these against the paper chart first.
+  if(trackerGrid.unsure && trackerGrid.unsure.size){
+    trkCtx.save();
+    trkCtx.strokeStyle='rgba(224,122,0,0.95)'; trkCtx.lineWidth=Math.max(1.5, cell*0.12);
+    trkCtx.fillStyle='rgba(255,170,40,0.22)';
+    for(const k of trackerGrid.unsure){
+      const i=k.indexOf(':'); const r=+k.slice(0,i), c=+k.slice(i+1);
+      if(r<vr0||r>=vr1||c<vc0||c>=vc1) continue;
+      const x=(c-vp.c0)*cell, y=(r-vp.r0)*cell;
+      trkCtx.fillRect(x+1,y+1,cell-1,cell-1);
+      trkCtx.strokeRect(x+1.5,y+1.5,cell-2,cell-2);
+    }
+    trkCtx.restore();
   }
   // ── Backstitch & French knot overlay (exact-format imports) ──
   // Drawn above the grid, exactly like a printed chart. The ⚙ popover has a
@@ -33764,12 +33814,14 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
             for (let j = 0; j < n; j++) { const c = pageCells[arr[j][1]][arr[j][2]]; for (let q = 0; q < F2; q++) { mf[q] += c.f[q] / n; mb[q] += c.fb[q] / n; } } refF.push(mf); refB.push(mb); refK.push(k); });
           const tcol = T.map(t => null); // colour handled by pass 1 penalties already
           let moved = 0;
-          for (const id of ids) { const cells = pageCells[id], { lab, conf } = out[id];
-            for (let i = 0; i < cells.length; i++) { if (lab[i] < 0 && cells[i].frac < 0.012) continue; let bs = conf[i], bk = lab[i];
-              for (let j = 0; j < refF.length; j++) { const s1 = tani(cells[i].f, refF[j]), s2 = tani(cells[i].fb, refB[j]); const v = Math.max(s1, s2) - 0.02; if (v > bs) { bs = v; bk = refK[j]; } }
-              if (bk !== lab[i]) moved++; lab[i] = bk; conf[i] = bs; } }
+          for (const id of ids) { const cells = pageCells[id], { lab, conf } = out[id]; const margin = new Float32Array(cells.length).fill(1); out[id].margin = margin;
+            for (let i = 0; i < cells.length; i++) { if (lab[i] < 0 && cells[i].frac < 0.012) continue; let bs = conf[i], bk = lab[i], second = -1;
+              for (let j = 0; j < refF.length; j++) { const s1 = tani(cells[i].f, refF[j]), s2 = tani(cells[i].fb, refB[j]); const v = Math.max(s1, s2) - 0.02;
+                if (v > bs) { if (refK[j] !== bk) second = bs; bs = v; bk = refK[j]; } else if (refK[j] !== bk && v > second) second = v; }
+              if (bk !== lab[i]) moved++; lab[i] = bk; conf[i] = bs; margin[i] = second < 0 ? 1 : bs - second; } }
           reply({ ok: true, labels: out, scale: fs.scale, scaleScore: fs.score, moved });
         } else if (m.cmd === 'crop') { reply({ ok: true, crop: crop(m.id, m.i, m.size || 48, false) }); }
+        else if (m.cmd === 'crops') { const out = m.list.map(([id, i]) => PAGES[id] ? crop(id, i, m.size || 40, false).rgba : null); reply({ ok: true, crops: out }, out.filter(Boolean).map(a => a.buffer)); }
       } catch (err) { reply({ ok: false, reason: 'error', error: String(err && err.stack || err) }); }
     };
     // crop one cell from the reduced page: RGBA size×size; asSprite → alpha = ink, black
@@ -33860,9 +33912,8 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     const mapHtml = L ? pageMapSVG(L) : '';
     const okN = S.pages.filter(p => p.ok).length;
     root.innerHTML = ''
-      + '<div class="pls-head"><a href="#" class="pls-back">← Back</a><h2>Scan your pattern <span class="pls-beta">BETA</span></h2>'
-      + '<p>Take a photo of each page of your printed chart. Hold the phone flat above the page, in good light, so the page numbers read normally.</p>'
-      + '<p class="pls-betanote">This is an early version: a few stitches can be read wrongly, especially under backstitch lines or along a fold. Your printed chart is always the final word.</p></div>'
+      + '<div class="pls-head"><a href="#" class="pls-back">← Back</a><h2>Scan your pattern</h2>'
+      + '<p>Take a photo of each page of your printed chart. Hold the phone flat above the page, in good light, so the page numbers read normally.</p></div>'
       + '<div class="pls-card"><div class="pls-step">1</div><div class="pls-body"><h3>Pattern size</h3>'
       + '<p>Printed on the colour key (e.g. “Stitches: 160 x 160”). Leave empty and we’ll work it out from the pages.</p>'
       + '<div class="pls-size"><input type="number" min="5" max="2000" inputmode="numeric" id="pls-w" placeholder="width" value="' + (S.size.w || '') + '"> <span>×</span> <input type="number" min="5" max="2000" inputmode="numeric" id="pls-h" placeholder="height" value="' + (S.size.h || '') + '"> <span class="pls-unit">stitches</span></div></div></div>'
@@ -34006,9 +34057,9 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     const order = Lg ? r.classes.slice() : r.classes.slice().sort((a, b) => b.n - a.n);
     const symOf = new Int32Array(r.classes.length); order.forEach((c, i) => symOf[c.k] = 0xE000 + i);
     const W = L.W, H = L.H, cells = Array.from({ length: H }, () => new Array(W).fill(' '));
-    const conf = new Float32Array(W * H).fill(1);
-    for (const p of L.placed) { const lab = r.labels[p.id].lab, cf = r.labels[p.id].conf;
-      for (let i = 0; i < p.rows; i++) for (let j = 0; j < p.cols; j++) { const y = p.y + i, x = p.x + j; if (y >= H || x >= W) continue; const k = lab[i * p.cols + j]; if (k >= 0) { cells[y][x] = String.fromCharCode(symOf[k]); conf[y * W + x] = cf[i * p.cols + j]; } } }
+    const conf = new Float32Array(W * H).fill(1), margin = new Float32Array(W * H).fill(1); const cellPage = {};
+    for (const p of L.placed) { const lab = r.labels[p.id].lab, cf = r.labels[p.id].conf, mg = r.labels[p.id].margin;
+      for (let i = 0; i < p.rows; i++) for (let j = 0; j < p.cols; j++) { const y = p.y + i, x = p.x + j; if (y >= H || x >= W) continue; const k = lab[i * p.cols + j]; cellPage[y * W + x] = [p.id, i * p.cols + j]; if (k >= 0) { cells[y][x] = String.fromCharCode(symOf[k]); conf[y * W + x] = cf[i * p.cols + j]; if (mg) margin[y * W + x] = mg[i * p.cols + j]; } } }
     const counts = {}; for (const row of cells) for (const ch of row) if (ch !== ' ') counts[ch] = (counts[ch] || 0) + 1;
     const bySymbol = {}, map = {}, sprites = {};
     order.forEach((c, i) => {
@@ -34032,14 +34083,82 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     trackerSprites = sprites; trkFinalToRaw = {};
     trackerActiveProjectKey = 'scan_' + Date.now().toString(36) + '_' + W + 'x' + H;
     trackerProjectName = trkPendingName || 'Scanned pattern';
-    window.plScanConfidence = conf; window.plScanSprites = sprites;
+    window.plScanConfidence = conf; window.plScanMargin = margin; window.plScanSprites = sprites;
+    // cells the recogniser is not sure about: low similarity, or two symbols nearly tied
+    const unsure = new Set(); const unsureList = [];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = y * W + x; if (cells[y][x] !== ' ' && (conf[i] < 0.65 || margin[i] < 0.08)) { unsure.add(y + ':' + x); unsureList.push(i); } }
+    trackerGrid.unsure = unsure;
+    // keep a small photo crop of each unsure cell for the review (this session only)
+    window.plScanCrops = new Map();
+    try {
+      const want = unsureList.slice(0, 4000).filter(i => cellPage[i]);
+      if (want.length) { const rc = await call({ cmd: 'crops', list: want.map(i => cellPage[i]), size: 40 }); if (rc.ok) want.forEach((i, k) => { if (rc.crops[k]) window.plScanCrops.set(i, rc.crops[k]); }); }
+    } catch (e) {}
     S.statusText = ''; const root = $('trk-scan'); if (root) root.style.display = 'none';
     await tryBuildTracker();
     // tryBuildTracker rebuilds sprites from PDFs (none here) — make sure ours stay in place
     if (!Object.keys(trackerSprites).length) trackerSprites = sprites;
     try { renderTracker(); updateTrackerProgressUI(); } catch (e) {}
+    try { trkSaveProject(); } catch (e) {}
+    try { plReviewBanner(); } catch (e) {}
     S.pages.forEach(p => call({ cmd: 'drop', id: p.id })); S.pages = [];
   }
+
+  // ── review of unsure stitches (in the tracker) ───────────────────────────
+  // trackerGrid.unsure holds "r:c" keys. The banner counts them; Review walks through
+  // them one by one: the photo crop (when the scan happened in this session), the current
+  // guess, and the key's symbols to choose from. Confirm / change / skip.
+  const R = { list: [], idx: 0, open: false };
+  window.plReviewBanner = function(){
+    let el = $('pls-review');
+    const n = (typeof trackerGrid !== 'undefined' && trackerGrid && trackerGrid.unsure) ? trackerGrid.unsure.size : 0;
+    if (!n) { if (el) el.remove(); plReviewClose(); return; }
+    if (!el) { el = document.createElement('div'); el.id = 'pls-review'; const v = $('trk-verify'); if (v && v.parentNode) v.parentNode.insertBefore(el, v); else { const ws = $('trk-workspace'); if (ws) ws.insertBefore(el, ws.firstChild); } }
+    el.innerHTML = '<span class="pls-rv-ic">?</span><span class="pls-rv-txt"><b>' + n.toLocaleString() + '</b> stitch' + (n === 1 ? '' : 'es') + ' to check against your paper chart</span><button type="button" class="pls-rv-btn" id="pls-rv-start">Review</button>';
+    $('pls-rv-start').onclick = () => plReviewStart();
+  };
+  function keysInOrder(){ const W = trackerGrid.cols; return [...trackerGrid.unsure].map(k => { const i = k.indexOf(':'); return [+k.slice(0, i), +k.slice(i + 1)]; }).sort((a, b) => a[0] - b[0] || a[1] - b[1]); }
+  window.plReviewStart = function(){ R.list = keysInOrder(); R.idx = 0; R.open = true; if (!R.list.length) return plReviewBanner(); plReviewShow(); };
+  function plReviewClose(){ R.open = false; const p = $('pls-rev'); if (p) p.remove(); }
+  window.plReviewClose = plReviewClose;
+  function focusCell(r, c){
+    try {
+      if (typeof trkPageMode !== 'undefined' && trkPageMode) { trkPageMode = false; if (typeof applyTrackerZoom === 'function') applyTrackerZoom(); }
+      if (typeof trackerCellPx !== 'undefined' && trackerCellPx < 18 && typeof trkSetZoomPx === 'function') trkSetZoomPx(22);
+      const wrap = $('trk-canvas-wrap'); const g = (typeof trkView !== 'undefined' && trkView && trkView.gut) || 0; const px = trackerCellPx;
+      wrap.scrollLeft = Math.max(0, g + (c + 0.5) * px - wrap.clientWidth / 2); wrap.scrollTop = Math.max(0, g + (r + 0.5) * px - wrap.clientHeight / 2);
+      renderTracker();
+      const rect = wrap.getBoundingClientRect(); if (rect.top < 0 || rect.bottom > innerHeight) wrap.scrollIntoView({ block: 'center' });
+    } catch (e) {}
+  }
+  function plReviewShow(){
+    while (R.idx < R.list.length && !trackerGrid.unsure.has(R.list[R.idx][0] + ':' + R.list[R.idx][1])) R.idx++;
+    if (R.idx >= R.list.length) { plReviewClose(); plReviewBanner(); try { toast('All checked ✓'); } catch (e) {} return; }
+    const [r, c] = R.list[R.idx]; focusCell(r, c);
+    const W = trackerGrid.cols, sym = trackerGrid.cells[r][c], crop = window.plScanCrops && window.plScanCrops.get(r * W + c);
+    let p = $('pls-rev'); if (!p) { p = document.createElement('div'); p.id = 'pls-rev'; document.body.appendChild(p); }
+    const spr = s2 => (trackerSprites[s2] && trackerSprites[s2].url) ? '<img src="' + trackerSprites[s2].url + '" alt="">' : '<span class="pls-rv-ch">' + esc(s2) + '</span>';
+    const syms = Object.keys(trackerLegend.bySymbol).sort((a, b) => (a === sym ? -1 : b === sym ? 1 : (trackerLegend.bySymbol[b].stitches || 0) - (trackerLegend.bySymbol[a].stitches || 0)));
+    const col = s2 => { const m = trackerColourMap[s2]; return m ? 'rgb(' + m.r + ',' + m.g + ',' + m.b + ')' : '#ddd'; };
+    p.innerHTML = '<div class="pls-rv-head"><b>Stitch ' + (R.idx + 1) + ' of ' + R.list.length + '</b> · row ' + (r + 1) + ', column ' + (c + 1) + '<button type="button" class="pls-rv-x" id="pls-rv-close" aria-label="Close">✕</button></div>'
+      + '<div class="pls-rv-row">' + (crop ? '<canvas id="pls-rv-crop" width="40" height="40"></canvas>' : '<div class="pls-rv-nocrop">photo not kept</div>')
+      + '<div class="pls-rv-guess"><div class="pls-rv-lbl">Our reading</div><div class="pls-rv-sym" style="border-color:' + col(sym) + '">' + spr(sym) + '</div></div>'
+      + '<div class="pls-rv-acts"><button type="button" class="btn btn-primary" id="pls-rv-ok">✓ Correct</button><button type="button" class="pls-rv-skip" id="pls-rv-skip">Skip</button></div></div>'
+      + '<div class="pls-rv-lbl">Or pick the right symbol</div><div class="pls-rv-grid">' + syms.map(s2 => '<button type="button" class="pls-rv-pick' + (s2 === sym ? ' cur' : '') + '" data-sym="' + esc(s2) + '" style="border-bottom-color:' + col(s2) + '" title="' + esc(trackerColourMap[s2] && trackerColourMap[s2].label || '') + '">' + spr(s2) + '</button>').join('') + '<button type="button" class="pls-rv-pick empty" data-sym=" ">no stitch</button></div>';
+    if (crop) { const cv = $('pls-rv-crop'); cv.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(crop), 40, 40), 0, 0); }
+    $('pls-rv-close').onclick = plReviewClose;
+    $('pls-rv-ok').onclick = () => { trackerGrid.unsure.delete(r + ':' + c); R.idx++; afterFix(); };
+    $('pls-rv-skip').onclick = () => { R.idx++; plReviewShow(); };
+    p.querySelectorAll('.pls-rv-pick').forEach(b => b.onclick = () => { setCell(r, c, b.getAttribute('data-sym')); trackerGrid.unsure.delete(r + ':' + c); R.idx++; afterFix(); });
+  }
+  function setCell(r, c, sym){
+    const old = trackerGrid.cells[r][c]; if (old === sym) return;
+    trackerGrid.cells[r][c] = sym;
+    const dec = s2 => { if (s2 === ' ') return; const e = trackerLegend.bySymbol[s2]; if (e && e.stitches) e.stitches--; const m = trackerColourMap[s2]; if (m && m.stitches) m.stitches--; };
+    const inc = s2 => { if (s2 === ' ') return; const e = trackerLegend.bySymbol[s2]; if (e) e.stitches = (e.stitches || 0) + 1; const m = trackerColourMap[s2]; if (m) m.stitches = (m.stitches || 0) + 1; };
+    dec(old); inc(sym);
+  }
+  function afterFix(){ try { renderTracker(); updateTrackerProgressUI(); } catch (e) {} try { trkSaveProject(); } catch (e) {} plReviewBanner(); if (R.open) plReviewShow(); }
   function spriteFromTemplate(t){
     const n = t.size, src = t.rgba, cv = document.createElement('canvas'); cv.width = n; cv.height = n;
     const g = cv.getContext('2d'), id = g.createImageData(n, n); const lum = new Float32Array(n * n);
