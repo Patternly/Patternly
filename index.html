@@ -5306,7 +5306,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v622';
+window.PATTERNLY_BUILD='v623';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -34105,7 +34105,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
   }
   function legendTableHTML(pg){
     const brand = (S.legend && S.legend.brand) || 'lucas';
-    return '<div class="pls-legtable"><div class="pls-lt-head"><span></span><span>Symbol</span><span>Thread no.</span><span>Stitches</span><span></span></div>'
+    return '<div class="pls-legtable"><div class="pls-lt-head"><span style="grid-column:1/3">Symbol</span><span>Thread no.</span><span>Stitches</span><span></span></div>'
       + pg.templates.map((t, i) => { const sw = pg.swatches && pg.swatches[i]; const code = (pg.codes && pg.codes[i]) || ''; const f = code ? (typeof trkFindBrandCode === 'function' ? trkFindBrandCode(brand, code) : null) : null; const col = f ? f : sw;
         return '<div class="pls-lt-row" data-i="' + i + '"><span class="pls-lt-sw" style="background:' + (col ? 'rgb(' + col.r + ',' + col.g + ',' + col.b + ')' : 'transparent') + ';' + (col ? '' : 'border-style:dashed') + '"></span><img src="' + t.url + '" alt="">'
           + '<input class="pls-lt-code" data-i="' + i + '" value="' + esc(code) + '" placeholder="—" inputmode="text"' + (code && !f ? ' title="Not in the ' + brand + ' palette"' : '') + ' style="' + (code && !f ? 'border-color:#e0a060' : '') + '">'
