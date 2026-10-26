@@ -3378,6 +3378,8 @@ body.dark #trk-kits-sort{background:#221b2d;border-color:#4a3d55;color:#e7dcea}
 .pls-legtabs button.on{background:var(--lp-red,#8B1A2B);border-color:var(--lp-red,#8B1A2B);color:#fff}
 .pls-legtotal{margin:.6rem 0 .4rem!important;color:var(--lp-ink,#2b2226)!important}
 .pls-note{flex-basis:100%;font-size:.82rem;color:#b25f10;line-height:1.4}
+.pls-beta{display:inline-block;vertical-align:middle;margin-left:.35rem;padding:.12rem .5rem;border-radius:999px;background:#fff1cc;color:#8a5a00;font-size:.62rem;font-weight:800;letter-spacing:.08em;font-family:'Inter',system-ui,sans-serif}
+.pls-betanote{background:#fff8e6;border:1px solid #f1dfae;border-radius:10px;padding:.55rem .75rem;font-size:.82rem!important;color:#6b4a00!important;margin:0 0 1rem!important}
 body.dark .pls-card,body.dark .pls-add{background:#221b2d;border-color:#4a3d55}
 body.dark .pls-page{background:#2a2235;border-color:#4a3d55}
 @media (max-width:520px){.pls-pages{grid-template-columns:repeat(2,1fr)}}
@@ -5269,7 +5271,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v616';
+window.PATTERNLY_BUILD='v617';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -5968,7 +5970,7 @@ document.addEventListener('DOMContentLoaded', function(){
       </div>
       <div class="trk-card" id="trk-src-scan" role="button" tabindex="0">
         <div class="trk-card-icon">📷</div>
-        <h3 data-i18n="trk.scanpattern">Scan Your Pattern</h3>
+        <h3><span data-i18n="trk.scanpattern">Scan Your Pattern</span> <span class="pls-beta">BETA</span></h3>
         <p style="color:#6a626f;font-size:.86rem;line-height:1.5;margin:.35rem 0 0" data-i18n="trk.descscan">Take photos of your printed paper chart and we’ll convert it into a pattern you can stitch off screen.</p>
       </div>
       <div class="trk-card" id="trk-src-other" role="button" tabindex="0">
@@ -33858,8 +33860,9 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     const mapHtml = L ? pageMapSVG(L) : '';
     const okN = S.pages.filter(p => p.ok).length;
     root.innerHTML = ''
-      + '<div class="pls-head"><a href="#" class="pls-back">← Back</a><h2>Scan your pattern</h2>'
-      + '<p>Take a photo of each page of your printed chart. Hold the phone flat above the page, in good light, so the page numbers read normally.</p></div>'
+      + '<div class="pls-head"><a href="#" class="pls-back">← Back</a><h2>Scan your pattern <span class="pls-beta">BETA</span></h2>'
+      + '<p>Take a photo of each page of your printed chart. Hold the phone flat above the page, in good light, so the page numbers read normally.</p>'
+      + '<p class="pls-betanote">This is an early version: a few stitches can be read wrongly, especially under backstitch lines or along a fold. Your printed chart is always the final word.</p></div>'
       + '<div class="pls-card"><div class="pls-step">1</div><div class="pls-body"><h3>Pattern size</h3>'
       + '<p>Printed on the colour key (e.g. “Stitches: 160 x 160”). Leave empty and we’ll work it out from the pages.</p>'
       + '<div class="pls-size"><input type="number" min="5" max="2000" inputmode="numeric" id="pls-w" placeholder="width" value="' + (S.size.w || '') + '"> <span>×</span> <input type="number" min="5" max="2000" inputmode="numeric" id="pls-h" placeholder="height" value="' + (S.size.h || '') + '"> <span class="pls-unit">stitches</span></div></div></div>'
