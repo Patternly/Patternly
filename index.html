@@ -5295,7 +5295,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v618';
+window.PATTERNLY_BUILD='v619';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -25515,6 +25515,11 @@ function renderTracker(){
   const vc1=Math.min(vp.c0+vp.nc, vp.c0+Math.ceil((sx+viewW-GUT)/cell)+1);
   const vr1=Math.min(vp.r0+vp.nr, vp.r0+Math.ceil((sy+viewH-GUT)/cell)+1);
   const showSymbol=cell>=10, fontSize=Math.round(cell*0.62);
+  // Overview rendering (v619): below ~6px a cell the 1px inset and the per-cell
+  // grid lines turn the chart into a grey mesh (the inset eats most of a 2px
+  // cell). Zoomed out, fill the whole cell edge to edge and let the picture
+  // show — the card thumbnail and the fitted view are then the same image.
+  const _ov=cell<6, _in=_ov?0:1, _fw=_ov?cell+0.35:cell-1;
   // CrossStitch3 font mode: draw each cell's OWN character with the chart's
   // embedded font (pixel-exact) instead of cropped bitmaps. Colour still comes
   // from trackerColourMap[sym]; the glyph comes from fontCells.
@@ -25561,7 +25566,7 @@ function renderTracker(){
         // true black & white: paper-white cells, black symbols only
         if(stitched){
           trkCtx.fillStyle='rgba(0,0,0,0.06)';
-          trkCtx.fillRect(x+1,y+1,cell-1,cell-1);
+          trkCtx.fillRect(x+_in,y+_in,_fw,_fw);
           trkCtx.strokeStyle=ghost?'rgba(0,0,0,0.25)':'rgba(0,0,0,0.8)';
           trkCtx.lineWidth=Math.max(1.5,cell*0.14);
           trkCtx.beginPath();
@@ -25606,7 +25611,7 @@ function renderTracker(){
         fill = `rgb(${mix(col.r)},${mix(col.g)},${mix(col.b)})`;
       }
       trkCtx.fillStyle=fill;
-      trkCtx.fillRect(x+1,y+1,cell-1,cell-1);
+      trkCtx.fillRect(x+_in,y+_in,_fw,_fw);
       if(showSymbol && !stitched && !ghost){
         const lum=col?(0.299*col.r+0.587*col.g+0.114*col.b):128;
         const part=partAt(r,c);
@@ -25633,10 +25638,10 @@ function renderTracker(){
       if(trkLightUpDraw && !stitched && !ghost){
         // Light-up: grey the un-worked cells slightly so the finished (red) ones pop.
         trkCtx.fillStyle='rgba(150,150,150,0.28)';
-        trkCtx.fillRect(x+1,y+1,cell-1,cell-1);
+        trkCtx.fillRect(x+_in,y+_in,_fw,_fw);
       }
       if(stitched){
-        if(ghost){ trkCtx.fillStyle='rgba(255,255,255,0.35)'; trkCtx.fillRect(x+1,y+1,cell-1,cell-1); continue; }
+        if(ghost){ trkCtx.fillStyle='rgba(255,255,255,0.35)'; trkCtx.fillRect(x+_in,y+_in,_fw,_fw); continue; }
         if(trkLightUpDraw){
           // Completed stitches fill the WHOLE cell in the ConfettiScope's neon
           // magenta (#ff3df0) — a colour no real thread has, so worked areas pop
@@ -25645,7 +25650,7 @@ function renderTracker(){
           // The cell keeps its thread colour underneath; the tint sits over it at
           // the chosen opacity, so the symbol AND the colour stay readable.
           trkCtx.fillStyle=trkDoneFill;
-          trkCtx.fillRect(x+1,y+1,cell-1,cell-1);
+          trkCtx.fillRect(x+_in,y+_in,_fw,_fw);
           if(showSymbol){
             const part=partAt(r,c);
             const _lum=trkDoneLum(col?col.r:255, col?col.g:255, col?col.b:255);
@@ -25662,7 +25667,7 @@ function renderTracker(){
           }
         } else {
           trkCtx.fillStyle='rgba(255,255,255,0.55)';
-          trkCtx.fillRect(x+1,y+1,cell-1,cell-1);
+          trkCtx.fillRect(x+_in,y+_in,_fw,_fw);
           trkCtx.strokeStyle='rgba(45,42,53,0.7)';
           trkCtx.lineWidth=Math.max(1.5,cell*0.14);
           trkCtx.beginPath();
@@ -25680,16 +25685,18 @@ function renderTracker(){
     const _hx=(h,d)=>{ h=h||d; return [parseInt(h.slice(1,3),16)||0,parseInt(h.slice(3,5),16)||0,parseInt(h.slice(5,7),16)||0]; };
     const [_lr,_lg,_lb]=_hx(trkGridCfg.color,'#000000');
     const [_br,_bg,_bb]=_hx(trkGridCfg.blockColor||trkGridCfg.color,'#000000');
-    if(trkGridCfg.lw>0){
+    if(trkGridCfg.lw>0 && !_ov){   // fine lines only when a cell is big enough to have an inside
       trkCtx.strokeStyle=`rgba(${_lr},${_lg},${_lb},${fineA})`; trkCtx.lineWidth=Math.max(trkGridCfg.lw, cell*0.05);
       for(let c=0;c<=vp.nc;c++){trkCtx.beginPath();trkCtx.moveTo(c*cell+0.5,0);trkCtx.lineTo(c*cell+0.5,vp.nr*cell);trkCtx.stroke();}
       for(let r=0;r<=vp.nr;r++){trkCtx.beginPath();trkCtx.moveTo(0,r*cell+0.5);trkCtx.lineTo(vp.nc*cell,r*cell+0.5);trkCtx.stroke();}
     }
     // bold lines aligned to the GLOBAL block grid, so pages match the paper chart
     const B=trkGridCfg.block;
-    trkCtx.strokeStyle=`rgba(${_br},${_bg},${_bb},${boldA})`; trkCtx.lineWidth=Math.max(trkGridCfg.bw, cell*0.05);
-    for(let gc=Math.ceil(vc0/B)*B; gc<=vc1; gc+=B){const x=(gc-vp.c0)*cell+0.5;trkCtx.beginPath();trkCtx.moveTo(x,trkView.sy);trkCtx.lineTo(x,trkView.sy+trkView.viewH);trkCtx.stroke();}
-    for(let gr=Math.ceil(vr0/B)*B; gr<=vr1; gr+=B){const y=(gr-vp.r0)*cell+0.5;trkCtx.beginPath();trkCtx.moveTo(trkView.sx,y);trkCtx.lineTo(trkView.sx+trkView.viewW,y);trkCtx.stroke();}
+    // zoomed right out the block lines fade (and go below 2.5px/cell) so they frame the picture instead of hiding it
+    const _bA=_ov ? boldA*Math.max(0, Math.min(1, (cell-2.5)/3.5))*0.6 : boldA;
+    trkCtx.strokeStyle=`rgba(${_br},${_bg},${_bb},${_bA})`; trkCtx.lineWidth=_ov?1:Math.max(trkGridCfg.bw, cell*0.05);
+    if(_bA>0.02) for(let gc=Math.ceil(vc0/B)*B; gc<=vc1; gc+=B){const x=(gc-vp.c0)*cell+0.5;trkCtx.beginPath();trkCtx.moveTo(x,trkView.sy);trkCtx.lineTo(x,trkView.sy+trkView.viewH);trkCtx.stroke();}
+    if(_bA>0.02) for(let gr=Math.ceil(vr0/B)*B; gr<=vr1; gr+=B){const y=(gr-vp.r0)*cell+0.5;trkCtx.beginPath();trkCtx.moveTo(trkView.sx,y);trkCtx.lineTo(trkView.sx+trkView.viewW,y);trkCtx.stroke();}
     // Centre lines: printed charts mark the middle so you can find your place
     // when starting from the centre of the fabric, which is the usual method.
     if(trkCentreLines){
