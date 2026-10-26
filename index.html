@@ -3377,6 +3377,17 @@ body.dark #trk-kits-sort{background:#221b2d;border-color:#4a3d55;color:#e7dcea}
 .pls-legtabs button{border:1.5px solid #e6d9dd;background:#fff;border-radius:999px;padding:.3rem .8rem;font-size:.8rem;font-weight:700;color:var(--lp-ink,#2b2226);cursor:pointer}
 .pls-legtabs button.on{background:var(--lp-red,#8B1A2B);border-color:var(--lp-red,#8B1A2B);color:#fff}
 .pls-legtotal{margin:.6rem 0 .4rem!important;color:var(--lp-ink,#2b2226)!important}
+.pls-brand{display:inline-flex;align-items:center;gap:.5rem;font-size:.82rem;color:var(--lp-muted,#6a626f);margin:0 0 .6rem}
+.pls-brand select{padding:.35rem .6rem;border:1.5px solid #ddc9ce;border-radius:9px;font-size:.88rem;background:#fff;color:var(--lp-ink,#2b2226)}
+.pls-legtable{margin-top:.7rem;border:1.5px solid #eadde1;border-radius:12px;overflow:hidden;max-height:50vh;overflow-y:auto;background:#fff}
+.pls-lt-head,.pls-lt-row{display:grid;grid-template-columns:18px 34px 1fr 1fr 28px;gap:.45rem;align-items:center;padding:.3rem .55rem}
+.pls-lt-head{position:sticky;top:0;background:#faf6f5;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--lp-muted,#6a626f);border-bottom:1px solid #eadde1}
+.pls-lt-row{border-bottom:1px solid #f3ebe9}.pls-lt-row:last-child{border-bottom:0}
+.pls-lt-row img{width:30px;height:30px;border:1px solid #eadde1;border-radius:6px;background:#fff}
+.pls-lt-sw{width:16px;height:16px;border-radius:5px;border:1px solid #d9c8ce}
+.pls-lt-row input{min-width:0;width:100%;padding:.35rem .45rem;border:1.5px solid #e6d9dd;border-radius:8px;font-size:.88rem;background:#fff;color:var(--lp-ink,#2b2226)}
+.pls-lt-x{border:0;background:#f3ebe9;border-radius:50%;width:26px;height:26px;cursor:pointer;color:#6a626f;font-size:.75rem}
+body.dark .pls-legtable,body.dark .pls-lt-row input,body.dark .pls-brand select{background:#221b2d;color:#eee;border-color:#4a3d55}
 .pls-note{flex-basis:100%;font-size:.82rem;color:#b25f10;line-height:1.4}
 .pls-beta{display:inline-block;vertical-align:middle;margin-left:.35rem;padding:.12rem .5rem;border-radius:999px;background:#fff1cc;color:#8a5a00;font-size:.62rem;font-weight:800;letter-spacing:.08em;font-family:'Inter',system-ui,sans-serif}
 #pls-review{display:flex;align-items:center;gap:.7rem;max-width:1100px;margin:.4rem auto .6rem;background:#fff6e5;border:1.5px solid #f2d59a;border-radius:14px;padding:.6rem .9rem;font-size:.9rem;color:#5c3d00}
@@ -5295,7 +5306,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v621';
+window.PATTERNLY_BUILD='v622';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -33475,7 +33486,9 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     for (let y = 0; y < IN; y++) for (let x = 0; x < IN; x++) {
       const s = ((y + M) * CS + x + M) * 3, d = y * IN + x;
       rgb[d * 3] = cell[s]; rgb[d * 3 + 1] = cell[s + 1]; rgb[d * 3 + 2] = cell[s + 2];
-      g[d] = (cell[s] + cell[s + 1] + cell[s + 2]) / 3;
+      // darkest channel, not luminance: a coloured stroke (purple ⊕, red 5) is faint in
+      // luminance but strong in the channel it absorbs, so it reads as ink like black does
+      g[d] = Math.min(cell[s], cell[s + 1], cell[s + 2]);
     }
     const paper = percentile(g, 92), dark = percentile(g, 3), span = Math.max(paper - dark, 25);
     const pr = percentile(rgb, 92, 3, 0) + 1, pg = percentile(rgb, 92, 3, 1) + 1, pb = percentile(rgb, 92, 3, 2) + 1;
@@ -33684,13 +33697,14 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     const cx = (tc.x0 + tc.x1) / 2; const half = Math.max(12, Math.round(gw * 1.1));
     const bx0 = Math.max(0, Math.round(cx - half)), bx1 = Math.min(w - 1, Math.round(cx + half));
     // glyph candidates inside the band: symbol-sized, not thin wide lines (backstitch samples)
-    const cand = comps.filter(c => { const cw = c.x1 - c.x0 + 1, ch = c.y1 - c.y0 + 1, cx2 = (c.x0 + c.x1) / 2; if (cx2 < bx0 || cx2 > bx1 || c.n < 4) return false; if (cw > 1.7 * gw || ch > 1.7 * gw) return false; if (ch < 0.2 * gw && cw > 1.2 * gw) return false; return true; })
+    const cand = comps.filter(c => { const cw = c.x1 - c.x0 + 1, ch = c.y1 - c.y0 + 1, cx2 = (c.x0 + c.x1) / 2; if (cx2 < bx0 || cx2 > bx1 || c.n < 4) return false; if (cw > 1.7 * gw || ch > 1.7 * gw) return false; if (ch < 0.2 * gw && cw > 0.9 * gw) return false; return true; })
       .sort((p, q) => (p.y0 + p.y1) - (q.y0 + q.y1));
     // group into rows: overlapping or near-touching vertical extents
     const groups = [];
-    for (const c of cand) { const g2 = groups[groups.length - 1]; if (g2 && c.y0 <= g2.y1 + 0.12 * gw) { g2.y1 = Math.max(g2.y1, c.y1); g2.x0 = Math.min(g2.x0, c.x0); g2.x1 = Math.max(g2.x1, c.x1); g2.y0 = Math.min(g2.y0, c.y0); g2.n += c.n; } else groups.push({ x0: c.x0, y0: c.y0, x1: c.x1, y1: c.y1, n: c.n }); }
-    // text rows (header / footer) are wide; keep symbol-shaped rows
-    let items = groups.filter(g2 => { const gw2 = g2.x1 - g2.x0 + 1, gh2 = g2.y1 - g2.y0 + 1; return gw2 <= 1.8 * gw && g2.n >= 6 && !(gh2 < 0.75 * gw && gw2 > 1.2 * gw); });   // drop text (wide and short)
+    for (const c of cand) { const g2 = groups[groups.length - 1]; if (g2 && c.y0 <= g2.y1 + 0.12 * gw) { g2.y1 = Math.max(g2.y1, c.y1); g2.x0 = Math.min(g2.x0, c.x0); g2.x1 = Math.max(g2.x1, c.x1); g2.y0 = Math.min(g2.y0, c.y0); g2.n += c.n; g2.parts.push(c); } else groups.push({ x0: c.x0, y0: c.y0, x1: c.x1, y1: c.y1, n: c.n, parts: [c] }); }
+    // text rows (header / footer): wide and short, or a word — three or more small pieces side by side on one line
+    const isWord = g2 => { const small = g2.parts.filter(c => (c.x1 - c.x0 + 1) < 0.6 * gw); if (small.length < 3) return false; const cy = small.map(c => (c.y0 + c.y1) / 2).sort((a, b) => a - b); const mid = cy[cy.length >> 1]; return small.filter(c => Math.abs((c.y0 + c.y1) / 2 - mid) < 0.2 * gw).length >= 3; };
+    let items = groups.filter(g2 => { const gw2 = g2.x1 - g2.x0 + 1, gh2 = g2.y1 - g2.y0 + 1; return gw2 <= 1.8 * gw && g2.n >= 6 && !(gh2 < 0.75 * gw && gw2 > 1.2 * gw) && !isWord(g2); });
     const dbgN = [cand.length, groups.length, items.length]; let dbgGaps = null;
     // table rows come at a regular pitch: keep the longest run without big gaps
     if (items.length >= 4) {
@@ -33744,6 +33758,93 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     }
     return out;
   }
+  // ── numbers in the key (thread codes, stitch counts) ───────────────────────
+  // Printed digits are matched against digits drawn with the browser's own sans-serif
+  // fonts (no OCR library): each glyph is fitted into a 20×28 box keeping its aspect, and
+  // compared as a blurred ink map. Tokens: digits, '/', '+', '.', 'x'; anything else → null.
+  const DW = 24, DH = 32;
+  function glyphMap(bin, w, x0, y0, x1, y1) { // bin crop → DW×DH float map, aspect kept, centred
+    const gw2 = x1 - x0 + 1, gh2 = y1 - y0 + 1, k = Math.min((DW - 2) / gw2, (DH - 2) / gh2);
+    const tw = Math.max(1, Math.round(gw2 * k)), th = Math.max(1, Math.round(gh2 * k)), ox = Math.floor((DW - tw) / 2), oy = Math.floor((DH - th) / 2);
+    const m = new Float32Array(DW * DH);
+    for (let v = 0; v < th; v++) for (let u = 0; u < tw; u++) { // area sample
+      const sx0 = x0 + u / k, sx1 = x0 + (u + 1) / k, sy0 = y0 + v / k, sy1 = y0 + (v + 1) / k; let s = 0, n = 0;
+      for (let yy = Math.floor(sy0); yy < Math.max(Math.floor(sy0) + 1, Math.ceil(sy1)); yy++) for (let xx = Math.floor(sx0); xx < Math.max(Math.floor(sx0) + 1, Math.ceil(sx1)); xx++) { if (xx < x0 || xx > x1 || yy < y0 || yy > y1) continue; s += bin[yy * w + xx]; n++; }
+      m[(oy + v) * DW + ox + u] = n ? s / n : 0;
+    }
+    return blurMap(m, DW, DH, 0.7);
+  }
+  function blurMap(a, W, H, sigma) {
+    const r = 2, k = []; let ks = 0; for (let i = -r; i <= r; i++) { const v = Math.exp(-i * i / (2 * sigma * sigma)); k.push(v); ks += v; }
+    const t = new Float32Array(W * H), o = new Float32Array(W * H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { let s = 0; for (let i = -r; i <= r; i++) s += a[y * W + Math.min(W - 1, Math.max(0, x + i))] * k[i + r]; t[y * W + x] = s / ks; }
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { let s = 0; for (let i = -r; i <= r; i++) s += t[Math.min(H - 1, Math.max(0, y + i)) * W + x] * k[i + r]; o[y * W + x] = s / ks; }
+    return o;
+  }
+  // digit/sign templates drawn with canvas (main thread). fonts: a few common sans faces.
+  function makeDigitTemplates(doc) {
+    const chars = '0123456789/+.x'.split(''), fonts = ['Arial', 'Helvetica', 'Roboto', 'Liberation Sans', 'DejaVu Sans', 'sans-serif'];
+    const out = []; const cv = doc.createElement('canvas'); cv.width = 64; cv.height = 80; const g = cv.getContext('2d', { willReadFrequently: true });
+    const seen = new Set();
+    for (const f of fonts) for (const ch of chars) {
+      g.fillStyle = '#fff'; g.fillRect(0, 0, 64, 80); g.fillStyle = '#000'; g.font = '56px ' + f; g.textBaseline = 'alphabetic'; g.fillText(ch, 8, 62);
+      const d = g.getImageData(0, 0, 64, 80).data, bin = new Uint8Array(64 * 80); let x0 = 64, y0 = 80, x1 = -1, y1 = -1;
+      for (let i = 0; i < bin.length; i++) if (d[i * 4] < 128) { bin[i] = 1; const x = i % 64, y = (i - x) / 64; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      if (x1 < 0) continue;
+      const key = ch + ':' + Array.from(bin).join('').slice(0, 0); // keep all
+      const m = glyphMap(bin, 64, x0, y0, x1, y1); const sig = ch + Array.from(m, v => (v * 9) | 0).join('');
+      if (seen.has(sig)) continue; seen.add(sig);
+      out.push({ ch, m, aspect: (x1 - x0 + 1) / (y1 - y0 + 1), rel: (y1 - y0 + 1) / 56 });   // rel: glyph height relative to the font size
+    }
+    return out;
+  }
+  // zero-mean normalised correlation: unlike Tanimoto it does not favour the fatter
+  // template when a printed digit's strokes come out heavier than the drawn ones
+  function tanimotoF(a, b) { let ma = 0, mb = 0; for (let i = 0; i < a.length; i++) { ma += a[i]; mb += b[i]; } ma /= a.length; mb /= b.length; let ab = 0, a2 = 0, b2 = 0; for (let i = 0; i < a.length; i++) { const x = a[i] - ma, y = b[i] - mb; ab += x * y; a2 += x * x; b2 += y * y; } return ab / Math.sqrt(Math.max(a2 * b2, 1e-9)); }
+  // rows: [{y0,y1}] (from legendAnalyse). x: tapped column. Returns [{text, conf, tokens}] or null per row.
+  function legendNumbers(rgba, w, h, rows, x, digits) {
+    const g = gray(rgba, w, h), flat = flatten(g, w, h), bin = adaptiveBin(flat, w, h, 25, 12);
+    const L = Math.max(30, Math.round(w * 0.12));
+    const hor = lineOpen(bin, w, h, L, true), ver = lineOpen(bin, w, h, Math.max(30, Math.round(h * 0.12)), false);
+    const ink = new Uint8Array(w * h); for (let i = 0; i < ink.length; i++) ink[i] = bin[i] & !hor[i] & !ver[i];
+    const { comps } = components(ink, w, h);
+    const pitch = rows.length > 1 ? median(rows.slice(1).map((r, i) => (r.y0 + r.y1) / 2 - (rows[i].y0 + rows[i].y1) / 2)) : (rows[0].y1 - rows[0].y0);
+    const half = Math.max(20, Math.round(pitch * 3.2));     // a number column is a few digit widths wide
+    const out = [];
+    for (const r of rows) {
+      const ym = (r.y0 + r.y1) / 2, yh = pitch * 0.55;
+      let cs = comps.filter(c => { const cx = (c.x0 + c.x1) / 2, cy = (c.y0 + c.y1) / 2, ch = c.y1 - c.y0 + 1; return Math.abs(cx - x) <= half && Math.abs(cy - ym) <= yh && ch >= 0.18 * pitch && ch <= 0.9 * pitch && c.n >= 3; });
+      if (!cs.length) { out.push(null); continue; }
+      // the token nearest the tap: glyphs chained with small gaps
+      cs.sort((a, b) => a.x0 - b.x0);
+      const hm = median(cs.map(c => c.y1 - c.y0 + 1)), gapMax = hm * 0.9;
+      const groups = []; for (const c of cs) { const gr = groups[groups.length - 1]; if (gr && c.x0 - gr.x1 <= gapMax) { gr.items.push(c); gr.x1 = Math.max(gr.x1, c.x1); } else groups.push({ items: [c], x0: c.x0, x1: c.x1 }); }
+      groups.sort((a, b) => Math.abs((a.x0 + a.x1) / 2 - x) - Math.abs((b.x0 + b.x1) / 2 - x));
+      const tok = groups[0]; let text = '', conf = 1; const tokens = [];
+      for (const c of tok.items) {
+        const ch = c.y1 - c.y0 + 1, cw = c.x1 - c.x0 + 1;
+        if (ch < 0.35 * hm && cw < 0.6 * hm) { text += '.'; tokens.push({ ch: '.', s: 1 }); continue; }     // dot / dash-like speck
+        const m = glyphMap(ink, w, c.x0, c.y0, c.x1, c.y1), asp = cw / ch; let best = null;
+        // diagonality: correlation of x and y over the ink pixels — a slash is strongly negative-sloped (x grows as y shrinks), a '1' is not
+        let sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0, nn = 0;
+        for (let yy = c.y0; yy <= c.y1; yy++) for (let xx = c.x0; xx <= c.x1; xx++) if (ink[yy * w + xx]) { sx += xx; sy += yy; sxx += xx * xx; syy += yy * yy; sxy += xx * yy; nn++; }
+        const diag = nn > 2 ? (sxy / nn - (sx / nn) * (sy / nn)) / Math.sqrt(Math.max(1e-6, (sxx / nn - (sx / nn) ** 2) * (syy / nn - (sy / nn) ** 2))) : 0;
+        const slashy = diag < -0.45;
+        const narrow = asp < 0.42;
+        for (const t of digits) {
+          if (narrow ? !(t.ch === '1' || t.ch === '/' || (t.ch === '.' && ch < 0.5 * hm)) : Math.abs(Math.log(asp / t.aspect)) > 0.45) continue;
+          if (t.ch === '.' && ch >= 0.5 * hm) continue;
+          if ((t.ch === '/') !== slashy && (t.ch === '/' || t.ch === '1')) continue;
+          const v = tanimotoF(m, t.m); if (!best || v > best.v) best = { ch: t.ch, v };
+        }
+        if (!best) { best = { ch: '?', v: 0 }; }
+        tokens.push({ ch: best.ch, s: best.v }); text += best.ch; conf = Math.min(conf, best.v);
+      }
+      out.push({ text, conf, tokens, box: [tok.x0, Math.min(...tok.items.map(c => c.y0)), tok.x1, Math.max(...tok.items.map(c => c.y1))] });
+    }
+    return out;
+  }
+  PLScan.makeDigitTemplates = makeDigitTemplates; PLScan.legendNumbers = legendNumbers; PLScan._glyphMap = glyphMap; PLScan._components = components; PLScan._prep = (rgba,w,h)=>{ const g = gray(rgba, w, h), flat = flatten(g, w, h); return adaptiveBin(flat, w, h, 25, 12); };
   PLScan.legendAnalyse = legendAnalyse; PLScan.legendSwatches = legendSwatches;
   PLScan.analysePage = analysePage; PLScan.detectGrid = detectGrid; PLScan.readCells = readCells; PLScan.matchCells = matchCells; PLScan.findScale = findScale;
   PLScan.cutCell = cutCell; PLScan.CS = CS; PLScan.version = 1;
@@ -33975,43 +34076,64 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     $('pls-convert').onclick = convert;
   }
   // ── legend (colour key) ───────────────────────────────────────────────────
-  // One or more photos of the key (long keys continue on the back of the page). On each
-  // photo the person taps a symbol in the "symbol on the chart" column: the engine finds the
-  // whole column and cuts one template per row. A second tap on a colour swatch gives each
-  // row its colour. S.legend = { pages:[{im, rows, templates, swatches, swatchX}], cur }
-  function legendTemplates(){ const out = []; if (!S.legend) return out; for (const pg of S.legend.pages) if (pg.rows) pg.templates.forEach((t, i) => out.push({ t, sw: pg.swatches ? pg.swatches[i] : null })); return out; }
+  // One or more photos of the key. On each photo the person taps, in turn: a symbol in the
+  // "symbol on the chart" column (→ the whole column, one template per row), a colour
+  // swatch (→ colours), the thread-number column and the stitch-count column (→ digits
+  // read against browser-drawn fonts). Every reading is shown in an editable table.
+  // S.legend = { pages:[{im, rows, templates, swatches, codes, counts, step}], cur, brand }
+  const LSTEPS = ['symbol', 'swatch', 'code', 'count', 'done'];
+  function legendTemplates(){ const out = []; if (!S.legend) return out; for (const pg of S.legend.pages) if (pg.rows) pg.templates.forEach((t, i) => out.push({ t, sw: pg.swatches ? pg.swatches[i] : null, code: pg.codes ? pg.codes[i] : '', count: pg.counts ? pg.counts[i] : null })); return out; }
+  function digitTemplates(){ if (!S.digits) { try { S.digits = PLScan.makeDigitTemplates(document); } catch (e) { S.digits = []; } } return S.digits; }
   function legendCardHTML(){
     const Lg = S.legend; const all = legendTemplates();
     let body = '';
     const addBtns = (first) => '<div class="pls-pages"><label class="pls-add"><input type="file" accept="image/*" capture="environment" class="pls-legcam" hidden><span>📷</span><b>' + (first ? 'Take photo' : 'Photo of the next page') + '</b></label>'
         + '<label class="pls-add alt"><input type="file" accept="image/*" class="pls-legpick" hidden><span>🖼</span><b>From photos</b></label></div>';
+    const brandSel = '<label class="pls-brand">Thread brand <select id="pls-brand"><option value="lucas">Luca-S</option><option value="dmc">DMC</option><option value="anchor">Anchor</option></select></label>';
     if (!Lg || !Lg.pages.length) {
-      body = '<p>Take a photo of the colour key — the table with one symbol per thread. If the key continues on another page, add that one too.</p>' + addBtns(true);
+      body = '<p>Take a photo of the colour key — the table with one symbol per thread. If the key continues on another page, add that one too.</p>' + brandSel + addBtns(true);
     } else {
       const pg = Lg.pages[Lg.cur];
-      const step = !pg.rows ? 'Tap one of the symbols in the <b>symbol on the chart</b> column.' : (!pg.swatches ? '<b>' + pg.rows.length + ' symbols found on this page.</b> Now tap a colour swatch to read the colours — or skip.' : '<b>' + pg.rows.length + ' symbols</b> on this page' + (pg.skippedColours ? ' (no colours)' : ' with colours') + '. Tap a symbol again to redo.');
+      const prompts = { symbol: 'Tap one of the symbols in the <b>symbol on the chart</b> column.', swatch: '<b>' + (pg.rows ? pg.rows.length : 0) + ' symbols found.</b> Now tap a <b>colour swatch</b> — or skip.', code: 'Tap a <b>thread number</b> — or skip.', count: 'Tap a <b>stitch count</b> — or skip.', done: 'Done. Tap a boxed symbol to remove that row; check the readings below.' };
       const tabs = Lg.pages.length > 1 ? '<div class="pls-legtabs">' + Lg.pages.map((p2, i) => '<button type="button" class="' + (i === Lg.cur ? 'on' : '') + '" data-legtab="' + i + '">Key page ' + (i + 1) + (p2.rows ? ' · ' + p2.rows.length : '') + '</button>').join('') + '</div>' : '';
-      body = tabs + '<p>' + step + '</p><div class="pls-legwrap"><canvas id="pls-legcv"></canvas></div>'
-        + '<div class="pls-legbar"><span class="pls-legchips" id="pls-legchips"></span><a href="#" id="pls-legreset">Remove this photo</a>' + (pg.rows && !pg.swatches ? ' · <a href="#" id="pls-legskip">Skip colours</a>' : '') + '</div>'
-        + (pg.rows ? '<p class="pls-legtotal"><b>' + all.length + ' symbols</b> in the key so far.</p>' + addBtns(false) : '');
+      const skip = (pg.step !== 'symbol' && pg.step !== 'done') ? ' · <a href="#" id="pls-legskip">Skip</a>' : '';
+      body = tabs + brandSel + '<p>' + prompts[pg.step] + '</p><div class="pls-legwrap"><canvas id="pls-legcv"></canvas></div>'
+        + '<div class="pls-legbar"><a href="#" id="pls-legreset">Remove this photo</a>' + skip + (pg.rows && pg.step !== 'symbol' ? ' · <a href="#" id="pls-legredo">Start this page again</a>' : '') + '</div>'
+        + (pg.rows ? legendTableHTML(pg) + '<p class="pls-legtotal"><b>' + all.length + ' symbols</b> in the key so far.</p>' + addBtns(false) : '');
     }
     return '<div class="pls-card"><div class="pls-step">2</div><div class="pls-body"><h3>Colour key</h3>' + body + '</div></div>';
   }
+  function legendTableHTML(pg){
+    const brand = (S.legend && S.legend.brand) || 'lucas';
+    return '<div class="pls-legtable"><div class="pls-lt-head"><span></span><span>Symbol</span><span>Thread no.</span><span>Stitches</span><span></span></div>'
+      + pg.templates.map((t, i) => { const sw = pg.swatches && pg.swatches[i]; const code = (pg.codes && pg.codes[i]) || ''; const f = code ? (typeof trkFindBrandCode === 'function' ? trkFindBrandCode(brand, code) : null) : null; const col = f ? f : sw;
+        return '<div class="pls-lt-row" data-i="' + i + '"><span class="pls-lt-sw" style="background:' + (col ? 'rgb(' + col.r + ',' + col.g + ',' + col.b + ')' : 'transparent') + ';' + (col ? '' : 'border-style:dashed') + '"></span><img src="' + t.url + '" alt="">'
+          + '<input class="pls-lt-code" data-i="' + i + '" value="' + esc(code) + '" placeholder="—" inputmode="text"' + (code && !f ? ' title="Not in the ' + brand + ' palette"' : '') + ' style="' + (code && !f ? 'border-color:#e0a060' : '') + '">'
+          + '<input class="pls-lt-count" data-i="' + i + '" value="' + (pg.counts && pg.counts[i] != null ? pg.counts[i] : '') + '" placeholder="—" inputmode="numeric">'
+          + '<button type="button" class="pls-lt-x" data-i="' + i + '" aria-label="Remove row">✕</button></div>'; }).join('') + '</div>';
+  }
   function bindLegend(){
     document.querySelectorAll('.pls-legcam, .pls-legpick').forEach(inp => inp.onchange = e => legendFile(e.target.files[0]));
+    const bs = $('pls-brand'); if (bs) { bs.value = (S.legend && S.legend.brand) || 'lucas'; bs.onchange = () => { if (!S.legend) S.legend = { pages: [], cur: 0 }; S.legend.brand = bs.value; render(); }; }
     const rs = $('pls-legreset'); if (rs) rs.onclick = e => { e.preventDefault(); S.legend.pages.splice(S.legend.cur, 1); S.legend.cur = Math.max(0, S.legend.pages.length - 1); render(); };
-    const sk = $('pls-legskip'); if (sk) sk.onclick = e => { e.preventDefault(); const pg = S.legend.pages[S.legend.cur]; pg.swatches = pg.rows.map(() => null); pg.skippedColours = true; render(); };
+    const sk = $('pls-legskip'); if (sk) sk.onclick = e => { e.preventDefault(); const pg = S.legend.pages[S.legend.cur]; pg.step = LSTEPS[LSTEPS.indexOf(pg.step) + 1] || 'done'; render(); };
+    const rd = $('pls-legredo'); if (rd) rd.onclick = e => { e.preventDefault(); const pg = S.legend.pages[S.legend.cur]; Object.assign(pg, { rows: null, templates: null, swatches: null, codes: null, counts: null, step: 'symbol', swatchX: null, codeX: null, countX: null }); render(); };
     document.querySelectorAll('[data-legtab]').forEach(b => b.onclick = () => { S.legend.cur = +b.getAttribute('data-legtab'); render(); });
     const cv = $('pls-legcv'); if (cv) { drawLegend(cv); cv.onclick = e => legendTap(cv, e); }
-    const chips = $('pls-legchips'); const pg = S.legend && S.legend.pages[S.legend.cur];
-    if (chips && pg && pg.rows) chips.innerHTML = pg.templates.map((t, i) => '<img src="' + t.url + '" alt="" style="' + (pg.swatches && pg.swatches[i] ? 'border-bottom:4px solid rgb(' + pg.swatches[i].r + ',' + pg.swatches[i].g + ',' + pg.swatches[i].b + ')' : '') + '">').join('');
+    const pg = S.legend && S.legend.pages[S.legend.cur];
+    if (pg && pg.rows) {
+      document.querySelectorAll('.pls-lt-code').forEach(inp => inp.onchange = () => { pg.codes = pg.codes || pg.templates.map(() => ''); pg.codes[+inp.getAttribute('data-i')] = inp.value.trim(); render(); });
+      document.querySelectorAll('.pls-lt-count').forEach(inp => inp.onchange = () => { pg.counts = pg.counts || pg.templates.map(() => null); const v = parseInt(inp.value, 10); pg.counts[+inp.getAttribute('data-i')] = isNaN(v) ? null : v; });
+      document.querySelectorAll('.pls-lt-x').forEach(b => b.onclick = () => removeLegendRow(pg, +b.getAttribute('data-i')));
+    }
   }
+  function removeLegendRow(pg, i){ ['rows', 'templates', 'swatches', 'codes', 'counts'].forEach(k => { if (pg[k]) pg[k].splice(i, 1); }); render(); }
   async function legendFile(file){
     if (!file) return;
-    S.statusText = ''; if (!S.legend) S.legend = { pages: [], cur: 0 };
+    S.statusText = ''; if (!S.legend) S.legend = { pages: [], cur: 0, brand: 'lucas' };
     try {
-      const im = await fileToRGBA(file, 1800);
-      S.legend.pages.push({ im, rows: null, templates: null, swatches: null }); S.legend.cur = S.legend.pages.length - 1;
+      const im = await fileToRGBA(file, 1800);   // ~30px glyphs on an A4 key: enough for symbols and digits, and measurably better than full size
+      S.legend.pages.push({ im, rows: null, templates: null, swatches: null, codes: null, counts: null, step: 'symbol' }); S.legend.cur = S.legend.pages.length - 1;
     } catch (e) { S.statusText = 'Could not read that photo'; }
     render();
   }
@@ -34023,23 +34145,34 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     if (!pg.bmp) { const c2 = document.createElement('canvas'); c2.width = pg.im.w; c2.height = pg.im.h; c2.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(pg.im.rgba), pg.im.w, pg.im.h), 0, 0); pg.bmp = c2; }
     g.drawImage(pg.bmp, 0, 0, cv.width, cv.height);
     if (pg.rows) {
-      g.strokeStyle = 'rgba(139,26,43,.9)'; g.lineWidth = 2;
+      g.lineWidth = 2; g.strokeStyle = 'rgba(139,26,43,.9)';
       for (const t of pg.templates) g.strokeRect(t.box[0] * sc - 3, t.box[1] * sc - 3, (t.box[2] - t.box[0] + 7) * sc, (t.box[3] - t.box[1] + 7) * sc);
-      if (pg.swatchX != null) { g.strokeStyle = 'rgba(63,143,95,.9)'; g.strokeRect(pg.swatchX * sc - 10, 0, 20, cv.height); }
+      const col = (x, c) => { if (x == null) return; g.strokeStyle = c; g.strokeRect(x * sc - 10, 0, 20, cv.height); };
+      col(pg.swatchX, 'rgba(63,143,95,.9)'); col(pg.codeX, 'rgba(30,90,200,.8)'); col(pg.countX, 'rgba(200,120,0,.8)');
+      g.strokeStyle = 'rgba(30,90,200,.8)'; (pg.codeBoxes || []).forEach(b => b && g.strokeRect(b[0] * sc - 2, b[1] * sc - 2, (b[2] - b[0] + 5) * sc, (b[3] - b[1] + 5) * sc));
+      g.strokeStyle = 'rgba(200,120,0,.8)'; (pg.countBoxes || []).forEach(b => b && g.strokeRect(b[0] * sc - 2, b[1] * sc - 2, (b[2] - b[0] + 5) * sc, (b[3] - b[1] + 5) * sc));
     }
   }
   function legendTap(cv, e){
     const pg = S.legend && S.legend.pages[S.legend.cur]; if (!pg || !pg.im) return;
     const r = cv.getBoundingClientRect(); const sc = pg.im.w / cv.width;
     const x = Math.round((e.clientX - r.left) * sc), y = Math.round((e.clientY - r.top) * sc);
-    if (!pg.rows || pg.swatches) {
+    // a tap on a detected symbol box removes that row (any step after the first)
+    if (pg.rows && pg.step !== 'symbol') { const hit = pg.templates.findIndex(t => x >= t.box[0] - 6 && x <= t.box[2] + 6 && y >= t.box[1] - 6 && y <= t.box[3] + 6); if (hit >= 0) { removeLegendRow(pg, hit); return; } }
+    if (pg.step === 'symbol') {
       const res = PLScan.legendAnalyse(pg.im.rgba, pg.im.w, pg.im.h, x, y);
       if (!res.ok) { S.statusText = res.reason === 'nosymbol' ? 'Tap exactly on a symbol' : 'Could not find the symbol column there — try another symbol'; render(); return; }
-      pg.rows = res.rows; pg.swatches = null; pg.swatchX = null; pg.skippedColours = false; pg.band = res.band;
+      pg.rows = res.rows; pg.swatches = null; pg.codes = null; pg.counts = null; pg.swatchX = pg.codeX = pg.countX = null; pg.band = res.band;
       pg.templates = res.templates.map(t => Object.assign(t, { url: rgbaToURL({ rgba: t.rgba, w: t.size, h: t.size }) }));
-      S.statusText = '';
-    } else {
-      pg.swatchX = x; pg.swatches = PLScan.legendSwatches(pg.im.rgba, pg.im.w, pg.im.h, pg.rows, x); pg.skippedColours = false;
+      pg.step = 'swatch'; S.statusText = '';
+    } else if (pg.step === 'swatch') {
+      pg.swatchX = x; pg.swatches = PLScan.legendSwatches(pg.im.rgba, pg.im.w, pg.im.h, pg.rows, x); pg.step = 'code';
+    } else if (pg.step === 'code') {
+      const n = PLScan.legendNumbers(pg.im.rgba, pg.im.w, pg.im.h, pg.rows, x, digitTemplates());
+      pg.codeX = x; pg.codes = n.map(v => v && /^[0-9][0-9.+x]*$/.test(v.text) ? v.text.replace(/\.$/, '') : (v ? v.text.replace(/[?]/g, '') : '')); pg.codeBoxes = n.map(v => v && v.box); pg.step = 'count';
+    } else if (pg.step === 'count') {
+      const n = PLScan.legendNumbers(pg.im.rgba, pg.im.w, pg.im.h, pg.rows, x, digitTemplates());
+      pg.countX = x; pg.counts = n.map(v => { if (!v) return null; const m = /^(\d+)/.exec(v.text.replace(/[?.]/g, '')); return m ? parseInt(m[1], 10) : null; }); pg.countBoxes = n.map(v => v && v.box); pg.step = 'done';
     }
     render();
   }
@@ -34075,7 +34208,8 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     const L = layout(); if (!L || !L.complete || S.busy) return;
     S.busy = true; S.statusText = 'Finding the symbols…'; render();
     const ids = L.placed.map(p => p.id);
-    const legAll = legendTemplates(); const Lg = legAll.length >= 2 ? { templates: legAll.map(x => x.t), swatches: legAll.some(x => x.sw) ? legAll.map(x => x.sw) : null } : null;
+    const legAll = legendTemplates(); const Lg = legAll.length >= 2 ? { templates: legAll.map(x => x.t), swatches: legAll.some(x => x.sw) ? legAll.map(x => x.sw) : null, codes: legAll.map(x => x.code || ''), counts: legAll.map(x => x.count) } : null;
+    const brand = (S.legend && S.legend.brand) || 'lucas'; const brandName = { lucas: 'Luca-S', dmc: 'DMC', anchor: 'Anchor' }[brand] || 'Luca-S';
     let r;
     if (Lg) {
       const T = Lg.templates.map((t, i) => ({ id: i, rgba: t.rgba, size: t.size }));
@@ -34101,13 +34235,18 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     const bySymbol = {}, map = {}, sprites = {};
     order.forEach((c, i) => {
       const sym = String.fromCharCode(0xE000 + i); if (!counts[sym]) return;
-      bySymbol[sym] = { nr: i + 1, symbol: sym, code: '', stitches: counts[sym], scanned: true };
-      // colour: the legend swatch when read; a clearly coloured symbol keeps its hue; else neutral grey
-      let rgb = { r: 150, g: 150, b: 150 };
+      const code = Lg && Lg.codes ? (Lg.codes[c.k] || '') : '';
+      const expected = Lg && Lg.counts && Lg.counts[c.k] != null ? Lg.counts[c.k] : null;
+      // the key's printed count is the contract (the tracker's check compares it with what we read)
+      bySymbol[sym] = { nr: i + 1, symbol: sym, code, stitches: expected != null ? expected : counts[sym], scanned: true };
+      // colour: the brand palette by thread number, else the legend swatch, else a hue / neutral grey
+      let rgb = { r: 150, g: 150, b: 150 }, found = null;
+      try { if (code && typeof trkFindBrandCode === 'function') found = trkFindBrandCode(brand, code); } catch (e) {}
       const sw = Lg && Lg.swatches ? Lg.swatches[c.k] : null;
-      if (sw) rgb = { r: sw.r, g: sw.g, b: sw.b };
+      if (found) rgb = { r: found.r, g: found.g, b: found.b };
+      else if (sw) rgb = { r: sw.r, g: sw.g, b: sw.b };
       else if (c.hue >= 0 && c.sat > 0.25) rgb = hsvToRgb(c.hue, 0.65, 0.75);
-      map[sym] = Object.assign({}, rgb, { code: '', stitches: counts[sym], label: 'Symbol ' + (i + 1), scanned: true });
+      map[sym] = Object.assign({}, rgb, { code, stitches: counts[sym], label: code ? brandName + ' ' + code : 'Symbol ' + (i + 1), scanned: true });
       const sp = r.sprites[c.k]; if (sp) { const cv = sp.getContext ? sp : rgbaToCanvas(sp); sprites[sym] = { dark: cv, light: trkTintSprite(cv), url: cv.toDataURL() }; }
     });
     // hand over to the tracker exactly like the other upload formats
