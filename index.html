@@ -5295,7 +5295,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v620';
+window.PATTERNLY_BUILD='v621';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -25493,7 +25493,10 @@ function renderTracker(){
   const dpr=Math.min(window.devicePixelRatio||1, 2);
   const viewW=Math.min(fullW, (wrap?wrap.clientWidth:fullW)||fullW);
   const viewH=Math.min(fullH, (wrap?wrap.clientHeight:fullH)||fullH);
-  const sx=wrap?wrap.scrollLeft:0, sy=wrap?wrap.scrollTop:0;
+  // v621: during a pinch the view origin comes from the gesture, not the scroller
+  // (iOS ignores scroll changes while fingers are down) — so the preview is a real
+  // render at the target size, crisp and complete, not a scaled bitmap.
+  const sx=trkPinchView?trkPinchView.sx:(wrap?wrap.scrollLeft:0), sy=trkPinchView?trkPinchView.sy:(wrap?wrap.scrollTop:0);
 
   trkCanvas.width=Math.max(1,Math.round(viewW*dpr));
   trkCanvas.height=Math.max(1,Math.round(viewH*dpr));
@@ -25878,7 +25881,7 @@ function trkCellAt(pt){
 let trkMarking=null; // true=marking, false=unmarking, null=idle
 let trkMode='pan';   // 'pan': touch scrolls, taps mark · 'mark': touch drags mark
 const trkPtrs=new Map();
-let trkPinch=null, trkTap=null, trkDragScroll=null, trkLongT=null;
+let trkPinch=null, trkTap=null, trkDragScroll=null, trkLongT=null, trkPinchView=null, trkPinchRaf=0;
 let trkLongDone=0; // when a press-and-hold was last handled. One hold can arrive
                    // TWICE — our 500ms timer AND the platform's native
                    // contextmenu event (Android/webview fires it for long-press)
@@ -26127,15 +26130,19 @@ trkCanvas.addEventListener('pointermove', e=>{
       // programmatic scrollLeft/Top while a touch is in progress, which is why the
       // v615 anchoring held on desktop but drifted to the top-left on iPhone.
       if(!trkPinch.mid){
+        const wrap=document.getElementById('trk-canvas-wrap'), r=trkCanvas.getBoundingClientRect(), g=(trkView&&trkView.gut)||0;
         trkPinch.mid={x:(pts[0].x+pts[1].x)/2, y:(pts[0].y+pts[1].y)/2};
-        const r=trkCanvas.getBoundingClientRect();
         trkPinch.origin={x:trkPinch.mid.x-r.left, y:trkPinch.mid.y-r.top};
+        trkPinch.content={x:trkPinch.origin.x+wrap.scrollLeft-g, y:trkPinch.origin.y+wrap.scrollTop-g};   // grid point under the fingers
+        trkPinch.gut=g;
       }
       trkPinch.target=target;
       const k=target/(trkPinch.px||trackerCellPx);
-      trkCanvas.style.transformOrigin=trkPinch.origin.x+'px '+trkPinch.origin.y+'px';
-      trkCanvas.style.transform='scale('+k+')';
+      // view origin that keeps that grid point under the fingers at the new size
+      trkPinchView={sx:trkPinch.gut+trkPinch.content.x*k-trkPinch.origin.x, sy:trkPinch.gut+trkPinch.content.y*k-trkPinch.origin.y};
+      trackerCellPx=target;
       document.getElementById('trk-zoom-label').textContent=Math.round(target/16*100)+'%';
+      if(!trkPinchRaf) trkPinchRaf=requestAnimationFrame(()=>{ trkPinchRaf=0; if(trkPinchView) renderTracker(); });
     }
     return;
   }
@@ -26159,8 +26166,11 @@ trkCanvas.addEventListener('pointermove', e=>{
 // the pinch point. Touch is over now, so the scroll assignment sticks (re-applied
 // once more a moment later for WebKit, which can still swallow the first one).
 function trkPinchCommit(P){
-  trkCanvas.style.transform=''; trkCanvas.style.transformOrigin='';
+  trkPinchView=null; if(trkPinchRaf){ cancelAnimationFrame(trkPinchRaf); trkPinchRaf=0; }
   if(!P || !P.target || !P.mid || trkPageMode){ renderTracker(); return; }
+  // the preview already drew at P.target; go back to the start size so trkZoomTo's
+  // anchor maths (which scales from the current cell size) is exact
+  trackerCellPx=P.px||trackerCellPx;
   const want=trkZoomTo(P.target, P.mid.x, P.mid.y);
   let best=0;
   for(let i=0;i<trkZoomLevels.length;i++)
