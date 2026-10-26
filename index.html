@@ -3337,6 +3337,50 @@ body.tracker-mode{overflow:auto}
 #trk-kits-grid.cat-list .cat-body{flex:1;min-width:0}
 #trk-kits-sort{height:38px;border:1.5px solid #e6d9dd;border-radius:10px;padding:0 .6rem;font-size:.82rem;font-family:inherit;color:#5a4a51;background:#fff;cursor:pointer}
 body.dark #trk-kits-sort{background:#221b2d;border-color:#4a3d55;color:#e7dcea}
+
+/* ── Scan your pattern (v616) ── */
+#trk-scan{max-width:760px;margin:1rem auto 2rem;padding:0 .2rem}
+#trk-scan .pls-head h2{font-family:'DM Serif Display',Georgia,serif;font-size:1.5rem;margin:.3rem 0 .2rem;color:var(--lp-ink,#2b2226)}
+#trk-scan .pls-head p{color:var(--lp-muted,#6a626f);font-size:.9rem;line-height:1.5;margin:0 0 1rem}
+#trk-scan .pls-back{font-size:.85rem;font-weight:700;color:var(--lp-muted,#6a626f);text-decoration:none}
+.pls-card{display:flex;gap:.9rem;background:#fff;border:1.5px solid var(--lp-border,#eadde1);border-radius:16px;padding:1rem 1.1rem;margin:.7rem 0}
+.pls-step{flex:none;width:28px;height:28px;border-radius:50%;background:var(--lp-red,#8B1A2B);color:#fff;font-weight:800;font-size:.85rem;display:flex;align-items:center;justify-content:center}
+.pls-body{flex:1;min-width:0}
+.pls-body h3{margin:.15rem 0 .2rem;font-size:1.02rem;color:var(--lp-ink,#2b2226)}
+.pls-body p{margin:0 0 .6rem;font-size:.84rem;line-height:1.45;color:var(--lp-muted,#6a626f)}
+.pls-size{display:flex;align-items:center;gap:.5rem}
+.pls-size input{width:92px;padding:.5rem .6rem;border:1.5px solid #ddc9ce;border-radius:10px;font-size:1rem;text-align:center}
+.pls-size .pls-unit{font-size:.82rem;color:var(--lp-muted,#6a626f)}
+.pls-pages{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.6rem}
+.pls-page{position:relative;border:1.5px solid #e6d9dd;border-radius:12px;overflow:hidden;background:#faf6f5}
+.pls-page.bad{border-color:#e4a98c}
+.pls-page img,.pls-ph{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;background:#eee}
+.pls-meta{padding:.4rem .5rem .5rem;font-size:.76rem;color:var(--lp-ink,#2b2226)}
+.pls-ok{color:#2E7D32;font-weight:700}.pls-bad{color:#b25f10;font-weight:700;line-height:1.3}
+.pls-warn{color:#b25f10;line-height:1.3;margin-top:.15rem}
+.pls-prog{height:6px;background:#eadde1;border-radius:3px;margin-top:.35rem;overflow:hidden}.pls-prog i{display:block;height:100%;background:var(--lp-red,#8B1A2B);transition:width .3s}
+.pls-x{position:absolute;top:.3rem;right:.3rem;width:24px;height:24px;border-radius:50%;border:0;background:rgba(43,34,38,.65);color:#fff;font-size:.8rem;cursor:pointer}
+.pls-add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.25rem;min-height:150px;border:2px dashed #d9c8ce;border-radius:12px;cursor:pointer;color:var(--lp-ink,#2b2226);font-size:.82rem;background:#fff}
+.pls-add span{font-size:1.5rem}.pls-add.alt{border-style:solid;border-color:#eadde1}
+.pls-map{margin-top:.8rem;display:flex;align-items:center;gap:.9rem;flex-wrap:wrap}
+.pls-mapcap{font-size:.82rem;color:var(--lp-muted,#6a626f);max-width:300px;line-height:1.4}
+.pls-actions{display:flex;align-items:center;gap:1rem;margin:.6rem 0 0;flex-wrap:wrap}
+.pls-actions .btn{padding:.7rem 1.5rem;border-radius:11px}
+.pls-status{font-size:.85rem;color:var(--lp-muted,#6a626f)}
+.pls-legwrap{max-height:62vh;overflow:auto;border:1.5px solid #e6d9dd;border-radius:12px;background:#faf6f5;touch-action:pan-y}
+.pls-legwrap canvas{display:block;cursor:crosshair}
+.pls-legbar{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-top:.5rem;font-size:.82rem}
+.pls-legbar a{color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none}
+.pls-legchips{display:flex;flex-wrap:wrap;gap:3px;flex:1}
+.pls-legchips img{width:26px;height:26px;border:1px solid #e6d9dd;border-radius:5px;background:#fff;box-sizing:border-box}
+.pls-legtabs{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.5rem}
+.pls-legtabs button{border:1.5px solid #e6d9dd;background:#fff;border-radius:999px;padding:.3rem .8rem;font-size:.8rem;font-weight:700;color:var(--lp-ink,#2b2226);cursor:pointer}
+.pls-legtabs button.on{background:var(--lp-red,#8B1A2B);border-color:var(--lp-red,#8B1A2B);color:#fff}
+.pls-legtotal{margin:.6rem 0 .4rem!important;color:var(--lp-ink,#2b2226)!important}
+.pls-note{flex-basis:100%;font-size:.82rem;color:#b25f10;line-height:1.4}
+body.dark .pls-card,body.dark .pls-add{background:#221b2d;border-color:#4a3d55}
+body.dark .pls-page{background:#2a2235;border-color:#4a3d55}
+@media (max-width:520px){.pls-pages{grid-template-columns:repeat(2,1fr)}}
 #tracker-page .trk-cards{display:flex}
 #tracker-page #trk-verify{margin-bottom:1rem}
 #trk-verify .trk-fold summary{list-style:none;cursor:pointer;outline:none;display:block}
@@ -5225,7 +5269,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v615';
+window.PATTERNLY_BUILD='v616';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -5922,6 +5966,11 @@ document.addEventListener('DOMContentLoaded', function(){
         <h3 data-i18n="trk.lucaspatterns">Kit Patterns</h3>
         <p style="color:#6a626f;font-size:.86rem;line-height:1.5;margin:.35rem 0 0" data-i18n="trk.desclucas">Luca-S and partner-brand kits — the chart and colour key are already loaded. Nothing to upload.</p>
       </div>
+      <div class="trk-card" id="trk-src-scan" role="button" tabindex="0">
+        <div class="trk-card-icon">📷</div>
+        <h3 data-i18n="trk.scanpattern">Scan Your Pattern</h3>
+        <p style="color:#6a626f;font-size:.86rem;line-height:1.5;margin:.35rem 0 0" data-i18n="trk.descscan">Take photos of your printed paper chart and we’ll convert it into a pattern you can stitch off screen.</p>
+      </div>
       <div class="trk-card" id="trk-src-other" role="button" tabindex="0">
         <div class="trk-card-icon">📄</div>
         <h3 data-i18n="trk.uploadpattern">Upload Your Pattern</h3>
@@ -5935,6 +5984,8 @@ document.addEventListener('DOMContentLoaded', function(){
         <p style="color:#6a626f;font-size:.86rem;line-height:1.5;margin:.35rem 0 0">Bring back a project from a backup file — chart, colours, symbols and your stitched progress, all in one.</p>
       </div>
     </div>
+    <!-- Scan your pattern (v616): photos of a printed chart → tracker project. Built by plScanOpen(). -->
+    <div id="trk-scan" style="display:none"></div>
     <!-- Saved patterns sit directly under the source chooser: My Luca-S Patterns,
          then My Tracked Patterns. The guide banner drops to the bottom. -->
     <div id="trk-projects" style="display:none">
@@ -20019,11 +20070,12 @@ async function trkChooseSource(kind){
   if(kind==='lucas'){ const _s=document.getElementById('trk-kits-search'); if(_s && _s.value) _s.value=''; }
   // Cap gate FIRST for uploads: if the account is at its synced-pattern cap, just
   // show the modal over the current page — never strip the home layout to do it.
-  if(kind==='other'){
+  if(kind==='other' || kind==='scan'){
     const capInfo = await trkUserPatternCapCheck();
     if(capInfo.full){ trkUserCapModal(capInfo.cap); return; }
   }
   const cards=document.querySelector('#trk-upload .trk-cards:not(#trk-source):not(#trk-newpat)');
+  { const sc=document.getElementById('trk-scan'); if(sc) sc.style.display='none'; }
   const src=document.getElementById('trk-source'), kits=document.getElementById('trk-kits');
   if(src) src.style.display='none';
   { const np=document.getElementById('trk-newpat'); if(np) np.style.display='none';
@@ -20036,6 +20088,13 @@ async function trkChooseSource(kind){
   const home=document.getElementById('trk-back-home');
   if(home) home.style.display='none';   // the step back-link supersedes it here
   trkRenderSaved(false);                // saved list belongs to the chooser only
+  if(kind==='scan'){
+    if(cards) cards.style.display='none';
+    if(ub) ub.style.display='none';
+    if(kits) kits.style.display='none';
+    if(typeof plScanOpen==='function') plScanOpen();
+    return;
+  }
   if(kind==='lucas'){
     if(cards) cards.style.display='none';
     if(ub) ub.style.display='none';
@@ -20583,6 +20642,8 @@ async function trkOpenKit(kit){
   const l=document.getElementById('trk-src-lucas'), o=document.getElementById('trk-src-other');
   if(l) l.addEventListener('click', ()=>trkChooseSource('lucas'));
   if(o) o.addEventListener('click', ()=>trkChooseSource('other'));
+  const sc=document.getElementById('trk-src-scan');
+  if(sc){ sc.addEventListener('click', ()=>trkChooseSource('scan')); sc.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); trkChooseSource('scan'); } }); }
   const backToSource = e => {
     e.preventDefault();
     // Return to the main Stitch Tracker page (chooser on top, saved patterns below).
@@ -21020,6 +21081,7 @@ function trkShowHome(){
   { const np=document.getElementById('trk-newpat'); if(np) np.style.display='';
     const sb=document.getElementById('trk-source-back'); if(sb) sb.style.display='none'; }
   const kits=document.getElementById('trk-kits'); if(kits) kits.style.display='none';
+  { const sc=document.getElementById('trk-scan'); if(sc) sc.style.display='none'; }
   const cards=document.querySelector('#trk-upload .trk-cards:not(#trk-source):not(#trk-newpat)'); if(cards) cards.style.display='none';
   const bh=document.getElementById('trk-back-home'); if(bh) bh.style.display='none';
   const kb=document.getElementById('trk-kits-back'); if(kb) kb.style.display='none';
@@ -24061,7 +24123,7 @@ function trkAskUnknownColours(){
     const pi=pend.findIndex(p=>Math.abs((p.stitches||0)-n)<=2);
     if(pi>=0){ pre=String(pend[pi].code||''); pend.splice(pi,1); }
     rowsHtml+='<div style="display:flex;align-items:center;gap:.6rem;margin:.45rem 0">'
-      +'<span style="width:30px;height:30px;flex:none;display:inline-flex;align-items:center;justify-content:center;border:1px solid #ddc9ce;border-radius:6px;font-family:\'CrossStitch3\',monospace;font-size:19px">'+String(ch).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span>'
+      +'<span style="width:30px;height:30px;flex:none;display:inline-flex;align-items:center;justify-content:center;border:1px solid #ddc9ce;border-radius:6px;font-family:\'CrossStitch3\',monospace;font-size:19px">'+((trackerSprites&&trackerSprites[ch]&&trackerSprites[ch].url)?'<img src="'+trackerSprites[ch].url+'" style="width:24px;height:24px" alt="">':String(ch).replace(/&/g,'&amp;').replace(/</g,'&lt;'))+'</span>'
       +'<span style="flex:none;font-size:.72rem;color:#7d6b72;width:70px">'+n.toLocaleString()+' st</span>'
       +'<input class="unkcol-in" data-sym="'+String(ch).replace(/"/g,'&quot;').replace(/&/g,'&amp;').replace(/</g,'&lt;')+'" placeholder="thread no. or Black/White" value="'+pre.replace(/"/g,'&quot;')+'" '
       +'style="flex:1;min-width:0;padding:.4rem .55rem;border:1.5px solid #ddc9ce;border-radius:8px;font-size:.88rem">'
@@ -32927,6 +32989,1072 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
   }catch(_e){}
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', sync); else sync();
 })();
+</script>
+<script id="plscan-src">
+/* Patternly chart scanner — recognition engine (v1)
+   Pure JavaScript, typed arrays, no libraries. Runs in a Web Worker or the main thread.
+   Pipeline per chart page (mirrors the validated Python prototype):
+     deskew → illumination flatten → grid nodes → lattice growth → mesh → per-cell ink features
+     → match against legend symbol templates (soft Jaccard, colour as a soft cue).
+*/
+(function (root) {
+  'use strict';
+  const PLScan = {};
+
+  // ───────────────────────── image helpers ─────────────────────────
+  function gray(rgba, w, h) {
+    const g = new Float32Array(w * h);
+    for (let i = 0, p = 0; i < g.length; i++, p += 4) g[i] = (rgba[p] * 0.299 + rgba[p + 1] * 0.587 + rgba[p + 2] * 0.114);
+    return g;
+  }
+  // box blur, separable, radius r (window 2r+1), edge-clamped
+  function boxBlur(src, w, h, r, dst, tmp) {
+    dst = dst || new Float32Array(w * h); tmp = tmp || new Float32Array(w * h);
+    const n = 2 * r + 1;
+    for (let y = 0; y < h; y++) {
+      const o = y * w; let s = 0;
+      for (let x = -r; x <= r; x++) s += src[o + Math.min(w - 1, Math.max(0, x))];
+      for (let x = 0; x < w; x++) {
+        tmp[o + x] = s / n;
+        s += src[o + Math.min(w - 1, x + r + 1)] - src[o + Math.max(0, x - r)];
+      }
+    }
+    for (let x = 0; x < w; x++) {
+      let s = 0;
+      for (let y = -r; y <= r; y++) s += tmp[Math.min(h - 1, Math.max(0, y)) * w + x];
+      for (let y = 0; y < h; y++) {
+        dst[y * w + x] = s / n;
+        s += tmp[Math.min(h - 1, y + r + 1) * w + x] - tmp[Math.max(0, y - r) * w + x];
+      }
+    }
+    return dst;
+  }
+  // ~gaussian via 3 box blurs
+  function gaussBlur(src, w, h, sigma) {
+    const r = Math.max(1, Math.round(Math.sqrt(sigma * sigma * 12 / 3 + 1) / 2 - 0.5));
+    let a = boxBlur(src, w, h, r); const t = new Float32Array(w * h);
+    a = boxBlur(a, w, h, r, undefined, t); a = boxBlur(a, w, h, r, undefined, t);
+    return a;
+  }
+  // illumination flatten: pixel / local background * 255
+  function flatten(g, w, h) {
+    const bg = gaussBlur(g, w, h, 20), out = new Float32Array(w * h);
+    for (let i = 0; i < out.length; i++) out[i] = Math.min(255, g[i] / (bg[i] + 1) * 255);
+    return out;
+  }
+  // adaptive threshold: ink where flat < localMean - C
+  function adaptiveBin(flat, w, h, win, C) {
+    const m = gaussBlur(flat, w, h, Math.max(2, win / 6)), b = new Uint8Array(w * h);
+    for (let i = 0; i < b.length; i++) b[i] = flat[i] < m[i] - C ? 1 : 0;
+    return b;
+  }
+  // 1-D morphological opening along an axis (erode then dilate with a 1×len line), O(N)
+  function lineOpen(bin, w, h, len, horizontal) {
+    const er = new Uint8Array(w * h), out = new Uint8Array(w * h), r = len >> 1;
+    const lines = horizontal ? h : w, L = horizontal ? w : h, step = horizontal ? 1 : w;
+    for (let l = 0; l < lines; l++) {
+      const base = horizontal ? l * w : l;
+      let s = 0; for (let k = 0; k < Math.min(L, len); k++) s += bin[base + k * step];
+      for (let k = 0; k + len <= L; k++) { if (s === len) er[base + (k + r) * step] = 1; if (k + len < L) s += bin[base + (k + len) * step] - bin[base + k * step]; }
+      s = 0; for (let k = 0; k < Math.min(L, len); k++) s += er[base + k * step];
+      for (let k = 0; k + len <= L; k++) { if (s > 0) out[base + (k + r) * step] = 1; if (k + len < L) s += er[base + (k + len) * step] - er[base + k * step]; }
+    }
+    return out;
+  }
+  function dilate3(bin, w, h) {
+    const o = new Uint8Array(w * h);
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      if (bin[i] || bin[i - 1] || bin[i + 1] || bin[i - w] || bin[i + w] || bin[i - w - 1] || bin[i - w + 1] || bin[i + w - 1] || bin[i + w + 1]) o[i] = 1;
+    }
+    return o;
+  }
+  function rotateRGBA(rgba, w, h, deg) {
+    // rotate about centre, white fill, bilinear
+    const out = new Uint8ClampedArray(w * h * 4); out.fill(255);
+    const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a), cx = w / 2, cy = h / 2;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const dx = x - cx, dy = y - cy;
+      const sx = c * dx - s * dy + cx, sy = s * dx + c * dy + cy;
+      const x0 = Math.floor(sx), y0 = Math.floor(sy);
+      if (x0 < 0 || y0 < 0 || x0 >= w - 1 || y0 >= h - 1) continue;
+      const fx = sx - x0, fy = sy - y0, o = (y * w + x) * 4, i00 = (y0 * w + x0) * 4, i01 = i00 + 4, i10 = i00 + w * 4, i11 = i10 + 4;
+      for (let k = 0; k < 3; k++) out[o + k] = (rgba[i00 + k] * (1 - fx) + rgba[i01 + k] * fx) * (1 - fy) + (rgba[i10 + k] * (1 - fx) + rgba[i11 + k] * fx) * fy;
+      out[o + 3] = 255;
+    }
+    return out;
+  }
+  function downscale(rgba, w, h, f) { // integer factor; darkest-pixel pooling so 1px grid lines survive
+    const W = Math.floor(w / f), H = Math.floor(h / f), out = new Uint8ClampedArray(W * H * 4);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let r = 255, g = 255, b = 255, best = 1e9;
+      for (let yy = 0; yy < f; yy++) for (let xx = 0; xx < f; xx++) { const i = ((y * f + yy) * w + x * f + xx) * 4, l = rgba[i] + rgba[i + 1] + rgba[i + 2]; if (l < best) { best = l; r = rgba[i]; g = rgba[i + 1]; b = rgba[i + 2]; } }
+      const o = (y * W + x) * 4; out[o] = r; out[o + 1] = g; out[o + 2] = b; out[o + 3] = 255;
+    }
+    return { rgba: out, w: W, h: H };
+  }
+
+  // ───────────────────────── skew estimate ─────────────────────────
+  // Project the ink image along near-vertical directions; the true grid angle gives the
+  // sharpest (highest-variance) column profile. Evaluated on a centre crop.
+  function estimateSkew(bin, w, h) {
+    const cw = Math.min(w, 700), ch = Math.min(h, 700), x0 = (w - cw) >> 1, y0 = (h - ch) >> 1;
+    let best = 0, bestV = -1;
+    for (let deg = -8; deg <= 8; deg += 0.5) {
+      const t = Math.tan(deg * Math.PI / 180), prof = new Float32Array(cw + 2 * ch);
+      for (let y = 0; y < ch; y += 2) {
+        const sh = Math.round((y - ch / 2) * t) + ch, o = (y0 + y) * w + x0;
+        for (let x = 0; x < cw; x++) prof[x + sh] += bin[o + x];
+      }
+      let m = 0, n = 0; for (let i = 0; i < prof.length; i++) if (prof[i]) { m += prof[i]; n++; }
+      m /= Math.max(n, 1); let v = 0; for (let i = 0; i < prof.length; i++) if (prof[i]) v += (prof[i] - m) * (prof[i] - m);
+      if (v > bestV) { bestV = v; best = deg; }
+    }
+    return best;
+  }
+
+  // ───────────────────────── pitch (autocorrelation) ─────────────────────────
+  function pitchOf(prof, lo, hi) {
+    let m = 0; for (let i = 0; i < prof.length; i++) m += prof[i]; m /= prof.length;
+    const p = new Float32Array(prof.length); for (let i = 0; i < p.length; i++) p[i] = prof[i] - m;
+    const ac = new Float32Array(hi + 2); let mx = -Infinity;
+    for (let k = lo - 1; k <= hi + 1; k++) { let s = 0; for (let i = 0; i + k < p.length; i++) s += p[i] * p[i + k]; ac[k] = s; if (k >= lo && k <= hi && s > mx) mx = s; }
+    // fundamental, not a harmonic: the smallest local maximum that reaches 80% of the best peak
+    let bestK = -1;
+    for (let k = lo; k <= hi; k++) if (ac[k] >= 0.8 * mx && ac[k] >= ac[k - 1] && ac[k] >= ac[k + 1]) { bestK = k; break; }
+    if (bestK < 0) for (let k = lo; k <= hi; k++) if (ac[k] === mx) bestK = k;
+    const y0 = ac[bestK - 1], y1 = ac[bestK], y2 = ac[bestK + 1], den = y0 - 2 * y1 + y2;
+    return bestK + (den ? 0.5 * (y0 - y2) / den : 0);
+  }
+
+  // ───────────────────────── grid detection ─────────────────────────
+  // rgba: already deskewed. Returns mesh in this image's pixel coordinates.
+  function detectGrid(rgba, w, h, opts) {
+    opts = opts || {};
+    const g = gray(rgba, w, h), flat = flatten(g, w, h), bin = adaptiveBin(flat, w, h, 25, 10);
+    // pitch
+    const K = 36, hor = lineOpen(bin, w, h, K, true), ver = lineOpen(bin, w, h, K, false);
+    const cy = h >> 1, cx = w >> 1;
+    const profX = new Float32Array(w), profY = new Float32Array(h);
+    for (let y = cy - (h / 5 | 0); y < cy + (h / 5 | 0); y++) for (let x = 0; x < w; x++) profX[x] += ver[y * w + x];
+    for (let x = cx - (w / 5 | 0); x < cx + (w / 5 | 0); x++) for (let y = 0; y < h; y++) profY[y] += hor[y * w + x];
+    const px = pitchOf(profX, 10, 120), py = pitchOf(profY, 10, 120), pitch = (px + py) / 2;
+    // nodes: crossings of horizontal and vertical runs ≥ 0.9 pitch
+    const Kc = Math.max(8, Math.round(0.9 * pitch));
+    const hc = dilate3(lineOpen(bin, w, h, Kc, true), w, h), vc = dilate3(lineOpen(bin, w, h, Kc, false), w, h);
+    const cross = new Float32Array(w * h); for (let i = 0; i < cross.length; i++) cross[i] = hc[i] & vc[i];
+    const resp = gaussBlur(cross, w, h, 1.5);
+    let mx = 0; for (let i = 0; i < resp.length; i++) if (resp[i] > mx) mx = resp[i];
+    const r = Math.max(3, Math.round(0.45 * pitch)), thr = 0.15 * mx;
+    const nodes = []; // [x, y, score]
+    for (let y = r; y < h - r; y++) for (let x = r; x < w - r; x++) {
+      const v = resp[y * w + x]; if (v <= thr) continue;
+      let isMax = true;
+      for (let dy = -r; dy <= r && isMax; dy++) for (let dx = -r; dx <= r; dx++) {
+        if (dx * dx + dy * dy > r * r) continue;
+        const u = resp[(y + dy) * w + x + dx];
+        if (u > v || (u === v && (dy < 0 || (dy === 0 && dx < 0)))) { isMax = false; break; }
+      }
+      if (!isMax) continue;
+      // centroid refine on the cross mask
+      let sx = 0, sy = 0, sw = 0;
+      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) { const c = cross[(y + dy) * w + x + dx]; sx += (x + dx) * c; sy += (y + dy) * c; sw += c; }
+      nodes.push(sw > 0 ? [sx / sw, sy / sw, v] : [x, y, v]);
+    }
+    // spatial buckets
+    const bs = Math.max(8, pitch), bw = Math.ceil(w / bs) + 1, buckets = new Map();
+    const bkey = (x, y) => (Math.floor(y / bs) * bw + Math.floor(x / bs));
+    nodes.forEach((n, i) => { const k = bkey(n[0], n[1]); (buckets.get(k) || buckets.set(k, []).get(k)).push(i); });
+    const used = new Uint8Array(nodes.length);
+    function nearest(ex, ey, tol) {
+      let best = -1, bd = tol * tol;
+      const bx0 = Math.floor((ex - tol) / bs), bx1 = Math.floor((ex + tol) / bs), by0 = Math.floor((ey - tol) / bs), by1 = Math.floor((ey + tol) / bs);
+      for (let by = by0; by <= by1; by++) for (let bx = bx0; bx <= bx1; bx++) {
+        const arr = buckets.get(by * bw + bx); if (!arr) continue;
+        for (const i of arr) { if (used[i]) continue; const d = (nodes[i][0] - ex) ** 2 + (nodes[i][1] - ey) ** 2; if (d < bd) { bd = d; best = i; } }
+      }
+      return best;
+    }
+    // seed: strongest node near centre
+    let seed = -1, sv = -1; const rad = 0.25 * Math.min(w, h);
+    nodes.forEach((n, i) => { if (Math.hypot(n[0] - cx, n[1] - cy) < rad && n[2] > sv) { sv = n[2]; seed = i; } });
+    if (seed < 0) nodes.forEach((n, i) => { if (n[2] > sv) { sv = n[2]; seed = i; } });
+    if (seed < 0) { if (opts.debug) console.log('plscan: no nodes', 'pitch', px, py); return null; }
+    const lat = new Map(); const key = (i, j) => (i + 32768) * 65536 + (j + 32768);
+    const put = (i, j, x, y, real, vr) => lat.set(key(i, j), { i, j, x, y, real, vr });
+    put(0, 0, nodes[seed][0], nodes[seed][1], true, 0); used[seed] = 1;
+    const q = [[0, 0]]; let qh = 0; const tol = 0.25 * pitch, MAXV = 2;
+    const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    while (qh < q.length) {
+      const [i, j] = q[qh++]; const cur = lat.get(key(i, j));
+      for (const [di, dj] of DIRS) {
+        const ni = i + di, nj = j + dj; if (lat.has(key(ni, nj))) continue;
+        let vx = di * px, vy = dj * py;
+        const opp = lat.get(key(i - di, j - dj));
+        // follow the local step (curvature of a folded page, perspective) whenever it is sane
+        if (opp && (opp.real || cur.real)) { const ox = cur.x - opp.x, oy = cur.y - opp.y; if (Math.hypot(ox - vx, oy - vy) < 0.25 * pitch) { vx = ox; vy = oy; } }
+        const ex = cur.x + vx, ey = cur.y + vy;
+        if (ex < 0 || ey < 0 || ex >= w || ey >= h) continue;
+        const k = nearest(ex, ey, tol);
+        if (k >= 0) { put(ni, nj, nodes[k][0], nodes[k][1], true, 0); used[k] = 1; q.splice(qh, 0, [ni, nj]); }
+        else if (cur.vr + 1 <= MAXV) { put(ni, nj, ex, ey, false, cur.vr + 1); q.push([ni, nj]); }
+      }
+    }
+    // extent: trim rows/cols with < 50% real nodes
+    let i0 = Infinity, i1 = -Infinity, j0 = Infinity, j1 = -Infinity;
+    for (const n of lat.values()) { if (n.i < i0) i0 = n.i; if (n.i > i1) i1 = n.i; if (n.j < j0) j0 = n.j; if (n.j > j1) j1 = n.j; }
+    // a lattice line is part of the chart if there is ink along it between its nodes
+    // (the outer border is a T-junction line with few detected crossings, so node
+    // counts alone would trim it; phantom lines outside the chart have no ink at all)
+    const S2 = Math.max(2, Math.round(pitch / 3));
+    const lineSupport = (axis, v) => {
+      let on = 0, n = 0;
+      for (const nd of lat.values()) {
+        if ((axis ? nd.j : nd.i) !== v) continue;
+        const x = Math.round(nd.x), y = Math.round(nd.y); if (x < 2 || y < 2 || x >= w - 2 || y >= h - 2) continue;
+        // sample the line through this node, perpendicular to the trim axis, tolerant ±1px
+        for (let d = -S2; d <= S2; d++) {
+          let hit = 0;
+          if (axis === 0) { const yy = y + d; if (yy < 0 || yy >= h) continue; hit = bin[yy * w + x] | bin[yy * w + x - 1] | bin[yy * w + x + 1]; }
+          else { const xx = x + d; if (xx < 0 || xx >= w) continue; hit = bin[y * w + xx] | bin[(y - 1) * w + xx] | bin[(y + 1) * w + xx]; }
+          on += hit; n++;
+        }
+      }
+      return n ? on / n : 0;
+    };
+    const realFrac = (axis, v) => { let n = 0, rr = 0; for (const nd of lat.values()) if ((axis ? nd.j : nd.i) === v) { n++; if (nd.real) rr++; } return n ? rr / n : 0; };
+    const keepLine = (axis, v) => realFrac(axis, v) >= 0.3 && lineSupport(axis, v) >= 0.6;
+    // the chart is the longest contiguous run of kept lines (ruler numbers / text outside it
+    // can form a few line-like rows separated from the chart by a gap)
+    const longestRun = (axis, lo, hi) => {
+      const ok = []; for (let v = lo; v <= hi; v++) ok.push(keepLine(axis, v));
+      // bridge gaps of up to 2 weak lines inside the chart (fold, shadow, backstitch)
+      for (let a = 0; a < ok.length; a++) if (!ok[a]) { let b = a; while (b < ok.length && !ok[b]) b++; if (a > 0 && b < ok.length && b - a <= 2) for (let k = a; k < b; k++) ok[k] = true; a = b; }
+      let bs = 0, be = -1, cs = null;
+      for (let v = 0; v <= ok.length; v++) { const o = v < ok.length && ok[v]; if (o && cs === null) cs = v; if (!o && cs !== null) { if (v - 1 - cs > be - bs) { bs = cs; be = v - 1; } cs = null; } }
+      return [lo + bs, lo + be];
+    };
+    [i0, i1] = longestRun(0, i0, i1); [j0, j1] = longestRun(1, j0, j1);
+    let cols = i1 - i0, rows = j1 - j0;
+    if (opts.debug) console.log('plscan: pitch', px.toFixed(2), py.toFixed(2), 'nodes', nodes.length, 'lattice', lat.size, 'extent', cols, rows, 'img', w, h);
+    if (cols < 5 || rows < 5) { if (opts.debug) console.log('plscan: lattice too small', cols, rows, 'nodes', nodes.length, 'pitch', px, py); return null; }
+    let W1 = cols + 1, H1 = rows + 1;
+    let X = new Float32Array(W1 * H1).fill(NaN), Y = new Float32Array(W1 * H1).fill(NaN); let realN = 0;
+    let realMask = new Uint8Array(W1 * H1);
+    for (const n of lat.values()) if (n.i >= i0 && n.i <= i1 && n.j >= j0 && n.j <= j1) { const o = (n.j - j0) * W1 + (n.i - i0); X[o] = n.x; Y[o] = n.y; if (n.real) { realN++; realMask[o] = 1; } }
+    fillMesh(X, W1, H1); fillMesh(Y, W1, H1);
+    // index repair: a lattice column/row that is ~2 cells wide hides a skipped line, one that is
+    // ~half a cell wide is a duplicate (both happen where a fold compresses the grid)
+    // snap first so duplicates collapse onto the same line, then repair, snap the inserted lines, repair again
+    for (let it = 0; it < 3; it++) {
+      refineNodes(bin, w, h, X, Y, W1, H1, pitch);
+      const rep = repairMesh(X, Y, W1, H1, pitch); const changed = rep.W1 !== W1 || rep.H1 !== H1;
+      X = rep.X; Y = rep.Y; W1 = rep.W1; H1 = rep.H1;
+      if (!changed) break;
+    }
+    if (W1 !== cols + 1 || H1 !== rows + 1) { if (opts.debug) console.log('plscan: mesh repaired', cols, rows, '->', W1 - 1, H1 - 1); }
+    cols = W1 - 1; rows = H1 - 1;
+    // bold phase from ink thickness along each line
+    const tx = new Float32Array(W1), ty = new Float32Array(H1);
+    for (let c = 0; c < W1; c++) { let tot = 0, n = 0; for (let rr = 0; rr < rows; rr++) { const x = Math.round((X[rr * W1 + c] + X[(rr + 1) * W1 + c]) / 2), y = Math.round((Y[rr * W1 + c] + Y[(rr + 1) * W1 + c]) / 2); if (x >= 4 && x < w - 4 && y >= 0 && y < h) { for (let d = -4; d <= 4; d++) tot += bin[y * w + x + d]; n++; } } tx[c] = tot / Math.max(n, 1); }
+    for (let rr = 0; rr < H1; rr++) { let tot = 0, n = 0; for (let c = 0; c < cols; c++) { const x = Math.round((X[rr * W1 + c] + X[rr * W1 + c + 1]) / 2), y = Math.round((Y[rr * W1 + c] + Y[rr * W1 + c + 1]) / 2); if (y >= 4 && y < h - 4 && x >= 0 && x < w) { for (let d = -4; d <= 4; d++) tot += bin[(y + d) * w + x]; n++; } } ty[rr] = tot / Math.max(n, 1); }
+    const phase = t => { if (t.length < 11) return { ph: 0, margin: 0 }; let best = null; for (let ph = 0; ph < 10; ph++) { let a = 0, an = 0, b = 0, bn = 0; for (let k = 0; k < t.length; k++) { if (k % 10 === ph) { a += t[k]; an++; } else { b += t[k]; bn++; } } const m = a / Math.max(an, 1) - b / Math.max(bn, 1); if (!best || m > best.margin) best = { ph, margin: m }; } return best; };
+    const phx = phase(tx), phy = phase(ty);
+    if (realMask.length !== W1 * H1) { const rm = new Uint8Array(W1 * H1); realMask = rm; }
+    return { cols, rows, xs: X, ys: Y, realMask, pitch: [px, py], realFrac: realN / (W1 * H1), nodes: nodes.length,
+             colPhase: phx.ph, colPhaseMargin: phx.margin, rowPhase: phy.ph, rowPhaseMargin: phy.margin };
+  }
+  function repairMesh(X, Y, W1, H1, pitch) {
+    for (let pass = 0; pass < 6; pass++) {
+      // columns: mean spacing to the next column
+      let changed = false;
+      const sp = []; for (let c = 0; c + 1 < W1; c++) { let s = 0; for (let r = 0; r < H1; r++) s += X[r * W1 + c + 1] - X[r * W1 + c]; sp.push(s / H1); }
+      const localMed = (arr, i) => { const win = []; for (let k = Math.max(0, i - 6); k <= Math.min(arr.length - 1, i + 6); k++) if (k !== i) win.push(arr[k]); return median(win); };
+      for (let c = 0; c < sp.length; c++) {
+        const med = localMed(sp, c);
+        if (sp[c] > 1.5 * med) { // insert a column after c
+          const nW = W1 + 1, nX = new Float32Array(nW * H1), nY = new Float32Array(nW * H1);
+          for (let r = 0; r < H1; r++) { for (let k = 0; k <= c; k++) { nX[r * nW + k] = X[r * W1 + k]; nY[r * nW + k] = Y[r * W1 + k]; } nX[r * nW + c + 1] = (X[r * W1 + c] + X[r * W1 + c + 1]) / 2; nY[r * nW + c + 1] = (Y[r * W1 + c] + Y[r * W1 + c + 1]) / 2; for (let k = c + 1; k < W1; k++) { nX[r * nW + k + 1] = X[r * W1 + k]; nY[r * nW + k + 1] = Y[r * W1 + k]; } }
+          X = nX; Y = nY; W1 = nW; changed = true; break;
+        }
+        if (sp[c] < 0.45 * med && W1 > 6) { // drop column c+1 (merge into c)
+          const nW = W1 - 1, nX = new Float32Array(nW * H1), nY = new Float32Array(nW * H1);
+          for (let r = 0; r < H1; r++) { for (let k = 0; k <= c; k++) { nX[r * nW + k] = X[r * W1 + k]; nY[r * nW + k] = Y[r * W1 + k]; } for (let k = c + 2; k < W1; k++) { nX[r * nW + k - 1] = X[r * W1 + k]; nY[r * nW + k - 1] = Y[r * W1 + k]; } }
+          X = nX; Y = nY; W1 = nW; changed = true; break;
+        }
+      }
+      if (changed) continue;
+      // rows
+      const spr = []; for (let r = 0; r + 1 < H1; r++) { let s = 0; for (let c = 0; c < W1; c++) s += Y[(r + 1) * W1 + c] - Y[r * W1 + c]; spr.push(s / W1); }
+      for (let r = 0; r < spr.length; r++) {
+        const medr = localMed(spr, r);
+        if (spr[r] > 1.5 * medr) {
+          const nH = H1 + 1, nX = new Float32Array(W1 * nH), nY = new Float32Array(W1 * nH);
+          nX.set(X.subarray(0, (r + 1) * W1), 0); nY.set(Y.subarray(0, (r + 1) * W1), 0);
+          for (let c = 0; c < W1; c++) { nX[(r + 1) * W1 + c] = (X[r * W1 + c] + X[(r + 1) * W1 + c]) / 2; nY[(r + 1) * W1 + c] = (Y[r * W1 + c] + Y[(r + 1) * W1 + c]) / 2; }
+          nX.set(X.subarray((r + 1) * W1), (r + 2) * W1); nY.set(Y.subarray((r + 1) * W1), (r + 2) * W1);
+          X = nX; Y = nY; H1 = nH; changed = true; break;
+        }
+        if (spr[r] < 0.45 * medr && H1 > 6) {
+          const nH = H1 - 1, nX = new Float32Array(W1 * nH), nY = new Float32Array(W1 * nH);
+          nX.set(X.subarray(0, (r + 1) * W1), 0); nY.set(Y.subarray(0, (r + 1) * W1), 0);
+          nX.set(X.subarray((r + 2) * W1), (r + 1) * W1); nY.set(Y.subarray((r + 2) * W1), (r + 1) * W1);
+          X = nX; Y = nY; H1 = nH; changed = true; break;
+        }
+      }
+      if (!changed) break;
+    }
+    return { X, Y, W1, H1 };
+  }
+  function median(a) { const b = Float32Array.from(a).sort(); return b.length ? b[b.length >> 1] : 0; }
+  // snap every mesh node onto the actual grid-line crossing nearby. For each candidate offset
+  // the score is the fraction of ink pixels along a span of ±pitch (two cells): a grid line is
+  // ink along the whole span, a glyph edge only inside one cell, so lines win. Fixes lattice drift.
+  function refineNodes(bin, w, h, X, Y, W1, H1, pitch) {
+    const R = Math.max(3, Math.round(0.2 * pitch)), S = Math.round(pitch);
+    const prof = new Float32Array(2 * R + 1);
+    const pick = () => { let mx = -1, mi = -1; for (let i = 0; i < prof.length; i++) if (prof[i] > mx) { mx = prof[i]; mi = i; } if (mx < 0.6 || mi <= 0 || mi >= 2 * R) return null; const a = prof[mi - 1], b2 = prof[mi], c = prof[mi + 1], den = a - 2 * b2 + c; return (mi - R) + (den ? 0.5 * (a - c) / den : 0); };
+    for (let o = 0; o < W1 * H1; o++) {
+      const x = Math.round(X[o]), y = Math.round(Y[o]);
+      if (x < R + 1 || y < R + 1 || x >= w - R - 1 || y >= h - R - 1) continue;
+      for (let d = -R; d <= R; d++) { let s = 0, n = 0; for (let yy = y - S; yy <= y + S; yy += 1) { if (yy < 0 || yy >= h) continue; s += bin[yy * w + x + d]; n++; } prof[d + R] = s / n; }
+      const dx = pick();
+      for (let d = -R; d <= R; d++) { let s = 0, n = 0; for (let xx = x - S; xx <= x + S; xx += 1) { if (xx < 0 || xx >= w) continue; s += bin[(y + d) * w + xx]; n++; } prof[d + R] = s / n; }
+      const dy = pick();
+      if (dx !== null) X[o] = x + dx;
+      if (dy !== null) Y[o] = y + dy;
+    }
+  }
+  function interpExtrap(v) { // in place, NaN -> linear interpolation, linear extrapolation at ends
+    const idx = []; for (let i = 0; i < v.length; i++) if (!Number.isNaN(v[i])) idx.push(i);
+    if (idx.length < 2) return;
+    for (let k = 0; k + 1 < idx.length; k++) { const a = idx[k], b = idx[k + 1]; for (let i = a + 1; i < b; i++) v[i] = v[a] + (v[b] - v[a]) * (i - a) / (b - a); }
+    const s0 = (v[idx[1]] - v[idx[0]]) / (idx[1] - idx[0]), s1 = (v[idx[idx.length - 1]] - v[idx[idx.length - 2]]) / (idx[idx.length - 1] - idx[idx.length - 2]);
+    for (let i = 0; i < idx[0]; i++) v[i] = v[idx[0]] + (i - idx[0]) * s0;
+    for (let i = idx[idx.length - 1] + 1; i < v.length; i++) v[i] = v[idx[idx.length - 1]] + (i - idx[idx.length - 1]) * s1;
+  }
+  function fillMesh(A, W1, H1) {
+    for (let pass = 0; pass < 2; pass++) {
+      for (let r = 0; r < H1; r++) { const row = A.subarray(r * W1, (r + 1) * W1); interpExtrap(row); }
+      const col = new Float32Array(H1);
+      for (let c = 0; c < W1; c++) { for (let r = 0; r < H1; r++) col[r] = A[r * W1 + c]; interpExtrap(col); for (let r = 0; r < H1; r++) A[r * W1 + c] = col[r]; }
+    }
+  }
+
+  // ───────────────────────── cells & features ─────────────────────────
+  const CS = 40, M = 3, F = 20, IN = CS - 2 * M;
+  // bicubic (Catmull-Rom) sample of a quad into CS×CS RGB floats — keeps thin strokes crisp
+  function cubicW(t) { const a = -0.5, at = Math.abs(t); return at < 1 ? (a + 2) * at * at * at - (a + 3) * at * at + 1 : at < 2 ? a * at * at * at - 5 * a * at * at + 8 * a * at - 4 * a : 0; }
+  function cutCell(rgba, w, h, q) { // q = [x0,y0, x1,y1, x2,y2, x3,y3] tl,tr,br,bl
+    const out = new Float32Array(CS * CS * 3), wx = new Float32Array(4), wy = new Float32Array(4);
+    for (let v = 0; v < CS; v++) for (let u = 0; u < CS; u++) {
+      const a = (u + 0.5) / CS, b = (v + 0.5) / CS;
+      const x = (1 - a) * (1 - b) * q[0] + a * (1 - b) * q[2] + a * b * q[4] + (1 - a) * b * q[6] - 0.5;
+      const y = (1 - a) * (1 - b) * q[1] + a * (1 - b) * q[3] + a * b * q[5] + (1 - a) * b * q[7] - 0.5;
+      const x0 = Math.floor(x), y0 = Math.floor(y), o = (v * CS + u) * 3;
+      if (x0 < 1 || y0 < 1 || x0 >= w - 2 || y0 >= h - 2) { out[o] = out[o + 1] = out[o + 2] = 255; continue; }
+      const fx = x - x0, fy = y - y0;
+      for (let k = 0; k < 4; k++) { wx[k] = cubicW(fx - (k - 1)); wy[k] = cubicW(fy - (k - 1)); }
+      let r = 0, g = 0, bb = 0;
+      for (let j = 0; j < 4; j++) { const row = (y0 - 1 + j) * w; let rr = 0, gg = 0, b2 = 0; for (let i = 0; i < 4; i++) { const idx = (row + x0 - 1 + i) * 4, wgt = wx[i]; rr += rgba[idx] * wgt; gg += rgba[idx + 1] * wgt; b2 += rgba[idx + 2] * wgt; } r += rr * wy[j]; g += gg * wy[j]; bb += b2 * wy[j]; }
+      out[o] = Math.min(255, Math.max(0, r)); out[o + 1] = Math.min(255, Math.max(0, g)); out[o + 2] = Math.min(255, Math.max(0, bb));
+    }
+    return out;
+  }
+  const _hist = new Int32Array(256);
+  function percentile(arr, p, stride, off) { // values in 0..255; optional stride/offset for interleaved RGB
+    stride = stride || 1; off = off || 0; _hist.fill(0); let n = 0;
+    for (let i = off; i < arr.length; i += stride) { _hist[Math.max(0, Math.min(255, arr[i] | 0))]++; n++; }
+    const target = Math.floor(p / 100 * n); let acc = 0;
+    for (let v = 0; v < 256; v++) { acc += _hist[v]; if (acc > target) return v; }
+    return 255;
+  }
+  // grid-line intrusion from each border (contiguous rows/cols dark across ≥92% of the width, within 4px)
+  function lineMargins(cell) {
+    const g = new Float32Array(CS * CS); for (let i = 0; i < g.length; i++) g[i] = (cell[i * 3] + cell[i * 3 + 1] + cell[i * 3 + 2]) / 3;
+    const paper = percentile(g, 92), dk = percentile(g, 5), thr = paper - 0.45 * (paper - dk);
+    const rows = new Float32Array(CS), cols = new Float32Array(CS);
+    for (let y = 0; y < CS; y++) for (let x = 0; x < CS; x++) if (g[y * CS + x] < thr) { rows[y]++; cols[x]++; }
+    // a grid line may sit up to ~6px inside the cut (mesh error): wipe from the border to the last full-width dark row
+    const run = (prof, rev) => { let k = 0; for (let q = 0; q < 7; q++) if (prof[rev ? CS - 1 - q : q] / CS > 0.92) k = q + 1; return k; };
+    return [run(rows, false), run(rows, true), run(cols, false), run(cols, true)];
+  }
+  // ink maps of the inner region: {ink, inkBlack, col, frac}
+  function inkMask(cell) {
+    const [t, b, l, r] = lineMargins(cell);
+    const g = new Float32Array(IN * IN), rgb = new Float32Array(IN * IN * 3);
+    for (let y = 0; y < IN; y++) for (let x = 0; x < IN; x++) {
+      const s = ((y + M) * CS + x + M) * 3, d = y * IN + x;
+      rgb[d * 3] = cell[s]; rgb[d * 3 + 1] = cell[s + 1]; rgb[d * 3 + 2] = cell[s + 2];
+      g[d] = (cell[s] + cell[s + 1] + cell[s + 2]) / 3;
+    }
+    const paper = percentile(g, 92), dark = percentile(g, 3), span = Math.max(paper - dark, 25);
+    const pr = percentile(rgb, 92, 3, 0) + 1, pg = percentile(rgb, 92, 3, 1) + 1, pb = percentile(rgb, 92, 3, 2) + 1;
+    const ink = new Float32Array(IN * IN), inkB = new Float32Array(IN * IN);
+    const tt = Math.max(0, t + 1 - M), bb = Math.max(0, b + 1 - M), ll = Math.max(0, l + 1 - M), rr = Math.max(0, r + 1 - M);
+    let cr = 0, cg = 0, cb = 0, n = 0;
+    for (let y = 0; y < IN; y++) for (let x = 0; x < IN; x++) {
+      const i = y * IN + x;
+      if (y < tt || y >= IN - bb || x < ll || x >= IN - rr) continue;   // grid-line intrusion → no ink
+      const v = Math.min(1, Math.max(0, (paper - g[i]) / span)); ink[i] = v;
+      const R = rgb[i * 3] / pr, G = rgb[i * 3 + 1] / pg, B = rgb[i * 3 + 2] / pb;
+      const sat = Math.max(R, G, B) - Math.min(R, G, B);
+      inkB[i] = sat >= 0.22 ? 0 : v;
+      if (v > 0.5) { cr += R; cg += G; cb += B; n++; }
+    }
+    const col = n >= 4 ? [cr / n, cg / n, cb / n] : [1, 1, 1];
+    return { ink, inkBlack: inkB, col, frac: n / ink.length };
+  }
+  function colourDesc(rgb) {
+    const mx = Math.max(rgb[0], rgb[1], rgb[2]), mn = Math.min(rgb[0], rgb[1], rgb[2]), sat = mx - mn;
+    let hue = null;
+    if (sat > 0.12) { const [r, g, b] = rgb; let hh; if (mx === r) hh = ((g - b) / sat) % 6; else if (mx === g) hh = (b - r) / sat + 2; else hh = (r - g) / sat + 4; hue = ((hh / 6) + 1) % 1; }
+    return { sat, hue };
+  }
+  function colourPenalty(c, t) {
+    if (c.hue === null && t.hue === null) return 0;
+    if (c.hue === null) return 0.03 + 0.07 * (1 - Math.min(1, c.sat / 0.12));
+    if (t.hue === null) return 0.06 * Math.min(1, c.sat / 0.3);
+    let d = Math.abs(c.hue - t.hue); d = Math.min(d, 1 - d); return 0.10 * Math.min(1, d / 0.15);
+  }
+  function smallBlur(a, n, sigma) { // separable gaussian on n×n
+    const r = Math.max(1, Math.round(sigma * 2)), k = []; let ks = 0;
+    for (let i = -r; i <= r; i++) { const v = Math.exp(-i * i / (2 * sigma * sigma)); k.push(v); ks += v; }
+    const t = new Float32Array(n * n), o = new Float32Array(n * n);
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { let s = 0; for (let i = -r; i <= r; i++) { const xx = Math.min(n - 1, Math.max(0, x + i)); s += a[y * n + xx] * k[i + r]; } t[y * n + x] = s / ks; }
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { let s = 0; for (let i = -r; i <= r; i++) { const yy = Math.min(n - 1, Math.max(0, y + i)); s += t[yy * n + x] * k[i + r]; } o[y * n + x] = s / ks; }
+    return o;
+  }
+  // ink (IN×IN) -> centred, thresholded, blurred, F×F feature
+  function inkFeature(ink) {
+    const a = new Float32Array(IN * IN); let tot = 0, cx = 0, cy = 0;
+    for (let i = 0; i < a.length; i++) { a[i] = Math.min(1, Math.max(0, (ink[i] - 0.3) / 0.5)); tot += a[i]; cx += (i % IN) * a[i]; cy += Math.floor(i / IN) * a[i]; }
+    let b = a;
+    if (tot > 1) { // centre the ink mass
+      const dx = Math.round(IN / 2 - cx / tot), dy = Math.round(IN / 2 - cy / tot);
+      if (dx || dy) { b = new Float32Array(IN * IN); for (let y = 0; y < IN; y++) for (let x = 0; x < IN; x++) { const sx = x - dx, sy = y - dy; if (sx >= 0 && sy >= 0 && sx < IN && sy < IN) b[y * IN + x] = a[sy * IN + sx]; } }
+    }
+    const bl = smallBlur(b, IN, 1.0), f = new Float32Array(F * F), sc = IN / F;
+    for (let y = 0; y < F; y++) for (let x = 0; x < F; x++) { // area average
+      let s = 0, n = 0; for (let yy = Math.floor(y * sc); yy < Math.floor((y + 1) * sc); yy++) for (let xx = Math.floor(x * sc); xx < Math.floor((x + 1) * sc); xx++) { s += bl[yy * IN + xx]; n++; }
+      f[y * F + x] = s / n;
+    }
+    return f;
+  }
+  function cellFeatures(cell) {
+    const m = inkMask(cell);
+    return { f: inkFeature(m.ink), fb: inkFeature(m.inkBlack), col: colourDesc(m.col), frac: m.frac };
+  }
+  function tanimoto(a, b) { let ab = 0, a2 = 0, b2 = 0; for (let i = 0; i < a.length; i++) { ab += a[i] * b[i]; a2 += a[i] * a[i]; b2 += b[i] * b[i]; } return ab / Math.max(a2 + b2 - ab, 1e-6); }
+
+  // mesh → list of cells (row-major) features
+  function readCells(rgba, w, h, mesh, onProgress) {
+    const { cols, rows, xs, ys } = mesh, W1 = cols + 1, out = new Array(cols * rows);
+    for (let i = 0; i < rows; i++) {
+      for (let j = 0; j < cols; j++) {
+        const a = i * W1 + j, b = a + 1, c = a + W1 + 1, d = a + W1;
+        const q = [xs[a], ys[a], xs[b], ys[b], xs[c], ys[c], xs[d], ys[d]];
+        out[i * cols + j] = cellFeatures(cutCell(rgba, w, h, q));
+      }
+      if (onProgress && (i % 8 === 0)) onProgress(i / rows);
+    }
+    return out;
+  }
+
+  // ───────────────────────── templates & matching ─────────────────────────
+  // template input: {id, rgba(CS×CS×4 or any square), size} → CS×CS float cell
+  function toCell(rgba, size) {
+    const out = new Float32Array(CS * CS * 3);
+    for (let v = 0; v < CS; v++) for (let u = 0; u < CS; u++) {
+      const x = (u + 0.5) * size / CS - 0.5, y = (v + 0.5) * size / CS - 0.5;
+      const x0 = Math.max(0, Math.min(size - 2, Math.floor(x))), y0 = Math.max(0, Math.min(size - 2, Math.floor(y))), fx = Math.min(1, Math.max(0, x - x0)), fy = Math.min(1, Math.max(0, y - y0));
+      const i00 = (y0 * size + x0) * 4, i01 = i00 + 4, i10 = i00 + size * 4, i11 = i10 + 4, o = (v * CS + u) * 3;
+      for (let k = 0; k < 3; k++) out[o + k] = (rgba[i00 + k] * (1 - fx) + rgba[i01 + k] * fx) * (1 - fy) + (rgba[i10 + k] * (1 - fx) + rgba[i11 + k] * fx) * fy;
+    }
+    return out;
+  }
+  function rescaleCell(cell, k) { // scale glyph about the centre, white fill
+    const out = new Float32Array(CS * CS * 3).fill(255);
+    for (let v = 0; v < CS; v++) for (let u = 0; u < CS; u++) {
+      const sx = (u - CS / 2) / k + CS / 2, sy = (v - CS / 2) / k + CS / 2, x0 = Math.floor(sx), y0 = Math.floor(sy);
+      if (x0 < 0 || y0 < 0 || x0 >= CS - 1 || y0 >= CS - 1) continue;
+      const fx = sx - x0, fy = sy - y0, o = (v * CS + u) * 3;
+      for (let c = 0; c < 3; c++) { const i00 = (y0 * CS + x0) * 3 + c; out[o + c] = (cell[i00] * (1 - fx) + cell[i00 + 3] * fx) * (1 - fy) + (cell[i00 + CS * 3] * (1 - fx) + cell[i00 + CS * 3 + 3] * fx) * fy; }
+    }
+    return out;
+  }
+  function shiftCell(cell, dx, dy) {
+    const out = new Float32Array(CS * CS * 3).fill(255);
+    for (let v = 0; v < CS; v++) for (let u = 0; u < CS; u++) { const sx = u - dx, sy = v - dy; if (sx < 0 || sy < 0 || sx >= CS || sy >= CS) continue; const o = (v * CS + u) * 3, s = (sy * CS + sx) * 3; out[o] = cell[s]; out[o + 1] = cell[s + 1]; out[o + 2] = cell[s + 2]; }
+    return out;
+  }
+  function blurCell(cell, sigma) {
+    const ch = new Float32Array(CS * CS), out = new Float32Array(CS * CS * 3);
+    for (let c = 0; c < 3; c++) { for (let i = 0; i < ch.length; i++) ch[i] = cell[i * 3 + c]; const b = smallBlur(ch, CS, sigma); for (let i = 0; i < ch.length; i++) out[i * 3 + c] = b[i]; }
+    return out;
+  }
+  function buildBank(tcells, scales, shifts) {
+    const bank = [];
+    for (const t of tcells) {
+      const cd = colourDesc(inkMask(t.cell).col);
+      for (const k of scales) {
+        const base = blurCell(rescaleCell(t.cell, k), 1.0);
+        for (const dy of shifts) for (const dx of shifts) {
+          const sh = (dx || dy) ? shiftCell(base, dx, dy) : base;
+          bank.push({ id: t.id, f: inkFeature(inkMask(sh).ink), col: cd, black: cd.hue === null });
+        }
+      }
+    }
+    return bank;
+  }
+  // templates: [{id, rgba, size}] ; cells: output of readCells. Returns {labels[], conf[], scale}
+  // glyph-scale search: legend glyphs vs chart glyphs differ by an unknown factor
+  function findScale(cells, templates) {
+    const tcells = templates.map(t => ({ id: t.id, cell: toCell(t.rgba, t.size) }));
+    const samp = []; const step = Math.max(1, Math.floor(cells.length / 400));
+    for (let i = 0; i < cells.length; i += step) if (cells[i].frac > 0.02) samp.push(cells[i]);
+    let bestK = 1, bestS = -1;
+    for (let k = 0.8; k <= 1.85; k += 0.1) {
+      const b = buildBank(tcells, [k], [0]); let s = 0;
+      for (const c of samp) { let m = 0; for (const e of b) { const v = tanimoto(e.black ? c.fb : c.f, e.f); if (v > m) m = v; } s += m; }
+      s /= Math.max(samp.length, 1); if (s > bestS) { bestS = s; bestK = k; }
+    }
+    return { scale: bestK, score: bestS };
+  }
+  function matchCells(cells, templates, opts) {
+    opts = opts || {};
+    const tcells = templates.map(t => ({ id: t.id, cell: toCell(t.rgba, t.size) }));
+    let bestK = opts.scale, bestS = opts.scaleScore || 0;
+    if (!bestK) { const fs = findScale(cells, templates); bestK = fs.scale; bestS = fs.score; }
+    // stage 1: coarse bank (3 scales, no shift) → top candidates; stage 2: shifted variants of those only
+    const coarse = buildBank(tcells, [bestK * 0.93, bestK, bestK * 1.07], [0]);
+    const fine = new Map(); // id -> entries with shifts
+    for (const e of buildBank(tcells, [bestK * 0.93, bestK, bestK * 1.07], [-2, -1, 0, 1, 2])) (fine.get(e.id) || fine.set(e.id, []).get(e.id)).push(e);
+    const labels = new Array(cells.length), conf = new Float32Array(cells.length), TOPN = 5;
+    for (let i = 0; i < cells.length; i++) {
+      const c = cells[i]; const best = new Map(); // id -> best coarse score
+      for (const e of coarse) { const v = tanimoto(e.black ? c.fb : c.f, e.f) - colourPenalty(c.col, e.col); if (!best.has(e.id) || v > best.get(e.id)) best.set(e.id, v); }
+      const cand = [...best.entries()].sort((a, b) => b[1] - a[1]).slice(0, TOPN);
+      let bs = -Infinity, bid = null;
+      for (const [id] of cand) for (const e of fine.get(id)) { const v = tanimoto(e.black ? c.fb : c.f, e.f) - colourPenalty(c.col, e.col); if (v > bs) { bs = v; bid = id; } }
+      labels[i] = bid; conf[i] = bs;
+      if (opts.onProgress && (i % 500 === 0)) opts.onProgress(i / cells.length);
+    }
+    return { labels, conf, scale: bestK, sampleScore: bestS };
+  }
+
+  // ───────────────────────── top-level page pipeline ─────────────────────────
+  // rgba full-res page photo. Returns {mesh (in the deskewed image's coords), rgba (deskewed), w, h, skew, scaleDown}
+  function analysePage(rgba, w, h, onProgress) {
+    const prog = p => onProgress && onProgress(p);
+    // work at ≤ ~2000px long side for grid detection; cut cells from full resolution
+    const f = Math.max(1, Math.ceil(Math.max(w, h) / 2400));
+    let small = f > 1 ? downscale(rgba, w, h, f) : { rgba, w, h };
+    prog(0.05);
+    const g = gray(small.rgba, small.w, small.h), bin = adaptiveBin(flatten(g, small.w, small.h), small.w, small.h, 25, 10);
+    const skew = estimateSkew(bin, small.w, small.h);
+    prog(0.15);
+    let full = rgba, fw = w, fh = h;
+    if (Math.abs(skew) >= 0.3) { full = rotateRGBA(rgba, w, h, skew); small = f > 1 ? downscale(full, w, h, f) : { rgba: full, w, h }; }
+    prog(0.3);
+    const mesh = detectGrid(small.rgba, small.w, small.h, { debug: !!(onProgress && onProgress.debug) });
+    prog(0.6);
+    if (!mesh) return { ok: false, reason: 'nogrid', skew };
+    if (f > 1) { for (let i = 0; i < mesh.xs.length; i++) { mesh.xs[i] = (mesh.xs[i] + 0.5) * f - 0.5; mesh.ys[i] = (mesh.ys[i] + 0.5) * f - 0.5; } mesh.pitch = [mesh.pitch[0] * f, mesh.pitch[1] * f]; }
+    return { ok: true, mesh, rgba: full, w: fw, h: fh, skew };
+  }
+
+  // ───────────────────────── legend (colour key) ─────────────────────────
+  // The user taps one symbol in the legend photo. From that tap: the symbol column band,
+  // the table rows (ruled lines when present, ink runs otherwise), and one glyph crop per row.
+  function components(bin, w, h) { // 4-connected components → [{x0,y0,x1,y1,n}] with label map
+    const lab = new Int32Array(w * h); const comps = []; const stack = [];
+    for (let i = 0; i < w * h; i++) {
+      if (!bin[i] || lab[i]) continue;
+      const id = comps.length + 1; let x0 = w, y0 = h, x1 = 0, y1 = 0, n = 0; stack.push(i); lab[i] = id;
+      while (stack.length) { const k = stack.pop(); const x = k % w, y = (k - x) / w; n++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+        if (x > 0 && bin[k - 1] && !lab[k - 1]) { lab[k - 1] = id; stack.push(k - 1); } if (x < w - 1 && bin[k + 1] && !lab[k + 1]) { lab[k + 1] = id; stack.push(k + 1); }
+        if (y > 0 && bin[k - w] && !lab[k - w]) { lab[k - w] = id; stack.push(k - w); } if (y < h - 1 && bin[k + w] && !lab[k + w]) { lab[k + w] = id; stack.push(k + w); } }
+      comps.push({ x0, y0, x1, y1, n });
+    }
+    return { lab, comps };
+  }
+  function legendAnalyse(rgba, w, h, tapX, tapY) {
+    const g = gray(rgba, w, h), flat = flatten(g, w, h), bin = adaptiveBin(flat, w, h, 25, 12);
+    // kill long lines (table rules) for component analysis, keep them for row detection
+    const L = Math.max(30, Math.round(w * 0.12));
+    const hor = lineOpen(bin, w, h, L, true), ver = lineOpen(bin, w, h, Math.max(30, Math.round(h * 0.12)), false);
+    const ink = new Uint8Array(w * h); for (let i = 0; i < ink.length; i++) ink[i] = bin[i] & !hor[i] & !ver[i];
+    const { lab, comps } = components(ink, w, h);
+    // component under / nearest the tap
+    let best = -1, bd = 1e9;
+    comps.forEach((c, i) => { const cw = c.x1 - c.x0 + 1, ch = c.y1 - c.y0 + 1; if (cw > w * 0.08 || ch > h * 0.06 || c.n < 6) return;
+      const dx = Math.max(c.x0 - tapX, 0, tapX - c.x1), dy = Math.max(c.y0 - tapY, 0, tapY - c.y1); const d = Math.hypot(dx, dy) + 0.02 * Math.max(cw, ch); if (d < bd) { bd = d; best = i; } });
+    if (best < 0 || bd > Math.max(w, h) * 0.05) return { ok: false, reason: 'nosymbol' };
+    const tc = comps[best]; const gw = Math.max(tc.x1 - tc.x0 + 1, tc.y1 - tc.y0 + 1);
+    const cx = (tc.x0 + tc.x1) / 2; const half = Math.max(12, Math.round(gw * 1.1));
+    const bx0 = Math.max(0, Math.round(cx - half)), bx1 = Math.min(w - 1, Math.round(cx + half));
+    // glyph candidates inside the band: symbol-sized, not thin wide lines (backstitch samples)
+    const cand = comps.filter(c => { const cw = c.x1 - c.x0 + 1, ch = c.y1 - c.y0 + 1, cx2 = (c.x0 + c.x1) / 2; if (cx2 < bx0 || cx2 > bx1 || c.n < 4) return false; if (cw > 1.7 * gw || ch > 1.7 * gw) return false; if (ch < 0.2 * gw && cw > 1.2 * gw) return false; return true; })
+      .sort((p, q) => (p.y0 + p.y1) - (q.y0 + q.y1));
+    // group into rows: overlapping or near-touching vertical extents
+    const groups = [];
+    for (const c of cand) { const g2 = groups[groups.length - 1]; if (g2 && c.y0 <= g2.y1 + 0.12 * gw) { g2.y1 = Math.max(g2.y1, c.y1); g2.x0 = Math.min(g2.x0, c.x0); g2.x1 = Math.max(g2.x1, c.x1); g2.y0 = Math.min(g2.y0, c.y0); g2.n += c.n; } else groups.push({ x0: c.x0, y0: c.y0, x1: c.x1, y1: c.y1, n: c.n }); }
+    // text rows (header / footer) are wide; keep symbol-shaped rows
+    let items = groups.filter(g2 => { const gw2 = g2.x1 - g2.x0 + 1, gh2 = g2.y1 - g2.y0 + 1; return gw2 <= 1.8 * gw && g2.n >= 6 && !(gh2 < 0.75 * gw && gw2 > 1.2 * gw); });   // drop text (wide and short)
+    const dbgN = [cand.length, groups.length, items.length]; let dbgGaps = null;
+    // table rows come at a regular pitch: keep the longest run without big gaps
+    if (items.length >= 4) {
+      const cy = items.map(it => (it.y0 + it.y1) / 2); const gaps = []; for (let i = 1; i < cy.length; i++) gaps.push(cy[i] - cy[i - 1]); const gm = median(gaps);
+      dbgGaps = gaps.map(g3 => +(g3 / gm).toFixed(2));
+      let bs = 0, be = 0, cs = 0; for (let i = 1; i <= items.length; i++) { if (i === items.length || gaps[i - 1] > 3.6 * gm) { if (i - 1 - cs > be - bs) { bs = cs; be = i - 1; } cs = i; } }
+      items = items.slice(bs, be + 1);
+      // a glyph broken in two (thin strokes, shadow edge) shows as two half-pitch rows: rejoin
+      const joined = []; for (const it of items) { const pv = joined[joined.length - 1]; if (pv && ((it.y0 + it.y1) / 2 - (pv.y0 + pv.y1) / 2) < 0.7 * gm) { pv.x0 = Math.min(pv.x0, it.x0); pv.y0 = Math.min(pv.y0, it.y0); pv.x1 = Math.max(pv.x1, it.x1); pv.y1 = Math.max(pv.y1, it.y1); pv.n += it.n; } else joined.push(Object.assign({}, it)); }
+      items = joined;
+      const pitchR = median(items.slice(1).map((it, i) => (it.y0 + it.y1) / 2 - (items[i].y0 + items[i].y1) / 2));
+      items.forEach(it => { const c2 = (it.y0 + it.y1) / 2; it.row = { y0: Math.max(0, Math.round(c2 - pitchR / 2)), y1: Math.min(h - 1, Math.round(c2 + pitchR / 2)) }; });
+    } else items.forEach(it => { it.row = { y0: it.y0, y1: it.y1 }; });
+    if (items.length < 2) return { ok: false, reason: 'norows' };
+    // one scale for all glyphs: the biggest glyphs fill ~90% of a chart cell, like printed charts
+    const sizes = items.map(it => Math.max(it.x1 - it.x0 + 1, it.y1 - it.y0 + 1)).sort((a, b) => a - b);
+    const big = sizes[Math.floor(sizes.length * 0.9)]; const k = (CS * 0.9) / big;
+    const templates = items.map((it, idx) => {
+      const gw2 = it.x1 - it.x0 + 1, gh2 = it.y1 - it.y0 + 1; const tw = Math.max(1, Math.round(gw2 * k)), th = Math.max(1, Math.round(gh2 * k));
+      // background = the paper around this glyph (a shadowed key must not read as ink)
+      const pr = [], pg = [], pb = []; const ex = Math.round(gw2 * 0.6) + 2, ey = Math.round(gh2 * 0.6) + 2;
+      for (let yy = Math.max(0, it.y0 - ey); yy <= Math.min(h - 1, it.y1 + ey); yy += 2) for (let xx = Math.max(0, it.x0 - ex); xx <= Math.min(w - 1, it.x1 + ex); xx += 2) { const i = (yy * w + xx) * 4; pr.push(rgba[i]); pg.push(rgba[i + 1]); pb.push(rgba[i + 2]); }
+      const p90 = a => { a.sort((p, q) => p - q); return a[Math.floor(a.length * 0.85)]; };
+      const PR = p90(pr), PG = p90(pg), PB = p90(pb);
+      const cell = new Uint8ClampedArray(CS * CS * 4); for (let i = 0; i < CS * CS; i++) { cell[i * 4] = PR; cell[i * 4 + 1] = PG; cell[i * 4 + 2] = PB; cell[i * 4 + 3] = 255; }
+      const ox = Math.round((CS - tw) / 2), oy = Math.round((CS - th) / 2);
+      for (let v = 0; v < th; v++) for (let u = 0; u < tw; u++) { const sx = it.x0 + (u + 0.5) / k, sy = it.y0 + (v + 0.5) / k; const xi = Math.min(w - 1, Math.max(0, Math.round(sx))), yi = Math.min(h - 1, Math.max(0, Math.round(sy))); const si = (yi * w + xi) * 4, X = ox + u, Y = oy + v; if (X < 0 || Y < 0 || X >= CS || Y >= CS) continue; const o = (Y * CS + X) * 4; cell[o] = rgba[si]; cell[o + 1] = rgba[si + 1]; cell[o + 2] = rgba[si + 2]; }
+      return { id: idx, rgba: cell, size: CS, box: [it.x0, it.y0, it.x1, it.y1], row: it.row };
+    });
+    return { ok: true, band: [bx0, bx1], rows: items.map(it => it.row), templates, glyph: gw, tapComp: [tc.x0, tc.y0, tc.x1, tc.y1], dbgN, dbgGaps };
+  }
+  // median colour of a column band at each row, white-balanced against the paper nearby
+  function legendSwatches(rgba, w, h, rows, x) {
+    const half = 9, out = [];
+    const med = a => { a.sort((p, q) => p - q); return a[a.length >> 1]; };
+    const p90 = a => { a.sort((p, q) => p - q); return a[Math.floor(a.length * 0.9)] + 1; };
+    for (const r of rows) {
+      const ym = (r.y0 + r.y1) / 2, yh = Math.max(4, (r.y1 - r.y0) * 0.9);
+      // paper reference: a wide strip on this row (brightest 10%)
+      const pr = [], pg = [], pb = [];
+      for (let y = Math.max(0, Math.round(ym - yh)); y <= Math.min(h - 1, Math.round(ym + yh)); y += 2) for (let xx = Math.max(0, x - 90); xx <= Math.min(w - 1, x + 90); xx += 3) { const i = (y * w + xx) * 4; pr.push(rgba[i]); pg.push(rgba[i + 1]); pb.push(rgba[i + 2]); }
+      const PR = p90(pr), PG = p90(pg), PB = p90(pb);
+      // swatch pixels: clearly not paper (darker or coloured), within the column band
+      const R = [], G = [], B = [];
+      for (let y = Math.max(0, Math.round(ym - yh)); y <= Math.min(h - 1, Math.round(ym + yh)); y++) for (let xx = Math.max(0, x - half); xx <= Math.min(w - 1, x + half); xx++) {
+        const i = (y * w + xx) * 4, rr = rgba[i] / PR, gg = rgba[i + 1] / PG, bb = rgba[i + 2] / PB; const lum = (rr + gg + bb) / 3, sat = Math.max(rr, gg, bb) - Math.min(rr, gg, bb);
+        if (lum < 0.88 || sat > 0.12) { R.push(rr); G.push(gg); B.push(bb); }
+      }
+      if (R.length < 12) { out.push(null); continue; }
+      out.push({ r: Math.min(255, Math.round(med(R) * 255)), g: Math.min(255, Math.round(med(G) * 255)), b: Math.min(255, Math.round(med(B) * 255)) });
+    }
+    return out;
+  }
+  PLScan.legendAnalyse = legendAnalyse; PLScan.legendSwatches = legendSwatches;
+  PLScan.analysePage = analysePage; PLScan.detectGrid = detectGrid; PLScan.readCells = readCells; PLScan.matchCells = matchCells; PLScan.findScale = findScale;
+  PLScan.cutCell = cutCell; PLScan.CS = CS; PLScan.version = 1;
+  PLScan._toCell = toCell; PLScan._cellFeatures = cellFeatures; PLScan._blurCell = blurCell; PLScan._lineMargins = lineMargins; PLScan._tanimoto = tanimoto; PLScan._inkMask = inkMask;
+  root.PLScan = PLScan;
+  if (typeof module !== 'undefined') module.exports = PLScan;
+})(typeof self !== 'undefined' ? self : this);
+
+</script>
+<script>
+/* ── Scan your pattern (v616) ─────────────────────────────────────────────
+   Photos of a printed chart → tracker project. The recognition engine (PLScan,
+   embedded above as #plscan-src) runs in a Web Worker built from that same
+   source, so the page stays responsive while 25,000 cells are read.
+   Flow: size → pages (each analysed as it arrives) → page map → convert
+   (symbol classes across all pages) → check → open in the tracker.          */
+(function(){
+  'use strict';
+  const S = { size:{w:0,h:0}, legend:null, pages:[], layout:null, classes:null, busy:false, worker:null, seq:0, jobs:{} };
+  window.plScanState = S;
+
+  // ── worker ──────────────────────────────────────────────────────────────
+  const WORKER_GLUE = `
+    const PAGES = {};
+    const Q = v => Math.max(0, Math.min(255, Math.round(v * 255)));
+    function quant(f){ const u = new Uint8Array(f.length); for (let i = 0; i < f.length; i++) u[i] = Q(f[i]); return u; }
+    function deq(u){ const f = new Float32Array(u.length); for (let i = 0; i < u.length; i++) f[i] = u[i] / 255; return f; }
+    function tani(a, b){ let ab = 0, a2 = 0, b2 = 0; for (let i = 0; i < a.length; i++) { ab += a[i] * b[i]; a2 += a[i] * a[i]; b2 += b[i] * b[i]; } return ab / Math.max(a2 + b2 - ab, 1e-6); }
+    function shrink(rgba, w, h, f){ const W = Math.floor(w / f), H = Math.floor(h / f), o = new Uint8ClampedArray(W * H * 4), n = f * f; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { let r = 0, g = 0, b = 0; for (let yy = 0; yy < f; yy++) for (let xx = 0; xx < f; xx++) { const i = ((y * f + yy) * w + x * f + xx) * 4; r += rgba[i]; g += rgba[i + 1]; b += rgba[i + 2]; } const k = (y * W + x) * 4; o[k] = r / n; o[k + 1] = g / n; o[k + 2] = b / n; o[k + 3] = 255; } return { rgba: o, w: W, h: H }; }
+    self.onmessage = e => {
+      const m = e.data, reply = (r, tr) => self.postMessage(Object.assign({ seq: m.seq }, r), tr || []);
+      try {
+        if (m.cmd === 'page') {
+          const prog = p => self.postMessage({ seq: m.seq, progress: p });
+          const an = PLScan.analysePage(m.rgba, m.w, m.h, prog);
+          if (!an.ok) { reply({ ok: false, reason: an.reason }); return; }
+          const cells = PLScan.readCells(an.rgba, an.w, an.h, an.mesh, p => prog(0.6 + 0.4 * p));
+          const n = cells.length, F2 = cells[0].f.length;
+          const feat = new Uint8Array(n * F2), featB = new Uint8Array(n * F2), frac = new Float32Array(n), sat = new Float32Array(n), hue = new Float32Array(n);
+          for (let i = 0; i < n; i++) { feat.set(quant(cells[i].f), i * F2); featB.set(quant(cells[i].fb), i * F2); frac[i] = cells[i].frac; sat[i] = cells[i].col.sat; hue[i] = cells[i].col.hue === null ? -1 : cells[i].col.hue; }
+          // keep a reduced copy of the page (cell ≈ 24px) for crops; drop the full one
+          const f = Math.max(1, Math.floor(Math.min(an.mesh.pitch[0], an.mesh.pitch[1]) / 24));
+          const small = f > 1 ? shrink(an.rgba, an.w, an.h, f) : { rgba: an.rgba, w: an.w, h: an.h };
+          const mesh = an.mesh; if (f > 1) { for (let i = 0; i < mesh.xs.length; i++) { mesh.xs[i] = (mesh.xs[i] + 0.5) / f - 0.5; mesh.ys[i] = (mesh.ys[i] + 0.5) / f - 0.5; } }
+          PAGES[m.id] = { rgba: small.rgba, w: small.w, h: small.h, mesh, feat, featB, frac, sat, hue, F2 };
+          const th = shrink(small.rgba, small.w, small.h, Math.max(1, Math.ceil(Math.max(small.w, small.h) / 320)));
+          reply({ ok: true, cols: mesh.cols, rows: mesh.rows, colPhase: mesh.colPhase, rowPhase: mesh.rowPhase, realFrac: mesh.realFrac, skew: an.skew, thumb: th }, [th.rgba.buffer]);
+        } else if (m.cmd === 'drop') { delete PAGES[m.id]; reply({ ok: true }); }
+        else if (m.cmd === 'cluster') {
+          // unsupervised symbol classes across all pages (no legend needed)
+          const ids = m.ids, all = []; // {p, i, f}
+          for (const id of ids) { const P = PAGES[id]; if (!P) continue; const n = P.frac.length; for (let i = 0; i < n; i++) all.push({ p: id, i }); }
+          const getF = c => { const P = PAGES[c.p]; return deq(P.feat.subarray(c.i * P.F2, (c.i + 1) * P.F2)); };
+          const T_JOIN = 0.62, T_MERGE = 0.72, CAP = 220;
+          const order = all.slice(); for (let i = order.length - 1; i > 0; i--) { const j = (i * 7919 + 13) % (i + 1); const t = order[i]; order[i] = order[j]; order[j] = t; }
+          const blank = c => PAGES[c.p].frac[c.i] < 0.012;
+          // pass 1: online seeding
+          let classes = []; let done = 0;
+          for (const c of order) {
+            if (blank(c)) continue;
+            const f = getF(c); let best = -1, bs = -1;
+            for (let k = 0; k < classes.length; k++) { const s = tani(f, classes[k].mean); if (s > bs) { bs = s; best = k; } }
+            if (best < 0 || (bs < T_JOIN && classes.length < CAP)) classes.push({ mean: Float32Array.from(f), n: 1 });
+            else { const C = classes[best]; for (let i = 0; i < f.length; i++) C.mean[i] = (C.mean[i] * C.n + f[i]) / (C.n + 1); C.n++; }
+            if ((++done & 2047) === 0) self.postMessage({ seq: m.seq, progress: 0.3 * done / order.length });
+          }
+          const mergeClasses = () => { let merged = true; while (merged) { merged = false; for (let a = 0; a < classes.length && !merged; a++) for (let b = a + 1; b < classes.length; b++) { if (tani(classes[a].mean, classes[b].mean) >= T_MERGE) { const A = classes[a], B = classes[b]; for (let i = 0; i < A.mean.length; i++) A.mean[i] = (A.mean[i] * A.n + B.mean[i] * B.n) / (A.n + B.n); A.n += B.n; classes.splice(b, 1); merged = true; break; } } } };
+          mergeClasses();
+          // passes 2..4: k-means style — assign every cell to the nearest class mean, recompute means, merge
+          for (let it = 0; it < 3; it++) {
+            const sums = classes.map(C => new Float64Array(C.mean.length)), cnt = new Int32Array(classes.length); let k2 = 0;
+            for (const c of all) { if (blank(c)) continue; const f = getF(c); let best = -1, bs = -1; for (let k = 0; k < classes.length; k++) { const s = tani(f, classes[k].mean); if (s > bs) { bs = s; best = k; } } if (best >= 0) { const S = sums[best]; for (let i = 0; i < f.length; i++) S[i] += f[i]; cnt[best]++; } if ((++k2 & 2047) === 0) self.postMessage({ seq: m.seq, progress: 0.3 + 0.5 * (it + k2 / all.length) / 3 }); }
+            classes = classes.map((C, k) => cnt[k] ? { mean: Float32Array.from(sums[k], v => v / cnt[k]), n: cnt[k] } : null).filter(Boolean);
+            mergeClasses();
+          }
+          const keep = classes.filter(c => c.n >= 3);
+          // final assignment
+          const out = {}; let k3 = 0;
+          for (const id of ids) { const P = PAGES[id]; if (!P) continue; const n = P.frac.length; const lab = new Int16Array(n), conf = new Float32Array(n);
+            for (let i = 0; i < n; i++) { if (P.frac[i] < 0.012) { lab[i] = -1; conf[i] = 1; continue; } const f = deq(P.feat.subarray(i * P.F2, (i + 1) * P.F2)); let best = -1, bs = -1; for (let k = 0; k < keep.length; k++) { const s = tani(f, keep[k].mean); if (s > bs) { bs = s; best = k; } } lab[i] = best; conf[i] = bs; if ((++k3 & 2047) === 0) self.postMessage({ seq: m.seq, progress: 0.8 + 0.2 * k3 / all.length }); }
+            out[id] = { lab, conf }; }
+          // per class: count, medoid cell (for the sprite), colour
+          const info = keep.map(() => ({ n: 0, best: -1, bp: null, bi: -1, sat: 0, hue: -1, hues: [] }));
+          for (const id of ids) { const P = PAGES[id]; if (!P) continue; const { lab, conf } = out[id]; for (let i = 0; i < lab.length; i++) { const k = lab[i]; if (k < 0) continue; const I = info[k]; I.n++; I.sat += P.sat[i]; if (P.hue[i] >= 0) I.hues.push(P.hue[i]); if (conf[i] > I.best) { I.best = conf[i]; I.bp = id; I.bi = i; } } }
+          const sprites = info.map(I => I.bp ? crop(I.bp, I.bi, 48, true) : null);
+          const classesOut = info.map((I, k) => ({ k, n: I.n, sat: I.sat / Math.max(1, I.n), hue: I.hues.length > I.n * 0.5 ? I.hues.sort()[I.hues.length >> 1] : -1 }));
+          reply({ ok: true, classes: classesOut, labels: out, sprites });
+        } else if (m.cmd === 'match') {
+          // legend templates → every cell of every page; one glyph scale for the whole chart
+          const ids = m.ids, T = m.templates; const pageCells = {}; let allSamp = [];
+          for (const id of ids) { const P = PAGES[id]; if (!P) continue; const n = P.frac.length, cells = new Array(n);
+            for (let i = 0; i < n; i++) cells[i] = { f: deq(P.feat.subarray(i * P.F2, (i + 1) * P.F2)), fb: deq(P.featB.subarray(i * P.F2, (i + 1) * P.F2)), col: { sat: P.sat[i], hue: P.hue[i] < 0 ? null : P.hue[i] }, frac: P.frac[i] };
+            pageCells[id] = cells; for (let i = 0; i < n; i += 7) allSamp.push(cells[i]); }
+          const fs = PLScan.findScale(allSamp, T); self.postMessage({ seq: m.seq, progress: 0.1 });
+          const out = {}; let done = 0, total = ids.length;
+          for (const id of ids) { const cells = pageCells[id]; if (!cells) continue; const r = PLScan.matchCells(cells, T, { scale: fs.scale, scaleScore: fs.score, onProgress: p => self.postMessage({ seq: m.seq, progress: 0.1 + 0.6 * (done + p) / total }) });
+            const lab = new Int16Array(cells.length); for (let i = 0; i < cells.length; i++) lab[i] = cells[i].frac < 0.012 ? -1 : (r.labels[i] == null ? -1 : r.labels[i]); out[id] = { lab, conf: r.conf }; done++; }
+          // pass 2: each symbol's look in THIS chart — the mean of its most confident cells —
+          // bridges the gap between the printed key (different size, lighting, even font build)
+          // and the chart cells. A cell moves only if the chart-derived template fits it better.
+          const K = T.length, F2 = allSamp[0].f.length, top = Array.from({ length: K }, () => []);
+          for (const id of ids) { const { lab, conf } = out[id]; for (let i = 0; i < lab.length; i++) if (lab[i] >= 0) top[lab[i]].push([conf[i], id, i]); }
+          const refF = [], refB = [], refK = [];
+          top.forEach((arr, k) => { if (arr.length < 4) return; arr.sort((a, b) => b[0] - a[0]); const n = Math.max(4, Math.min(30, arr.length >> 1)); const mf = new Float32Array(F2), mb = new Float32Array(F2);
+            for (let j = 0; j < n; j++) { const c = pageCells[arr[j][1]][arr[j][2]]; for (let q = 0; q < F2; q++) { mf[q] += c.f[q] / n; mb[q] += c.fb[q] / n; } } refF.push(mf); refB.push(mb); refK.push(k); });
+          const tcol = T.map(t => null); // colour handled by pass 1 penalties already
+          let moved = 0;
+          for (const id of ids) { const cells = pageCells[id], { lab, conf } = out[id];
+            for (let i = 0; i < cells.length; i++) { if (lab[i] < 0 && cells[i].frac < 0.012) continue; let bs = conf[i], bk = lab[i];
+              for (let j = 0; j < refF.length; j++) { const s1 = tani(cells[i].f, refF[j]), s2 = tani(cells[i].fb, refB[j]); const v = Math.max(s1, s2) - 0.02; if (v > bs) { bs = v; bk = refK[j]; } }
+              if (bk !== lab[i]) moved++; lab[i] = bk; conf[i] = bs; } }
+          reply({ ok: true, labels: out, scale: fs.scale, scaleScore: fs.score, moved });
+        } else if (m.cmd === 'crop') { reply({ ok: true, crop: crop(m.id, m.i, m.size || 48, false) }); }
+      } catch (err) { reply({ ok: false, reason: 'error', error: String(err && err.stack || err) }); }
+    };
+    // crop one cell from the reduced page: RGBA size×size; asSprite → alpha = ink, black
+    function crop(id, i, size, asSprite) {
+      const P = PAGES[id]; const { cols, xs, ys } = P.mesh, W1 = cols + 1, r = Math.floor(i / cols), c = i % cols;
+      const a = r * W1 + c, b = a + 1, d = a + W1 + 1, e = a + W1;
+      const q = [xs[a], ys[a], xs[b], ys[b], xs[d], ys[d], xs[e], ys[e]];
+      const cell = PLScan.cutCell(P.rgba, P.w, P.h, q); const CS = PLScan.CS;
+      const out = new Uint8ClampedArray(size * size * 4);
+      if (asSprite) {
+        const mk = PLScan._inkMask(cell), IN = CS - 6;
+        for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) { const sx = Math.min(IN - 1, Math.floor(x * IN / size)), sy = Math.min(IN - 1, Math.floor(y * IN / size)); const v = mk.ink[sy * IN + sx]; const al = Math.max(0, Math.min(1, (v - 0.25) / 0.5)); const o = (y * size + x) * 4; out[o] = out[o + 1] = out[o + 2] = 0; out[o + 3] = Math.round(al * 255); }
+      } else {
+        for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) { const sx = Math.min(CS - 1, Math.floor(x * CS / size)), sy = Math.min(CS - 1, Math.floor(y * CS / size)); const s = (sy * CS + sx) * 3, o = (y * size + x) * 4; out[o] = cell[s]; out[o + 1] = cell[s + 1]; out[o + 2] = cell[s + 2]; out[o + 3] = 255; }
+      }
+      return { rgba: out, w: size, h: size };
+    }
+  `;
+  function worker(){
+    if (S.worker) return S.worker;
+    const src = (document.getElementById('plscan-src') || {}).textContent || '';
+    const blob = new Blob([src, '\n', WORKER_GLUE], { type: 'text/javascript' });
+    const w = new Worker(URL.createObjectURL(blob));
+    w.onmessage = e => { const m = e.data, j = S.jobs[m.seq]; if (!j) return; if (m.progress !== undefined) { j.onProgress && j.onProgress(m.progress); return; } delete S.jobs[m.seq]; j.resolve(m); };
+    w.onerror = e => { console.warn('[scan] worker error', e.message); for (const k in S.jobs) { S.jobs[k].resolve({ ok: false, reason: 'error', error: e.message }); delete S.jobs[k]; } };
+    S.worker = w; return w;
+  }
+  function call(msg, transfer, onProgress){ return new Promise(resolve => { const seq = ++S.seq; S.jobs[seq] = { resolve, onProgress }; worker().postMessage(Object.assign({ seq }, msg), transfer || []); }); }
+
+  // ── helpers ─────────────────────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  function t(k, fb){ try{ if (typeof I18N === 'object' && I18N && typeof LANG !== 'undefined' && I18N[LANG] && I18N[LANG][k]) return I18N[LANG][k]; }catch(e){} return fb; }
+  async function fileToRGBA(file, maxSide){
+    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => null);
+    let img = bmp;
+    if (!img) { img = new Image(); img.src = URL.createObjectURL(file); await img.decode(); }
+    let w = img.width, h = img.height; const MAX = maxSide || 4200; const k = Math.min(1, MAX / Math.max(w, h)); w = Math.round(w * k); h = Math.round(h * k);
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const g = cv.getContext('2d', { willReadFrequently: true });
+    g.drawImage(img, 0, 0, w, h); const d = g.getImageData(0, 0, w, h); if (bmp && bmp.close) bmp.close();
+    return { rgba: d.data, w, h };
+  }
+  function rgbaToURL(im){ const cv = document.createElement('canvas'); cv.width = im.w; cv.height = im.h; cv.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(im.rgba), im.w, im.h), 0, 0); return cv.toDataURL('image/png'); }
+  function rgbaToCanvas(im){ const cv = document.createElement('canvas'); cv.width = im.w; cv.height = im.h; cv.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(im.rgba), im.w, im.h), 0, 0); return cv; }
+
+  // ── layout: place tiles into the full chart ─────────────────────────────
+  // Pages are taken in reading order (left→right, then the next band down). With the
+  // chart width known, tiles fill a band until it is complete; heights must agree
+  // within a band. Bold-line phases are a cross-check on every tile's position.
+  function layout(){
+    const tiles = S.pages.filter(p => p.ok);
+    if (!tiles.length) return null;
+    let W = S.size.w | 0, H = S.size.h | 0;
+    if (!W) { // guess: widths of the first run of tiles sharing a height
+      let s = 0; for (const tt of tiles) { if (tt.rows !== tiles[0].rows) break; s += tt.cols; } W = s;
+    }
+    const placed = []; let x = 0, y = 0, bandH = 0, warn = [];
+    for (const tt of tiles) {
+      if (x >= W) { y += bandH; x = 0; bandH = 0; }
+      if (x + tt.cols > W) warn.push({ id: tt.id, msg: 'wider than the chart allows here' });
+      if (bandH && tt.rows !== bandH) warn.push({ id: tt.id, msg: 'height differs from the other pages in this row' });
+      const expC = (10 - (x % 10)) % 10, expR = (10 - (y % 10)) % 10;
+      if (tt.colPhase !== expC || tt.rowPhase !== expR) warn.push({ id: tt.id, msg: 'bold lines don’t line up — page out of order or rotated?' });
+      placed.push({ id: tt.id, x, y, cols: tt.cols, rows: tt.rows });
+      x += tt.cols; bandH = Math.max(bandH, tt.rows);
+    }
+    const Hguess = y + bandH; if (!H) H = Hguess;
+    const covered = placed.reduce((a, p) => a + p.cols * p.rows, 0);
+    const complete = covered >= W * H && x >= W && Hguess >= H;
+    return { W, H, placed, warn, complete, covered };
+  }
+
+  // ── UI ───────────────────────────────────────────────────────────────────
+  function render(){
+    const root = $('trk-scan'); if (!root) return;
+    const L = layout();
+    const sizeKnown = !!(S.size.w && S.size.h);
+    const pagesHtml = S.pages.map(p => {
+      const st = p.status === 'busy' ? '<div class="pls-prog"><i style="width:' + Math.round((p.progress || 0) * 100) + '%"></i></div>'
+        : p.ok ? '<div class="pls-ok">✓ ' + p.cols + ' × ' + p.rows + '</div>'
+        : '<div class="pls-bad">⚠ ' + esc(p.reasonText || 'No grid found — retake') + '</div>';
+      const w = (L && L.warn.find(x => x.id === p.id));
+      return '<div class="pls-page' + (p.ok ? '' : ' bad') + '" data-id="' + p.id + '">'
+        + (p.thumbUrl ? '<img src="' + p.thumbUrl + '" alt="">' : '<div class="pls-ph"></div>')
+        + '<div class="pls-meta"><b>Page ' + p.n + '</b>' + st + (w ? '<div class="pls-warn">' + esc(w.msg) + '</div>' : '') + '</div>'
+        + '<button type="button" class="pls-x" data-del="' + p.id + '" aria-label="Remove">✕</button></div>';
+    }).join('');
+    const mapHtml = L ? pageMapSVG(L) : '';
+    const okN = S.pages.filter(p => p.ok).length;
+    root.innerHTML = ''
+      + '<div class="pls-head"><a href="#" class="pls-back">← Back</a><h2>Scan your pattern</h2>'
+      + '<p>Take a photo of each page of your printed chart. Hold the phone flat above the page, in good light, so the page numbers read normally.</p></div>'
+      + '<div class="pls-card"><div class="pls-step">1</div><div class="pls-body"><h3>Pattern size</h3>'
+      + '<p>Printed on the colour key (e.g. “Stitches: 160 x 160”). Leave empty and we’ll work it out from the pages.</p>'
+      + '<div class="pls-size"><input type="number" min="5" max="2000" inputmode="numeric" id="pls-w" placeholder="width" value="' + (S.size.w || '') + '"> <span>×</span> <input type="number" min="5" max="2000" inputmode="numeric" id="pls-h" placeholder="height" value="' + (S.size.h || '') + '"> <span class="pls-unit">stitches</span></div></div></div>'
+      + legendCardHTML()
+      + '<div class="pls-card"><div class="pls-step">3</div><div class="pls-body"><h3>Chart pages</h3>'
+      + '<p>In reading order: left to right, then the next row of pages. Each page is read as soon as it arrives.</p>'
+      + '<div class="pls-pages">' + pagesHtml
+      + '<label class="pls-add"><input type="file" accept="image/*" capture="environment" id="pls-cam" hidden><span>📷</span><b>Take photo</b></label>'
+      + '<label class="pls-add alt"><input type="file" accept="image/*" multiple id="pls-pick" hidden><span>🖼</span><b>From photos</b></label>'
+      + '</div>' + (mapHtml ? '<div class="pls-map">' + mapHtml + '<div class="pls-mapcap">' + (L.complete ? 'All ' + L.W + ' × ' + L.H + ' stitches covered' : (L.covered.toLocaleString() + ' of ' + (L.W * L.H).toLocaleString() + ' stitches covered — add the remaining pages')) + '</div></div>' : '')
+      + '</div></div>'
+      + '<div class="pls-actions"><button type="button" class="btn btn-primary" id="pls-convert" ' + ((L && L.complete && !S.busy) ? '' : 'disabled') + '>Convert ' + (okN ? '(' + okN + ' page' + (okN > 1 ? 's' : '') + ')' : '') + '</button>'
+      + ((L && L.complete && legendTemplates().length < 2) ? '<div class="pls-note">No colour key read yet — without it the symbols are grouped automatically and get no names or colours.</div>' : '')
+      + '<div class="pls-status" id="pls-status">' + esc(S.statusText || '') + '</div></div>';
+    root.querySelector('.pls-back').onclick = e => { e.preventDefault(); close(); };
+    bindLegend();
+    $('pls-w').onchange = e => { S.size.w = +e.target.value || 0; render(); };
+    $('pls-h').onchange = e => { S.size.h = +e.target.value || 0; render(); };
+    $('pls-cam').onchange = e => addFiles(e.target.files);
+    $('pls-pick').onchange = e => addFiles(e.target.files);
+    root.querySelectorAll('[data-del]').forEach(b => b.onclick = () => removePage(+b.getAttribute('data-del')));
+    $('pls-convert').onclick = convert;
+  }
+  // ── legend (colour key) ───────────────────────────────────────────────────
+  // One or more photos of the key (long keys continue on the back of the page). On each
+  // photo the person taps a symbol in the "symbol on the chart" column: the engine finds the
+  // whole column and cuts one template per row. A second tap on a colour swatch gives each
+  // row its colour. S.legend = { pages:[{im, rows, templates, swatches, swatchX}], cur }
+  function legendTemplates(){ const out = []; if (!S.legend) return out; for (const pg of S.legend.pages) if (pg.rows) pg.templates.forEach((t, i) => out.push({ t, sw: pg.swatches ? pg.swatches[i] : null })); return out; }
+  function legendCardHTML(){
+    const Lg = S.legend; const all = legendTemplates();
+    let body = '';
+    const addBtns = (first) => '<div class="pls-pages"><label class="pls-add"><input type="file" accept="image/*" capture="environment" class="pls-legcam" hidden><span>📷</span><b>' + (first ? 'Take photo' : 'Photo of the next page') + '</b></label>'
+        + '<label class="pls-add alt"><input type="file" accept="image/*" class="pls-legpick" hidden><span>🖼</span><b>From photos</b></label></div>';
+    if (!Lg || !Lg.pages.length) {
+      body = '<p>Take a photo of the colour key — the table with one symbol per thread. If the key continues on another page, add that one too.</p>' + addBtns(true);
+    } else {
+      const pg = Lg.pages[Lg.cur];
+      const step = !pg.rows ? 'Tap one of the symbols in the <b>symbol on the chart</b> column.' : (!pg.swatches ? '<b>' + pg.rows.length + ' symbols found on this page.</b> Now tap a colour swatch to read the colours — or skip.' : '<b>' + pg.rows.length + ' symbols</b> on this page' + (pg.skippedColours ? ' (no colours)' : ' with colours') + '. Tap a symbol again to redo.');
+      const tabs = Lg.pages.length > 1 ? '<div class="pls-legtabs">' + Lg.pages.map((p2, i) => '<button type="button" class="' + (i === Lg.cur ? 'on' : '') + '" data-legtab="' + i + '">Key page ' + (i + 1) + (p2.rows ? ' · ' + p2.rows.length : '') + '</button>').join('') + '</div>' : '';
+      body = tabs + '<p>' + step + '</p><div class="pls-legwrap"><canvas id="pls-legcv"></canvas></div>'
+        + '<div class="pls-legbar"><span class="pls-legchips" id="pls-legchips"></span><a href="#" id="pls-legreset">Remove this photo</a>' + (pg.rows && !pg.swatches ? ' · <a href="#" id="pls-legskip">Skip colours</a>' : '') + '</div>'
+        + (pg.rows ? '<p class="pls-legtotal"><b>' + all.length + ' symbols</b> in the key so far.</p>' + addBtns(false) : '');
+    }
+    return '<div class="pls-card"><div class="pls-step">2</div><div class="pls-body"><h3>Colour key</h3>' + body + '</div></div>';
+  }
+  function bindLegend(){
+    document.querySelectorAll('.pls-legcam, .pls-legpick').forEach(inp => inp.onchange = e => legendFile(e.target.files[0]));
+    const rs = $('pls-legreset'); if (rs) rs.onclick = e => { e.preventDefault(); S.legend.pages.splice(S.legend.cur, 1); S.legend.cur = Math.max(0, S.legend.pages.length - 1); render(); };
+    const sk = $('pls-legskip'); if (sk) sk.onclick = e => { e.preventDefault(); const pg = S.legend.pages[S.legend.cur]; pg.swatches = pg.rows.map(() => null); pg.skippedColours = true; render(); };
+    document.querySelectorAll('[data-legtab]').forEach(b => b.onclick = () => { S.legend.cur = +b.getAttribute('data-legtab'); render(); });
+    const cv = $('pls-legcv'); if (cv) { drawLegend(cv); cv.onclick = e => legendTap(cv, e); }
+    const chips = $('pls-legchips'); const pg = S.legend && S.legend.pages[S.legend.cur];
+    if (chips && pg && pg.rows) chips.innerHTML = pg.templates.map((t, i) => '<img src="' + t.url + '" alt="" style="' + (pg.swatches && pg.swatches[i] ? 'border-bottom:4px solid rgb(' + pg.swatches[i].r + ',' + pg.swatches[i].g + ',' + pg.swatches[i].b + ')' : '') + '">').join('');
+  }
+  async function legendFile(file){
+    if (!file) return;
+    S.statusText = ''; if (!S.legend) S.legend = { pages: [], cur: 0 };
+    try {
+      const im = await fileToRGBA(file, 1800);
+      S.legend.pages.push({ im, rows: null, templates: null, swatches: null }); S.legend.cur = S.legend.pages.length - 1;
+    } catch (e) { S.statusText = 'Could not read that photo'; }
+    render();
+  }
+  function drawLegend(cv){
+    const pg = S.legend && S.legend.pages[S.legend.cur]; if (!pg || !pg.im) return;
+    const maxW = Math.min(cv.parentElement.clientWidth || 360, 720); const sc = Math.min(1, maxW / pg.im.w);
+    cv.width = Math.round(pg.im.w * sc); cv.height = Math.round(pg.im.h * sc); cv.style.width = cv.width + 'px'; cv.style.height = cv.height + 'px';
+    const g = cv.getContext('2d');
+    if (!pg.bmp) { const c2 = document.createElement('canvas'); c2.width = pg.im.w; c2.height = pg.im.h; c2.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(pg.im.rgba), pg.im.w, pg.im.h), 0, 0); pg.bmp = c2; }
+    g.drawImage(pg.bmp, 0, 0, cv.width, cv.height);
+    if (pg.rows) {
+      g.strokeStyle = 'rgba(139,26,43,.9)'; g.lineWidth = 2;
+      for (const t of pg.templates) g.strokeRect(t.box[0] * sc - 3, t.box[1] * sc - 3, (t.box[2] - t.box[0] + 7) * sc, (t.box[3] - t.box[1] + 7) * sc);
+      if (pg.swatchX != null) { g.strokeStyle = 'rgba(63,143,95,.9)'; g.strokeRect(pg.swatchX * sc - 10, 0, 20, cv.height); }
+    }
+  }
+  function legendTap(cv, e){
+    const pg = S.legend && S.legend.pages[S.legend.cur]; if (!pg || !pg.im) return;
+    const r = cv.getBoundingClientRect(); const sc = pg.im.w / cv.width;
+    const x = Math.round((e.clientX - r.left) * sc), y = Math.round((e.clientY - r.top) * sc);
+    if (!pg.rows || pg.swatches) {
+      const res = PLScan.legendAnalyse(pg.im.rgba, pg.im.w, pg.im.h, x, y);
+      if (!res.ok) { S.statusText = res.reason === 'nosymbol' ? 'Tap exactly on a symbol' : 'Could not find the symbol column there — try another symbol'; render(); return; }
+      pg.rows = res.rows; pg.swatches = null; pg.swatchX = null; pg.skippedColours = false; pg.band = res.band;
+      pg.templates = res.templates.map(t => Object.assign(t, { url: rgbaToURL({ rgba: t.rgba, w: t.size, h: t.size }) }));
+      S.statusText = '';
+    } else {
+      pg.swatchX = x; pg.swatches = PLScan.legendSwatches(pg.im.rgba, pg.im.w, pg.im.h, pg.rows, x); pg.skippedColours = false;
+    }
+    render();
+  }
+  function pageMapSVG(L){
+    const sc = Math.min(260 / L.W, 160 / L.H); const w = Math.round(L.W * sc), h = Math.round(L.H * sc);
+    let s = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="' + w + '" height="' + h + '" class="pls-svg"><rect x="0" y="0" width="' + w + '" height="' + h + '" rx="4" fill="#f3ebe9" stroke="#d9c8ce"/>';
+    for (const p of L.placed) { const bad = L.warn.some(x => x.id === p.id); const pg = S.pages.find(q => q.id === p.id);
+      s += '<rect x="' + (p.x * sc + 1) + '" y="' + (p.y * sc + 1) + '" width="' + Math.max(1, p.cols * sc - 2) + '" height="' + Math.max(1, p.rows * sc - 2) + '" rx="3" fill="' + (bad ? '#f6c4a8' : '#c9e3cf') + '" stroke="' + (bad ? '#c7652b' : '#3f8f5f') + '"/>'
+        + '<text x="' + ((p.x + p.cols / 2) * sc) + '" y="' + ((p.y + p.rows / 2) * sc + 4) + '" text-anchor="middle" font-size="11" font-weight="700" fill="#2b2226">' + (pg ? pg.n : '') + '</text>'; }
+    return s + '</svg>';
+  }
+  async function addFiles(files){
+    if (!files || !files.length) return;
+    for (const f of Array.from(files)) {
+      const p = { id: ++S.seq * 1000 + S.pages.length, n: S.pages.length + 1, status: 'busy', ok: false, progress: 0, file: f };
+      S.pages.push(p); render();
+      try {
+        const im = await fileToRGBA(f);
+        const r = await call({ cmd: 'page', id: p.id, rgba: im.rgba, w: im.w, h: im.h }, [im.rgba.buffer], pr => { p.progress = pr; const el = document.querySelector('.pls-page[data-id="' + p.id + '"] .pls-prog i'); if (el) el.style.width = Math.round(pr * 100) + '%'; });
+        p.status = 'done';
+        if (r.ok) { Object.assign(p, { ok: true, cols: r.cols, rows: r.rows, colPhase: r.colPhase, rowPhase: r.rowPhase, realFrac: r.realFrac, thumbUrl: rgbaToURL(r.thumb) }); }
+        else { p.ok = false; p.reasonText = r.reason === 'nogrid' ? 'No grid found — retake flatter and closer' : 'Could not read this photo'; if (r.error) console.warn('[scan]', r.error); }
+      } catch (err) { p.status = 'done'; p.ok = false; p.reasonText = 'Could not read this photo'; console.warn('[scan] page failed', err); }
+      renumber(); render();
+    }
+  }
+  function renumber(){ S.pages.forEach((p, i) => p.n = i + 1); }
+  function removePage(id){ const i = S.pages.findIndex(p => p.id === id); if (i < 0) return; S.pages.splice(i, 1); call({ cmd: 'drop', id }); renumber(); render(); }
+  function close(){ S.pages.forEach(p => call({ cmd: 'drop', id: p.id })); S.pages = []; S.classes = null; S.statusText = ''; if (typeof trkShowHome === 'function') trkShowHome(); }
+
+  // ── convert: classes → tracker project ──────────────────────────────────
+  async function convert(){
+    const L = layout(); if (!L || !L.complete || S.busy) return;
+    S.busy = true; S.statusText = 'Finding the symbols…'; render();
+    const ids = L.placed.map(p => p.id);
+    const legAll = legendTemplates(); const Lg = legAll.length >= 2 ? { templates: legAll.map(x => x.t), swatches: legAll.some(x => x.sw) ? legAll.map(x => x.sw) : null } : null;
+    let r;
+    if (Lg) {
+      const T = Lg.templates.map((t, i) => ({ id: i, rgba: t.rgba, size: t.size }));
+      r = await call({ cmd: 'match', ids, templates: T }, [], pr => { const el = $('pls-status'); if (el) el.textContent = 'Reading the symbols… ' + Math.round(pr * 100) + '%'; });
+      console.log('[scan] match: glyph scale', r.scale, 'score', r.scaleScore && r.scaleScore.toFixed(3), 'moved in pass 2', r.moved);
+      if (r.ok) { // class list in legend order
+        const counts = new Int32Array(T.length); for (const id of ids) for (const k of r.labels[id].lab) if (k >= 0) counts[k]++;
+        r.classes = T.map((t, k) => ({ k, n: counts[k], sat: 0, hue: -1 })); r.sprites = Lg.templates.map(t => spriteFromTemplate(t));
+      }
+    } else {
+      r = await call({ cmd: 'cluster', ids }, [], pr => { const el = $('pls-status'); if (el) el.textContent = 'Finding the symbols… ' + Math.round(pr * 100) + '%'; });
+    }
+    S.busy = false;
+    if (!r.ok) { S.statusText = 'Something went wrong while reading the symbols' + (r.error ? ' (' + r.error.split('\n')[0] + ')' : ''); render(); return; }
+    // symbol ids: private-use characters; legend order when there is a legend, else by frequency
+    const order = Lg ? r.classes.slice() : r.classes.slice().sort((a, b) => b.n - a.n);
+    const symOf = new Int32Array(r.classes.length); order.forEach((c, i) => symOf[c.k] = 0xE000 + i);
+    const W = L.W, H = L.H, cells = Array.from({ length: H }, () => new Array(W).fill(' '));
+    const conf = new Float32Array(W * H).fill(1);
+    for (const p of L.placed) { const lab = r.labels[p.id].lab, cf = r.labels[p.id].conf;
+      for (let i = 0; i < p.rows; i++) for (let j = 0; j < p.cols; j++) { const y = p.y + i, x = p.x + j; if (y >= H || x >= W) continue; const k = lab[i * p.cols + j]; if (k >= 0) { cells[y][x] = String.fromCharCode(symOf[k]); conf[y * W + x] = cf[i * p.cols + j]; } } }
+    const counts = {}; for (const row of cells) for (const ch of row) if (ch !== ' ') counts[ch] = (counts[ch] || 0) + 1;
+    const bySymbol = {}, map = {}, sprites = {};
+    order.forEach((c, i) => {
+      const sym = String.fromCharCode(0xE000 + i); if (!counts[sym]) return;
+      bySymbol[sym] = { nr: i + 1, symbol: sym, code: '', stitches: counts[sym], scanned: true };
+      // colour: the legend swatch when read; a clearly coloured symbol keeps its hue; else neutral grey
+      let rgb = { r: 150, g: 150, b: 150 };
+      const sw = Lg && Lg.swatches ? Lg.swatches[c.k] : null;
+      if (sw) rgb = { r: sw.r, g: sw.g, b: sw.b };
+      else if (c.hue >= 0 && c.sat > 0.25) rgb = hsvToRgb(c.hue, 0.65, 0.75);
+      map[sym] = Object.assign({}, rgb, { code: '', stitches: counts[sym], label: 'Symbol ' + (i + 1), scanned: true });
+      const sp = r.sprites[c.k]; if (sp) { const cv = sp.getContext ? sp : rgbaToCanvas(sp); sprites[sym] = { dark: cv, light: trkTintSprite(cv), url: cv.toDataURL() }; }
+    });
+    // hand over to the tracker exactly like the other upload formats
+    try { if (typeof trkResetUploads === 'function') trkResetUploads(); } catch (e) {}
+    window.trkExactGrid = true; window.trkPdfLegendParsed = false; window.trkPdfLegend = null;
+    trackerGrid = { cols: W, rows: H, cells, scanned: true };
+    trackerChartBuf = null; trackerLastChartFile = null; trackerLegendBuf = null; trackerLegendGlyphs = null;
+    trackerLegend = { bySymbol, byCode: {}, pending: [], colours: Object.keys(bySymbol).length, fabricCount: null, stitchesSize: { w: W, h: H }, finishedSize: null, rowCount: Object.keys(bySymbol).length, scanned: true };
+    trackerColourMap = map; trackerManual = false; trackerSymbolsOnly = true; trackerBwOnly = false;
+    trackerSprites = sprites; trkFinalToRaw = {};
+    trackerActiveProjectKey = 'scan_' + Date.now().toString(36) + '_' + W + 'x' + H;
+    trackerProjectName = trkPendingName || 'Scanned pattern';
+    window.plScanConfidence = conf; window.plScanSprites = sprites;
+    S.statusText = ''; const root = $('trk-scan'); if (root) root.style.display = 'none';
+    await tryBuildTracker();
+    // tryBuildTracker rebuilds sprites from PDFs (none here) — make sure ours stay in place
+    if (!Object.keys(trackerSprites).length) trackerSprites = sprites;
+    try { renderTracker(); updateTrackerProgressUI(); } catch (e) {}
+    S.pages.forEach(p => call({ cmd: 'drop', id: p.id })); S.pages = [];
+  }
+  function spriteFromTemplate(t){
+    const n = t.size, src = t.rgba, cv = document.createElement('canvas'); cv.width = n; cv.height = n;
+    const g = cv.getContext('2d'), id = g.createImageData(n, n); const lum = new Float32Array(n * n);
+    for (let i = 0; i < n * n; i++) lum[i] = (src[i * 4] + src[i * 4 + 1] + src[i * 4 + 2]) / 3;
+    const srt = Float32Array.from(lum).sort(); const paper = srt[Math.floor(srt.length * 0.9)], dark = srt[Math.floor(srt.length * 0.03)], span = Math.max(paper - dark, 30);
+    for (let i = 0; i < n * n; i++) { const ink = Math.min(1, Math.max(0, (paper - lum[i]) / span)); const a = Math.min(1, Math.max(0, (ink - 0.3) / 0.45)); id.data[i * 4] = id.data[i * 4 + 1] = id.data[i * 4 + 2] = 0; id.data[i * 4 + 3] = Math.round(a * 255); }
+    g.putImageData(id, 0, 0); return cv;
+  }
+  function hsvToRgb(h, s, v){ const i = Math.floor(h * 6), f = h * 6 - i, p = v * (1 - s), q = v * (1 - f * s), tt = v * (1 - (1 - f) * s); const [r, g, b] = [[v, tt, p], [q, v, p], [p, v, tt], [p, q, v], [tt, p, v], [v, p, q]][i % 6]; return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) }; }
+
+  // ── entry ────────────────────────────────────────────────────────────────
+  window.plScanOpen = function(){
+    const root = $('trk-scan'); if (!root) return;
+    root.style.display = ''; S.statusText = ''; render();
+    worker();
+  };
+})();
+
 </script>
 
 </body>
