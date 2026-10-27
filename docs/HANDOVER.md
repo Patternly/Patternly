@@ -37,11 +37,11 @@ Two GitHub repos under the **Patternly** organisation are the source of truth; C
 
 ## Code map
 
-Current versions: **editor v631**, **middleware v101**, **Studio v51**, app **1.4** (iOS build 3 / Android versionCode 9), `release-1.5` branch = version 10 / 1.5. Every build bumps its version constant; never re-issue a version with different contents.
+Current versions: **editor v632**, **middleware v101**, **Studio v51**, app **1.4** (iOS build 3 / Android versionCode 9), `release-1.5` branch = version 10 / 1.5. Every build bumps its version constant; never re-issue a version with different contents.
 
 | File | Size | What it is | Version constant |
 | --- | --- | --- | --- |
-| `Patternly/index.html` | 34,566 lines, 2.8 MB | The whole web app: landing pages, Editor, Tracker, converter, calculators, account/Plus, i18n table (`T` with en/fr/de/nl/ru/uk/es/it), Capacitor glue, scan engine. Single file by design. | `PATTERNLY_BUILD='v631'` (shown in Account footer and console) |
+| `Patternly/index.html` | 34,566 lines, 2.8 MB | The whole web app: landing pages, Editor, Tracker, converter, calculators, account/Plus, i18n table (`T` with en/fr/de/nl/ru/uk/es/it), Capacitor glue, scan engine. Single file by design. | `PATTERNLY_BUILD='v632'` (shown in Account footer and console) |
 | `Patternly/brands.html` | 4,897 lines, 750 KB | Partner Studio: landing/apply, sign-in, tabs (partner: Overview, My Patterns, Converter, My Customers, My Account; owner: Overview/revenue, Brands, Patterns, Converter, Customers, Branding, Users, Notifications). Contains the full converter as base64 blob iframe (`CONV_B64`). | `/* v51 */` comments; no constant |
 | `Patternly/functions/_middleware.js` | 4,836 lines | Cloudflare Pages Function: every API route, auth, storage, email, push, revenue | `MW_VERSION = "v101"` (reported by `/whoami`) |
 | `Patternly/CNAME` | — | `patternly.design` custom domain | — |
@@ -61,6 +61,7 @@ Current versions: **editor v631**, **middleware v101**, **Studio v51**, app **1.
 - Rendering: `renderTracker()` (overview mode `_ov` when cells < 6 px, unsure overlay, backstitch + knots overlay, rulers), `updateTrackerProgressUI()` (side list + mobile colour sheet + selected-colour card + streak/progress).
 - Sync: `trkSaveProject` / `trkOpenProject` (local index `trkIndex()`), cloud `trkProgressUrl`, `trkCloudProjects`, `trkUserPatternUrl`, `pl_session` token — these are the RULE #1 markers.
 - Scan: `<script id="plscan-src">` = `PLScan` engine (run in a Web Worker from a Blob), followed by the scan UI script (`plScanOpen`, review popover, `plReviewBanner`). Sources kept in the session scratchpad as `plscan_engine.js` / `plscan_ui.js`; `update_scan.py <index.html> vNNN` re-embeds them.
+- Landing carousels (phones ≤860 px): `.lp-steps` + `.lp-steps-dots`, `.lp-features-grid` + `.lp-feat-dots`; native scroll-snap, one small script (search "Dots for the landing carousels") syncs the dots.
 - Native detection: `plIsApp()` (Capacitor); `body.pl-native` class marks the native shell (no Luca-S Shop links exist anywhere since v631); `setAppViewport()` locks zoom in the app; `--sa-top/--sa-bottom` safe-area vars.
 - i18n: `plT(key)` / `trkT(key, vars)` over table `T`; `data-i18n` attributes applied by `plApplyLang()`.
 
@@ -180,7 +181,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 **RULE #1 — never break account-linked sync.** Before every push, grep these marker counts in `index.html` and compare with the previous commit: `trkProgressUrl` 4 lines, `trkCloudProjects` 4, `trkUserPatternUrl` 8, `pl_session` 27 occurrences (21 lines). Also: `ensurePageFooters` adds a footer only to `#account-page`, never `#tracker-page`; `/progress` latches code-opened kits to the signed-in customer.
 
-1. One fix per build; bump `PATTERNLY_BUILD` (editor), `MW_VERSION` (middleware) or the Studio `vNN` comment on every delivered change; never re-issue a version with different contents. Next numbers: editor **v632**, middleware **v102**, Studio **v52**.
+1. One fix per build; bump `PATTERNLY_BUILD` (editor), `MW_VERSION` (middleware) or the Studio `vNN` comment on every delivered change; never re-issue a version with different contents. Next numbers: editor **v633**, middleware **v102**, Studio **v52**.
 2. Every editor build: `node --check` on all 15 inline script blocks, then copy `index.html` to `patternly-app/www/index.html` and commit both repos ("www: editor vNNN").
 3. Commit as `-c user.name="Cristian" -c user.email="lucasukinfo@gmail.com"`, message ending with the Claude attribution lines; push to `main` directly (the Claude GitHub App has push access on both repos). The Patternly repo remote redirects ("repository moved") — harmless.
 4. Test before delivering: Playwright headless Chromium (`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`, `--no-sandbox`) against a local `python3 -m http.server` serving a copy of the file; iPhone viewport 390×844 with `isMobile`/`hasTouch`; `hj051.ptly` is the usual test pattern. No WebKit is available — anything iOS-specific needs Cristian's phone.
@@ -195,6 +196,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 | Date | Build | Change |
 | --- | --- | --- |
+| 27 Oct 2026 | Editor v632 | Landing page on phones (≤860 px, web and apps): the three feature cards (Create Patterns / Convert Images / Stitch Tracker) are now a swipeable scroll-snap carousel with a peek of the next card and tappable dots, like the "three steps" section already was. One shared dots script drives both carousels; dark-mode dots fixed (the active dot was invisible in Night). Desktop layout unchanged |
 | 27 Oct 2026 | Editor v631 | Removed the "Luca-S Shop ↗" link everywhere (web and apps): landing header, mobile menu, editor top bar and the My Account list. The `.pl-shop-link` hide rule is gone with it; the `acct.shop` i18n strings are left unused. The Account footnote "Luca-S shop account ↗" (orders & addresses) is kept |
 | 27 Oct 2026 | Editor v630 | Pick / long-press on the chart no longer scrolls the page down to the colour list: only the list box scrolls to the picked colour, the view stays on the chart. v630 copied to patternly-app `www/` (apps carry v629 + v630) |
 | 27 Oct 2026 | Editor v629 | Phone toolbar moved below the chart (above the colour list), Day-mode light pills with a Night-mode dark variant, about 15% smaller (buttons 40 px max instead of 46) |
@@ -215,6 +217,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 ### Waiting on Cristian
 
+- [ ] Check v632 landing carousels on the phone (feature cards swipe, dots follow; "three steps" carousel unchanged apart from dark dots)
 - [ ] Check v630 on the iPhone: Pick keeps the chart in view; toolbar under the chart (v629, checked on web by Cristian); French-knot focus on B1441 (v628); Studio on the phone
 - [ ] Decide whether the desktop / tablet toolbar (>820 px) should also move below the chart (v629 changed phones only; on desktop the colour list is a side column, not below)
 - [x] v629 + v630 copied to `patternly-app/www/` (27 Oct); next store build will carry them
