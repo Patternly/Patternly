@@ -4141,7 +4141,21 @@ body.dark #tracker-page select option,body.dark #threads-page select option{
                        box-sizing:border-box;padding:0 .5rem}
   .lp-step-arrow{display:none}
   .lp-steps-dots{display:flex}
+  /* Feature cards: same swipe pattern. Each card is a bit narrower than the
+     screen so the next one peeks in and says "swipe". The scroller bleeds
+     into the container gutter so the peek reaches the screen edge, and the
+     vertical padding leaves room for the main card's shadow. */
+  .lp-features-grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;
+                    -webkit-overflow-scrolling:touch;scrollbar-width:none;gap:1rem;
+                    margin:2rem -2rem 0;padding:.4rem 2rem 1rem;scroll-padding:0 2rem}
+  .lp-features-grid::-webkit-scrollbar{display:none}
+  .lp-features-grid > .lp-feature-card{flex:0 0 84%;max-width:400px;scroll-snap-align:center;
+                                       box-sizing:border-box;padding:1.5rem}
+  .lp-feature-card .lp-feat-list{flex:1}
+  .lp-feat-dots{margin-top:.4rem}
 }
+body.dark .lp-steps-dots span{background:#4a3f5c}
+body.dark .lp-steps-dots span.on{background:#e0607a}
 
 /* COMING SOON */
 .lp-coming-banner{background:linear-gradient(135deg,#fffdf0,#fff8e1);border:1.5px solid #e8d8a0;border-radius:18px;padding:3rem;display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center}
@@ -5397,7 +5411,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v631';
+window.PATTERNLY_BUILD='v632';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -5789,6 +5803,7 @@ document.addEventListener('DOMContentLoaded', function(){
       </div>
 
     </div>
+    <div class="lp-steps-dots lp-feat-dots" aria-hidden="true"><span></span><span></span><span></span></div>
   </div>
 </section>
 
@@ -33042,14 +33057,16 @@ document.querySelectorAll('#lp-nav a[href^="#"]').forEach(a=>{
 })();
 </script>
 <script>
-// Dots for the steps carousel: they track the scroller and are tappable.
-// Only the indicator is scripted — the swipe itself is native scroll-snap.
-(function(){
-  const box=document.querySelector('.lp-steps');
-  const dots=document.querySelector('.lp-steps-dots');
+// Dots for the landing carousels (steps, feature cards): they track the
+// scroller and are tappable. Only the indicator is scripted — the swipe
+// itself is native scroll-snap.
+[['.lp-steps','.lp-step','.lp-steps-dots:not(.lp-feat-dots)'],
+ ['.lp-features-grid','.lp-feature-card','.lp-feat-dots']].forEach(function(sel){
+  const box=document.querySelector(sel[0]);
+  const dots=document.querySelector(sel[2]);
   if(!box||!dots) return;
   const spans=[...dots.children];
-  const cards=()=>[...box.querySelectorAll('.lp-step')];
+  const cards=()=>[...box.querySelectorAll(sel[1])];
   function sync(){
     const c=cards(); if(!c.length) return;
     const mid=box.scrollLeft+box.clientWidth/2;
@@ -33064,7 +33081,7 @@ document.querySelectorAll('#lp-nav a[href^="#"]').forEach(a=>{
   }); });
   window.addEventListener('resize', sync);
   sync();
-})();
+});
 </script>
 <script>
 // ── Browser history ───────────────────────────────────────────────────────
