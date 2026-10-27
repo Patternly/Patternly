@@ -2606,6 +2606,13 @@ body.dark #landing-page,html:has(body.dark){background:#171220}
 body.dark{background:#171220}
 /* item 5: the tracker "New to…" banner had a hard-coded white background inline. */
 body.dark #trk-guide-banner{background:#221c30!important;border-color:#37303f!important}
+/* v626: one-line version of the guide banner for people who already use the tracker */
+#trk-guide-banner.compact{padding:.55rem .9rem!important;margin:1rem auto .2rem!important;border-radius:12px!important;gap:.6rem!important}
+#trk-guide-banner.compact > div > div:first-child{display:inline;font-size:.88rem!important;margin:0 .35rem 0 0!important}
+#trk-guide-banner.compact > div > div:last-child{display:none}
+#trk-guide-banner.compact > div{flex:1 1 auto;min-width:0}
+#trk-guide-banner.compact{flex-wrap:nowrap!important}
+#trk-guide-banner.compact a{padding:.45rem .9rem!important;font-size:.8rem!important;border-radius:9px!important}
 /* item 4: account "Your patterns" cards — hard white bg + inherited (light) title
    text meant white-on-white in dark mode. Drive colours from these classes instead. */
 .acct-pat-card{background:#fff;border:1.5px solid #e6d9dd}
@@ -3485,7 +3492,8 @@ body.dark .trk-card.done{background:#1c2b22}
 #trk-selcard-sym img{width:36px;height:36px}
 #trk-selcard-info{flex:1;display:flex;flex-direction:column;font-size:.72rem;color:var(--lp-muted,#7d6b72)}
 #trk-selcard-info b{font-size:.82rem;color:var(--lp-ink,#2b2226)}
-#trk-selcard-x{background:none;border:none;color:var(--lp-red,#8B1A2B);font-weight:700;cursor:pointer}
+#trk-selcard-x{flex:0 0 40px;width:40px;height:40px;border-radius:50%;border:1.5px solid #e6d9dd;background:#fff;color:var(--lp-red,#8B1A2B);font-weight:700;font-size:1.05rem;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+body.dark #trk-selcard-x{background:#221b2d;border-color:#4a3d55}
 body.dark #trk-selcard{background:#3a2130}
 body.dark #trk-selcard-sym{background:#ece4d6;border-color:#4a3d55;color:#241b1e}
 #trk-selcard-info .mm{font-weight:400;color:var(--lp-muted,#7d6b72);font-size:.72rem}
@@ -3587,15 +3595,17 @@ body.dark .trk-group{background:#221b2d;border-color:#4a3d55}
   #trk-backupgroup{display:none!important}
   /* v625 · one-row toolbar: modes as a segmented control (icon over label),
      compact zoom (tap the % to fit), full screen as an icon. */
-  #trk-zoombar{flex-wrap:nowrap;gap:.4rem;margin-bottom:.5rem}
-  #trk-modes{order:1;flex:1 1 auto;min-width:0;margin-left:0;gap:2px;background:#fff;border:1.5px solid #e6d9dd;border-radius:12px;padding:3px;height:46px;box-sizing:border-box}
-  #trk-modes button{flex:1 1 0;min-width:0;height:100%;border:0;border-radius:9px;background:transparent!important;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:0;font-size:.62rem;line-height:1.1;color:var(--lp-ink,#2b2226)}
-  #trk-modes button.active{background:var(--lp-red,#8B1A2B)!important;color:#fff!important;border-color:transparent}
-  #trk-zoomgroup{order:2;flex:0 0 auto;height:46px;box-sizing:border-box;border-radius:12px;padding:3px}
+  #trk-zoombar{flex-wrap:nowrap;gap:.4rem;margin-bottom:.5rem;align-items:center}
+  /* v626: same round mode buttons as the full view, in a light pill */
+  #trk-modes{order:1;flex:0 0 auto;margin-left:0;gap:4px;background:#fff;border:1.5px solid #e6d9dd;border-radius:999px;padding:4px;height:52px;box-sizing:border-box;align-items:center}
+  #trk-modes button{flex:0 0 42px;width:42px;height:42px;border-radius:50%;border:1.5px solid #e6d9dd;background:#fff!important;display:flex;align-items:center;justify-content:center;padding:0;font-size:1.15rem;line-height:1;color:var(--lp-ink,#2b2226)}
+  #trk-modes button span{display:none}
+  #trk-modes button.active{background:var(--lp-red,#8B1A2B)!important;color:#fff!important;border-color:var(--lp-red,#8B1A2B)}
+  #trk-zoomgroup{order:2;flex:1 1 auto;min-width:0;height:46px;box-sizing:border-box;border-radius:999px;padding:3px;justify-content:center}
   #trk-zoomgroup button{height:100%}
   #trk-fit{display:none!important}
   #trk-zoom-label{min-width:40px;cursor:pointer}
-  #trk-fsgroup{order:3;flex:0 0 auto;width:46px;height:46px;box-sizing:border-box;border-radius:12px;padding:3px;justify-content:center}
+  #trk-fsgroup{order:3;flex:0 0 auto;width:46px;height:46px;box-sizing:border-box;border-radius:50%;padding:3px;justify-content:center}
   #trk-fs-btn{height:100%;width:100%;padding:0!important;font-size:1.1rem}
   #trk-fs-btn span{display:none}
   body.dark #trk-modes{background:#221b2d;border-color:#4a3d55}
@@ -3687,15 +3697,15 @@ body.trk-fs #trk-fsbar button{flex:0 0 auto;width:48px;height:48px;padding:0;bor
 body.trk-fs #trk-fsbar button span{display:none}
 body.trk-fs #trk-fsbar button.active{background:var(--lp-red,#8B1A2B);border-color:var(--lp-red,#8B1A2B)}
 #trk-fsutil,#trk-fszoom{display:none}
-body.trk-fs #trk-fsutil{display:flex;flex-direction:column;gap:8px;position:fixed;top:max(.7rem,var(--sa-top));right:.7rem;z-index:9450}
+body.trk-fs #trk-fsutil{display:flex;flex-direction:column;gap:8px;position:fixed;top:calc(max(.7rem,var(--sa-top)) + 1.2rem);right:.7rem;z-index:9450}
 body.trk-fs #trk-fsutil button{width:44px;height:44px;border-radius:50%;border:1.5px solid rgba(255,255,255,.35);background:rgba(43,34,38,.88);color:#fff;font-size:1.15rem;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;box-shadow:0 6px 18px rgba(43,34,38,.3);backdrop-filter:blur(6px)}
 body.trk-fs #trk-fsutil button span{display:none}
 body.trk-fs #trk-fsutil button.active{background:var(--lp-red,#8B1A2B);border-color:var(--lp-red,#8B1A2B)}
-body.trk-fs #trk-fszoom{display:flex;align-items:center;position:fixed;top:max(.7rem,var(--sa-top));left:.7rem;z-index:9450;height:44px;border-radius:999px;background:rgba(43,34,38,.88);padding:0 4px;box-shadow:0 6px 18px rgba(43,34,38,.3);backdrop-filter:blur(6px)}
+body.trk-fs #trk-fszoom{display:flex;align-items:center;position:fixed;top:calc(max(.7rem,var(--sa-top)) + 1.2rem);left:1.9rem;z-index:9450;height:44px;border-radius:999px;background:rgba(43,34,38,.88);padding:0 4px;box-shadow:0 6px 18px rgba(43,34,38,.3);backdrop-filter:blur(6px)}
 body.trk-fs #trk-fszoom button{width:40px;height:36px;border:0;background:transparent;color:#fff;font-size:1.25rem;font-weight:800;border-radius:999px;cursor:pointer;padding:0}
 body.trk-fs #trk-fszoom #fsz-fit{font-size:1rem;opacity:.85}
 body.trk-fs.trk-cbopen #trk-fszoom,body.trk-fs.trk-setopen #trk-fszoom{display:none}
-body.fsbar-hidden #trk-fszoom{opacity:0;pointer-events:none;transition:opacity .28s ease}
+
 /* ── Full-View colour sheet (v348): opens from the Colours tab, hidden by
    default. A bottom sheet with a header (grid/list toggle + close) and a
    vertically-scrolling body. Grid = chips; List = rows. Mini-menu hides while open. */
@@ -5338,7 +5348,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v625';
+window.PATTERNLY_BUILD='v626';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -21177,6 +21187,19 @@ function trkShowHome(){
 
   // The saved-patterns sections render below, in #trk-projects.
   const list=trkIndex();
+  // v626: the "New to Patternly?" banner is for first-timers. Once the guide has been
+  // opened, or there is already a saved pattern, it shrinks to one line and drops
+  // below the pattern lists, where it stays reachable without taking the top of the page.
+  try{
+    let seen=false; try{ seen=!!localStorage.getItem('patternly_guide_seen'); }catch(_e){}
+    const veteran = seen || (list && list.length>0);
+    if(gb){
+      gb.classList.toggle('compact', veteran);
+      const proj=document.getElementById('trk-projects');
+      if(veteran && proj && proj.parentNode && gb.nextElementSibling!==null && proj.nextElementSibling!==gb) proj.parentNode.insertBefore(gb, proj.nextSibling);
+      else if(!veteran){ const np=document.getElementById('trk-newpat'); if(np && np.previousElementSibling!==gb) np.parentNode.insertBefore(gb, np); }
+    }
+  }catch(_e){}
   trkShowHomeInner(list);
 }
 function trkShowHomeInner(list){
@@ -26226,6 +26249,7 @@ function trkPinchCommit(P){
     const k=P.target/(P.px||trackerCellPx);
     trkSetZoomPx(P.target);                                                 // renders + sizes the scroller for the new cell size
     want={sl:P.gut+P.content.x*k-P.origin.x, st:P.gut+P.content.y*k-P.origin.y};
+    window._trkProgScroll=Date.now();
     wrap.scrollLeft=want.sl; wrap.scrollTop=want.st;
     renderTracker();
   } else {
@@ -26749,6 +26773,7 @@ function trkZoomTo(px, anchorX, anchorY){
   const k=px/trackerCellPx;
   trkSetZoomPx(px);                                                        // renders + resizes the scroll sizer
   const _sl = g + (mx-g)*k - (ax-rect.left), _st = g + (my-g)*k - (ay-rect.top);   // the gutter is a fixed margin: scale only the grid part
+  window._trkProgScroll=Date.now();
   wrap.scrollLeft = _sl; wrap.scrollTop = _st;
   renderTracker();                                                         // repaint at the corrected scroll (no race with the scroll event)
   return {sl:_sl, st:_st};                                                 // v620: the pinch commit re-applies these if WebKit swallowed them
@@ -29290,7 +29315,8 @@ function acctRenderPage(){
     el.innerHTML=`<div style="flex:1"><b style="font-size:.95rem">Accounts work on the Luca-S site</b><p style="font-size:.78rem;color:#7d6b72;margin:.25rem 0 0">Open Patternly there to sign in with your shop account.</p></div>
       <a href="https://luca-s.com/apps/patternly" style="padding:.55rem 1rem;border-radius:9px;background:var(--lp-red,#8B1A2B);color:#fff;font-size:.82rem;font-weight:700;text-decoration:none">Open on luca-s.com →</a>`;
   }
-  acctRenderPatterns();
+  // v626: the pattern list belongs to the tracker home, not the account page
+  { const b=document.getElementById('acct-patterns'); if(b) b.style.display='none'; }
   acctRenderPlusStrip();
 }
 
@@ -30690,7 +30716,7 @@ function _tgInitScripts(){if(_tgInit)return;_tgInit=true;try{
 
 }catch(e){console.warn('[tguide]',e);}}
 function openGuide(){document.body.classList.remove('subs-mode','pricing-mode','app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode','trackerguide-mode');document.body.classList.add('guide-mode');window.scrollTo(0,0);_gInitScripts();}
-function openTrackerGuide(){document.body.classList.remove('subs-mode','pricing-mode','app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode','guide-mode');document.body.classList.add('trackerguide-mode');window.scrollTo(0,0);_tgInitScripts();}
+function openTrackerGuide(){try{ localStorage.setItem('patternly_guide_seen','1'); }catch(_e){} document.body.classList.remove('subs-mode','pricing-mode','app-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode','guide-mode');document.body.classList.add('trackerguide-mode');window.scrollTo(0,0);_tgInitScripts();}
 function openThreads(){
   document.body.classList.remove('subs-mode','pricing-mode','app-mode','guide-mode','trackerguide-mode','projects-mode','calc-mode','tracker-mode','convert-mode','account-mode');
   document.body.classList.add('threads-mode');
@@ -30985,7 +31011,7 @@ function trkToggleFullscreen(on){
   if(!want){ trkFsPanel(null); trkFsRestore(); b.classList.remove('trk-cbopen'); b.classList.remove('cb-exp'); }
   else trkFsSyncMode();
   const btn=document.getElementById('trk-fs-btn');
-  if(btn) btn.textContent = want ? '⛶ Exit full screen' : '⛶ Full screen';
+  if(btn) btn.innerHTML = want ? '⛶ <span>Exit full screen</span>' : '⛶ <span data-i18n="trk.fullscreen">Full screen</span>';
   // The canvas is sized from its container, so it must be redrawn once the
   // layout has settled.
   requestAnimationFrame(()=>{ if(trackerGrid) renderTracker(); });
@@ -31127,6 +31153,7 @@ function trkSheetDrag(header, sheet, opts){
     requestAnimationFrame(()=>{
       tick=false;
       if(!document.body.classList.contains('trk-fs')){ lastY=wrap.scrollTop; return; }
+      if(Date.now()-(window._trkProgScroll||0)<500){ lastY=wrap.scrollTop; return; }   // v626: a zoom moved the scroller, not a finger
       const y=wrap.scrollTop, d=y-lastY;
       if(Math.abs(d)<6) return;                 // ignore jitter
       if(d>0 && y>44) document.body.classList.add('fsbar-hidden');   // down → hide
