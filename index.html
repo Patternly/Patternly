@@ -2607,7 +2607,6 @@ body.dark{background:#171220}
 /* item 5: the tracker "New to…" banner had a hard-coded white background inline. */
 body.dark #trk-guide-banner{background:#221c30!important;border-color:#37303f!important}
 /* v627: shop links are hidden inside the native apps */
-body.pl-native .pl-shop-link{display:none!important}
 /* v626: one-line version of the guide banner for people who already use the tracker */
 /* v627: redesigned as a slim "help" row — book icon in a circle, title + one short
    line, an outlined pill link — so it sits quietly under the pattern lists. */
@@ -5398,7 +5397,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v630';
+window.PATTERNLY_BUILD='v631';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -5496,7 +5495,6 @@ window.addEventListener('DOMContentLoaded',function(){
       </div>
       <a href="#" onclick="openPricing();return false" data-i18n="acct.pricing">Pricing</a>
       <a href="#" onclick="openGuide();return false" data-i18n="acct.guide">Guide</a>
-      <a href="https://luca-s.com/" target="_blank" rel="noopener" class="pl-shop-link" style="color:var(--lp-red);font-weight:600">Luca-S Shop ↗</a>
     </div>
     <button id="lp-menu-btn" onclick="lpToggleMenu()" title="Menu" style="display:none;background:none;border:1.5px solid var(--lp-border);border-radius:9px;width:36px;height:36px;cursor:pointer;font-size:1.05rem;line-height:1;flex-shrink:0;color:var(--lp-ink)">☰</button>
     <span class="acct-wrap"><button class="acct-btn" id="acct-btn-nav" title="Your account" onclick="acctToggle(this)"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="8.2" r="3.6"/><path d="M4.8 19.4c1.5-3.1 4.2-4.6 7.2-4.6s5.7 1.5 7.2 4.6"/></svg></button><span class="acct-dd" id="acct-dd-nav"></span></span>
@@ -5533,7 +5531,6 @@ window.addEventListener('DOMContentLoaded',function(){
   </div>
   <a href="#" onclick="lpCloseMenu();openPricing();return false" data-i18n="acct.pricing">Pricing</a>
   <a href="#" onclick="lpCloseMenu();openGuide();return false" data-i18n="acct.guide">Guide</a>
-  <a href="https://luca-s.com/" target="_blank" rel="noopener" onclick="lpCloseMenu()" class="pl-shop-link" style="color:var(--lp-red);font-weight:600">Luca-S Shop ↗</a>
   <div id="mm-editor-extras">
     <a href="#" onclick="lpCloseMenu();document.getElementById('clear-btn').click();return false">🗑 Clear canvas</a>
   </div>
@@ -5716,7 +5713,7 @@ document.addEventListener('DOMContentLoaded', function(){
     if(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()){
       var sec=document.getElementById('lp-app');
       if(sec) sec.style.display='none';
-      // v627: no "Luca-S Shop" links in the native apps (header, menu, Account page)
+      // marks the native app shell (v631: Luca-S Shop links removed everywhere)
       document.body.classList.add('pl-native');
       return;
     }
@@ -7534,7 +7531,6 @@ document.addEventListener('DOMContentLoaded', function(){
       <button class="acct-hub-row" onclick="openCalculators()"><span data-i18n="acct.calculators">Calculators</span><i>&rsaquo;</i></button>
       <button class="acct-hub-row" onclick="openPricing()"><span data-i18n="acct.pricing">Pricing</span><i>&rsaquo;</i></button>
       <button class="acct-hub-row" onclick="openGuide()"><span data-i18n="acct.guide">Guide</span><i>&rsaquo;</i></button>
-      <button class="acct-hub-row pl-shop-link" onclick="plOpenExt('https://luca-s.com')"><span data-i18n="acct.shop">Luca-S Shop</span><i>&#8599;</i></button>
     </div>
     <div id="acct-hub-legal" style="display:none">
       <button class="acct-hub-row" onclick="plOpenPrivacy()"><span data-i18n="acct.privacy">Privacy Policy</span><i>&rsaquo;</i></button>
@@ -7884,7 +7880,6 @@ body.dark .ifsize-note,body.dark .ifsize-ttl{color:#a596ab}
       </div>
     </div>
     <a href="#" onclick="pjGuardedLeave(()=>openPricing());return false">Pricing</a>
-    <a href="https://luca-s.com/" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700">Luca-S Shop ↗</a>
     <span class="acct-wrap"><button class="acct-btn" id="acct-btn-tb" title="Your account" onclick="acctToggle(this)"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="8.2" r="3.6"/><path d="M4.8 19.4c1.5-3.1 4.2-4.6 7.2-4.6s5.7 1.5 7.2 4.6"/></svg></button><span class="acct-dd" id="acct-dd-tb"></span></span>
     <button id="tb-theme-btn" class="theme-switch" onclick="toggleTheme()" title="Toggle light/dark theme" aria-label="Toggle dark mode"><span class="ts-knob"></span></button>
   </div>
