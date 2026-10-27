@@ -5411,7 +5411,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v632';
+window.PATTERNLY_BUILD='v633';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -19482,7 +19482,10 @@ document.getElementById('lp-photo-input').addEventListener('change',function(){
   const f=this.files[0]; this.value='';
   if(!f || !f.type.startsWith('image/')){ if(f) toast('Please choose an image file'); return; }
   const base=f.name.replace(/\.[^.]+$/,'').slice(0,40)||'My Pattern';
-  pjGuardedLeave(()=>{ pjNewPattern(base); loadImage(f); });
+  // v633: the main-page "Upload Image" entry opens the guided Photo → Pattern →
+  // PDF flow (qcOpen); its "Editor" button hands the result to the editor. The
+  // editor's own upload zone still goes straight to loadImage as before.
+  pjGuardedLeave(()=>{ if(typeof qcOpen==='function') qcOpen(f); else { pjNewPattern(base); loadImage(f); } });
 });
 
 // ─── STITCH TRACKER PAGE ───
@@ -32453,7 +32456,10 @@ function pjMakeQrPattern(url){
     const f=e.dataTransfer.files[0]; if(!f) return;
     if(f.type.startsWith('image/')){
       const base=f.name.replace(/\.[^.]+$/,'').slice(0,40)||'My Pattern';
-      pjGuardedLeave(()=>{ pjNewPattern(base); loadImage(f); });
+      // v633: the main-page "Upload Image" entry opens the guided Photo → Pattern →
+  // PDF flow (qcOpen); its "Editor" button hands the result to the editor. The
+  // editor's own upload zone still goes straight to loadImage as before.
+  pjGuardedLeave(()=>{ if(typeof qcOpen==='function') qcOpen(f); else { pjNewPattern(base); loadImage(f); } });
     } else if(/\.pat$/i.test(f.name)){
       pjImportPatFile(f);
     } else if(/\.(oxs|xml)$/i.test(f.name)){
@@ -34586,6 +34592,1024 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
   };
 })();
 
+</script>
+
+<!-- ══════════════════════════════════════════════════════════
+     QUICK PHOTO CONVERT (v633) — "Upload Image" from the main page opens a
+     guided Photo → Pattern → PDF flow instead of the full editor. Uploading a
+     photo inside the editor is untouched (upload-zone → loadImage → cv-modal).
+     The flow reuses the editor's palettes, colour maths (colorDistP,
+     cvApplyAdjust), confetti rule and PDF engine; "Editor" hands the exact
+     previewed grid to the editor.
+══════════════════════════════════════════════════════════ -->
+<style id="qc-style">
+.qc{--qc-bg:#fdf9f5;--qc-panel:#fff;--qc-line:#efe3e6;--qc-ink:#2b2226;--qc-mute:#7d6b72;--qc-acc:#8B1A2B;--qc-acc2:#a52338;--qc-soft:#fdedf0;--qc-stage:#efe8e1;--qc-chip:#f7f1f2;
+  position:fixed;inset:0;z-index:9000;display:none;flex-direction:column;background:var(--qc-bg);color:var(--qc-ink);font-family:inherit;padding-top:var(--sa-top,0px)}
+body.dark .qc{--qc-bg:#171220;--qc-panel:#221a2e;--qc-line:#3a2f47;--qc-ink:#f2ecf4;--qc-mute:#a596ab;--qc-acc:#c8566a;--qc-acc2:#d66a7d;--qc-soft:#3a2230;--qc-stage:#120e19;--qc-chip:#2b2238}
+body.qc-open{overflow:hidden}
+body.qc-open .qc{display:flex}
+.qc *{box-sizing:border-box}
+.qc button{font-family:inherit;touch-action:manipulation}
+.qc-top{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:.6rem;padding:.55rem 1rem;background:var(--qc-panel);border-bottom:1px solid var(--qc-line);min-height:56px}
+.qc-ghost{display:inline-flex;align-items:center;gap:.4rem;background:none;border:none;color:var(--qc-ink);font-size:.86rem;font-weight:600;cursor:pointer;padding:.45rem .55rem;border-radius:9px;justify-self:start}
+.qc-ghost:hover{background:var(--qc-chip)}
+.qc-steps{display:flex;align-items:center;gap:.35rem}
+.qc-steps button{display:inline-flex;align-items:center;gap:.45rem;background:none;border:none;color:var(--qc-mute);font-size:.88rem;font-weight:600;padding:.35rem .7rem .35rem .4rem;border-radius:999px;cursor:pointer}
+.qc-steps button i{font-style:normal;width:22px;height:22px;border-radius:50%;border:1.5px solid currentColor;display:inline-flex;align-items:center;justify-content:center;font-size:.72rem}
+.qc-steps button.on{background:var(--qc-soft);color:var(--qc-acc)}
+.qc-steps button.on i{background:var(--qc-acc);border-color:var(--qc-acc);color:#fff}
+.qc-steps button.done i{background:none;border-color:var(--qc-acc);color:var(--qc-acc)}
+.qc-steps b{width:22px;height:2px;background:var(--qc-line);border-radius:2px}
+.qc-steps b.done{background:var(--qc-acc)}
+.qc-actions{display:flex;gap:.5rem;justify-self:end}
+.qc-pri,.qc-sec{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;border-radius:10px;font-size:.88rem;font-weight:700;padding:.6rem 1.1rem;cursor:pointer;border:1.5px solid transparent;white-space:nowrap}
+.qc-pri{background:var(--qc-acc);color:#fff}
+.qc-pri:hover{background:var(--qc-acc2)}
+.qc-pri:disabled{opacity:.55;cursor:default}
+.qc-sec{background:var(--qc-panel);color:var(--qc-ink);border-color:var(--qc-line)}
+.qc-sec:hover{border-color:var(--qc-acc);color:var(--qc-acc)}
+.qc-body{flex:1;display:flex;min-height:0}
+.qc-side{width:330px;flex:none;background:var(--qc-panel);border-right:1px solid var(--qc-line);overflow-y:auto;display:flex;flex-direction:column}
+.qc-pane{padding:1rem 1.1rem 1.4rem;display:none}
+.qc-pane.on{display:block}
+.qc-h{display:flex;align-items:center;gap:.55rem;font-size:1rem;font-weight:800;margin:1.15rem 0 .6rem}
+.qc-h:first-child{margin-top:.2rem}
+.qc-h .n{width:22px;height:22px;border-radius:50%;background:var(--qc-soft);color:var(--qc-acc);font-size:.72rem;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.qc-h .r{margin-left:auto;font-size:.76rem;font-weight:600;color:var(--qc-mute)}
+.qc-card{display:flex;gap:.7rem;align-items:flex-start;width:100%;text-align:left;background:var(--qc-panel);border:1.5px solid var(--qc-line);border-radius:12px;padding:.8rem .85rem;margin-bottom:.55rem;cursor:pointer;color:var(--qc-ink)}
+.qc-card:hover{border-color:var(--qc-acc)}
+.qc-card.on{border-color:var(--qc-acc);background:var(--qc-soft)}
+.qc-card .ic{width:34px;height:34px;border-radius:10px;background:var(--qc-chip);display:flex;align-items:center;justify-content:center;font-size:1.05rem;flex:none}
+.qc-card.on .ic{background:var(--qc-acc);color:#fff}
+.qc-card b{display:block;font-size:.9rem;margin-bottom:.15rem}
+.qc-card small{display:block;color:var(--qc-mute);font-size:.78rem;line-height:1.4}
+.qc-tag{display:inline-block;font-size:.64rem;font-weight:800;color:var(--qc-acc);border:1px solid var(--qc-acc);border-radius:999px;padding:.05rem .45rem;margin-left:.35rem;vertical-align:2px}
+.qc-tag.fill{background:var(--qc-acc);color:#fff}
+.qc-box{border:1.5px solid var(--qc-line);border-radius:12px;padding:.75rem .85rem;background:var(--qc-panel)}
+.qc-sum b{font-size:1rem}
+.qc-sum div{font-size:.8rem;color:var(--qc-mute);margin-top:.2rem}
+.qc-chips{display:flex;flex-wrap:wrap;gap:.35rem}
+.qc-chip{border:1.5px solid var(--qc-line);background:var(--qc-panel);color:var(--qc-ink);border-radius:999px;padding:.38rem .75rem;font-size:.8rem;font-weight:600;cursor:pointer}
+.qc-chip:hover{border-color:var(--qc-acc)}
+.qc-chip.on{background:var(--qc-acc);border-color:var(--qc-acc);color:#fff}
+.qc-seg{display:flex;background:var(--qc-chip);border-radius:10px;padding:3px;gap:3px}
+.qc-seg button{flex:1;border:none;background:none;color:var(--qc-mute);font-size:.78rem;font-weight:700;padding:.4rem .3rem;border-radius:8px;cursor:pointer}
+.qc-seg button.on{background:var(--qc-panel);color:var(--qc-ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.qc-lbl{display:flex;justify-content:space-between;align-items:baseline;font-size:.8rem;font-weight:700;margin:.85rem 0 .4rem}
+.qc-lbl span{font-weight:600;color:var(--qc-mute)}
+.qc-hint{font-size:.76rem;color:var(--qc-mute);margin-top:.35rem;line-height:1.4}
+.qc input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:6px;background:var(--qc-line);outline:none;margin:.35rem 0}
+.qc input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--qc-panel);border:3px solid var(--qc-acc);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.qc input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--qc-panel);border:3px solid var(--qc-acc);cursor:pointer}
+.qc input[type=range]:disabled{opacity:.45}
+.qc-in{width:100%;border:1.5px solid var(--qc-line);background:var(--qc-panel);color:var(--qc-ink);border-radius:9px;padding:.5rem .6rem;font-size:.9rem;font-family:inherit;outline:none}
+.qc-in:focus{border-color:var(--qc-acc)}
+.qc-wh{display:grid;grid-template-columns:1fr auto 1fr;gap:.4rem;align-items:center;margin-top:.55rem}
+.qc-lock{border:1.5px solid var(--qc-line);background:var(--qc-panel);color:var(--qc-mute);border-radius:9px;width:36px;height:36px;cursor:pointer;font-size:.9rem}
+.qc-lock.on{color:var(--qc-acc);border-color:var(--qc-acc)}
+.qc-sizes{border:1.5px solid var(--qc-line);border-radius:12px;overflow:hidden;margin-top:.55rem}
+.qc-size{display:grid;grid-template-columns:1fr auto;gap:.1rem .5rem;width:100%;text-align:left;background:var(--qc-panel);color:var(--qc-ink);border:none;border-bottom:1px solid var(--qc-line);padding:.6rem .8rem;cursor:pointer}
+.qc-size:last-child{border-bottom:none}
+.qc-size.on{background:var(--qc-soft)}
+.qc-size b{font-size:.86rem}
+.qc-size em{font-style:normal;font-size:.74rem;color:var(--qc-mute)}
+.qc-size span{font-size:.78rem;font-weight:700;text-align:right}
+.qc-sw{display:flex;flex-wrap:wrap;gap:.4rem}
+.qc-sw button{width:28px;height:28px;border-radius:50%;border:2px solid var(--qc-line);cursor:pointer;padding:0}
+.qc-sw button.on{box-shadow:0 0 0 2px var(--qc-panel),0 0 0 4px var(--qc-acc)}
+.qc-stripe{display:inline-flex;height:10px;width:44px;border-radius:3px;overflow:hidden;vertical-align:middle;margin-right:.4rem}
+.qc-stripe i{flex:1}
+.qc-tog{position:relative;width:38px;height:22px;border-radius:22px;background:var(--qc-line);border:none;cursor:pointer;flex:none}
+.qc-tog::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s}
+.qc-tog.on{background:var(--qc-acc)}
+.qc-tog.on::after{left:19px}
+.qc-row{display:flex;align-items:center;justify-content:space-between;gap:.6rem}
+.qc-big{font-size:1.5rem;font-weight:800}
+.qc-badge{display:inline-block;font-size:.68rem;font-weight:800;border-radius:6px;padding:.1rem .4rem;margin-top:.25rem}
+.qc-badge.good{background:#e3f4e8;color:#1e6b39}.qc-badge.ok{background:#fff3d6;color:#8a5a00}.qc-badge.bad{background:#fde3e6;color:#a01d2f}
+body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok{background:#3d3015;color:#f5c96a}body.dark .qc-badge.bad{background:#46202a;color:#ff9aa8}
+.qc-pal{border-top:1px solid var(--qc-line);padding:.8rem 1.1rem;background:var(--qc-panel);position:sticky;bottom:0;margin-top:auto}
+.qc-pal-head{display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:none;color:var(--qc-ink);font-size:.88rem;font-weight:800;cursor:pointer;padding:0}
+.qc-pal-head span{color:var(--qc-mute);font-weight:600;font-size:.78rem;margin-left:.35rem}
+.qc-pal-strip{display:flex;height:22px;border-radius:6px;overflow:hidden;margin-top:.55rem;border:1px solid var(--qc-line)}
+.qc-pal-strip i{flex:1 1 0;min-width:1px}
+.qc-pal-list{max-height:34vh;overflow-y:auto;margin-top:.5rem;display:none}
+.qc-pal.open .qc-pal-list{display:block}
+.qc-thr{display:grid;grid-template-columns:22px 1fr auto;gap:.55rem;align-items:center;padding:.32rem 0;border-bottom:1px solid var(--qc-line);font-size:.8rem}
+.qc-thr i{width:22px;height:22px;border-radius:6px;border:1px solid rgba(0,0,0,.12)}
+.qc-thr span{color:var(--qc-mute);font-size:.75rem;text-align:right}
+.qc-stage{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--qc-stage);position:relative}
+.qc-view{flex:1;min-height:0;overflow:auto;display:flex;padding:18px;overscroll-behavior:contain}
+.qc-view canvas{margin:auto;display:block;box-shadow:0 4px 18px rgba(0,0,0,.18);image-rendering:pixelated;flex:none}
+.qc-view.checker canvas{background:repeating-conic-gradient(#d9d2cc 0% 25%,#fff 0% 50%) 50%/16px 16px}
+.qc-tools{display:flex;justify-content:center;gap:.25rem;padding:.35rem;margin:0 auto 14px;background:var(--qc-panel);border:1px solid var(--qc-line);border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.08);flex-wrap:wrap}
+.qc-tools button{display:inline-flex;align-items:center;gap:.35rem;background:none;border:none;color:var(--qc-ink);font-size:.82rem;font-weight:700;padding:.5rem .75rem;border-radius:9px;cursor:pointer}
+.qc-tools button:hover,.qc-tools button.on{background:var(--qc-soft);color:var(--qc-acc)}
+.qc-bgpop{display:none;flex-wrap:wrap;align-items:center;gap:.6rem;margin:-6px auto 12px;background:var(--qc-panel);border:1px solid var(--qc-line);border-radius:12px;padding:.45rem .8rem;font-size:.78rem;font-weight:700;width:min(340px,92%)}
+.qc-bgpop.on{display:flex}
+.qc-bgpop input{flex:1}
+.qc-vbar{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.4rem .8rem;background:var(--qc-panel);border-top:1px solid var(--qc-line)}
+.qc-zoom{display:flex;align-items:center;gap:.2rem}
+.qc-zoom button,.qc-views button{background:none;border:none;color:var(--qc-ink);cursor:pointer;border-radius:8px;font-size:.8rem;font-weight:700;padding:.35rem .55rem}
+.qc-zoom button:hover,.qc-views button:hover{background:var(--qc-chip)}
+.qc-zoom span{min-width:46px;text-align:center;font-size:.78rem;font-weight:700;color:var(--qc-mute)}
+.qc-views{display:flex;background:var(--qc-chip);border-radius:10px;padding:3px;gap:2px}
+.qc-views button{color:var(--qc-mute)}
+.qc-views button.on{background:var(--qc-panel);color:var(--qc-acc);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.qc-busy{position:absolute;top:12px;right:14px;background:var(--qc-panel);border:1px solid var(--qc-line);border-radius:999px;padding:.25rem .7rem;font-size:.74rem;font-weight:700;color:var(--qc-mute);display:none}
+.qc-busy.on{display:block}
+.qc-pdf-btns{display:flex;flex-direction:column;gap:.5rem;margin-top:1rem}
+.qc-pdf-btns button{width:100%}
+.qc-plus{font-size:.66rem;font-weight:800;background:linear-gradient(90deg,#8B1A2B,#c8566a);color:#fff;border-radius:6px;padding:.08rem .4rem;margin-left:.35rem;cursor:pointer;border:none}
+/* crop & straighten */
+.qc-crop{position:absolute;inset:0;z-index:5;background:rgba(18,12,20,.86);display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:12px}
+.qc-crop.on{display:flex}
+.qc-crop-box{position:relative;touch-action:none;user-select:none}
+.qc-crop-box canvas{display:block;max-width:100%}
+.qc-crop-r{position:absolute;border:2px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,.5);cursor:move;touch-action:none}
+.qc-crop-r::before,.qc-crop-r::after{content:'';position:absolute;inset:33.3% 0;border-top:1px solid rgba(255,255,255,.45);border-bottom:1px solid rgba(255,255,255,.45);pointer-events:none}
+.qc-crop-r::after{inset:0 33.3%;border:none;border-left:1px solid rgba(255,255,255,.45);border-right:1px solid rgba(255,255,255,.45)}
+.qc-crop-r i{position:absolute;width:22px;height:22px;background:#fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.qc-crop-r i[data-h=nw]{left:-11px;top:-11px;cursor:nwse-resize}.qc-crop-r i[data-h=ne]{right:-11px;top:-11px;cursor:nesw-resize}
+.qc-crop-r i[data-h=sw]{left:-11px;bottom:-11px;cursor:nesw-resize}.qc-crop-r i[data-h=se]{right:-11px;bottom:-11px;cursor:nwse-resize}
+.qc-crop-ctl{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:.6rem;background:var(--qc-panel);border-radius:14px;padding:.6rem .9rem;color:var(--qc-ink);font-size:.8rem;font-weight:700;max-width:100%}
+.qc-crop-ctl input{width:180px}
+@media (max-width:820px){
+  .qc-top{grid-template-columns:auto 1fr auto;padding:.45rem .6rem;gap:.35rem;min-height:52px}
+  .qc-ghost span,.qc-steps button span,.qc-steps b,#qc-editor span{display:none}
+  .qc-steps{justify-self:center;gap:.15rem}
+  .qc-steps button{padding:.3rem}
+  .qc-steps button.on span{display:inline}
+  .qc-pri,.qc-sec{padding:.5rem .75rem;font-size:.82rem}
+  .qc-body{flex-direction:column;overflow-y:auto}
+  .qc-stage{flex:none;height:46vh;min-height:260px;position:sticky;top:0;z-index:2;order:-1}
+  .qc-view{padding:10px}
+  .qc-tools{margin-bottom:8px}
+  .qc-tools button{padding:.42rem .55rem;font-size:.76rem}
+  .qc-side{width:auto;border-right:none;overflow:visible;flex:none;padding-bottom:var(--sa-bottom,0px)}
+  .qc-pal{position:static}
+  .qc-vbar{padding:.3rem .5rem}
+  .qc-views button{padding:.35rem .45rem;font-size:.74rem}
+}
+</style>
+
+<div id="qc" class="qc" role="dialog" aria-label="Photo to pattern">
+  <header class="qc-top">
+    <button class="qc-ghost" id="qc-home" type="button">←<span>Back home</span></button>
+    <nav class="qc-steps" id="qc-steps">
+      <button type="button" data-s="1"><i>1</i><span>Photo</span></button><b></b>
+      <button type="button" data-s="2"><i>2</i><span>Pattern</span></button><b></b>
+      <button type="button" data-s="3"><i>3</i><span>PDF</span></button>
+    </nav>
+    <div class="qc-actions">
+      <button class="qc-sec" id="qc-editor" type="button" title="Open in the full editor">✎ <span>Editor</span></button>
+      <button class="qc-pri" id="qc-next" type="button">Continue →</button>
+    </div>
+  </header>
+  <div class="qc-body">
+    <aside class="qc-side">
+      <!-- STEP 1 · PHOTO -->
+      <div class="qc-pane" id="qc-p1">
+        <div class="qc-h">What are you converting?</div>
+        <button type="button" class="qc-card" data-kind="photo"><span class="ic">📷</span><span><b>Photo or illustration<span class="qc-tag" id="qc-sug-photo">Suggested</span></b><small>Photos, paintings, logos and stylised art. Colours are matched to thread.</small></span></button>
+        <button type="button" class="qc-card" data-kind="pixel"><span class="ic">▦</span><span><b>Pixel art<span class="qc-tag" id="qc-sug-pixel">Suggested</span></b><small>Clean images where 1 pixel becomes 1 stitch.</small></span></button>
+        <button type="button" class="qc-card" data-kind="chart"><span class="ic">▤</span><span><b>Printed chart</b><small>A photo of a paper stitch chart. Opens Scan Your Pattern in the Stitch Tracker.</small></span></button>
+        <p class="qc-hint">Your photo is processed on this device and never uploaded.</p>
+      </div>
+      <!-- STEP 2 · PATTERN -->
+      <div class="qc-pane" id="qc-p2">
+        <div class="qc-h"><span class="n">1</span>What are you making?</div>
+        <div class="qc-chips" id="qc-craft">
+          <button type="button" class="qc-chip" data-v="cross">✕ Cross stitch</button>
+          <button type="button" class="qc-chip" data-v="needle">⟋ Needlepoint</button>
+          <button type="button" class="qc-chip" data-v="diamond">◆ Diamond painting</button>
+        </div>
+        <div class="qc-seg" id="qc-drill" style="margin-top:.5rem"><button type="button" data-v="square">Square drills</button><button type="button" data-v="round">Round drills</button></div>
+
+        <div class="qc-h"><span class="n">2</span>Size<span class="r"><span class="qc-seg" id="qc-units" style="display:inline-flex"><button type="button" data-v="cm">cm</button><button type="button" data-v="in">in</button></span></span></div>
+        <div class="qc-box qc-sum" id="qc-sizesum"></div>
+        <div class="qc-sizes" id="qc-sizes"></div>
+        <div class="qc-wh" id="qc-custom">
+          <input class="qc-in" id="qc-w" type="number" inputmode="numeric" min="10" max="1000" aria-label="Width in stitches">
+          <button type="button" class="qc-lock on" id="qc-lock" title="Keep the photo's proportions">🔗</button>
+          <input class="qc-in" id="qc-h" type="number" inputmode="numeric" min="10" max="1000" aria-label="Height in stitches">
+        </div>
+        <p class="qc-hint" id="qc-custom-hint">Custom size: width × height in stitches.</p>
+
+        <div class="qc-h"><span class="n">3</span><span id="qc-fab-title">Fabric &amp; thread</span></div>
+        <div class="qc-lbl">Thread brand</div>
+        <div class="qc-chips" id="qc-brand"></div>
+        <div id="qc-strands-wrap"><div class="qc-lbl">Strands</div>
+        <div class="qc-seg" id="qc-strands"><button type="button" data-v="1">1</button><button type="button" data-v="2">2</button><button type="button" data-v="3">3</button></div></div>
+        <div class="qc-lbl" id="qc-count-lbl">Fabric count</div>
+        <div class="qc-chips" id="qc-count"></div>
+        <div class="qc-lbl">Fabric colour <span id="qc-fabname"></span></div>
+        <div class="qc-sw" id="qc-fabcol"></div>
+
+        <div class="qc-h"><span class="n">4</span>Colours</div>
+        <div class="qc-chips" id="qc-cstyle"></div>
+        <div class="qc-lbl">Colour count <span id="qc-colors-v"></span></div>
+        <input type="range" id="qc-colors" min="2" max="125" step="1">
+        <p class="qc-hint" id="qc-typical"></p>
+        <div class="qc-row" style="margin-top:.6rem"><span style="font-size:.8rem;font-weight:700">Fine-tune brightness &amp; contrast</span><button type="button" class="qc-tog" id="qc-ft-tog" aria-label="Fine-tune"></button></div>
+        <div id="qc-ft" style="display:none">
+          <div class="qc-lbl">Brightness <span id="qc-br-v">0</span></div><input type="range" id="qc-br" min="-50" max="50" value="0">
+          <div class="qc-lbl">Contrast <span id="qc-ct-v">0</span></div><input type="range" id="qc-ct" min="-50" max="50" value="0">
+          <div class="qc-lbl">Saturation <span id="qc-sa-v">0</span></div><input type="range" id="qc-sa" min="-60" max="60" value="0">
+        </div>
+
+        <div class="qc-h"><span class="n">5</span>Detail</div>
+        <div class="qc-lbl">Level <span id="qc-detail-v"></span></div>
+        <input type="range" id="qc-detail" min="0" max="2" step="1">
+        <p class="qc-hint" id="qc-detail-hint"></p>
+
+        <div class="qc-h"><span class="n">6</span>Clean up</div>
+        <div class="qc-box">
+          <div class="qc-row"><div><span class="qc-big" id="qc-conf-pct">–</span> <span style="font-size:.8rem;color:var(--qc-mute)">confetti left</span><br><span class="qc-badge" id="qc-conf-badge"></span></div>
+            <div class="qc-row" style="gap:.4rem"><span style="font-size:.76rem;font-weight:700">Show</span><button type="button" class="qc-tog" id="qc-conf-show" aria-label="Highlight confetti"></button></div></div>
+          <div class="qc-lbl">Strength<span><button type="button" class="qc-plus" id="qc-conf-plus" style="display:none">PLUS</button> <span id="qc-clean-v">0%</span></span></div>
+          <input type="range" id="qc-clean" min="0" max="100" step="5" value="0">
+          <p class="qc-hint">Confetti = single stitches of a colour on their own. Clean-up merges them into their neighbours so the pattern is easier to stitch.</p>
+        </div>
+      </div>
+      <!-- STEP 3 · PDF -->
+      <div class="qc-pane" id="qc-p3">
+        <div class="qc-h">Your pattern</div>
+        <div class="qc-lbl">Pattern name</div>
+        <input class="qc-in" id="qc-name" maxlength="60">
+        <div class="qc-box qc-sum" id="qc-final" style="margin-top:.7rem"></div>
+        <div class="qc-h">PDF options</div>
+        <div class="qc-lbl">Page size</div>
+        <div class="qc-seg" id="qc-page"><button type="button" data-v="a4">A4</button><button type="button" data-v="letter">US Letter</button><button type="button" data-v="a3">A3</button></div>
+        <div class="qc-lbl">Chart</div>
+        <div class="qc-seg" id="qc-chart"><button type="button" data-v="color">Colour + symbols</button><button type="button" data-v="bw">Black &amp; white</button></div>
+        <div class="qc-lbl">Layout</div>
+        <div class="qc-seg" id="qc-layout"><button type="button" data-v="multi">Multi-page</button><button type="button" data-v="one">One page</button></div>
+        <div class="qc-pdf-btns">
+          <button type="button" class="qc-pri" id="qc-dl">⬇ Download PDF</button>
+          <button type="button" class="qc-sec" id="qc-ed2">✎ Open in Editor</button>
+          <button type="button" class="qc-sec" id="qc-trk">🧵 Stitch it in the Tracker</button>
+        </div>
+        <p class="qc-hint">Want to change single stitches, add text or backstitch? Open it in the Editor; your settings come with it.</p>
+      </div>
+      <div class="qc-pal" id="qc-pal">
+        <button type="button" class="qc-pal-head" id="qc-pal-head"><span style="margin:0;color:inherit;font-size:.88rem;font-weight:800">Your palette<span id="qc-pal-n"></span></span><span id="qc-pal-arrow">▸</span></button>
+        <div class="qc-pal-strip" id="qc-pal-strip"></div>
+        <div class="qc-pal-list" id="qc-pal-list"></div>
+      </div>
+    </aside>
+    <main class="qc-stage">
+      <div class="qc-view" id="qc-view"><canvas id="qc-cv"></canvas></div>
+      <div class="qc-busy" id="qc-busy">Updating…</div>
+      <div class="qc-bgpop" id="qc-bgpop"><span style="flex:1 1 100%;font-weight:600;color:var(--qc-mute)">Tap any area of the photo to erase it too.</span>Sensitivity <input type="range" id="qc-bgtol" min="5" max="80" value="28"><button type="button" class="qc-chip" id="qc-bgoff">Undo</button></div>
+      <div class="qc-tools" id="qc-tools">
+        <button type="button" id="qc-replace">⟳ Replace photo</button>
+        <button type="button" id="qc-cropbtn">⌗ Crop &amp; straighten</button>
+        <button type="button" id="qc-bgbtn">⌫ Erase background</button>
+      </div>
+      <div class="qc-vbar" id="qc-vbar">
+        <div class="qc-zoom"><button type="button" id="qc-zout" aria-label="Zoom out">−</button><span id="qc-zv">Fit</span><button type="button" id="qc-zin" aria-label="Zoom in">+</button><button type="button" id="qc-zfit" title="Fit">⤢</button></div>
+        <div class="qc-views" id="qc-views"><button type="button" data-v="pattern">Pattern</button><button type="button" data-v="finished">Finished look</button><button type="button" data-v="original">Original</button></div>
+      </div>
+      <div class="qc-crop" id="qc-crop">
+        <div class="qc-crop-box" id="qc-crop-box"><canvas id="qc-crop-cv"></canvas><div class="qc-crop-r" id="qc-crop-r"><i data-h="nw"></i><i data-h="ne"></i><i data-h="sw"></i><i data-h="se"></i></div></div>
+        <div class="qc-crop-ctl">
+          <span>Straighten</span><input type="range" id="qc-rot" min="-15" max="15" step="0.5" value="0"><span id="qc-rot-v" style="min-width:34px">0°</span>
+          <button type="button" class="qc-chip" id="qc-rot90">↻ 90°</button>
+          <button type="button" class="qc-chip" id="qc-crop-reset">Reset</button>
+          <button type="button" class="qc-sec" id="qc-crop-cancel">Cancel</button>
+          <button type="button" class="qc-pri" id="qc-crop-ok">Apply</button>
+        </div>
+      </div>
+    </main>
+  </div>
+  <input type="file" id="qc-file" accept="image/*" style="display:none">
+</div>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const root=$('qc'); if(!root) return;
+  const PREF_KEY='patternly_qc';
+  const CRAFTS={
+    cross:{counts:[{k:'a11',n:11,l:'Aida 11'},{k:'a14',n:14,l:'Aida 14'},{k:'a16',n:16,l:'Aida 16'},{k:'a18',n:18,l:'Aida 18'},{k:'e28',n:14,l:'Evenweave 28'},{k:'e32',n:16,l:'Evenweave 32'}],rate:[100,200],unit:'stitches'},
+    needle:{counts:[{k:'m10',n:10,l:'10 mesh'},{k:'m12',n:12,l:'12 mesh'},{k:'m13',n:13,l:'13 mesh'},{k:'m14',n:14,l:'14 mesh'},{k:'m18',n:18,l:'18 mesh'}],rate:[80,160],unit:'stitches'},
+    diamond:{counts:[],rate:[300,600],unit:'drills'}
+  };
+  const STYLES=[
+    {v:'balanced',l:'Natural',c:['#e4572e','#f3a712','#29bf12','#2e86ab','#a14ebf']},
+    {v:'pastel',l:'Soft pastel',c:['#f6b8b8','#fbe3a6','#bfe8c4','#b9d7f0','#dcc6f0']},
+    {v:'detail',l:'Vivid',c:['#d00000','#ffba08','#3f8f29','#0353a4','#7b2cbf']},
+    {v:'bw',l:'Black & white',c:['#111','#555','#999','#ccc','#fff']}
+  ];
+  const DETAIL=[{l:'Simple',h:'Bigger colour areas, fewer specks. Quick and relaxing to stitch.'},{l:'Balanced',h:'Smooths small specks while keeping the main shapes.'},{l:'Detailed',h:'Every stitch follows the photo. Best for larger sizes.'}];
+  const PRESETS=[{l:'Small',d:'Gift or ornament',long:80},{l:'Medium',d:'Classic framed piece',long:150,rec:1},{l:'Large',d:'Detailed wall art',long:250},{l:'Extra large',d:'Statement piece',long:400}];
+
+  let prefs={}; try{ prefs=JSON.parse(localStorage.getItem(PREF_KEY)||'{}')||{}; }catch(e){ prefs={}; }
+  const QC={
+    step:1, kind:'photo', craft:prefs.craft||'cross', drill:prefs.drill||'square', units:prefs.units||'cm',
+    brand:prefs.brand||'', strands:prefs.strands||2, countKey:prefs.countKey||'a14', fabricHex:prefs.fabricHex||'',
+    W:0, H:0, lock:true, preset:1, style:'balanced', colors:30, detail:2, clean:0, br:0, ct:0, sa:0,
+    view:'pattern', zoom:1, showConf:false, name:'My Pattern', bgOn:false, bgTol:28,
+    crop:{x:0,y:0,w:1,h:1}, rot:0, rot90:0, bgSeeds:[], bgAuto:true
+  };
+  let srcImg=null, rotCv=null, baseCv=null, workCv=null, prepCv=null, res=null, convT=null, dirtyPrep=true;
+  let afterLeave=null;
+
+  function savePrefs(){ try{ localStorage.setItem(PREF_KEY, JSON.stringify({craft:QC.craft,drill:QC.drill,units:QC.units,brand:QC.brand,strands:QC.strands,countKey:QC.countKey,fabricHex:QC.fabricHex})); }catch(e){} }
+  function isPlus(){ try{ const a=(typeof lucasAuth==='function')?lucasAuth():null; return !!(a&&a.plus); }catch(e){ return false; } }
+  function mkCv(w,h){ const c=document.createElement('canvas'); c.width=Math.max(1,w|0); c.height=Math.max(1,h|0); return c; }
+  function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  // ── stitches per inch for the current craft/fabric ──
+  function perInch(){
+    if(QC.craft==='diamond') return 25.4/(QC.drill==='round'?2.8:2.5);
+    const c=CRAFTS[QC.craft].counts.find(x=>x.k===QC.countKey)||CRAFTS[QC.craft].counts[1]||CRAFTS[QC.craft].counts[0];
+    return c.n;
+  }
+  function fmtLen(st){
+    const inch=st/perInch();
+    return QC.units==='in' ? inch.toFixed(1)+'″' : (inch*2.54).toFixed(1);
+  }
+  function finished(w,h){ return QC.units==='in' ? `${fmtLen(w)} × ${fmtLen(h)}` : `${fmtLen(w)} × ${fmtLen(h)} cm`; }
+  function hours(n){ const r=CRAFTS[QC.craft].rate; const lo=Math.max(1,Math.round(n/r[1])), hi=Math.max(1,Math.round(n/r[0])); return lo===hi?`${lo}`:`${lo}–${hi}`; }
+  function aspect(){ return baseCv ? baseCv.height/baseCv.width : 1; }
+  function dimsFor(long){ const a=aspect(); return a>=1 ? [Math.max(10,Math.round(long/a)), long] : [long, Math.max(10,Math.round(long*a))]; }
+
+  // ── source pipeline: original → rotated → cropped (base) → background erased (work) → colour adjusted (prep) ──
+  function buildRot(){
+    const MAX=2000, s=Math.min(1,MAX/Math.max(srcImg.naturalWidth,srcImg.naturalHeight));
+    let w=Math.round(srcImg.naturalWidth*s), h=Math.round(srcImg.naturalHeight*s);
+    const q=((QC.rot90%4)+4)%4, swap=q%2===1;
+    const W=swap?h:w, H=swap?w:h;
+    const c=mkCv(W,H), g=c.getContext('2d');
+    const a=QC.rot*Math.PI/180;
+    // scale up so a fine rotation never leaves empty corners
+    const k=a ? Math.abs(Math.cos(a))+Math.abs(Math.sin(a))*Math.max(W/H,H/W) : 1;
+    g.translate(W/2,H/2); g.rotate(q*Math.PI/2+a); g.scale(k,k);
+    g.imageSmoothingQuality='high';
+    g.drawImage(srcImg,-w/2,-h/2,w,h);
+    rotCv=c;
+  }
+  function buildBase(){
+    const r=QC.crop, sx=Math.round(r.x*rotCv.width), sy=Math.round(r.y*rotCv.height);
+    const sw=Math.max(1,Math.round(r.w*rotCv.width)), sh=Math.max(1,Math.round(r.h*rotCv.height));
+    const MAX=1400, s=Math.min(1,MAX/Math.max(sw,sh));
+    const c=mkCv(sw*s,sh*s), g=c.getContext('2d'); g.imageSmoothingQuality='high';
+    if(QC.kind==='pixel') g.imageSmoothingEnabled=false;
+    g.drawImage(rotCv,sx,sy,sw,sh,0,0,c.width,c.height);
+    baseCv=c;
+  }
+  // Background eraser: flood from the image border through pixels close to the
+  // border's dominant colour (compared with the reference, not neighbour to
+  // neighbour, so it can't creep through soft gradients into the subject).
+  function buildWork(){
+    if(!QC.bgOn){ workCv=baseCv; return; }
+    const w=baseCv.width, h=baseCv.height, c=mkCv(w,h), g=c.getContext('2d');
+    g.drawImage(baseCv,0,0);
+    const id=g.getImageData(0,0,w,h), d=id.data;
+    const hist=new Map();
+    const tally=i=>{ const k=((d[i]>>4)<<8)|((d[i+1]>>4)<<4)|(d[i+2]>>4); hist.set(k,(hist.get(k)||0)+1); };
+    for(let x=0;x<w;x++){ tally(x*4); tally(((h-1)*w+x)*4); }
+    for(let y=0;y<h;y++){ tally(y*w*4); tally((y*w+w-1)*4); }
+    let bk=0,bn=-1; hist.forEach((n,k)=>{ if(n>bn){bn=n;bk=k;} });
+    // average the border pixels in the winning bucket for a precise reference colour
+    let rr=0,gg=0,bb=0,nn=0;
+    const acc=i=>{ const k=((d[i]>>4)<<8)|((d[i+1]>>4)<<4)|(d[i+2]>>4); if(k===bk){ rr+=d[i]; gg+=d[i+1]; bb+=d[i+2]; nn++; } };
+    for(let x=0;x<w;x++){ acc(x*4); acc(((h-1)*w+x)*4); }
+    for(let y=0;y<h;y++){ acc(y*w*4); acc((y*w+w-1)*4); }
+    const lim=(QC.bgTol*3)**2;
+    const seen=new Uint8Array(w*h);
+    const flood=(seeds,ref)=>{
+      const near=p=>colorDistP({r:d[p*4],g:d[p*4+1],b:d[p*4+2]},ref)<lim;
+      const st=[];
+      const push=p=>{ if(!seen[p] && near(p)){ seen[p]=1; st.push(p); } };
+      seeds.forEach(push);
+      while(st.length){
+        const p=st.pop(), x=p%w, y=(p/w)|0;
+        d[p*4+3]=0;
+        if(x>0) push(p-1); if(x<w-1) push(p+1); if(y>0) push(p-w); if(y<h-1) push(p+w);
+      }
+    };
+    // tapped areas first (their own colour), then the border's dominant colour
+    QC.bgSeeds.forEach(sd=>{
+      const p=Math.min(h-1,Math.floor(sd.y*h))*w+Math.min(w-1,Math.floor(sd.x*w));
+      flood([p],{r:d[p*4],g:d[p*4+1],b:d[p*4+2]});
+    });
+    if(QC.bgAuto){
+      const border=[];
+      for(let x=0;x<w;x++){ border.push(x,(h-1)*w+x); }
+      for(let y=0;y<h;y++){ border.push(y*w,y*w+w-1); }
+      flood(border,{r:rr/nn,g:gg/nn,b:bb/nn});
+    }
+    g.putImageData(id,0,0);
+    workCv=c;
+  }
+  function buildPrep(){
+    const adj={br:QC.br,ct:QC.ct,sa:QC.sa,wa:0,hue:0,bw:0,style:QC.style};
+    if(!adj.br && !adj.ct && !adj.sa && adj.style==='balanced'){ prepCv=workCv; dirtyPrep=false; return; }
+    const c=mkCv(workCv.width,workCv.height), g=c.getContext('2d');
+    g.drawImage(workCv,0,0);
+    const id=g.getImageData(0,0,c.width,c.height);
+    // the editor's own adjustment maths (cvApplyAdjust reads the global cvAdj)
+    const keep=cvAdj; cvAdj=adj;
+    try{ cvApplyAdjust(id.data); } finally { cvAdj=keep; }
+    g.putImageData(id,0,0);
+    prepCv=c; dirtyPrep=false;
+  }
+  function rebuildFrom(stage){
+    if(!srcImg) return;
+    if(stage<=0) buildRot();
+    if(stage<=1) buildBase();
+    if(stage<=2) buildWork();
+    buildPrep();
+  }
+
+  // ── conversion: same palette mapping and colour-cap rule as the editor's convertImage ──
+  function convert(){
+    if(!prepCv) return null;
+    const W=QC.W, H=QC.H, pal=PALETTES[QC.brand].colours;
+    const t=mkCv(W,H), g=t.getContext('2d');
+    if(QC.kind==='pixel') g.imageSmoothingEnabled=false;
+    g.drawImage(prepCv,0,0,W,H);
+    const d=g.getImageData(0,0,W,H).data;
+    const N=W*H, mapped=new Int16Array(N), usage=new Map(), cache=new Map();
+    for(let i=0;i<N;i++){
+      const o=i*4;
+      if(d[o+3]<128){ mapped[i]=-1; continue; }
+      const key=(d[o]<<16)|(d[o+1]<<8)|d[o+2];
+      let idx=cache.get(key);
+      if(idx===undefined){
+        const px={r:d[o],g:d[o+1],b:d[o+2]}; let best=0,mn=Infinity;
+        for(let p=0;p<pal.length;p++){ const dd=colorDistP(px,pal[p]); if(dd<mn){mn=dd;best=p;} }
+        idx=best; cache.set(key,idx);
+      }
+      mapped[i]=idx; usage.set(idx,(usage.get(idx)||0)+1);
+    }
+    const maxColors=Math.min(QC.colors, typeof MAX_COLOURS!=='undefined'?MAX_COLOURS:125);
+    const entries=[...usage].map(([idx,count])=>({idx,count})).sort((a,b)=>b.count-a.count);
+    const total=entries.reduce((s,e)=>s+e.count,0);
+    const minUse=Math.max(1,Math.floor(total*0.0005));
+    const cand=entries.filter(e=>e.count>=minUse), pool=cand.length?cand:entries;
+    const top=[];
+    if(pool.length){
+      top.push(pool[0].idx);
+      const rem=pool.slice(1);
+      while(top.length<maxColors && rem.length){
+        let bp=0,bs=-1;
+        for(let p=0;p<rem.length;p++){
+          const c=pal[rem[p].idx]; let md=Infinity;
+          for(const ti of top){ const dd=colorDistP(c,pal[ti]); if(dd<md) md=dd; }
+          const sc=md*rem[p].count; if(sc>bs){bs=sc;bp=p;}
+        }
+        top.push(rem[bp].idx); rem.splice(bp,1);
+      }
+    }
+    const topSet=new Set(top), remap=new Map();
+    const idx=new Int16Array(N);
+    for(let i=0;i<N;i++){
+      const m=mapped[i];
+      if(m<0||topSet.has(m)){ idx[i]=m; continue; }
+      let r=remap.get(m);
+      if(r===undefined){ let mn=Infinity; r=top[0]; for(const ti of top){ const dd=colorDistP(pal[m],pal[ti]); if(dd<mn){mn=dd;r=ti;} } remap.set(m,r); }
+      idx[i]=r;
+    }
+    // Detail: majority smoothing (Simple = 2 passes, Balanced = 1, Detailed = none)
+    const passes=QC.kind==='pixel'?0:(2-QC.detail);
+    for(let p=0;p<passes;p++) majority(idx,W,H);
+    const singlesBefore=countSingles(idx,W,H);
+    if(QC.clean>0 && isPlus()) cleanConfetti(idx,W,H,QC.clean);
+    const counts=new Map(); let filled=0;
+    for(let i=0;i<N;i++){ const v=idx[i]; if(v<0) continue; filled++; counts.set(v,(counts.get(v)||0)+1); }
+    const used=[...counts.keys()].sort((a,b)=>counts.get(b)-counts.get(a));
+    const singles=countSingles(idx,W,H);
+    return {W,H,idx,used,counts,filled,singles,singlesBefore,brand:QC.brand};
+  }
+  function majority(idx,W,H){
+    const src=idx.slice();
+    for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+      const i=y*W+x, me=src[i]; if(me<0) continue;
+      const cnt=new Map(); let best=me, bn=0;
+      for(let dy=-1;dy<=1;dy++){ const yy=y+dy; if(yy<0||yy>=H) continue;
+        for(let dx=-1;dx<=1;dx++){ const xx=x+dx; if(xx<0||xx>=W) continue;
+          const v=src[yy*W+xx]; if(v<0) continue; const n=(cnt.get(v)||0)+1; cnt.set(v,n); if(n>bn){bn=n;best=v;} } }
+      if(best!==me && bn>=5 && (cnt.get(me)||0)<=2) idx[i]=best;
+    }
+  }
+  function isSingle(idx,W,H,x,y){
+    const i=y*W+x, ci=idx[i]; if(ci<0) return false;
+    let n=0;
+    if(y>0){ const v=idx[i-W]; if(v>=0){ if(v===ci) return false; n++; } }
+    if(y<H-1){ const v=idx[i+W]; if(v>=0){ if(v===ci) return false; n++; } }
+    if(x>0){ const v=idx[i-1]; if(v>=0){ if(v===ci) return false; n++; } }
+    if(x<W-1){ const v=idx[i+1]; if(v>=0){ if(v===ci) return false; n++; } }
+    return n>0;
+  }
+  function countSingles(idx,W,H){ let n=0; for(let y=0;y<H;y++)for(let x=0;x<W;x++) if(isSingle(idx,W,H,x,y)) n++; return n; }
+  // Same rule and deterministic hash as the editor's cvAutoCleanGrid
+  function cleanConfetti(idx,W,H,strength){
+    for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+      const i=y*W+x; if(!isSingle(idx,W,H,x,y)) continue;
+      if(((i*2654435761)>>>0)%100 >= strength) continue;
+      const nb=[y>0?idx[i-W]:-1,y<H-1?idx[i+W]:-1,x>0?idx[i-1]:-1,x<W-1?idx[i+1]:-1].filter(v=>v>=0);
+      const cnt={}; nb.forEach(v=>cnt[v]=(cnt[v]||0)+1);
+      idx[i]=+Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0][0];
+    }
+  }
+
+  // ── preview drawing ──
+  const cv=$('qc-cv'), view=$('qc-view');
+  function fitCell(w,h){
+    const vw=Math.max(50,view.clientWidth-(window.innerWidth<=820?20:36)), vh=Math.max(50,view.clientHeight-(window.innerWidth<=820?20:36));
+    return Math.min(vw/w, vh/h);
+  }
+  function sizeCanvas(w,h,cell){
+    const dpr=Math.min(2,window.devicePixelRatio||1);
+    let cw=w*cell, ch=h*cell;
+    const cap=Math.min(1, 8000/Math.max(cw*dpr,ch*dpr));
+    cv.width=Math.max(1,Math.round(cw*dpr*cap)); cv.height=Math.max(1,Math.round(ch*dpr*cap));
+    cv.style.width=Math.round(cw)+'px'; cv.style.height=Math.round(ch)+'px';
+    const g=cv.getContext('2d');
+    g.setTransform(cv.width/(w*cell),0,0,cv.height/(h*cell),0,0);
+    return g;
+  }
+  function draw(){
+    if(!srcImg) return;
+    view.classList.remove('checker');
+    if(QC.step===1){
+      const im=workCv||baseCv; if(!im) return;
+      const cell=fitCell(im.width,im.height);
+      view.classList.toggle('checker', QC.bgOn);
+      const g=sizeCanvas(im.width,im.height,cell);
+      g.clearRect(0,0,im.width*cell,im.height*cell);
+      g.imageSmoothingEnabled=QC.kind!=='pixel';
+      g.drawImage(im,0,0,im.width*cell,im.height*cell);
+      cv.style.imageRendering=QC.kind==='pixel'?'pixelated':'auto';
+      $('qc-zv').textContent='Fit';
+      return;
+    }
+    if(!res) return;
+    const {W,H,idx}=res, pal=PALETTES[res.brand].colours;
+    const cell=fitCell(W,H)*QC.zoom;
+    $('qc-zv').textContent=QC.zoom===1?'Fit':Math.round(QC.zoom*100)+'%';
+    const g=sizeCanvas(W,H,cell);
+    const CW=W*cell, CH=H*cell;
+    if(QC.view==='original'){
+      cv.style.imageRendering='auto';
+      g.fillStyle=QC.fabricHex; g.fillRect(0,0,CW,CH);
+      g.imageSmoothingEnabled=true; g.drawImage(prepCv,0,0,CW,CH);
+      return;
+    }
+    cv.style.imageRendering='auto';
+    if(QC.view==='finished'){ drawFinished(g,cell); return; }
+    g.fillStyle='#fff'; g.fillRect(0,0,CW,CH);
+    for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+      const v=idx[y*W+x]; if(v<0) continue; const c=pal[v];
+      g.fillStyle=`rgb(${c.r},${c.g},${c.b})`; g.fillRect(x*cell,y*cell,cell+0.5,cell+0.5);
+    }
+    if(QC.showConf){
+      g.fillStyle='#ff1e3c';
+      for(let y=0;y<H;y++)for(let x=0;x<W;x++) if(isSingle(idx,W,H,x,y)) g.fillRect(x*cell,y*cell,cell+0.5,cell+0.5);
+    }
+    if(cell>=4){
+      g.lineWidth=Math.max(0.5,cell*0.04); g.strokeStyle='rgba(0,0,0,.14)'; g.beginPath();
+      for(let x=0;x<=W;x++){ g.moveTo(x*cell,0); g.lineTo(x*cell,CH); }
+      for(let y=0;y<=H;y++){ g.moveTo(0,y*cell); g.lineTo(CW,y*cell); }
+      g.stroke();
+    }
+    if(cell>=2){
+      g.lineWidth=Math.max(1,cell*0.09); g.strokeStyle='rgba(0,0,0,.38)'; g.beginPath();
+      for(let x=0;x<=W;x+=10){ g.moveTo(x*cell,0); g.lineTo(x*cell,CH); }
+      for(let y=0;y<=H;y+=10){ g.moveTo(0,y*cell); g.lineTo(CW,y*cell); }
+      g.stroke();
+    }
+  }
+  function shade(c,k){ const f=v=>Math.max(0,Math.min(255,Math.round(v*k))); return `rgb(${f(c.r)},${f(c.g)},${f(c.b)})`; }
+  function drawFinished(g,cell){
+    const {W,H,idx}=res, pal=PALETTES[res.brand].colours, CW=W*cell, CH=H*cell;
+    g.fillStyle=QC.fabricHex; g.fillRect(0,0,CW,CH);
+    if(cell<3){
+      for(let y=0;y<H;y++)for(let x=0;x<W;x++){ const v=idx[y*W+x]; if(v<0) continue; const c=pal[v]; g.fillStyle=`rgb(${c.r},${c.g},${c.b})`; g.fillRect(x*cell,y*cell,cell+0.5,cell+0.5); }
+      return;
+    }
+    // fabric weave holes
+    if(QC.craft!=='diamond'){
+      g.fillStyle='rgba(0,0,0,.10)';
+      for(let y=0;y<=H;y++)for(let x=0;x<=W;x++) g.fillRect(x*cell-cell*0.06,y*cell-cell*0.06,cell*0.12,cell*0.12);
+    }
+    g.lineCap='round';
+    const lw=cell*0.3, m=cell*0.18;
+    for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+      const v=idx[y*W+x]; if(v<0) continue; const c=pal[v];
+      const x0=x*cell, y0=y*cell;
+      if(QC.craft==='diamond'){
+        g.fillStyle=shade(c,0.82);
+        if(QC.drill==='round'){ g.beginPath(); g.arc(x0+cell/2,y0+cell/2,cell*0.47,0,Math.PI*2); g.fill(); }
+        else g.fillRect(x0+cell*0.04,y0+cell*0.04,cell*0.92,cell*0.92);
+        g.fillStyle=`rgb(${c.r},${c.g},${c.b})`;
+        g.beginPath(); g.moveTo(x0+cell/2,y0+cell*0.16); g.lineTo(x0+cell*0.84,y0+cell/2); g.lineTo(x0+cell/2,y0+cell*0.84); g.lineTo(x0+cell*0.16,y0+cell/2); g.closePath(); g.fill();
+        g.fillStyle='rgba(255,255,255,.35)'; g.fillRect(x0+cell*0.3,y0+cell*0.26,cell*0.14,cell*0.1);
+        continue;
+      }
+      g.lineWidth=lw;
+      g.strokeStyle=shade(c,0.78);
+      g.beginPath(); g.moveTo(x0+m,y0+cell-m); g.lineTo(x0+cell-m,y0+m); g.stroke();
+      if(QC.craft==='cross'){
+        g.strokeStyle=`rgb(${c.r},${c.g},${c.b})`;
+        g.beginPath(); g.moveTo(x0+m,y0+m); g.lineTo(x0+cell-m,y0+cell-m); g.stroke();
+        g.lineWidth=lw*0.28; g.strokeStyle=shade(c,1.18);
+        g.beginPath(); g.moveTo(x0+m*1.4,y0+m*1.1); g.lineTo(x0+cell-m*1.6,y0+cell-m*1.9); g.stroke();
+      } else {
+        g.lineWidth=lw*0.28; g.strokeStyle=shade(c,1.18);
+        g.beginPath(); g.moveTo(x0+m*1.2,y0+cell-m*1.7); g.lineTo(x0+cell-m*1.7,y0+m*1.2); g.stroke();
+      }
+    }
+  }
+
+  // ── side panel rendering ──
+  function paintSeg(id,val){ $(id).querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===String(val))); }
+  function paintChips(id,val){ $(id).querySelectorAll('.qc-chip').forEach(b=>b.classList.toggle('on',b.dataset.v===String(val))); }
+  function typical(n){ return n<4000?[8,18]:n<12000?[12,28]:n<30000?[18,40]:n<70000?[25,55]:[35,70]; }
+  function paintSize(){
+    const n=QC.W*QC.H;
+    $('qc-sizesum').innerHTML=`<b>${QC.W} × ${QC.H}</b> · ${n.toLocaleString()} ${CRAFTS[QC.craft].unit}<div>${finished(QC.W,QC.H)} finished</div><div>⏱ ${hours(n)} hours to ${QC.craft==='diamond'?'complete':'stitch'}</div>`;
+    const box=$('qc-sizes');
+    if(QC.kind==='pixel'){
+      box.innerHTML=`<button type="button" class="qc-size on"><b>1 pixel = 1 stitch</b><span>${QC.W} × ${QC.H}</span><em>Your pixel art at its own size</em></button>`;
+    } else {
+      box.innerHTML=PRESETS.map((p,i)=>{ const [w,h]=dimsFor(p.long); return `<button type="button" class="qc-size${QC.preset===i?' on':''}" data-i="${i}"><b>${p.l}${p.rec?'<span class="qc-tag fill">Recommended</span>':''}</b><span>${w} × ${h}</span><em>${p.d}</em><em style="text-align:right">${finished(w,h)}</em></button>`; }).join('');
+    }
+    $('qc-w').value=QC.W; $('qc-h').value=QC.H;
+    $('qc-lock').classList.toggle('on',QC.lock);
+    const t=typical(n); $('qc-typical').textContent=`Typical for this size: ${t[0]}–${t[1]} colours`;
+  }
+  function paintFabric(){
+    const cr=CRAFTS[QC.craft];
+    $('qc-fab-title').textContent=QC.craft==='diamond'?'Canvas & drills':QC.craft==='needle'?'Canvas & thread':'Fabric & thread';
+    $('qc-strands-wrap').style.display=QC.craft==='diamond'?'none':'';
+    $('qc-drill').style.display=QC.craft==='diamond'?'':'none';
+    $('qc-count-lbl').style.display=cr.counts.length?'':'none';
+    $('qc-count').innerHTML=cr.counts.map(c=>`<button type="button" class="qc-chip${c.k===QC.countKey?' on':''}" data-v="${c.k}">${c.l}</button>`).join('');
+    $('qc-count').style.display=cr.counts.length?'':'none';
+    paintSeg('qc-strands',QC.strands); paintSeg('qc-drill',QC.drill); paintChips('qc-craft',QC.craft); paintChips('qc-brand',QC.brand);
+    $('qc-fabcol').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===QC.fabricHex));
+    const f=FABRIC_COLOURS.find(f=>f.hex===QC.fabricHex); $('qc-fabname').textContent=f?f.name:'';
+  }
+  function paintColours(){
+    paintChips('qc-cstyle',QC.style);
+    $('qc-colors').value=QC.colors; $('qc-colors-v').textContent=QC.colors+' max';
+    $('qc-detail').value=QC.detail; $('qc-detail-v').textContent=DETAIL[QC.detail].l; $('qc-detail-hint').textContent=DETAIL[QC.detail].h;
+    $('qc-detail').disabled=QC.kind==='pixel';
+    const plus=isPlus();
+    $('qc-clean').disabled=!plus; $('qc-conf-plus').style.display=plus?'none':'';
+    $('qc-clean').value=plus?QC.clean:0; $('qc-clean-v').textContent=(plus?QC.clean:0)+'%';
+    $('qc-conf-show').classList.toggle('on',QC.showConf);
+  }
+  function paintStats(){
+    if(!res) return;
+    const pct=res.filled?res.singles/res.filled*100:0;
+    $('qc-conf-pct').textContent=pct.toFixed(1)+'%';
+    const b=$('qc-conf-badge');
+    b.className='qc-badge '+(pct<2?'good':pct<6?'ok':'bad'); b.textContent=pct<2?'Easy to stitch':pct<6?'OK':'Needs work';
+    const pal=PALETTES[res.brand].colours;
+    $('qc-pal-n').textContent=` ${res.used.length} colours`;
+    $('qc-pal-strip').innerHTML=res.used.map(v=>{ const c=pal[v]; return `<i style="background:rgb(${c.r},${c.g},${c.b});flex-grow:${Math.max(1,res.counts.get(v))}"></i>`; }).join('');
+    $('qc-pal-list').innerHTML=threadRows().map(t=>`<div class="qc-thr"><i style="background:${t.css}"></i><b>${esc(t.label)}</b><span>${t.n.toLocaleString()} · ${t.amount}</span></div>`).join('');
+    paintFinal();
+  }
+  function threadRows(){
+    const pal=PALETTES[res.brand].colours;
+    const n=perInch(), mp100=({11:0.58,14:0.43,16:0.4,18:0.38,20:0.34,25:0.27})[Math.round(n)]||0.4;
+    return res.used.map(v=>{
+      const c=pal[v], cnt=res.counts.get(v);
+      let amount;
+      if(QC.craft==='diamond') amount=`${Math.ceil(cnt*1.05).toLocaleString()} drills`;
+      else { const m=cnt*mp100/100*1.15*(QC.strands/2); const sk=Math.max(1,Math.ceil(m/8)); amount=`${sk} skein${sk>1?'s':''}`; }
+      return {css:`rgb(${c.r},${c.g},${c.b})`,label:c.label,n:cnt,amount};
+    });
+  }
+  function paintFinal(){
+    if(!res) return;
+    const cr=QC.craft==='diamond'?`Diamond painting · ${QC.drill} drills`:QC.craft==='needle'?'Needlepoint':'Cross stitch';
+    const cnt=CRAFTS[QC.craft].counts.find(c=>c.k===QC.countKey);
+    $('qc-final').innerHTML=`<b>${res.W} × ${res.H} ${CRAFTS[QC.craft].unit}</b><div>${cr}${cnt&&QC.craft!=='diamond'?' · '+cnt.l:''}</div><div>${finished(res.W,res.H)} finished · ⏱ ${hours(res.filled)} h</div><div>${res.used.length} ${esc(PALETTES[res.brand].name)} colours${QC.craft==='diamond'?'':' · '+QC.strands+' strand'+(QC.strands>1?'s':'')}</div>`;
+  }
+  function paintSteps(){
+    $('qc-steps').querySelectorAll('button').forEach(b=>{ const s=+b.dataset.s; b.classList.toggle('on',s===QC.step); b.classList.toggle('done',s<QC.step); });
+    $('qc-steps').querySelectorAll('b').forEach((b,i)=>b.classList.toggle('done',i+1<QC.step));
+    [1,2,3].forEach(s=>$('qc-p'+s).classList.toggle('on',s===QC.step));
+    $('qc-tools').style.display=QC.step===1?'':'none';
+    $('qc-bgpop').classList.toggle('on',QC.step===1&&QC.bgOn);
+    $('qc-vbar').style.display=QC.step===1?'none':'';
+    $('qc-pal').style.display=QC.step===1?'none':'';
+    $('qc-editor').style.display=QC.step===1?'none':'';
+    $('qc-next').style.display=QC.step===3?'none':'';
+    $('qc-next').innerHTML=QC.step===1?'Continue →':'PDF →';
+    root.querySelectorAll('[data-kind]').forEach(b=>b.classList.toggle('on',b.dataset.kind===QC.kind));
+    paintSeg('qc-views',QC.view);
+  }
+
+  // ── reconvert (debounced) ──
+  function queue(rebuildPrep){
+    if(rebuildPrep) dirtyPrep=true;
+    clearTimeout(convT);
+    $('qc-busy').classList.add('on');
+    convT=setTimeout(()=>{
+      try{
+        if(dirtyPrep) buildPrep();
+        res=convert();
+        paintStats(); draw();
+      }catch(e){ console.error('[qc] convert failed',e); toast('Could not update the preview, please try again'); }
+      $('qc-busy').classList.remove('on');
+    },90);
+  }
+
+  function setSizeFromPreset(i){
+    QC.preset=i;
+    if(QC.kind==='pixel'){
+      const im=baseCv; const s=Math.min(1,500/Math.max(im.width,im.height));
+      QC.W=Math.max(1,Math.round(im.width*s)); QC.H=Math.max(1,Math.round(im.height*s));
+    } else { const [w,h]=dimsFor(PRESETS[i].long); QC.W=w; QC.H=h; }
+  }
+
+  function goStep(s){
+    if(!srcImg) return;
+    if(s>1 && QC.kind==='chart'){ openScan(); return; }
+    QC.step=s; QC.zoom=1;
+    if(s>1 && (!QC.W || !res)){ if(!QC.W) setSizeFromPreset(QC.preset); }
+    paintSteps();
+    if(s>1){ paintSize(); paintFabric(); paintColours(); if(!res) queue(false); else { paintStats(); } }
+    requestAnimationFrame(draw);
+  }
+
+  // ── open / close ──
+  function suggestKind(){
+    // tiny images with few colours are almost always pixel art
+    const im=srcImg, w=im.naturalWidth, h=im.naturalHeight;
+    if(Math.max(w,h)>400) return 'photo';
+    const c=mkCv(w,h), g=c.getContext('2d'); g.drawImage(im,0,0);
+    const d=g.getImageData(0,0,w,h).data, set=new Set();
+    for(let i=0;i<d.length;i+=4){ if(d[i+3]<128) continue; set.add((d[i]<<16)|(d[i+1]<<8)|d[i+2]); if(set.size>256) return 'photo'; }
+    return 'pixel';
+  }
+  function loadFile(f){
+    return new Promise((resolve,reject)=>{
+      const r=new FileReader();
+      r.onload=ev=>{ const im=new Image(); im.onload=()=>resolve(im); im.onerror=reject; im.src=ev.target.result; };
+      r.onerror=reject; r.readAsDataURL(f);
+    });
+  }
+  async function open(file){
+    let im;
+    try{ im=await loadFile(file); }catch(e){ toast('Could not read that image'); return; }
+    srcImg=im;
+    QC.name=file.name.replace(/\.[^.]+$/,'').slice(0,40)||'My Pattern';
+    QC.crop={x:0,y:0,w:1,h:1}; QC.rot=0; QC.rot90=0; QC.bgOn=false; QC.bgSeeds=[]; QC.bgAuto=true; $('qc-bgbtn').classList.remove('on');
+    QC.kind=suggestKind();
+    $('qc-sug-photo').style.display=QC.kind==='photo'?'':'none';
+    $('qc-sug-pixel').style.display=QC.kind==='pixel'?'':'none';
+    if(!QC.brand || !PALETTES[QC.brand]) QC.brand=(typeof currentBrand!=='undefined'&&PALETTES[currentBrand])?currentBrand:Object.keys(PALETTES)[0];
+    if(!QC.fabricHex) QC.fabricHex=FABRIC_COLOURS[1].hex;
+    QC.style='balanced'; QC.br=QC.ct=QC.sa=0; QC.colors=QC.kind==='pixel'?60:30; QC.detail=2; QC.clean=0; QC.view='pattern'; QC.preset=1; QC.W=0; QC.H=0; res=null;
+    $('qc-name').value=QC.name;
+    ['br','ct','sa'].forEach(k=>{ $('qc-'+k).value=0; $('qc-'+k+'-v').textContent='0'; });
+    rebuildFrom(0);
+    document.body.classList.add('qc-open');
+    QC.step=1; paintSteps();
+    requestAnimationFrame(draw);
+  }
+  function close(){ document.body.classList.remove('qc-open'); $('qc-crop').classList.remove('on'); }
+  function openScan(){
+    close();
+    try{ openTracker(); setTimeout(()=>{ try{ trkChooseSource('scan'); }catch(e){} },60); }catch(e){ console.error(e); }
+  }
+
+  // ── hand the previewed pattern to the editor (exact grid, same palette indices) ──
+  async function handoff(enter){
+    if(!res) return false;
+    const r=res;
+    const im=await new Promise(ok=>{ const i=new Image(); i.onload=()=>ok(i); i.onerror=()=>ok(null); i.src=prepCv.toDataURL('image/png'); });
+    const _pn=$('pattern-name'); if(_pn) _pn.value=(QC.name||'My Pattern').trim()||'My Pattern';
+    currentProjectId=null;
+    pjResetImageState();
+    if(r.brand!==currentBrand){
+      currentBrand=r.brand;
+      const sel=$('brand-select'); if(sel) sel.value=r.brand;
+      const ib=$('img-brand-select'); if(ib) ib.value=r.brand;
+      const bl=$('brand-label'); if(bl) bl.textContent=PALETTES[r.brand].name;
+      workingPalette.clear(); if(typeof libSelection!=='undefined') libSelection.clear();
+      if(typeof updateLibAddBar==='function') updateLibAddBar();
+    }
+    const cnt=CRAFTS[QC.craft].counts.find(c=>c.k===QC.countKey);
+    const fs={fabricColorHex:QC.fabricHex};
+    if(QC.craft==='cross' && cnt) fs.fabricKey=cnt.k; else fs.fabricCount=Math.round(perInch());
+    try{ pjApplySettings(fs); }catch(e){}
+    window.cvBorderStitches=0;
+    initGrid(r.W,r.H,false);
+    pjMarkClean(); // snapshot of the empty canvas → the converted pattern counts as unsaved work
+    if(r.W>+colsRange.max) colsRange.max=r.W; colsRange.value=r.W;
+    if(r.H>+rowsRange.max) rowsRange.max=r.H; rowsRange.value=r.H;
+    const cvv=$('cols-val'); if(cvv) cvv.textContent=r.W;
+    const rvv=$('rows-val'); if(rvv) rvv.textContent=r.H;
+    colorLimitEl.value=Math.min(60,QC.colors);
+    if(QC.colors>60) colorLimitEl.dataset.customValue=QC.colors; else delete colorLimitEl.dataset.customValue;
+    const clv=$('color-limit-val'); if(clv) clv.textContent=QC.colors;
+    grid=Array.from({length:r.H},(_,y)=>Array.from({length:r.W},(_,x)=>{ const v=r.idx[y*r.W+x]; return v<0?null:v; }));
+    lySyncActive();
+    uploadedImg=im;
+    const ul=$('upload-label'); if(ul) ul.textContent='✅ '+(QC.name||'photo');
+    const cs=$('clear-image-section'); if(cs) cs.style.display='';
+    const os=$('img-overlay-section'); if(os) os.style.display='';
+    workingPalette=new Set(r.used);
+    if(r.used.length) setActiveColor(r.used[0]);
+    buildWorkingPalette(); buildPalette();
+    const pal=PALETTES[r.brand].colours;
+    lastRender={w:r.W,h:r.H,finalIndices:Array.from(r.idx),reducedPalette:r.used.map(i=>({...pal[i],idx:i})),topColorIndices:r.used.slice()};
+    render();
+    try{ updateCartPreview(); }catch(e){}
+    try{ updateColourCount(); }catch(e){}
+    try{ updateHeightLock(); }catch(e){}
+    try{ statsBump('photos'); }catch(e){}
+    if(enter){
+      close();
+      enterEditor();
+      requestAnimationFrame(()=>{ try{ editorFitZoom(); }catch(e){} });
+    }
+    return true;
+  }
+  async function downloadPdf(){
+    const btn=$('qc-dl'); btn.disabled=true; const lbl=btn.innerHTML; btn.innerHTML='Preparing PDF…';
+    try{
+      if(!await handoff(false)) return;
+      const keep={pagesize:EXP.pagesize,style:EXP.style,layout:EXP.layout,filetype:EXP.filetype};
+      EXP.pagesize=QC.page; EXP.style=QC.chart; EXP.layout=QC.layout; EXP.filetype='pdf';
+      try{
+        const name=(QC.name||'My Pattern').trim()||'My Pattern';
+        const {pdf,pages}=expBuildPdf();
+        await expEmbedInto(pdf);
+        const ok=await expBlobDownload(pdf.output('blob'), name+'.pdf');
+        if(ok!==false) toast(`PDF saved — ${pages} page${pages!==1?'s':''}`);
+      } finally { Object.assign(EXP,keep); }
+    }catch(e){ console.error(e); toast('Export failed — please try again'); }
+    finally{ btn.disabled=false; btn.innerHTML=lbl; }
+  }
+  async function toTracker(){
+    try{
+      if(!await handoff(false)) return;
+      const xml=expBuildOxs();
+      const bytes=ptnlyWrap(new TextEncoder().encode(xml).buffer, PTNLY_FMT_OXS);
+      const nm=(QC.name||'My pattern').trim()||'My pattern';
+      close();
+      await openTracker();
+      await trkHandleChartPatternly(new File([bytes], nm+'.Ptly'));
+      toast('🧵 Pattern sent to the tracker — happy stitching!');
+    }catch(err){ console.error(err); toast('⚠ Could not send to the tracker: '+err.message); }
+  }
+
+  // ── crop & straighten ──
+  const crop={r:null,rot:0,rot90:0,scale:1};
+  function cropDraw(){
+    const keep={rot:QC.rot,rot90:QC.rot90}; QC.rot=crop.rot; QC.rot90=crop.rot90; buildRot(); QC.rot=keep.rot; QC.rot90=keep.rot90;
+    const stage=root.querySelector('.qc-stage');
+    const mw=stage.clientWidth-32, mh=stage.clientHeight-130;
+    const s=Math.min(mw/rotCv.width, mh/rotCv.height);
+    const c=$('qc-crop-cv'); c.width=Math.round(rotCv.width*s); c.height=Math.round(rotCv.height*s);
+    c.getContext('2d').drawImage(rotCv,0,0,c.width,c.height);
+    crop.scale=s; cropPaintRect();
+  }
+  function cropPaintRect(){
+    const c=$('qc-crop-cv'), el=$('qc-crop-r'), r=crop.r;
+    el.style.left=r.x*c.width+'px'; el.style.top=r.y*c.height+'px'; el.style.width=r.w*c.width+'px'; el.style.height=r.h*c.height+'px';
+  }
+  function cropOpen(){
+    crop.r={...QC.crop}; crop.rot=QC.rot; crop.rot90=QC.rot90;
+    $('qc-rot').value=crop.rot; $('qc-rot-v').textContent=crop.rot+'°';
+    $('qc-crop').classList.add('on'); cropDraw();
+  }
+  function cropClose(apply){
+    $('qc-crop').classList.remove('on');
+    if(apply){ QC.crop={...crop.r}; QC.rot=crop.rot; QC.rot90=crop.rot90; }
+    rebuildFrom(0);
+    if(apply && QC.W){ setSizeFromPreset(QC.preset); res=null; }
+    draw();
+  }
+  (function(){
+    const el=$('qc-crop-r'); let drag=null;
+    el.addEventListener('pointerdown',e=>{
+      const c=$('qc-crop-cv'); e.preventDefault(); el.setPointerCapture(e.pointerId);
+      drag={h:e.target.dataset.h||'move',x:e.clientX,y:e.clientY,r:{...crop.r},W:c.width,H:c.height};
+    });
+    el.addEventListener('pointermove',e=>{
+      if(!drag) return;
+      const dx=(e.clientX-drag.x)/drag.W, dy=(e.clientY-drag.y)/drag.H, o=drag.r, MIN=0.06;
+      let {x,y,w,h}=o;
+      if(drag.h==='move'){ x=Math.min(1-w,Math.max(0,o.x+dx)); y=Math.min(1-h,Math.max(0,o.y+dy)); }
+      else{
+        if(drag.h.includes('w')){ const nx=Math.min(o.x+o.w-MIN,Math.max(0,o.x+dx)); w=o.w+(o.x-nx); x=nx; }
+        if(drag.h.includes('e')){ w=Math.min(1-o.x,Math.max(MIN,o.w+dx)); }
+        if(drag.h.includes('n')){ const ny=Math.min(o.y+o.h-MIN,Math.max(0,o.y+dy)); h=o.h+(o.y-ny); y=ny; }
+        if(drag.h.includes('s')){ h=Math.min(1-o.y,Math.max(MIN,o.h+dy)); }
+      }
+      crop.r={x,y,w,h}; cropPaintRect();
+    });
+    const end=()=>{ drag=null; };
+    el.addEventListener('pointerup',end); el.addEventListener('pointercancel',end);
+    $('qc-rot').addEventListener('input',function(){ crop.rot=+this.value; $('qc-rot-v').textContent=crop.rot+'°'; cropDraw(); });
+    $('qc-rot90').addEventListener('click',()=>{ crop.rot90=(crop.rot90+1)%4; crop.r={x:0,y:0,w:1,h:1}; cropDraw(); });
+    $('qc-crop-reset').addEventListener('click',()=>{ crop.r={x:0,y:0,w:1,h:1}; crop.rot=0; crop.rot90=0; $('qc-rot').value=0; $('qc-rot-v').textContent='0°'; cropDraw(); });
+    $('qc-crop-cancel').addEventListener('click',()=>cropClose(false));
+    $('qc-crop-ok').addEventListener('click',()=>cropClose(true));
+  })();
+
+  // ── wiring ──
+  $('qc-home').addEventListener('click',()=>{ close(); if(typeof goHome==='function') goHome(); });
+  $('qc-steps').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>goStep(+b.dataset.s)));
+  $('qc-next').addEventListener('click',()=>goStep(QC.step+1));
+  $('qc-editor').addEventListener('click',()=>handoff(true));
+  $('qc-ed2').addEventListener('click',()=>handoff(true));
+  $('qc-dl').addEventListener('click',downloadPdf);
+  $('qc-trk').addEventListener('click',toTracker);
+  root.querySelectorAll('[data-kind]').forEach(b=>b.addEventListener('click',()=>{
+    const k=b.dataset.kind;
+    if(k==='chart'){ openScan(); return; }
+    if(k===QC.kind) return;
+    QC.kind=k; QC.colors=k==='pixel'?60:30; res=null; QC.W=0;
+    rebuildFrom(1); paintSteps(); draw();
+  }));
+  $('qc-replace').addEventListener('click',()=>$('qc-file').click());
+  $('qc-file').addEventListener('change',function(){ const f=this.files[0]; this.value=''; if(f && f.type.startsWith('image/')) open(f); else if(f) toast('Please choose an image file'); });
+  $('qc-cropbtn').addEventListener('click',cropOpen);
+  $('qc-bgbtn').addEventListener('click',()=>{ QC.bgOn=!QC.bgOn; QC.bgSeeds=[]; QC.bgAuto=true; $('qc-bgbtn').classList.toggle('on',QC.bgOn); res=null; rebuildFrom(2); paintSteps(); draw(); });
+  $('qc-bgoff').addEventListener('click',()=>{
+    // Undo the last tap first; with no taps left, turn the eraser off
+    if(QC.bgSeeds.length){ QC.bgSeeds.pop(); res=null; rebuildFrom(2); draw(); return; }
+    QC.bgOn=false; $('qc-bgbtn').classList.remove('on'); res=null; rebuildFrom(2); paintSteps(); draw(); });
+  // Tap-to-erase while the eraser is on (step 1 only)
+  cv.addEventListener('click',e=>{
+    if(QC.step!==1 || !QC.bgOn) return;
+    const r=cv.getBoundingClientRect();
+    QC.bgSeeds.push({x:(e.clientX-r.left)/r.width, y:(e.clientY-r.top)/r.height});
+    res=null; rebuildFrom(2); draw();
+  });
+  let bgT=null;
+  $('qc-bgtol').addEventListener('input',function(){ QC.bgTol=+this.value; clearTimeout(bgT); bgT=setTimeout(()=>{ res=null; rebuildFrom(2); draw(); },120); });
+  // step 2 controls
+  $('qc-craft').addEventListener('click',e=>{ const b=e.target.closest('.qc-chip'); if(!b) return; QC.craft=b.dataset.v;
+    const cs=CRAFTS[QC.craft].counts; if(cs.length && !cs.some(c=>c.k===QC.countKey)) QC.countKey=cs[1]?cs[1].k:cs[0].k;
+    savePrefs(); paintFabric(); paintSize(); paintFinal(); if(QC.view==='finished') draw(); });
+  $('qc-drill').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; QC.drill=b.dataset.v; savePrefs(); paintFabric(); paintSize(); paintFinal(); if(QC.view==='finished') draw(); });
+  $('qc-units').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; QC.units=b.dataset.v; paintSeg('qc-units',QC.units); savePrefs(); paintSize(); paintFinal(); });
+  $('qc-sizes').addEventListener('click',e=>{ const b=e.target.closest('.qc-size[data-i]'); if(!b) return; setSizeFromPreset(+b.dataset.i); paintSize(); queue(false); });
+  function customSize(which){
+    let w=parseInt($('qc-w').value)||0, h=parseInt($('qc-h').value)||0;
+    if(QC.lock){ if(which==='w') h=Math.round(w*aspect()); else w=Math.round(h/aspect()); }
+    w=Math.max(10,Math.min(1000,w)); h=Math.max(10,Math.min(1000,h));
+    QC.W=w; QC.H=h; QC.preset=-1; paintSize(); queue(false);
+  }
+  $('qc-w').addEventListener('change',()=>customSize('w'));
+  $('qc-h').addEventListener('change',()=>customSize('h'));
+  $('qc-lock').addEventListener('click',()=>{ QC.lock=!QC.lock; $('qc-lock').classList.toggle('on',QC.lock); });
+  $('qc-brand').innerHTML=Object.keys(PALETTES).map(k=>`<button type="button" class="qc-chip" data-v="${k}">${esc(PALETTES[k].name)}</button>`).join('');
+  $('qc-brand').addEventListener('click',e=>{ const b=e.target.closest('.qc-chip'); if(!b) return; QC.brand=b.dataset.v; savePrefs(); paintFabric(); queue(false); });
+  $('qc-strands').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; QC.strands=+b.dataset.v; savePrefs(); paintFabric(); paintStats(); });
+  $('qc-count').addEventListener('click',e=>{ const b=e.target.closest('.qc-chip'); if(!b) return; QC.countKey=b.dataset.v; savePrefs(); paintFabric(); paintSize(); paintStats(); });
+  $('qc-fabcol').innerHTML=FABRIC_COLOURS.map(f=>`<button type="button" data-v="${f.hex}" title="${esc(f.name)}" style="background:${f.hex}"></button>`).join('');
+  $('qc-fabcol').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; QC.fabricHex=b.dataset.v; savePrefs(); paintFabric(); if(QC.view!=='pattern') draw(); });
+  $('qc-cstyle').innerHTML=STYLES.map(s=>`<button type="button" class="qc-chip" data-v="${s.v}"><span class="qc-stripe">${s.c.map(c=>`<i style="background:${c}"></i>`).join('')}</span>${s.l}</button>`).join('');
+  $('qc-cstyle').addEventListener('click',e=>{ const b=e.target.closest('.qc-chip'); if(!b) return; QC.style=b.dataset.v; paintColours(); queue(true); });
+  $('qc-colors').addEventListener('input',function(){ QC.colors=+this.value; $('qc-colors-v').textContent=QC.colors+' max'; queue(false); });
+  $('qc-ft-tog').addEventListener('click',function(){ const on=!this.classList.contains('on'); this.classList.toggle('on',on); $('qc-ft').style.display=on?'':'none'; });
+  ['br','ct','sa'].forEach(k=>$('qc-'+k).addEventListener('input',function(){ QC[k]=+this.value; $('qc-'+k+'-v').textContent=this.value; queue(true); }));
+  $('qc-detail').addEventListener('input',function(){ QC.detail=+this.value; paintColours(); queue(false); });
+  $('qc-clean').addEventListener('input',function(){ if(!isPlus()) return; QC.clean=+this.value; $('qc-clean-v').textContent=QC.clean+'%'; queue(false); });
+  $('qc-conf-plus').addEventListener('click',()=>{ close(); toast('Confetti clean-up is a Plus tool — opening Plus…'); if(typeof openPricing==='function') openPricing(); });
+  $('qc-conf-show').addEventListener('click',()=>{ QC.showConf=!QC.showConf; paintColours(); if(QC.showConf && QC.view!=='pattern'){ QC.view='pattern'; paintSeg('qc-views','pattern'); } draw(); });
+  $('qc-pal-head').addEventListener('click',()=>{ const p=$('qc-pal'); p.classList.toggle('open'); $('qc-pal-arrow').textContent=p.classList.contains('open')?'▾':'▸'; });
+  $('qc-views').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; QC.view=b.dataset.v; paintSeg('qc-views',QC.view); draw(); });
+  const ZL=[1,1.5,2,3,4,6,8];
+  // zoom around the middle of what is on screen
+  function zoomTo(z){
+    const fx=(view.scrollLeft+view.clientWidth/2)/Math.max(1,view.scrollWidth), fy=(view.scrollTop+view.clientHeight/2)/Math.max(1,view.scrollHeight);
+    QC.zoom=z; draw();
+    view.scrollLeft=fx*view.scrollWidth-view.clientWidth/2; view.scrollTop=fy*view.scrollHeight-view.clientHeight/2;
+  }
+  $('qc-zin').addEventListener('click',()=>zoomTo(ZL.find(z=>z>QC.zoom)||QC.zoom));
+  $('qc-zout').addEventListener('click',()=>zoomTo([...ZL].reverse().find(z=>z<QC.zoom)||1));
+  $('qc-zfit').addEventListener('click',()=>{ QC.zoom=1; draw(); });
+  // step 3
+  QC.page=(typeof EXP!=='undefined'&&EXP.pagesize)||'a4'; QC.chart=(typeof EXP!=='undefined'&&EXP.style==='bw')?'bw':'color'; QC.layout='multi';
+  [['qc-page','page'],['qc-chart','chart'],['qc-layout','layout']].forEach(([id,k])=>{
+    paintSeg(id,QC[k]);
+    $(id).addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; QC[k]=b.dataset.v; paintSeg(id,QC[k]); });
+  });
+  $('qc-name').addEventListener('input',function(){ QC.name=this.value; });
+  paintSeg('qc-units',QC.units);
+  let rsT=null; window.addEventListener('resize',()=>{ if(!document.body.classList.contains('qc-open')) return; clearTimeout(rsT); rsT=setTimeout(()=>{ if($('qc-crop').classList.contains('on')) cropDraw(); else draw(); },120); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape' && $('qc-crop').classList.contains('on')) cropClose(false); });
+
+  window.qcOpen=open;
+  window.qcClose=close;
+})();
 </script>
 
 </body>
