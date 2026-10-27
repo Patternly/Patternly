@@ -5306,7 +5306,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v623';
+window.PATTERNLY_BUILD='v624';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -26179,10 +26179,22 @@ trkCanvas.addEventListener('pointermove', e=>{
 function trkPinchCommit(P){
   trkPinchView=null; if(trkPinchRaf){ cancelAnimationFrame(trkPinchRaf); trkPinchRaf=0; }
   if(!P || !P.target || !P.mid || trkPageMode){ renderTracker(); return; }
-  // the preview already drew at P.target; go back to the start size so trkZoomTo's
-  // anchor maths (which scales from the current cell size) is exact
-  trackerCellPx=P.px||trackerCellPx;
-  const want=trkZoomTo(P.target, P.mid.x, P.mid.y);
+  // v624: anchor from the values captured at pinch START (grid point under the fingers
+  // and where it was on screen). trkZoomTo read the live scroller instead, and while
+  // zooming OUT the preview had already shrunk the sizer, so the browser had clamped the
+  // scroll — the anchor was then computed from a wrong starting point (→ top-left).
+  const wrap=document.getElementById('trk-canvas-wrap');
+  let want=null;
+  if(P.content && P.origin!=null){
+    const k=P.target/(P.px||trackerCellPx);
+    trkSetZoomPx(P.target);                                                 // renders + sizes the scroller for the new cell size
+    want={sl:P.gut+P.content.x*k-P.origin.x, st:P.gut+P.content.y*k-P.origin.y};
+    wrap.scrollLeft=want.sl; wrap.scrollTop=want.st;
+    renderTracker();
+  } else {
+    trackerCellPx=P.px||trackerCellPx;
+    want=trkZoomTo(P.target, P.mid.x, P.mid.y);
+  }
   let best=0;
   for(let i=0;i<trkZoomLevels.length;i++)
     if(Math.abs(trkZoomLevels[i]-P.target)<Math.abs(trkZoomLevels[best]-P.target)) best=i;
