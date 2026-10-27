@@ -3585,6 +3585,21 @@ body.dark .trk-group{background:#221b2d;border-color:#4a3d55}
   #trk-zoombar > #trk-secondary{display:none!important}
   #trk-tips{display:none!important}
   #trk-backupgroup{display:none!important}
+  /* v625 · one-row toolbar: modes as a segmented control (icon over label),
+     compact zoom (tap the % to fit), full screen as an icon. */
+  #trk-zoombar{flex-wrap:nowrap;gap:.4rem;margin-bottom:.5rem}
+  #trk-modes{order:1;flex:1 1 auto;min-width:0;margin-left:0;gap:2px;background:#fff;border:1.5px solid #e6d9dd;border-radius:12px;padding:3px;height:46px;box-sizing:border-box}
+  #trk-modes button{flex:1 1 0;min-width:0;height:100%;border:0;border-radius:9px;background:transparent!important;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:0;font-size:.62rem;line-height:1.1;color:var(--lp-ink,#2b2226)}
+  #trk-modes button.active{background:var(--lp-red,#8B1A2B)!important;color:#fff!important;border-color:transparent}
+  #trk-zoomgroup{order:2;flex:0 0 auto;height:46px;box-sizing:border-box;border-radius:12px;padding:3px}
+  #trk-zoomgroup button{height:100%}
+  #trk-fit{display:none!important}
+  #trk-zoom-label{min-width:40px;cursor:pointer}
+  #trk-fsgroup{order:3;flex:0 0 auto;width:46px;height:46px;box-sizing:border-box;border-radius:12px;padding:3px;justify-content:center}
+  #trk-fs-btn{height:100%;width:100%;padding:0!important;font-size:1.1rem}
+  #trk-fs-btn span{display:none}
+  body.dark #trk-modes{background:#221b2d;border-color:#4a3d55}
+  body.dark #trk-modes button{color:#eee}
 }
 body.dark .trk-group button.active{background:#3a2130!important}
 /* Press-and-hold on the chart is OUR gesture (colour highlight). Without these,
@@ -3664,6 +3679,23 @@ body.fsbar-hidden #trk-fsbar{transform:translateX(-50%) translateY(180%);opacity
   #trk-fsbar button span{font-size:.62rem}
 }
 #trk-fsbar button.active{background:var(--lp-red,#8B1A2B);color:#fff}
+/* v625 · full-screen controls: a dark pill of round mode buttons (icon only), the
+   active one a filled red circle; Close / Colours / Settings float top-right as
+   round buttons, zoom −/fit/+ top-left. The chart gets the rest of the screen. */
+body.trk-fs #trk-fsbar{background:rgba(43,34,38,.92);border:0;border-radius:999px;padding:6px;gap:6px;width:auto;max-width:none;box-shadow:0 10px 30px rgba(43,34,38,.35)}
+body.trk-fs #trk-fsbar button{flex:0 0 auto;width:48px;height:48px;padding:0;border-radius:50%;border:1.5px solid rgba(255,255,255,.55);color:#fff;font-size:1.25rem;background:transparent;display:flex;align-items:center;justify-content:center}
+body.trk-fs #trk-fsbar button span{display:none}
+body.trk-fs #trk-fsbar button.active{background:var(--lp-red,#8B1A2B);border-color:var(--lp-red,#8B1A2B)}
+#trk-fsutil,#trk-fszoom{display:none}
+body.trk-fs #trk-fsutil{display:flex;flex-direction:column;gap:8px;position:fixed;top:max(.7rem,var(--sa-top));right:.7rem;z-index:9450}
+body.trk-fs #trk-fsutil button{width:44px;height:44px;border-radius:50%;border:1.5px solid rgba(255,255,255,.35);background:rgba(43,34,38,.88);color:#fff;font-size:1.15rem;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;box-shadow:0 6px 18px rgba(43,34,38,.3);backdrop-filter:blur(6px)}
+body.trk-fs #trk-fsutil button span{display:none}
+body.trk-fs #trk-fsutil button.active{background:var(--lp-red,#8B1A2B);border-color:var(--lp-red,#8B1A2B)}
+body.trk-fs #trk-fszoom{display:flex;align-items:center;position:fixed;top:max(.7rem,var(--sa-top));left:.7rem;z-index:9450;height:44px;border-radius:999px;background:rgba(43,34,38,.88);padding:0 4px;box-shadow:0 6px 18px rgba(43,34,38,.3);backdrop-filter:blur(6px)}
+body.trk-fs #trk-fszoom button{width:40px;height:36px;border:0;background:transparent;color:#fff;font-size:1.25rem;font-weight:800;border-radius:999px;cursor:pointer;padding:0}
+body.trk-fs #trk-fszoom #fsz-fit{font-size:1rem;opacity:.85}
+body.trk-fs.trk-cbopen #trk-fszoom,body.trk-fs.trk-setopen #trk-fszoom{display:none}
+body.fsbar-hidden #trk-fszoom{opacity:0;pointer-events:none;transition:opacity .28s ease}
 /* ── Full-View colour sheet (v348): opens from the Colours tab, hidden by
    default. A bottom sheet with a header (grid/list toggle + close) and a
    vertically-scrolling body. Grid = chips; List = rows. Mini-menu hides while open. */
@@ -5306,7 +5338,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v624';
+window.PATTERNLY_BUILD='v625';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -6241,15 +6273,20 @@ document.addEventListener('DOMContentLoaded', function(){
           <!-- Fullscreen controls. Pan/Mark stay on the bar because they are
                switched constantly while stitching; colours and settings are
                panels because they are consulted, not toggled. -->
+          <!-- v625: the bar holds only the four modes (round buttons in a dark pill);
+               Close / Colours / Settings float top-right, zoom top-left. -->
           <div id="trk-fsbar">
-            <button id="fsb-pan" class="active" title="Pan">✋<span data-i18n="trk.pan">Pan</span></button>
-            <button id="fsb-mark" title="Mark">✏️<span data-i18n="trk.mark">Mark</span></button>
-            <button id="fsb-erase" title="Erase">🧽<span data-i18n="trk.erase">Erase</span></button>
-            <button id="fsb-pick" title="Pick a colour from the chart">🎯<span data-i18n="trk.pick">Pick</span></button>
-            <button id="fsb-colours" title="Colours">🎨<span data-i18n="trk.colours">Colours</span></button>
-            <button id="fsb-settings" title="Settings">⚙<span data-i18n="trk.settings">Settings</span></button>
-            <button id="fsb-exit" title="Leave full screen">✕<span data-i18n="trk.close">Close</span></button>
+            <button id="fsb-pan" class="active" title="Pan" aria-label="Pan">✋<span data-i18n="trk.pan">Pan</span></button>
+            <button id="fsb-mark" title="Mark" aria-label="Mark">✏️<span data-i18n="trk.mark">Mark</span></button>
+            <button id="fsb-erase" title="Erase" aria-label="Erase">🧽<span data-i18n="trk.erase">Erase</span></button>
+            <button id="fsb-pick" title="Pick a colour from the chart" aria-label="Pick">🎯<span data-i18n="trk.pick">Pick</span></button>
           </div>
+          <div id="trk-fsutil">
+            <button id="fsb-exit" title="Leave full screen" aria-label="Close">✕<span data-i18n="trk.close">Close</span></button>
+            <button id="fsb-colours" title="Colours" aria-label="Colours">🎨<span data-i18n="trk.colours">Colours</span></button>
+            <button id="fsb-settings" title="Settings" aria-label="Settings">⚙<span data-i18n="trk.settings">Settings</span></button>
+          </div>
+          <div id="trk-fszoom"><button type="button" onclick="trkZoomBy(-1)" aria-label="Zoom out">−</button><button type="button" onclick="trkFit()" id="fsz-fit" aria-label="Fit">⤢</button><button type="button" onclick="trkZoomBy(1)" aria-label="Zoom in">+</button></div>
           <div id="trk-fspanel"><div id="trk-fspanel-head"><b id="trk-fspanel-title"></b><button onclick="trkFsPanel(null)">✕</button></div><div id="trk-fspanel-body"></div></div>
         </div>
       </div>
@@ -26759,6 +26796,7 @@ function trkZoomBy(steps, anchorX, anchorY){
   }
 }
 document.getElementById('trk-zoom-in').addEventListener('click',()=>trkZoomBy(1));
+document.getElementById('trk-zoom-label').addEventListener('click',()=>{ try{ trkFit(); }catch(e){} });   // v625: the % is the Fit button on phones
 document.getElementById('trk-zoom-out').addEventListener('click',()=>trkZoomBy(-1));
 
 function trkRenderMinimap(vp){
@@ -30959,10 +30997,7 @@ function trkFsPanel(kind){
   const panel=document.getElementById('trk-fspanel');
   const title=document.getElementById('trk-fspanel-title');
   const body=document.getElementById('trk-fspanel-body');
-  const bar=document.getElementById('trk-fsbar');
-  if(bar) [...bar.querySelectorAll('button')].forEach(x=>{
-    if(x.id==='fsb-colours'||x.id==='fsb-settings') x.classList.remove('active');
-  });
+  ['fsb-colours','fsb-settings'].forEach(id=>{ const x=document.getElementById(id); if(x) x.classList.remove('active'); });
   // Always return borrowed nodes first. Switching straight from one panel to
   // another used to clear the body, which DESTROYED the live element that had
   // been moved into it — the colour list simply vanished from the app.
