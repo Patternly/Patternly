@@ -218,7 +218,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 - [ ] Check v630 on the iPhone: Pick keeps the chart in view; toolbar under the chart (v629, checked on web by Cristian); French-knot focus on B1441 (v628); Studio on the phone
 - [ ] Decide whether the desktop / tablet toolbar (>820 px) should also move below the chart (v629 changed phones only; on desktop the colour list is a side column, not below)
 - [x] v629 + v630 copied to `patternly-app/www/` (27 Oct); next store build will carry them
-- [ ] Copy v631 (no Luca-S Shop links) to `patternly-app/www/` once merged
+- [x] v631 (no Luca-S Shop links) copied to `patternly-app/www/` (27 Oct)
 - [ ] Decide whether the Account-page footnote link "Luca-S shop account ↗" should also be hidden in the apps
 - [ ] 1.5 app release: merge `release-1.5` into `main` (Claude), PC build → internal testing → tick the checklist → promote; iOS via Codemagic. Needed for in-app camera capture
 - [ ] Grant lifetime Plus to Charly (add to `PLUS_CUSTOMERS`) and future influencers as they sign in
