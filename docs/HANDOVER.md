@@ -37,11 +37,11 @@ Two GitHub repos under the **Patternly** organisation are the source of truth; C
 
 ## Code map
 
-Current versions: **editor v629**, **middleware v101**, **Studio v51**, app **1.4** (iOS build 3 / Android versionCode 9), `release-1.5` branch = version 10 / 1.5. Every build bumps its version constant; never re-issue a version with different contents.
+Current versions: **editor v630**, **middleware v101**, **Studio v51**, app **1.4** (iOS build 3 / Android versionCode 9), `release-1.5` branch = version 10 / 1.5. Every build bumps its version constant; never re-issue a version with different contents.
 
 | File | Size | What it is | Version constant |
 | --- | --- | --- | --- |
-| `Patternly/index.html` | 34,566 lines, 2.8 MB | The whole web app: landing pages, Editor, Tracker, converter, calculators, account/Plus, i18n table (`T` with en/fr/de/nl/ru/uk/es/it), Capacitor glue, scan engine. Single file by design. | `PATTERNLY_BUILD='v629'` (shown in Account footer and console) |
+| `Patternly/index.html` | 34,566 lines, 2.8 MB | The whole web app: landing pages, Editor, Tracker, converter, calculators, account/Plus, i18n table (`T` with en/fr/de/nl/ru/uk/es/it), Capacitor glue, scan engine. Single file by design. | `PATTERNLY_BUILD='v630'` (shown in Account footer and console) |
 | `Patternly/brands.html` | 4,897 lines, 750 KB | Partner Studio: landing/apply, sign-in, tabs (partner: Overview, My Patterns, Converter, My Customers, My Account; owner: Overview/revenue, Brands, Patterns, Converter, Customers, Branding, Users, Notifications). Contains the full converter as base64 blob iframe (`CONV_B64`). | `/* v51 */` comments; no constant |
 | `Patternly/functions/_middleware.js` | 4,836 lines | Cloudflare Pages Function: every API route, auth, storage, email, push, revenue | `MW_VERSION = "v101"` (reported by `/whoami`) |
 | `Patternly/CNAME` | — | `patternly.design` custom domain | — |
@@ -108,7 +108,7 @@ The only cron is GitHub Actions `push-auto.yml` at minute 7 every hour, which PO
 
 ## Native apps
 
-Both stores run **1.4** today; `main` already carries editor v628 and the camera permissions, so the next build is **1.5** once `release-1.5` is merged and tested on a real Android phone.
+Both stores run **1.4** today; `main` already carries editor v630 and the camera permissions, so the next build is **1.5** once `release-1.5` is merged and tested on a real Android phone.
 
 | | iOS | Android |
 | --- | --- | --- |
@@ -195,6 +195,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 | Date | Build | Change |
 | --- | --- | --- |
+| 27 Oct 2026 | Editor v630 | Pick / long-press on the chart no longer scrolls the page down to the colour list: only the list box scrolls to the picked colour, the view stays on the chart. v630 copied to patternly-app `www/` (apps carry v629 + v630) |
 | 27 Oct 2026 | Editor v629 | Phone toolbar moved below the chart (above the colour list), Day-mode light pills with a Night-mode dark variant, about 15% smaller (buttons 40 px max instead of 46) |
 | 27 Oct 2026 | Editor v628 | One-row phone toolbar as a CSS grid (modes → zoom → full screen), round buttons forced over the desktop rule (they were ovals), solid dark pills; French-knot focus from both colour lists |
 | 27 Oct 2026 | Editor v627 + Studio v51 | No double-tap page zoom (`touch-action: manipulation` on buttons/links); backstitch + knots in the mobile colour sheet; dark-mode Settings sheet (toggle knob, white buttons, box-in-box, mini-map current page); hideable pattern-info strip; shop links hidden in apps (`body.pl-native`); slim guide row redesign; Studio phone layout |
@@ -213,9 +214,9 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 ### Waiting on Cristian
 
-- [ ] Check v629 on the iPhone: toolbar under the chart, light in Day / dark in Night, new size; French-knot focus on B1441 (v628); Studio on the phone
+- [ ] Check v630 on the iPhone: Pick keeps the chart in view; toolbar under the chart (v629, checked on web by Cristian); French-knot focus on B1441 (v628); Studio on the phone
 - [ ] Decide whether the desktop / tablet toolbar (>820 px) should also move below the chart (v629 changed phones only; on desktop the colour list is a side column, not below)
-- [ ] Release v629 to the apps (copy `index.html` to `patternly-app/www/`) when Cristian says so — v629 is web-only for now
+- [x] v629 + v630 copied to `patternly-app/www/` (27 Oct); next store build will carry them
 - [ ] Decide whether the Account-page footnote link "Luca-S shop account ↗" should also be hidden in the apps
 - [ ] 1.5 app release: merge `release-1.5` into `main` (Claude), PC build → internal testing → tick the checklist → promote; iOS via Codemagic. Needed for in-app camera capture
 - [ ] Grant lifetime Plus to Charly (add to `PLUS_CUSTOMERS`) and future influencers as they sign in

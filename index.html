@@ -5398,7 +5398,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v629';
+window.PATTERNLY_BUILD='v630';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -26060,8 +26060,16 @@ function trkSelectSymbolAt(cell){
       // Scroll the colour list to the highlighted row only when that list is
       // actually on screen — in fullscreen it lives in a closed sheet, and
       // forcing layout on hidden rows was wasted jank.
-      const target=[...document.querySelectorAll('#trk-colors .trk-crow')].find(r=>r.dataset.sym===sym);
-      if(target && target.offsetParent) target.scrollIntoView({block:'nearest'});
+      // v630: scroll the LIST box only, never the page. scrollIntoView also
+      // moved the window, so on a phone a Pick tap jumped the view from the chart
+      // down to the colour list while the stitcher wanted to stay on the chart.
+      const list=document.getElementById('trk-colors');
+      const target=list && [...list.querySelectorAll('.trk-crow')].find(r=>r.dataset.sym===sym);
+      if(target && target.offsetParent){
+        const lr=list.getBoundingClientRect(), tr=target.getBoundingClientRect();
+        if(tr.top<lr.top) list.scrollTop-=lr.top-tr.top;
+        else if(tr.bottom>lr.bottom) list.scrollTop+=tr.bottom-lr.bottom;
+      }
     }
   });
 }
