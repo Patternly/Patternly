@@ -3613,29 +3613,34 @@ body.dark .trk-group{background:#221b2d;border-color:#4a3d55}
   #trk-zoombar > #trk-secondary{display:none!important}
   #trk-tips{display:none!important}
   #trk-backupgroup{display:none!important}
-  /* v628 · phone toolbar: ONE row, laid out as a grid so nothing can ever be
+  /* v629 · phone toolbar: ONE row, laid out as a grid so nothing can ever be
      clipped or pushed off screen — modes pill | zoom pill | full-screen button.
-     Same solid dark pills and round buttons as the full view (no transparency,
-     so the colour is the same over any page background). The round buttons scale
-     with the screen width (46px on a wide phone, down to 34px on a narrow one). */
-  #trk-zoombar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:0 6px;margin-bottom:.55rem;--mb:clamp(34px,calc((100vw - 222px) / 4),46px)}
+     It now sits UNDER the chart (just above the progress / colour list) and
+     follows the page theme: white pills in Day mode, dark pills in Night mode.
+     The round buttons scale with the screen width (40px on a wide phone, down to
+     30px on a narrow one) so the bar matches the scale of the rest of the page. */
+  #trk-main > div:last-child{display:flex;flex-direction:column}
+  #trk-canvas-wrap{order:1}
+  #trk-zoombar{order:2;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:0 6px;margin:.55rem 0 0}
+  /* sizes + theme colours (also on the full-screen panel, which borrows the zoom pill) */
+  #trk-zoombar,#trk-fspanel{--mb:clamp(30px,calc((100vw - 222px) / 4),40px);
+    --tb-bg:#fff;--tb-border:#e6d9dd;--tb-ink:var(--lp-ink,#2b2226);--tb-ring:#e6d9dd;--tb-shadow:0 2px 10px rgba(43,34,38,.08)}
+  body.dark #trk-zoombar,body.dark #trk-fspanel{--tb-bg:#221b2d;--tb-border:#4a3d55;--tb-ink:#efe9f3;--tb-ring:#4a3d55;--tb-shadow:0 4px 14px rgba(0,0,0,.35)}
   #trk-zoombar > *{min-width:0}
-  #trk-modes{grid-column:1;grid-row:1;order:0;margin-left:0!important;gap:4px;background:#2b2226;border:0;border-radius:999px;padding:5px;height:auto;box-sizing:border-box;align-items:center;box-shadow:0 6px 18px rgba(43,34,38,.22)}
-  /* (!important: the desktop #trk-modes button rule further down sets 28px tall, 7px radius, muted text) */
-  #trk-modes button{flex:0 0 var(--mb);width:var(--mb)!important;height:var(--mb)!important;border-radius:50%!important;border:1.5px solid rgba(255,255,255,.55)!important;background:transparent!important;display:flex;align-items:center;justify-content:center;padding:0!important;font-size:calc(var(--mb) * .44)!important;line-height:1;color:#fff!important}
+  #trk-modes{grid-column:1;grid-row:1;order:0;margin-left:0!important;gap:3px;background:var(--tb-bg)!important;border:1.5px solid var(--tb-border)!important;border-radius:999px;padding:3px;height:auto;box-sizing:border-box;align-items:center;box-shadow:var(--tb-shadow)}
+  /* (!important: the desktop #trk-modes button rule further down sets 28px tall, 7px radius, muted text, white fill) */
+  #trk-modes button{flex:0 0 var(--mb);width:var(--mb)!important;height:var(--mb)!important;border-radius:50%!important;border:1.5px solid var(--tb-ring)!important;background:transparent!important;display:flex;align-items:center;justify-content:center;padding:0!important;font-size:calc(var(--mb) * .44)!important;line-height:1;color:var(--tb-ink)!important}
   #trk-modes button span{display:none}
   #trk-modes button.active{background:var(--lp-red,#8B1A2B)!important;color:#fff!important;border-color:var(--lp-red,#8B1A2B)!important}
-  #trk-zoomgroup{grid-column:2;grid-row:1;order:0;justify-self:start;max-width:100%;margin-left:0;height:calc(var(--mb) + 6px);box-sizing:border-box;border-radius:999px;padding:0 3px;gap:0;background:#2b2226!important;border:0!important;box-shadow:0 6px 18px rgba(43,34,38,.22);align-items:center;justify-content:center}
-  #trk-zoomgroup button{height:calc(var(--mb) - 2px)!important;width:30px;min-width:30px!important;padding:0!important;border-radius:999px!important;color:#fff!important;font-size:1.15rem!important;font-weight:800;background:transparent!important}
+  #trk-zoomgroup{grid-column:2;grid-row:1;order:0;justify-self:start;max-width:100%;margin-left:0;height:calc(var(--mb) + 9px);box-sizing:border-box;border-radius:999px;padding:0 3px;gap:0;background:var(--tb-bg)!important;border:1.5px solid var(--tb-border)!important;box-shadow:var(--tb-shadow);align-items:center;justify-content:center}
+  #trk-zoomgroup button{height:calc(var(--mb) - 2px)!important;width:28px;min-width:28px!important;padding:0!important;border-radius:999px!important;color:var(--tb-ink)!important;font-size:1.05rem!important;font-weight:800;background:transparent!important}
   #trk-fit{display:none!important}
-  #trk-zoom-label{min-width:40px!important;cursor:pointer;color:#fff!important;font-size:.78rem!important;font-weight:800;text-align:center}
-  #trk-fsgroup{grid-column:3;grid-row:1;order:0;margin-left:0;width:calc(var(--mb) + 4px);height:calc(var(--mb) + 4px);box-sizing:border-box;border-radius:50%;padding:0;background:#2b2226!important;border:1.5px solid rgba(255,255,255,.35)!important;box-shadow:0 6px 18px rgba(43,34,38,.22);justify-content:center}
-  #trk-fs-btn{height:100%;width:100%;padding:0!important;font-size:1.05rem;color:#fff;border-radius:50%!important;background:transparent!important}
+  #trk-zoom-label{min-width:38px!important;cursor:pointer;color:var(--tb-ink)!important;font-size:.72rem!important;font-weight:800;text-align:center}
+  #trk-fsgroup{grid-column:3;grid-row:1;order:0;margin-left:0;width:calc(var(--mb) + 9px);height:calc(var(--mb) + 9px);box-sizing:border-box;border-radius:50%;padding:0;background:var(--tb-bg)!important;border:1.5px solid var(--tb-border)!important;box-shadow:var(--tb-shadow);justify-content:center}
+  #trk-fs-btn{height:100%;width:100%;padding:0!important;font-size:.95rem;color:var(--tb-ink)!important;border-radius:50%!important;background:transparent!important}
   #trk-fs-btn span{display:none}
-  /* touch "hover" must not leave a pale blob on the dark pills after a tap */
+  /* touch "hover" must not leave a pale blob on the pills after a tap */
   #trk-modes button:hover:not(.active),#trk-zoomgroup button:hover,#trk-fs-btn:hover{background:transparent!important}
-  body.dark #trk-modes,body.dark #trk-zoomgroup,body.dark #trk-fsgroup{background:#2b2226!important}
-  body.dark #trk-modes button{color:#fff}
 }
 /* v627: a quick double tap on −/+ (or any button) used to be taken by the phone
    as "double-tap to zoom the page" — the whole UI zoomed and stuck. Buttons and
@@ -5393,7 +5398,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v628';
+window.PATTERNLY_BUILD='v629';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
