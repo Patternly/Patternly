@@ -37,11 +37,11 @@ Two GitHub repos under the **Patternly** organisation are the source of truth; C
 
 ## Code map
 
-Current versions: **editor v628**, **middleware v101**, **Studio v51**, app **1.4** (iOS build 3 / Android versionCode 9), `release-1.5` branch = version 10 / 1.5. Every build bumps its version constant; never re-issue a version with different contents.
+Current versions: **editor v629**, **middleware v101**, **Studio v51**, app **1.4** (iOS build 3 / Android versionCode 9), `release-1.5` branch = version 10 / 1.5. Every build bumps its version constant; never re-issue a version with different contents.
 
 | File | Size | What it is | Version constant |
 | --- | --- | --- | --- |
-| `Patternly/index.html` | 34,566 lines, 2.8 MB | The whole web app: landing pages, Editor, Tracker, converter, calculators, account/Plus, i18n table (`T` with en/fr/de/nl/ru/uk/es/it), Capacitor glue, scan engine. Single file by design. | `PATTERNLY_BUILD='v628'` (shown in Account footer and console) |
+| `Patternly/index.html` | 34,566 lines, 2.8 MB | The whole web app: landing pages, Editor, Tracker, converter, calculators, account/Plus, i18n table (`T` with en/fr/de/nl/ru/uk/es/it), Capacitor glue, scan engine. Single file by design. | `PATTERNLY_BUILD='v629'` (shown in Account footer and console) |
 | `Patternly/brands.html` | 4,897 lines, 750 KB | Partner Studio: landing/apply, sign-in, tabs (partner: Overview, My Patterns, Converter, My Customers, My Account; owner: Overview/revenue, Brands, Patterns, Converter, Customers, Branding, Users, Notifications). Contains the full converter as base64 blob iframe (`CONV_B64`). | `/* v51 */` comments; no constant |
 | `Patternly/functions/_middleware.js` | 4,836 lines | Cloudflare Pages Function: every API route, auth, storage, email, push, revenue | `MW_VERSION = "v101"` (reported by `/whoami`) |
 | `Patternly/CNAME` | — | `patternly.design` custom domain | — |
@@ -138,7 +138,7 @@ Play deadlines noted earlier: target API 36 before 1 Nov 2026 (done on `main`), 
 | Marking | Pan / Mark / Erase / Pick modes; marking never un-marks by accident; press-and-hold highlights a colour; fractional stitches per corner; tinted completed stitches (colour + opacity, default magenta #ff3df0) |
 | Colour list | Sort by kit order / stitches / code / colour; selected-colour card with metres (≈ from `metres` in .ptly or Luca-S table {14:5, 16:4.4, 18:3.9, 20:3.6, 25:2.9} m per 1000 st); "Needs a colour" rows; manual colour editor (brand pills lucas/dmc/anchor, glyph picker) for uploads/backups; backstitch/outline section (lines, strands, tap = focus); French knots section (tap = focus, v628) |
 | Zoom | Anchored +/- (visible centre), wheel (mouse), pinch (fingers; iOS-safe preview + commit); overview rendering when cells < 6 px shows the picture; tap % to fit |
-| Phone toolbar (v628) | One grid row: modes pill → zoom pill → full-screen round button, solid `#2b2226`, round buttons scaled to screen width |
+| Phone toolbar (v629) | One grid row **under the chart** (above the progress / colour list): modes pill → zoom pill → full-screen round button. Follows the theme through `--tb-*` variables on `#trk-zoombar` / `#trk-fspanel`: white pills + `#e6d9dd` border in Day mode, `#221b2d` / `#4a3d55` in Night mode. Round buttons 30–40 px (`--mb`). Desktop (>820 px) toolbar unchanged: still above the chart, light groups |
 | Full view | Chart fills screen; dark pill with 4 round mode buttons; Close/Colours/Settings floating top-right; −/fit/+ pill top-left; colour sheet (grid/list, drag to expand); Settings sheet (tint, grid, backstitch, centre lines, opacity, block size/width, line width/colours, zoom, Full/Pages + mini-map, Pattern info toggle, Gestures & tips, Back up) |
 | Pages mode | 30/40/50 cells per page, prev/next, clickable mini-map with current page highlighted |
 | Pattern info strip | Green box above the chart (name, source, colours, size, warnings); ✕ hides it, Settings › Pattern info restores (localStorage `patternly_trk_infohide`) |
@@ -195,6 +195,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 | Date | Build | Change |
 | --- | --- | --- |
+| 27 Oct 2026 | Editor v629 | Phone toolbar moved below the chart (above the colour list), Day-mode light pills with a Night-mode dark variant, about 15% smaller (buttons 40 px max instead of 46) |
 | 27 Oct 2026 | Editor v628 | One-row phone toolbar as a CSS grid (modes → zoom → full screen), round buttons forced over the desktop rule (they were ovals), solid dark pills; French-knot focus from both colour lists |
 | 27 Oct 2026 | Editor v627 + Studio v51 | No double-tap page zoom (`touch-action: manipulation` on buttons/links); backstitch + knots in the mobile colour sheet; dark-mode Settings sheet (toggle knob, white buttons, box-in-box, mini-map current page); hideable pattern-info strip; shop links hidden in apps (`body.pl-native`); slim guide row redesign; Studio phone layout |
 | 27 Oct 2026 | Editor v626 | Guide banner compact after first use; "My Luca-S Patterns" removed from Account; 40 px selected-colour ✕; round mode buttons; full-screen label and zoom-pill auto-hide fixes; floating controls moved below the ruler |
@@ -212,7 +213,9 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 ### Waiting on Cristian
 
-- [ ] Check v628 on the iPhone: one-row toolbar size and look in day and dark mode; French-knot focus on B1441; Studio on the phone
+- [ ] Check v629 on the iPhone: toolbar under the chart, light in Day / dark in Night, new size; French-knot focus on B1441 (v628); Studio on the phone
+- [ ] Decide whether the desktop / tablet toolbar (>820 px) should also move below the chart (v629 changed phones only; on desktop the colour list is a side column, not below)
+- [ ] Release v629 to the apps (copy `index.html` to `patternly-app/www/`) when Cristian says so — v629 is web-only for now
 - [ ] Decide whether the Account-page footnote link "Luca-S shop account ↗" should also be hidden in the apps
 - [ ] 1.5 app release: merge `release-1.5` into `main` (Claude), PC build → internal testing → tick the checklist → promote; iOS via Codemagic. Needed for in-app camera capture
 - [ ] Grant lifetime Plus to Charly (add to `PLUS_CUSTOMERS`) and future influencers as they sign in
