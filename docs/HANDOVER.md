@@ -37,7 +37,7 @@ Two GitHub repos under the **Patternly** organisation are the source of truth; C
 
 ## Code map
 
-Current versions: **editor v632**, **middleware v101**, **Studio v51**, app **1.4** (iOS build 3 / Android versionCode 9), `release-1.5` branch = version 10 / 1.5. Every build bumps its version constant; never re-issue a version with different contents.
+Current versions: **editor v633** (on PR branch `claude/project-thread-lkndn8`, not yet on `main`; `main` = v632), **middleware v101**, **Studio v51**, app **1.4** (iOS build 3 / Android versionCode 9), `release-1.5` branch = version 10 / 1.5. Every build bumps its version constant; never re-issue a version with different contents.
 
 | File | Size | What it is | Version constant |
 | --- | --- | --- | --- |
@@ -161,6 +161,8 @@ Play deadlines noted earlier: target API 36 before 1 Nov 2026 (done on `main`), 
 
 ### Editor and tools
 
+**Quick photo convert (v633, `#qc` block at the end of `index.html`, own `<style id="qc-style">` + script; API `qcOpen(file)` / `qcClose()`).** Only entry is `startWithPhoto()` (main page / menu). Its preview conversion mirrors `convertImage` (redmean palette match + distinctness-weighted colour cap) plus a majority filter for the Detail level and the editor's confetti rule (`cvAutoCleanGrid` hash). Colour styles reuse `cvApplyAdjust` by swapping `cvAdj`. "Editor"/PDF/Tracker call `handoff()`, which writes the exact previewed grid (same palette indices) into the editor globals, sets brand, fabric count/colour (`pjApplySettings`), `uploadedImg` (the prepared photo, so overlay and re-convert work) and leaves the pattern unsaved/dirty. Prefs (craft, units, brand, strands, fabric) in localStorage `patternly_qc`. Not built: backstitch outlines from the photo, blended colours, fuse beads / C2C, FLOW score, translations.
+
 Pattern editor (draw, palette, symbols, PDF export with brand block, Interface Size S/M/L, Working Palette sort), XSP→.Ptly converter with editable colour table and metres column (also embedded in the Studio as the Partner Converter), calculators (fabric, time, thread), thread-colour reference, QR-scan sheet / promo banner, landing pages with store badges (hidden inside the app).
 
 ### Account and Plus
@@ -181,8 +183,8 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 **RULE #1 — never break account-linked sync.** Before every push, grep these marker counts in `index.html` and compare with the previous commit: `trkProgressUrl` 4 lines, `trkCloudProjects` 4, `trkUserPatternUrl` 8, `pl_session` 27 occurrences (21 lines). Also: `ensurePageFooters` adds a footer only to `#account-page`, never `#tracker-page`; `/progress` latches code-opened kits to the signed-in customer.
 
-1. One fix per build; bump `PATTERNLY_BUILD` (editor), `MW_VERSION` (middleware) or the Studio `vNN` comment on every delivered change; never re-issue a version with different contents. Next numbers: editor **v633**, middleware **v102**, Studio **v52**.
-2. Every editor build: `node --check` on all 15 inline script blocks, then copy `index.html` to `patternly-app/www/index.html` and commit both repos ("www: editor vNNN").
+1. One fix per build; bump `PATTERNLY_BUILD` (editor), `MW_VERSION` (middleware) or the Studio `vNN` comment on every delivered change; never re-issue a version with different contents. Next numbers: editor **v634**, middleware **v102**, Studio **v52**.
+2. Every editor build: `node --check` on all 16 inline script blocks, then copy `index.html` to `patternly-app/www/index.html` and commit both repos ("www: editor vNNN").
 3. Commit as `-c user.name="Cristian" -c user.email="lucasukinfo@gmail.com"`, message ending with the Claude attribution lines; push to `main` directly (the Claude GitHub App has push access on both repos). The Patternly repo remote redirects ("repository moved") — harmless.
 4. Test before delivering: Playwright headless Chromium (`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`, `--no-sandbox`) against a local `python3 -m http.server` serving a copy of the file; iPhone viewport 390×844 with `isMobile`/`hasTouch`; `hj051.ptly` is the usual test pattern. No WebKit is available — anything iOS-specific needs Cristian's phone.
 5. Fixes must be general (root cause), never special-cased to one kit or screen. Modern UI only — no browser-default controls. Dark mode must be checked for every UI change (`body.dark`).
@@ -196,6 +198,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 | Date | Build | Change |
 | --- | --- | --- |
+| 27 Oct 2026 | Editor v633 (PR, awaiting Cristian) | Quick photo convert: "Upload Image" / "Try with your photo" on the main page and menu (`startWithPhoto`) now open a full-screen guided flow `#qc` (Photo → Pattern → PDF, modelled on stitchmate) instead of the full editor. Photo: type (photo / pixel art / printed chart → Scan Your Pattern), replace, crop & straighten, erase background (border auto + tap to erase). Pattern: cross stitch / needlepoint / diamond painting, size presets + custom, cm/in, hours estimate, brand, strands, fabric count + colour, colour style, colour count, fine-tune, detail level, confetti % + clean-up (Plus), Pattern / Finished look / Original preview, palette with skeins. PDF: name, page size, chart style, layout → editor PDF engine and free-export quota; also Open in Editor / Stitch it in the Tracker. Editor's own upload zone unchanged. English only for now |
 | 27 Oct 2026 | Editor v632 | Landing page on phones (≤860 px, web and apps): the three feature cards (Create Patterns / Convert Images / Stitch Tracker) are now a swipeable scroll-snap carousel with a peek of the next card and tappable dots, like the "three steps" section already was. One shared dots script drives both carousels; dark-mode dots fixed (the active dot was invisible in Night). Desktop layout unchanged |
 | 27 Oct 2026 | Editor v631 | Removed the "Luca-S Shop ↗" link everywhere (web and apps): landing header, mobile menu, editor top bar and the My Account list. The `.pl-shop-link` hide rule is gone with it; the `acct.shop` i18n strings are left unused. The Account footnote "Luca-S shop account ↗" (orders & addresses) is kept |
 | 27 Oct 2026 | Editor v630 | Pick / long-press on the chart no longer scrolls the page down to the colour list: only the list box scrolls to the picked colour, the view stays on the chart. v630 copied to patternly-app `www/` (apps carry v629 + v630) |
@@ -217,6 +220,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 ### Waiting on Cristian
 
+- [ ] Try the v633 quick photo convert on the PR preview (web + phone) and approve before merge; then copy to `patternly-app/www/`. Decide whether confetti clean-up should stay Plus-only in the quick flow
 - [ ] Check v632 landing carousels on the phone (feature cards swipe, dots follow; "three steps" carousel unchanged apart from dark dots)
 - [ ] Check v630 on the iPhone: Pick keeps the chart in view; toolbar under the chart (v629, checked on web by Cristian); French-knot focus on B1441 (v628); Studio on the phone
 - [ ] Decide whether the desktop / tablet toolbar (>820 px) should also move below the chart (v629 changed phones only; on desktop the colour list is a side column, not below)
