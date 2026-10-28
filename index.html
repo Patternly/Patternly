@@ -3375,6 +3375,7 @@ body.dark #trk-kits-sort{background:#221b2d;border-color:#4a3d55;color:#e7dcea}
 .pls-warn{color:#b25f10;line-height:1.3;margin-top:.15rem}
 .pls-prog{height:6px;background:#eadde1;border-radius:3px;margin-top:.35rem;overflow:hidden}.pls-prog i{display:block;height:100%;background:var(--lp-red,#8B1A2B);transition:width .3s}
 .pls-x{position:absolute;top:.3rem;right:.3rem;width:24px;height:24px;border-radius:50%;border:0;background:rgba(43,34,38,.65);color:#fff;font-size:.8rem;cursor:pointer}
+.pls-rot{position:absolute;top:.3rem;right:2.1rem;width:24px;height:24px;border-radius:50%;border:0;background:rgba(43,34,38,.65);color:#fff;font-size:.85rem;line-height:1;cursor:pointer;touch-action:manipulation}
 .pls-add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.25rem;min-height:150px;border:2px dashed #d9c8ce;border-radius:12px;cursor:pointer;color:var(--lp-ink,#2b2226);font-size:.82rem;background:#fff}
 .pls-add span{font-size:1.5rem}.pls-add.alt{border-style:solid;border-color:#eadde1}
 .pls-map{margin-top:.8rem;display:flex;align-items:center;gap:.9rem;flex-wrap:wrap}
@@ -5411,7 +5412,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v633';
+window.PATTERNLY_BUILD='v634';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -33603,6 +33604,194 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     return { cols, rows, xs: X, ys: Y, realMask, pitch: [px, py], realFrac: realN / (W1 * H1), nodes: nodes.length,
              colPhase: phx.ph, colPhaseMargin: phx.margin, rowPhase: phy.ph, rowPhaseMargin: phy.margin };
   }
+
+  // ───────────────────────── grid detection for charts printed in colour ─────────────────────────
+  // Colour charts (Riolis and similar) fill every cell with the thread colour, so the ink-based node
+  // finder sees whole dark regions as "lines". Here the lattice is found by its periodicity instead:
+  // grid lines (thin valleys) and colour edges between cells are pooled over small tiles; each tile
+  // gets its own phase and pitch (follows folds and perspective), and neighbouring tiles agree on
+  // the line numbering. A tile without a clear period (paper, text) is ignored.
+  // thin dark lines only: darker than the pixels 2–3px away on both sides (across the line)
+  function valleyBin(g, w, h, T) {
+    T = T || 14; const b = new Uint8Array(w * h);
+    for (let y = 3; y < h - 3; y++) for (let x = 3; x < w - 3; x++) {
+      const i = y * w + x, v = g[i];
+      let best = 0;
+      for (let d = 2; d <= 3; d++) {
+        const a = Math.min(g[i - d * w], g[i + d * w]) - v, c = Math.min(g[i - d], g[i + d]) - v;
+        if (a > best) best = a; if (c > best) best = c;
+      }
+      if (best > T) b[i] = 1;
+    }
+    return b;
+  }
+  function edgeMaps(rgba, flat, w, h) {
+    const bg = new Float32Array(w * h), g = gray(rgba, w, h);
+    for (let i = 0; i < bg.length; i++) bg[i] = g[i] / Math.max(flat[i], 1) * 255; // local paper level
+    const ex = new Float32Array(w * h), ey = new Float32Array(w * h);
+    const C = (i, k) => rgba[i * 4 + k] / Math.max(bg[i], 1) * 255;
+    for (let y = 3; y < h - 3; y++) for (let x = 3; x < w - 3; x++) {
+      const i = y * w + x, v = flat[i];
+      let vx = 0, vy = 0;
+      for (let d = 2; d <= 3; d++) { const a = Math.min(flat[i - d], flat[i + d]) - v, b = Math.min(flat[i - d * w], flat[i + d * w]) - v; if (a > vx) vx = a; if (b > vy) vy = b; }
+      let cx = 0, cy = 0;
+      for (let k = 0; k < 3; k++) { const a = Math.abs(C(i + 1, k) - C(i - 1, k)), b = Math.abs(C(i + w, k) - C(i - w, k)); if (a > cx) cx = a; if (b > cy) cy = b; }
+      ex[i] = vx + 0.5 * cx; ey[i] = vy + 0.5 * cy;
+    }
+    return { ex, ey };
+  }
+  // keep only evidence that runs on across more than one cell: grid lines and colour boundaries
+  // do, glyph strokes (centred in the cell) never do — otherwise a page of "+" and "1" locks
+  // the lattice half a cell off
+  function longRuns(e, w, h, T, len, vertical) {
+    const b = new Uint8Array(w * h);
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) { const i = y * w + x; if (vertical ? (e[i] > T || e[i - 1] > T || e[i + 1] > T) : (e[i] > T || e[i - w] > T || e[i + w] > T)) b[i] = 1; }
+    const o = lineOpen(b, w, h, len, !vertical), f = new Float32Array(w * h);
+    for (let i = 0; i < f.length; i++) f[i] = o[i];
+    return f;
+  }
+  // comb fit on one profile: best phase/pitch near p0. Returns {ph, p, q}
+  function combFit(prof, p0) {
+    const n = prof.length; let m = 0; for (let i = 0; i < n; i++) m += prof[i]; m /= n;
+    let sd = 0; for (let i = 0; i < n; i++) sd += (prof[i] - m) ** 2; sd = Math.sqrt(sd / n) || 1;
+    const at = x => { const x0 = Math.floor(x), f = x - x0; return x0 < 0 || x0 + 1 >= n ? null : prof[x0] * (1 - f) + prof[x0 + 1] * f; };
+    let best = { ph: 0, p: p0, q: -1e9 };
+    for (let s = -4; s <= 4; s++) {
+      const p = p0 * (1 + s * 0.01);
+      for (let ph = 0; ph < p; ph += 0.25) {
+        let sum = 0, k = 0; for (let x = ph; x < n - 1; x += p) { const v = at(x); if (v !== null) { sum += v; k++; } }
+        if (k < 3) continue; const q = (sum / k - m) / sd; if (q > best.q) best = { ph, p, q };
+      }
+    }
+    return best;
+  }
+  function detectGridColour(rgba, w, h, opts) {
+    opts = opts || {};
+    const g = gray(rgba, w, h), flat = flatten(g, w, h);
+    const em = edgeMaps(rgba, flat, w, h);
+    // global pitch from the central half
+    const profX = new Float32Array(w), profY = new Float32Array(h);
+    for (let y = (h / 4) | 0; y < (3 * h / 4) | 0; y++) for (let x = 0; x < w; x++) profX[x] += em.ex[y * w + x];
+    for (let x = (w / 4) | 0; x < (3 * w / 4) | 0; x++) for (let y = 0; y < h; y++) profY[y] += em.ey[y * w + x];
+    const p0x = pitchOf(profX, 8, 120), p0y = pitchOf(profY, 8, 120), p0 = (p0x + p0y) / 2;
+    const LR = Math.max(8, Math.round(1.15 * p0));
+    const ex = longRuns(em.ex, w, h, 12, LR, true), ey = longRuns(em.ey, w, h, 12, LR, false);
+    const T = Math.max(40, Math.round(8 * p0)), st = T >> 1;
+    const tiles = [], nx = Math.max(1, Math.floor((w - T) / st) + 1), ny = Math.max(1, Math.floor((h - T) / st) + 1);
+    for (let ty = 0; ty < ny; ty++) for (let tx = 0; tx < nx; tx++) {
+      const x0 = tx * st, y0 = ty * st, px = new Float32Array(T), py = new Float32Array(T);
+      for (let y = 0; y < T; y++) { const o = (y0 + y) * w + x0; for (let x = 0; x < T; x++) { px[x] += ex[o + x]; py[y] += ey[o + x]; } }
+      const fx = combFit(px, p0x), fy = combFit(py, p0y);
+      tiles.push({ tx, ty, x0, y0, cx: x0 + T / 2, cy: y0 + T / 2, phx: x0 + fx.ph, pX: fx.p, qx: fx.q, phy: y0 + fy.ph, pY: fy.p, qy: fy.q, ox: null, oy: null });
+    }
+    const QT = opts.qmin || 1.0;
+    const good = t => t.qx >= QT && t.qy >= QT;
+    let seed = null, sv = -1;
+    for (const t of tiles) { if (!good(t)) continue; const d = Math.hypot(t.cx - w / 2, t.cy - h / 2) / Math.max(w, h); const v = Math.min(t.qx, t.qy) * (1 - d); if (v > sv) { sv = v; seed = t; } }
+    if (!seed) { if (opts.debug) console.log('plscan colour: no periodic tile', p0x, p0y); return null; }
+    seed.ox = 0; seed.oy = 0;
+    const at = (tx, ty) => (tx < 0 || ty < 0 || tx >= nx || ty >= ny) ? null : tiles[ty * nx + tx];
+    // unwrap: best-first over good tiles; a shared line in the overlap, numbered by t, is found again in u
+    const link = (t, u, strict) => {
+      const xm = (t.cx + u.cx) / 2, ym = (t.cy + u.cy) / 2;
+      const kt = Math.round((xm - t.phx) / t.pX), xt = t.phx + kt * t.pX, ku = Math.round((xt - u.phx) / u.pX);
+      const lt = Math.round((ym - t.phy) / t.pY), yt = t.phy + lt * t.pY, lu = Math.round((yt - u.phy) / u.pY);
+      if (strict && (Math.abs(u.phx + ku * u.pX - xt) > 0.3 * p0 || Math.abs(u.phy + lu * u.pY - yt) > 0.3 * p0)) return false;
+      u.ox = kt + t.ox - ku; u.oy = lt + t.oy - lu; return true;
+    };
+    const grow = start => {
+      const queue = start.slice();
+      while (queue.length) {
+        queue.sort((a, b) => Math.min(b.qx, b.qy) - Math.min(a.qx, a.qy)); const t = queue.shift();
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const u = at(t.tx + dx, t.ty + dy); if (!u || u.ox !== null || !good(u)) continue;
+          if (link(t, u, true)) queue.push(u);
+        }
+      }
+    };
+    grow([seed]);
+    // a crease or a shadow edge can cut the chain of good tiles: bridge gaps of one or two tiles,
+    // taking the nearest line (cells hidden inside a fold cannot be recovered anyway)
+    for (let pass = 0; pass < 20; pass++) {
+      const add = [];
+      for (const u of tiles) { if (u.ox !== null || !good(u)) continue;
+        let bt = null, bd = 9;
+        for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) { const t = at(u.tx + dx, u.ty + dy); if (!t || t.ox === null) continue; const d = Math.abs(dx) + Math.abs(dy); if (d >= 2 && d < bd) { bd = d; bt = t; } }
+        if (bt && link(bt, u, false)) add.push(u); }
+      if (!add.length) break;
+      grow(add);
+    }
+    const placed = tiles.filter(t => t.ox !== null);
+    let c0 = Infinity, c1 = -Infinity, r0 = Infinity, r1 = -Infinity;
+    for (const t of placed) {
+      const ka = Math.ceil((t.x0 - t.phx) / t.pX), kb = Math.floor((t.x0 + T - 1 - t.phx) / t.pX), la = Math.ceil((t.y0 - t.phy) / t.pY), lb = Math.floor((t.y0 + T - 1 - t.phy) / t.pY);
+      t.ka = ka; t.kb = kb; t.la = la; t.lb = lb;
+      c0 = Math.min(c0, ka + t.ox); c1 = Math.max(c1, kb + t.ox); r0 = Math.min(r0, la + t.oy); r1 = Math.max(r1, lb + t.oy);
+    }
+    const W1 = c1 - c0 + 1, H1 = r1 - r0 + 1;
+    if (!(W1 >= 6 && H1 >= 6)) return null;
+    // each crossing: the strongest tile's estimate, averaged only with tiles that agree with it
+    // (a tile numbered one line off across a crease must not drag the node into the cell)
+    const cand = new Array(W1 * H1);
+    for (const t of placed) {
+      const q = Math.min(t.qx, t.qy);
+      for (let l = t.la; l <= t.lb; l++) { const y = t.phy + l * t.pY, wy = 1 - Math.abs(y - t.cy) / (T / 2 + 1);
+        for (let k = t.ka; k <= t.kb; k++) { const x = t.phx + k * t.pX, wx = 1 - Math.abs(x - t.cx) / (T / 2 + 1); const wt = Math.max(0.02, wx * wy) * q;
+          const o = (l + t.oy - r0) * W1 + (k + t.ox - c0); (cand[o] || (cand[o] = [])).push(x, y, wt); } }
+    }
+    const SW = new Float32Array(W1 * H1);
+    const X = new Float32Array(W1 * H1).fill(NaN), Y = new Float32Array(W1 * H1).fill(NaN);
+    for (let o = 0; o < W1 * H1; o++) { const cs = cand[o]; if (!cs) continue;
+      let bi = 0; for (let i = 3; i < cs.length; i += 3) if (cs[i + 2] > cs[bi + 2]) bi = i;
+      let sx = 0, sy = 0, sw = 0; for (let i = 0; i < cs.length; i += 3) if (Math.abs(cs[i] - cs[bi]) < 0.3 * p0 && Math.abs(cs[i + 1] - cs[bi + 1]) < 0.3 * p0) { sx += cs[i] * cs[i + 2]; sy += cs[i + 1] * cs[i + 2]; sw += cs[i + 2]; }
+      X[o] = sx / sw; Y[o] = sy / sw; SW[o] = sw; }
+    // extent: lines covered by tiles, longest run; then trim border lines that carry no grid line
+    const covC = new Float32Array(W1), covR = new Float32Array(H1);
+    for (let r = 0; r < H1; r++) for (let c = 0; c < W1; c++) if (SW[r * W1 + c] > 0) { covC[c]++; covR[r]++; }
+    const run = (cov, n, frac) => { let mx = 0; for (let i = 0; i < n; i++) mx = Math.max(mx, cov[i]); let bs = 0, be = -1, cs = -1; for (let i = 0; i <= n; i++) { const ok = i < n && cov[i] >= frac * mx; if (ok && cs < 0) cs = i; if (!ok && cs >= 0) { if (i - 1 - cs > be - bs) { bs = cs; be = i - 1; } cs = -1; } } return [bs, be]; };
+    const [ca, cb] = run(covC, W1, 0.25), [ra, rb] = run(covR, H1, 0.25);
+    const cW = cb - ca + 1, cH = rb - ra + 1;
+    const Xc = new Float32Array(cW * cH), Yc = new Float32Array(cW * cH);
+    for (let r = 0; r < cH; r++) for (let c = 0; c < cW; c++) { Xc[r * cW + c] = X[(r + ra) * W1 + c + ca]; Yc[r * cW + c] = Y[(r + ra) * W1 + c + ca]; }
+    fillMesh(Xc, cW, cH); fillMesh(Yc, cW, cH);
+    const vb = valleyBin(flat, w, h, 10);
+    const support = (vert, idx) => { let on = 0, n = 0; const N = vert ? cH - 1 : cW - 1;
+      for (let s = 0; s < N; s++) { const a = vert ? s * cW + idx : idx * cW + s, b = vert ? a + cW : a + 1;
+        for (let f = 0.2; f <= 0.8; f += 0.2) { const x = Math.round(Xc[a] + (Xc[b] - Xc[a]) * f), y = Math.round(Yc[a] + (Yc[b] - Yc[a]) * f); if (x < 2 || y < 2 || x >= w - 2 || y >= h - 2) continue; let hit = 0; for (let d = -1; d <= 1; d++) hit |= vert ? vb[y * w + x + d] : vb[(y + d) * w + x]; on += hit; n++; } }
+      return n ? on / n : 0; };
+    let cl = 0, cr = cW - 1, rt = 0, rbm = cH - 1; const MINS = opts.minSupport || 0.35;
+    while (cr - cl > 5 && support(true, cl) < MINS) cl++; while (cr - cl > 5 && support(true, cr) < MINS) cr--;
+    while (rbm - rt > 5 && support(false, rt) < MINS) rt++; while (rbm - rt > 5 && support(false, rbm) < MINS) rbm--;
+    const fW = cr - cl + 1, fH = rbm - rt + 1, FX = new Float32Array(fW * fH), FY = new Float32Array(fW * fH);
+    for (let r = 0; r < fH; r++) for (let c = 0; c < fW; c++) { FX[r * fW + c] = Xc[(r + rt) * cW + c + cl]; FY[r * fW + c] = Yc[(r + rt) * cW + c + cl]; }
+    const cols = fW - 1, rows = fH - 1;
+    if (opts.debug) console.log('plscan colour: pitch', p0x.toFixed(2), p0y.toFixed(2), 'tiles', tiles.length, 'good', tiles.filter(good).length, 'placed', placed.length, 'extent', cols, rows);
+    if (cols < 5 || rows < 5) return null;
+    // bold every-10th line phase (same as the ink path), from the valley strength along each line
+    const strength = (vert, idx) => { let s = 0, n = 0; const N = vert ? rows : cols;
+      for (let q = 0; q < N; q++) { const a = vert ? q * fW + idx : idx * fW + q, b = vert ? a + fW : a + 1; const x = Math.round((FX[a] + FX[b]) / 2), y = Math.round((FY[a] + FY[b]) / 2); if (x < 6 || y < 6 || x >= w - 6 || y >= h - 6) continue; let m = 0; for (let d = -2; d <= 2; d++) { const v = vert ? Math.min(flat[y * w + x + d - 3], flat[y * w + x + d + 3]) - flat[y * w + x + d] : Math.min(flat[(y + d - 3) * w + x], flat[(y + d + 3) * w + x]) - flat[(y + d) * w + x]; if (v > m) m = v; } s += m; n++; }
+      return n ? s / n : 0; };
+    const tx = new Float32Array(fW), ty = new Float32Array(fH); for (let c = 0; c < fW; c++) tx[c] = strength(true, c); for (let r = 0; r < fH; r++) ty[r] = strength(false, r);
+    const phase = t => { if (t.length < 11) return { ph: 0, margin: 0 }; let best = null; for (let ph = 0; ph < 10; ph++) { let a = 0, an = 0, b = 0, bn = 0; for (let k = 0; k < t.length; k++) { if (k % 10 === ph) { a += t[k]; an++; } else { b += t[k]; bn++; } } const m = a / Math.max(an, 1) - b / Math.max(bn, 1); if (!best || m > best.margin) best = { ph, margin: m }; } return best; };
+    const phx = phase(tx), phy = phase(ty);
+    return { cols, rows, xs: FX, ys: FY, realMask: new Uint8Array(fW * fH), pitch: [p0x, p0y], realFrac: placed.length / tiles.length, nodes: placed.length, colour: true,
+             colPhase: phx.ph, colPhaseMargin: phx.margin, rowPhase: phy.ph, rowPhaseMargin: phy.margin };
+  }
+  // a chart printed in colour: most of the chart area is filled (thread colours), not thin strokes on
+  // paper. Share of the central part where a 3×3 block is entirely darker than the paper or coloured.
+  function isColourChart(rgba, w, h) {
+    const g = gray(rgba, w, h), hist = new Int32Array(256); for (let i = 0; i < g.length; i += 7) hist[Math.min(255, g[i] | 0)]++;
+    let tot = 0; for (const v of hist) tot += v; let acc = 0, white = 255; for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc > tot * 0.05) { white = v; break; } }
+    const filled = i => { const p = i * 4, sat = (Math.max(rgba[p], rgba[p + 1], rgba[p + 2]) - Math.min(rgba[p], rgba[p + 1], rgba[p + 2])) / Math.max(1, white); return g[i] < 0.78 * white || sat > 0.16; };
+    let fill = 0, n = 0;
+    const x0 = (w * 0.2) | 0, x1 = (w * 0.8) | 0, y0 = (h * 0.2) | 0, y1 = (h * 0.8) | 0;
+    for (let y = y0; y < y1; y += 3) for (let x = x0; x < x1; x += 3) {
+      let all = true;
+      for (let dy = -1; dy <= 1 && all; dy++) for (let dx = -1; dx <= 1; dx++) if (!filled((y + dy) * w + x + dx)) { all = false; break; }
+      if (all) fill++; n++;
+    }
+    return n ? fill / n : 0;
+  }
   function repairMesh(X, Y, W1, H1, pitch) {
     for (let pass = 0; pass < 6; pass++) {
       // columns: mean spacing to the next column
@@ -33729,7 +33918,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
       // luminance but strong in the channel it absorbs, so it reads as ink like black does
       g[d] = Math.min(cell[s], cell[s + 1], cell[s + 2]);
     }
-    const paper = percentile(g, 92), dark = percentile(g, 3), span = Math.max(paper - dark, 25);
+    const paper = percentile(g, 92), dark = percentile(g, 3), span = Math.max(paper - dark, 25), contrast = paper - dark;
     const pr = percentile(rgb, 92, 3, 0) + 1, pg = percentile(rgb, 92, 3, 1) + 1, pb = percentile(rgb, 92, 3, 2) + 1;
     const ink = new Float32Array(IN * IN), inkB = new Float32Array(IN * IN);
     const tt = Math.max(0, t + 1 - M), bb = Math.max(0, b + 1 - M), ll = Math.max(0, l + 1 - M), rr = Math.max(0, r + 1 - M);
@@ -33744,7 +33933,11 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
       if (v > 0.5) { cr += R; cg += G; cb += B; n++; }
     }
     const col = n >= 4 ? [cr / n, cg / n, cb / n] : [1, 1, 1];
-    return { ink, inkBlack: inkB, col, frac: n / ink.length };
+    // background (thread) colour of the cell: the pixels that are not ink, raw 0..1 (not white-balanced)
+    let br = 0, bg2 = 0, bb2 = 0, bn = 0;
+    for (let y = tt; y < IN - bb; y++) for (let x = ll; x < IN - rr; x++) { const i = y * IN + x; if (ink[i] < 0.2) { br += rgb[i * 3]; bg2 += rgb[i * 3 + 1]; bb2 += rgb[i * 3 + 2]; bn++; } }
+    if (bn < 20) { bn = 0; br = bg2 = bb2 = 0; for (let i = 0; i < IN * IN; i++) { br += rgb[i * 3]; bg2 += rgb[i * 3 + 1]; bb2 += rgb[i * 3 + 2]; bn++; } }
+    return { ink, inkBlack: inkB, col, frac: n / ink.length, bg: [br / bn / 255, bg2 / bn / 255, bb2 / bn / 255], contrast };
   }
   function colourDesc(rgb) {
     const mx = Math.max(rgb[0], rgb[1], rgb[2]), mn = Math.min(rgb[0], rgb[1], rgb[2]), sat = mx - mn;
@@ -33784,7 +33977,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
   }
   function cellFeatures(cell) {
     const m = inkMask(cell);
-    return { f: inkFeature(m.ink), fb: inkFeature(m.inkBlack), col: colourDesc(m.col), frac: m.frac };
+    return { f: inkFeature(m.ink), fb: inkFeature(m.inkBlack), col: colourDesc(m.col), frac: m.frac, bg: m.bg, contrast: m.contrast };
   }
   function tanimoto(a, b) { let ab = 0, a2 = 0, b2 = 0; for (let i = 0; i < a.length; i++) { ab += a[i] * b[i]; a2 += a[i] * a[i]; b2 += b[i] * b[i]; } return ab / Math.max(a2 + b2 - ab, 1e-6); }
 
@@ -33884,9 +34077,108 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     return { labels, conf, scale: bestK, sampleScore: bestS };
   }
 
+  // ───────────────────────── colour charts: thread colour + symbol together ─────────────────────────
+  // a symbol is ink with real contrast; a plain square only has JPEG noise and outline remnants
+  function hasGlyph(c) { return c.frac > 0.02 && c.contrast > 45; }
+  function srgbLin(v) { return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }
+  function toLab(rgb) { // rgb 0..1 (white-balanced) → [L, a, b]
+    const r = srgbLin(Math.min(1.2, Math.max(0, rgb[0]))), g = srgbLin(Math.min(1.2, Math.max(0, rgb[1]))), b = srgbLin(Math.min(1.2, Math.max(0, rgb[2])));
+    const X = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.9505, Y = 0.2126 * r + 0.7152 * g + 0.0722 * b, Z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.089;
+    const f = t => t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
+    const fx = f(X), fy = f(Y), fz = f(Z); return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+  }
+  // cells: [{f, fb, frac, contrast, bg}] row-major cols×rows (one page). templates: [{id, rgba, size}] from legendTiles.
+  // Every cell is scored against every key square: symbol likeness minus colour distance (Lab). The key's
+  // colours are first mapped onto this photo (fitted on the classes the symbols place reliably), then each
+  // class takes its colour from the chart itself; a smooth light field (shadows) is estimated from the
+  // cells' own classes. Returns {labels, conf, margin} — label -1 = paper (no stitch).
+  function matchColour(cells, cols, rows, templates, opts) {
+    opts = opts || {};
+    const n = cells.length, K = templates.length;
+    const tcells = templates.map(t => ({ id: t.id, cell: toCell(t.rgba, t.size) }));
+    const tf = tcells.map(t => cellFeatures(t.cell));
+    const tLab = tf.map(f => toLab(f.bg)), tGlyph = tf.map(hasGlyph);
+    // the key square was cropped inside its outline, the chart cell is cut on the grid lines: chart glyphs are smaller
+    const bank = buildBank(tcells.filter((t, k) => tGlyph[k]), [0.72, 0.8, 0.88], [-1, 0, 1]);
+    const byId = new Map(); for (const e of bank) (byId.get(e.id) || byId.set(e.id, []).get(e.id)).push(e);
+    // white point of this photo: the brightest cells
+    const W = [0, 1, 2].map(c => { const a = Float32Array.from(cells, x => x.bg[c]).sort(); return Math.max(0.2, a[Math.floor(a.length * 0.97)]); });
+    const blankSim = c => hasGlyph(c) ? Math.max(0.1, 0.65 - Math.min(0.55, (c.frac - 0.02) * 6)) : 0.65;
+    const glyphSim = new Float32Array(n * K);
+    for (let i = 0; i < n; i++) { const c = cells[i];
+      for (let k = 0; k < K; k++) {
+        let v;
+        if (!tGlyph[k]) v = blankSim(c);
+        else { v = 0; for (const e of byId.get(templates[k].id) || []) { const t = tanimoto(e.black ? c.fb : c.f, e.f); if (t > v) v = t; } if (!hasGlyph(c)) v = Math.min(v, 0.15); }
+        glyphSim[i * K + k] = v;
+      }
+      if (opts.onProgress && (i % 400 === 0)) opts.onProgress(0.7 * i / n);
+    }
+    let paperLab = [100, 0, 0]; const illum = new Float32Array(n).fill(1);
+    const labels = new Int16Array(n), conf = new Float32Array(n), margin = new Float32Array(n), lab = new Array(n);
+    let cLab = tLab.map(v => v.slice()), fit = null;
+    const Yof = L => { const fy = (L + 16) / 116; return fy > 0.2069 ? fy * fy * fy : (fy - 16 / 116) / 7.787; };
+    for (let it = 0; it < 4; it++) {
+      const wL = it === 0 ? 0.35 : 1;  // first pass: trust hue more than lightness (shadows, exposure)
+      for (let i = 0; i < n; i++) { const b = cells[i].bg; lab[i] = toLab([b[0] / W[0] / illum[i], b[1] / W[1] / illum[i], b[2] / W[2] / illum[i]]); }
+      for (let i = 0; i < n; i++) {
+        const L = lab[i];
+        const dE = (q, w2) => Math.sqrt(w2 * (L[0] - q[0]) ** 2 + (L[1] - q[1]) ** 2 + (L[2] - q[2]) ** 2);
+        let bs = blankSim(cells[i]) - 0.02 * dE(paperLab, wL), bk = -1, sc = -1e9;   // paper: no symbol, paper colour
+        // a plain square's printed lightness in the key often differs from the chart's: start from its hue
+        for (let k = 0; k < K; k++) { const v = glyphSim[i * K + k] - 0.02 * dE(cLab[k], it === 0 && !tGlyph[k] ? 0.1 : wL); if (v > bs) { sc = bs; bs = v; bk = k; } else if (v > sc) sc = v; }
+        labels[i] = bk; conf[i] = bs; margin[i] = bs - sc;
+      }
+      if (opts.onProgress) opts.onProgress(0.7 + 0.075 * (it + 1));
+      if (it === 3) break;
+      const sum = Array.from({ length: K }, () => [0, 0, 0, 0]);
+      for (let i = 0; i < n; i++) { const k = labels[i]; if (k < 0 || margin[i] < 0.05) continue; const L = lab[i], S = sum[k]; S[0] += L[0]; S[1] += L[1]; S[2] += L[2]; S[3]++; }
+      // key → this photo, per Lab channel, fitted on the classes the symbols already place
+      const fitP = []; for (let k = 0; k < K; k++) if (tGlyph[k] && sum[k][3] >= 15) fitP.push([tLab[k], [sum[k][0] / sum[k][3], sum[k][1] / sum[k][3], sum[k][2] / sum[k][3]], Math.sqrt(sum[k][3])]);
+      fit = [0, 1, 2].map(ch => { if (fitP.length < 4) return [1, 0]; let sw = 0, sx = 0, sy = 0, sxx = 0, sxy = 0; for (const [a, b, wt] of fitP) { sw += wt; sx += wt * a[ch]; sy += wt * b[ch]; sxx += wt * a[ch] * a[ch]; sxy += wt * a[ch] * b[ch]; }
+        const den = sw * sxx - sx * sx; let sl = den > 1e-6 ? (sw * sxy - sx * sy) / den : 1; sl = Math.min(1.6, Math.max(0.6, sl)); return [sl, (sy - sl * sx) / sw]; });
+      const mapped = tLab.map(v => v.map((x, ch) => fit[ch][0] * x + fit[ch][1]));
+      // class colour in this photo: per-channel median of its confident cells (a few misread cells must not drag it)
+      // taken from the well-lit part of the page when there is enough of it (the light field is only an estimate)
+      const per = Array.from({ length: K + 1 }, () => [[], [], []]), perAll = Array.from({ length: K + 1 }, () => [[], [], []]);
+      for (let i = 0; i < n; i++) { if (margin[i] < 0.05) continue; const k = labels[i] < 0 ? K : labels[i]; for (let ch = 0; ch < 3; ch++) { perAll[k][ch].push(lab[i][ch]); if (illum[i] > 0.85) per[k][ch].push(lab[i][ch]); } }
+      for (let k = 0; k <= K; k++) if (per[k][0].length < 6) per[k] = perAll[k];
+      { const P2 = per[K]; if (P2[0].length >= 20) { const m = P2.map(a => { a.sort((x, y) => x - y); return a[a.length >> 1]; }); paperLab = [Math.max(85, m[0]), m[1], m[2]]; } }
+      cLab = mapped.map((v, k) => { const P2 = per[k]; const cnt = P2[0].length; if (cnt < 6) return v; const m = P2.map(a => { a.sort((x, y) => x - y); return a[a.length >> 1]; }); const a = Math.min(1, cnt / 40) * 0.8; return [v[0] * (1 - a) + m[0] * a, v[1] * (1 - a) + m[1] * a, v[2] * (1 - a) + m[2] * a]; });
+      // plain squares (no symbol): the key's swatch gives the hue, its lightness is often off. Take the
+      // densest colour among the chart's well-lit symbol-less cells that has that hue.
+      if (it === 0) {
+        const pool = []; for (let i = 0; i < n; i++) if (!hasGlyph(cells[i]) && illum[i] > 0.85) pool.push(lab[i]);
+        const step = Math.max(1, Math.floor(pool.length / 700)), smp = pool.filter((v, i) => i % step === 0);
+        const d2 = (p, q) => (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2 + (p[2] - q[2]) ** 2;
+        const dens = smp.map(c => { let m = 0; for (const q of smp) if (d2(c, q) < 36) m++; return m; });
+        for (let k = 0; k < K; k++) { if (tGlyph[k] || smp.length < 20) continue;
+          const key = mapped[k]; let best = null, bv = 0;
+          smp.forEach((c, j) => { if (d2(c, paperLab) < 36) return; const hd = Math.hypot(c[1] - key[1], c[2] - key[2]); const v = dens[j] * Math.exp(-((hd / 7) ** 2)) * Math.exp(-(((c[0] - key[0]) / 35) ** 2)); if (v > bv) { bv = v; best = c; } });
+          if (best && bv >= 4) { const near = smp.filter(q => d2(q, best) < 36); cLab[k] = [0, 1, 2].map(ch => near.reduce((a, q) => a + q[ch], 0) / near.length); }
+        }
+      }
+      // light field: observed lightness vs the class's lightness, median over neighbouring cells
+      const ratio = new Float32Array(n).fill(NaN);
+      // only cells placed by their symbol count: a plain square in shadow and a darker plain colour look alike
+      for (let i = 0; i < n; i++) { const k = labels[i]; if (k < 0 || !tGlyph[k] || margin[i] < 0.05 || glyphSim[i * K + k] < 0.45) continue; const r = Yof(lab[i][0]) / Math.max(0.02, Yof(cLab[k][0])); if (r > 0.3 && r < 2.5) ratio[i] = illum[i] * r; }
+      const R = 5, tmp = [];
+      for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) { tmp.length = 0;
+        for (let yy = Math.max(0, y - R); yy <= Math.min(rows - 1, y + R); yy++) for (let xx = Math.max(0, x - R); xx <= Math.min(cols - 1, x + R); xx++) { const v = ratio[yy * cols + xx]; if (v === v) tmp.push(v); }
+        if (tmp.length >= 6) { tmp.sort((a, b) => a - b); illum[y * cols + x] = tmp[tmp.length >> 1]; } }
+      // light and class lightness trade off against each other: keep the well-lit part of the page at 1
+      // (most of a photo is lit; shadows are the exception)
+      const srt = Float32Array.from(illum).sort(), ref = srt[Math.floor(srt.length * 0.75)] || 1;
+      for (let i = 0; i < n; i++) illum[i] = Math.min(1.1, illum[i] / ref);
+    }
+    if (opts.debug) console.log('key→chart Lab fit', JSON.stringify(fit && fit.map(f => f.map(x => +x.toFixed(2)))));
+    return { labels, conf, margin, illum, white: W, classLab: cLab, keyLab: tLab, glyph: tGlyph };
+  }
+
   // ───────────────────────── top-level page pipeline ─────────────────────────
   // rgba full-res page photo. Returns {mesh (in the deskewed image's coords), rgba (deskewed), w, h, skew, scaleDown}
-  function analysePage(rgba, w, h, onProgress) {
+  function analysePage(rgba, w, h, onProgress, opts) {
+    opts = opts || {};
     const prog = p => onProgress && onProgress(p);
     // work at ≤ ~2000px long side for grid detection; cut cells from full resolution
     const f = Math.max(1, Math.ceil(Math.max(w, h) / 2400));
@@ -33898,11 +34190,16 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     let full = rgba, fw = w, fh = h;
     if (Math.abs(skew) >= 0.3) { full = rotateRGBA(rgba, w, h, skew); small = f > 1 ? downscale(full, w, h, f) : { rgba: full, w, h }; }
     prog(0.3);
-    const mesh = detectGrid(small.rgba, small.w, small.h, { debug: !!(onProgress && onProgress.debug) });
+    const dbg = !!(onProgress && onProgress.debug);
+    // a chart printed in colour (cells filled with the thread colour) needs the periodicity grid finder
+    const fill = opts.colour === undefined ? isColourChart(small.rgba, small.w, small.h) : (opts.colour ? 1 : 0), colour = fill >= 0.35;
+    if (dbg) console.log('plscan: colour fill', fill.toFixed(2));
+    let mesh = (colour ? detectGridColour : detectGrid)(small.rgba, small.w, small.h, { debug: dbg });
+    if (!mesh && opts.colour === undefined) mesh = (colour ? detectGrid : detectGridColour)(small.rgba, small.w, small.h, { debug: dbg });
     prog(0.6);
     if (!mesh) return { ok: false, reason: 'nogrid', skew };
     if (f > 1) { for (let i = 0; i < mesh.xs.length; i++) { mesh.xs[i] = (mesh.xs[i] + 0.5) * f - 0.5; mesh.ys[i] = (mesh.ys[i] + 0.5) * f - 0.5; } mesh.pitch = [mesh.pitch[0] * f, mesh.pitch[1] * f]; }
-    return { ok: true, mesh, rgba: full, w: fw, h: fh, skew };
+    return { ok: true, mesh, rgba: full, w: fw, h: fh, skew, colour: !!mesh.colour, fill };
   }
 
   // ───────────────────────── legend (colour key) ─────────────────────────
@@ -33919,6 +34216,135 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
       comps.push({ x0, y0, x1, y1, n });
     }
     return { lab, comps };
+  }
+  // ── colour keys (Riolis and similar): column A shows each colour as a filled square, with or
+  // without a symbol, and backstitch colours as short lines. The person taps one square; the
+  // column is followed up and down from there (it may lean or curve), one object per row.
+  // Paper is estimated locally, so a hand shadow or the grey band behind blended rows does not
+  // read as colour.
+  function maxFilter1(a, w, h, r, horizontal) {
+    const o = new Float32Array(w * h);
+    if (horizontal) for (let y = 0; y < h; y++) { const b = y * w; for (let x = 0; x < w; x++) { let m = 0; const x0 = Math.max(0, x - r), x1 = Math.min(w - 1, x + r); for (let k = x0; k <= x1; k++) if (a[b + k] > m) m = a[b + k]; o[b + x] = m; } }
+    else for (let x = 0; x < w; x++) for (let y = 0; y < h; y++) { let m = 0; const y0 = Math.max(0, y - r), y1 = Math.min(h - 1, y + r); for (let k = y0; k <= y1; k++) if (a[k * w + x] > m) m = a[k * w + x]; o[y * w + x] = m; }
+    return o;
+  }
+  function legendTiles(rgba, w, h, tapX, tapY) {
+    // a window around (cx,cy): white-balanced colours (nrm), colour mask (m) and its components
+    const look = (cx, cy, rx, ry, s, tl, ts, open) => {
+      tl = tl || 0.84; ts = ts || 0.11;
+      const x0 = Math.max(0, Math.round(cx - rx)), x1 = Math.min(w - 1, Math.round(cx + rx)), y0 = Math.max(0, Math.round(cy - ry)), y1 = Math.min(h - 1, Math.round(cy + ry));
+      const W = x1 - x0 + 1, H = y1 - y0 + 1; if (W < 4 || H < 4) return null;
+      const px0 = Math.max(0, x0 - Math.round(2 * s)), px1 = Math.min(w - 1, x1 + Math.round(2 * s)), py0 = Math.max(0, y0 - Math.round(s)), py1 = Math.min(h - 1, y1 + Math.round(s));
+      const PW = px1 - px0 + 1, PH = py1 - py0 + 1, L = new Float32Array(PW * PH);
+      for (let y = 0; y < PH; y++) for (let x = 0; x < PW; x++) { const i = ((py0 + y) * w + px0 + x) * 4; L[y * PW + x] = (rgba[i] + rgba[i + 1] + rgba[i + 2]) / 3; }
+      // paper level: the brighter side on the left and on the right, whichever is darker — so a grey band
+      // behind a blended row is that row's paper, and a shadow edge running across the table does not
+      // leak bright paper into the next row
+      const rr = Math.max(3, Math.round(1.25 * s)); let pap = new Float32Array(PW * PH);
+      for (let y = 0; y < PH; y++) { const b = y * PW; for (let x = 0; x < PW; x++) { let l = 0, q = 0; for (let k = Math.max(0, x - rr); k <= x; k++) if (L[b + k] > l) l = L[b + k]; for (let k = x; k <= Math.min(PW - 1, x + rr); k++) if (L[b + k] > q) q = L[b + k]; pap[b + x] = Math.min(l, q); } }
+      pap = boxBlur(maxFilter1(pap, PW, PH, Math.max(1, Math.round(0.2 * s)), false), PW, PH, 2);
+      let tr = 0, tg = 0, tb = 0, tn = 0;   // paper tint
+      for (let y = 0; y < PH; y += 2) for (let x = 0; x < PW; x += 2) { const v = L[y * PW + x], pv = pap[y * PW + x]; if (v > 0.93 * pv) { const i = ((py0 + y) * w + px0 + x) * 4; tr += rgba[i] / pv; tg += rgba[i + 1] / pv; tb += rgba[i + 2] / pv; tn++; } }
+      const tint = tn ? [tr / tn, tg / tn, tb / tn] : [1, 1, 1];
+      const m = new Uint8Array(W * H), nrm = new Float32Array(W * H * 3);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const i = ((y0 + y) * w + x0 + x) * 4, pv = pap[(y0 + y - py0) * PW + x0 + x - px0] + 1;
+        const R = rgba[i] / pv / tint[0], G = rgba[i + 1] / pv / tint[1], B = rgba[i + 2] / pv / tint[2], o = y * W + x;
+        nrm[o * 3] = R; nrm[o * 3 + 1] = G; nrm[o * 3 + 2] = B;
+        const lum = (R + G + B) / 3, sat = Math.max(R, G, B) - Math.min(R, G, B);
+        if (lum < tl || sat > ts) m[o] = 1;
+      }
+      // optional vertical opening: cuts the thin edge of a grey band off a square it touches
+      if (open) { const o2 = lineOpen(m, W, H, Math.max(5, Math.round(0.3 * s)), false); m.set(o2); }
+      const { comps } = components(m, W, H);
+      return { x0, y0, W, H, nrm, m, comps };
+    };
+    // 1) the square under the tap
+    let t0 = null, tc = null, td = 1e9;
+    for (const [tl, ts, op] of [[0.84, 0.11, false], [0.84, 0.11, true], [0.74, 0.16, false]]) {
+      t0 = look(tapX, tapY, 50, 50, 25, tl, ts, op); if (!t0) return { ok: false, reason: 'nosymbol' };
+      tc = null; td = 1e9;
+      for (const c of t0.comps) { if (c.n < 12) continue; const bw = c.x1 - c.x0 + 1, bh = c.y1 - c.y0 + 1; if (bw > 90 || bh > 90 || bw > 1.6 * bh || bh > 1.6 * bw) continue; const dx = Math.max(c.x0 - (tapX - t0.x0), 0, (tapX - t0.x0) - c.x1), dy = Math.max(c.y0 - (tapY - t0.y0), 0, (tapY - t0.y0) - c.y1); const d = Math.hypot(dx, dy) - 0.01 * c.n; if (d < td) { td = d; tc = c; } }
+      if (tc && td <= 20) break;
+    }
+    if (!tc || td > 20) return { ok: false, reason: 'nosymbol' };
+    let s = Math.max(tc.x1 - tc.x0 + 1, tc.y1 - tc.y0 + 1);
+    if (s < 8) return { ok: false, reason: 'nosymbol' };
+    const classify = (c, L2) => { const bw = c.x1 - c.x0 + 1, bh = c.y1 - c.y0 + 1;
+      if (bw >= 0.6 * s && bh >= 0.6 * s && bw <= 1.45 * s && bh <= 1.45 * s) {
+        // a square, not a circle (the A/B/C/D column headers are circled letters)
+        const e = Math.max(2, Math.round(0.15 * Math.min(bw, bh))); let corners = 0;
+        for (const [qx, qy] of [[c.x0, c.y0], [c.x1 - e + 1, c.y0], [c.x0, c.y1 - e + 1], [c.x1 - e + 1, c.y1 - e + 1]]) { let hit = 0; for (let y = qy; y < qy + e; y++) for (let x = qx; x < qx + e; x++) hit |= L2.m[y * L2.W + x]; corners += hit; }
+        return corners >= 3 ? 'tile' : null;
+      }
+      if (bw >= 0.45 * s && bw <= 1.6 * s && bh <= 0.45 * s) return 'line';
+      return null; };
+    const LADDER = [[0.84, 0.11, false], [0.84, 0.11, true], [0.74, 0.16, false], [0.64, 0.22, false]];
+    const grab = (cx, cy, ladder) => { // the object nearest (cx,cy) in a one-row window
+      let line = null;
+      // a shadowed grey band can touch the square: retry with an opened mask, then stricter colour thresholds
+      for (const [tl, ts, op] of ladder || LADDER) {
+        const L2 = look(cx, cy, 1.1 * s, 1.1 * s, s, tl, ts, op); if (!L2) return null;
+        let best = null, bd = 1e9;
+        for (const c of L2.comps) { if (c.n < 6) continue; if (c.y0 === 0 || c.y1 === L2.H - 1) continue; const k = classify(c, L2); if (!k) continue;
+          const ox = L2.x0 + (c.x0 + c.x1) / 2, oy = L2.y0 + (c.y0 + c.y1) / 2; const d = Math.abs(ox - cx) * 0.7 + Math.abs(oy - cy) + (k === 'line' ? 0.6 * s : 0);   // the edge of a grey band can pass for a line
+          if (d < bd) { bd = d; best = { kind: k, box: [L2.x0 + c.x0, L2.y0 + c.y0, L2.x0 + c.x1, L2.y0 + c.y1], cx: ox, cy: oy, L: L2, c }; } }
+        if (best && best.kind === 'tile') return best;
+        if (best && !line) line = best;
+      }
+      return line;
+    };
+    const seed = grab(t0.x0 + (tc.x0 + tc.x1) / 2, t0.y0 + (tc.y0 + tc.y1) / 2);
+    if (!seed || seed.kind !== 'tile') return { ok: false, reason: 'nosymbol' };
+    s = Math.max(seed.box[2] - seed.box[0] + 1, seed.box[3] - seed.box[1] + 1);
+    // 2) walk the column both ways; the step is the row pitch once known
+    const objs = [seed];
+    for (const dir of [1, -1]) {
+      let cur = seed, gap = null, cx = seed.cx;
+      while (objs.length < 150) {
+        let found = null;
+        const step = gap || 1.75 * s;
+        for (const f of gap ? [1, 0.85, 1.15, 0.7, 1.3] : [0.8, 1, 1.2, 1.4, 1.6, 1.9]) {
+          const g2 = grab(cx, cur.cy + dir * step * f); if (!g2) continue;
+          const dy = (g2.cy - cur.cy) * dir; if (dy < Math.max(0.7 * s, gap ? 0.6 * gap : 0) || dy > (gap ? 1.6 * gap : 3.6 * s) || Math.abs(g2.cx - cx) > 0.6 * s) continue;   // rows come at a steady pitch: the table ends where that stops
+          if (objs.some(o => Math.abs(o.cy - g2.cy) < 0.5 * s)) continue;
+          found = g2; break;
+        }
+        if (!found) break;
+        const dy = (found.cy - cur.cy) * dir;
+        gap = gap ? 0.8 * gap + 0.2 * Math.min(dy, 1.3 * gap) : dy;
+        if (found.kind === 'tile') cx = 0.6 * cx + 0.4 * found.cx;
+        objs.push(found); cur = found;
+      }
+    }
+    objs.sort((a, b) => a.cy - b.cy);
+    // squares share one size: one that came out bigger touches a grey band's edge — look again with the
+    // band edge cut off; what still does not fit (a word under the table) is dropped
+    { const size = o => Math.max(o.box[2] - o.box[0], o.box[3] - o.box[1]) + 1, ms = median(objs.filter(o => o.kind === 'tile').map(size));
+      for (let i = objs.length - 1; i >= 0; i--) { const o = objs[i]; if (o.kind !== 'tile') continue;
+        if (size(o) > 1.2 * ms) { const g2 = grab(o.cx, o.cy, [[0.84, 0.11, true], [0.74, 0.16, true]]); if (g2 && g2.kind === 'tile' && size(g2) <= 1.2 * ms && size(g2) >= 0.75 * ms) { objs[i] = g2; continue; } }
+        const bw = o.box[2] - o.box[0] + 1, bh = o.box[3] - o.box[1] + 1;
+        if (Math.max(bw, bh) > 1.45 * ms || Math.min(bw, bh) < 0.7 * ms) objs.splice(i, 1); }
+      const tl = objs.filter(o => o.kind === 'tile'); if (tl.length) { const y0 = tl[0].cy, y1 = tl[tl.length - 1].cy, pt = median(tl.slice(1).map((o, i) => o.cy - tl[i].cy)) || ms;
+        for (let i = objs.length - 1; i >= 0; i--) if (objs[i].kind === 'line' && (objs[i].cy < y0 - 1.5 * pt || objs[i].cy > y1 + 1.5 * pt)) objs.splice(i, 1); } }
+    const tiles = objs.filter(o => o.kind === 'tile'), lines = objs.filter(o => o.kind === 'line' && !tiles.some(t => Math.abs(t.cy - o.cy) < 0.6 * s));
+    if (tiles.length < 2) return { ok: false, reason: 'norows' };
+    const pitch = median(objs.slice(1).map((o, i) => o.cy - objs[i].cy));
+    // 3) one template per square: its inside (outline trimmed), white-balanced — what a chart cell looks like
+    const templates = tiles.map((o, idx) => {
+      const L2 = o.L, bw = o.box[2] - o.box[0] + 1, bh = o.box[3] - o.box[1] + 1, inX = bw * 0.1, inY = bh * 0.1;
+      const cell = new Uint8ClampedArray(CS * CS * 4);
+      for (let v = 0; v < CS; v++) for (let u = 0; u < CS; u++) {
+        const sx = o.box[0] + inX + (u + 0.5) / CS * (bw - 2 * inX) - L2.x0, sy = o.box[1] + inY + (v + 0.5) / CS * (bh - 2 * inY) - L2.y0;
+        const xi = Math.min(L2.W - 1, Math.max(0, Math.round(sx - 0.5))), yi = Math.min(L2.H - 1, Math.max(0, Math.round(sy - 0.5))), k = yi * L2.W + xi, q = (v * CS + u) * 4;
+        cell[q] = Math.min(255, L2.nrm[k * 3] * 255); cell[q + 1] = Math.min(255, L2.nrm[k * 3 + 1] * 255); cell[q + 2] = Math.min(255, L2.nrm[k * 3 + 2] * 255); cell[q + 3] = 255;
+      }
+      const ph = Math.max(pitch, bh) / 2;
+      return { id: idx, rgba: cell, size: CS, box: o.box, row: { y0: Math.max(0, Math.round(o.cy - ph)), y1: Math.min(h - 1, Math.round(o.cy + ph)) }, colour: true };
+    });
+    const swatches = templates.map(t => { const f = cellFeatures(toCell(t.rgba, t.size)); return { r: Math.round(Math.min(1, f.bg[0]) * 255), g: Math.round(Math.min(1, f.bg[1]) * 255), b: Math.round(Math.min(1, f.bg[2]) * 255), glyph: hasGlyph(f) }; });
+    const lineCols = lines.map(o => { const L2 = o.L; let r = 0, g = 0, b = 0, n = 0; for (let y = o.c.y0; y <= o.c.y1; y++) for (let x = o.c.x0; x <= o.c.x1; x++) { const k = y * L2.W + x; if (!L2.m[k]) continue; r += L2.nrm[k * 3]; g += L2.nrm[k * 3 + 1]; b += L2.nrm[k * 3 + 2]; n++; } n = Math.max(n, 1); return { box: o.box, row: { y0: Math.round(o.cy - pitch / 2), y1: Math.round(o.cy + pitch / 2) }, r: Math.round(Math.min(1, r / n) * 255), g: Math.round(Math.min(1, g / n) * 255), b: Math.round(Math.min(1, b / n) * 255) }; });
+    return { ok: true, colour: true, band: [Math.min(...tiles.map(t => t.box[0])), Math.max(...tiles.map(t => t.box[2]))], rows: templates.map(t => t.row), templates, swatches, lines: lineCols, glyph: s, pitch, tapComp: seed.box };
   }
   function legendAnalyse(rgba, w, h, tapX, tapY) {
     const g = gray(rgba, w, h), flat = flatten(g, w, h), bin = adaptiveBin(flat, w, h, 25, 12);
@@ -34041,7 +34467,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
   // template when a printed digit's strokes come out heavier than the drawn ones
   function tanimotoF(a, b) { let ma = 0, mb = 0; for (let i = 0; i < a.length; i++) { ma += a[i]; mb += b[i]; } ma /= a.length; mb /= b.length; let ab = 0, a2 = 0, b2 = 0; for (let i = 0; i < a.length; i++) { const x = a[i] - ma, y = b[i] - mb; ab += x * y; a2 += x * x; b2 += y * y; } return ab / Math.sqrt(Math.max(a2 * b2, 1e-9)); }
   // rows: [{y0,y1}] (from legendAnalyse). x: tapped column. Returns [{text, conf, tokens}] or null per row.
-  function legendNumbers(rgba, w, h, rows, x, digits) {
+  function legendNumbers(rgba, w, h, rows, x, digits, colourKey) {
     const g = gray(rgba, w, h), flat = flatten(g, w, h), bin = adaptiveBin(flat, w, h, 25, 12);
     const L = Math.max(30, Math.round(w * 0.12));
     const hor = lineOpen(bin, w, h, L, true), ver = lineOpen(bin, w, h, Math.max(30, Math.round(h * 0.12)), false);
@@ -34050,17 +34476,22 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     const pitch = rows.length > 1 ? median(rows.slice(1).map((r, i) => (r.y0 + r.y1) / 2 - (rows[i].y0 + rows[i].y1) / 2)) : (rows[0].y1 - rows[0].y0);
     const half = Math.max(20, Math.round(pitch * 3.2));     // a number column is a few digit widths wide
     const out = [];
-    for (const r of rows) {
+    const x0 = x;
+    rows.forEach((r, ri) => { const x = Array.isArray(colourKey) ? colourKey[ri] : x0;
       const ym = (r.y0 + r.y1) / 2, yh = pitch * 0.55;
       let cs = comps.filter(c => { const cx = (c.x0 + c.x1) / 2, cy = (c.y0 + c.y1) / 2, ch = c.y1 - c.y0 + 1; return Math.abs(cx - x) <= half && Math.abs(cy - ym) <= yh && ch >= 0.18 * pitch && ch <= 0.9 * pitch && c.n >= 3; });
-      if (!cs.length) { out.push(null); continue; }
+      if (colourKey && cs.length) { // stitch-type glyph and strand count sit close by: keep the glyphs on this column only
+        const hm0 = median(cs.filter(c => c.y1 - c.y0 + 1 <= 0.6 * pitch).map(c => c.y1 - c.y0 + 1)) || median(cs.map(c => c.y1 - c.y0 + 1));
+        cs = cs.filter(c => Math.abs((c.x0 + c.x1) / 2 - x) <= 1.0 * hm0 && c.y1 - c.y0 + 1 <= 1.6 * hm0); }
+      if (!cs.length) { out.push(null); return; }
       // the token nearest the tap: glyphs chained with small gaps
       cs.sort((a, b) => a.x0 - b.x0);
-      const hm = median(cs.map(c => c.y1 - c.y0 + 1)), gapMax = hm * 0.9;
+      const hm = median(cs.map(c => c.y1 - c.y0 + 1)), gapMax = hm * (colourKey ? 0.6 : 0.9);
       const groups = []; for (const c of cs) { const gr = groups[groups.length - 1]; if (gr && c.x0 - gr.x1 <= gapMax) { gr.items.push(c); gr.x1 = Math.max(gr.x1, c.x1); } else groups.push({ items: [c], x0: c.x0, x1: c.x1 }); }
       groups.sort((a, b) => Math.abs((a.x0 + a.x1) / 2 - x) - Math.abs((b.x0 + b.x1) / 2 - x));
-      const tok = groups[0]; let text = '', conf = 1; const tokens = [];
-      for (const c of tok.items) {
+      const tok = groups[0];
+      const readLine = (items) => { let text = '', conf = 1; const tokens = [];
+      for (const c of items) {
         const ch = c.y1 - c.y0 + 1, cw = c.x1 - c.x0 + 1;
         if (ch < 0.35 * hm && cw < 0.6 * hm) { text += '.'; tokens.push({ ch: '.', s: 1 }); continue; }     // dot / dash-like speck
         const m = glyphMap(ink, w, c.x0, c.y0, c.x1, c.y1), asp = cw / ch; let best = null;
@@ -34079,12 +34510,22 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
         if (!best) { best = { ch: '?', v: 0 }; }
         tokens.push({ ch: best.ch, s: best.v }); text += best.ch; conf = Math.min(conf, best.v);
       }
-      out.push({ text, conf, tokens, box: [tok.x0, Math.min(...tok.items.map(c => c.y0)), tok.x1, Math.max(...tok.items.map(c => c.y1))] });
-    }
+      return { text, conf, tokens }; };
+      // two numbers stacked in one row (a blend of two threads, often behind a brace): read each line
+      const hT = median(tok.items.map(c => c.y1 - c.y0 + 1)), its = tok.items.filter(c => c.y1 - c.y0 + 1 <= 1.6 * hT);
+      const cys = its.map(c => (c.y0 + c.y1) / 2).sort((a, b) => a - b); let cut = null, gmax = 0;
+      for (let k = 1; k < cys.length; k++) if (cys[k] - cys[k - 1] > gmax) { gmax = cys[k] - cys[k - 1]; cut = (cys[k] + cys[k - 1]) / 2; }
+      let res;
+      if (its.length >= 2 && gmax > 0.6 * hT) {
+        const top = readLine(its.filter(c => (c.y0 + c.y1) / 2 < cut).sort((a, b) => a.x0 - b.x0)), bot = readLine(its.filter(c => (c.y0 + c.y1) / 2 >= cut).sort((a, b) => a.x0 - b.x0));
+        res = { text: top.text + '+' + bot.text, conf: Math.min(top.conf, bot.conf), tokens: top.tokens.concat([{ ch: '+', s: 1 }], bot.tokens), stacked: true };
+      } else res = readLine(tok.items);
+      out.push({ text: res.text, conf: res.conf, tokens: res.tokens, stacked: !!res.stacked, box: [tok.x0, Math.min(...tok.items.map(c => c.y0)), tok.x1, Math.max(...tok.items.map(c => c.y1))] });
+    });
     return out;
   }
   PLScan.makeDigitTemplates = makeDigitTemplates; PLScan.legendNumbers = legendNumbers; PLScan._glyphMap = glyphMap; PLScan._components = components; PLScan._prep = (rgba,w,h)=>{ const g = gray(rgba, w, h), flat = flatten(g, w, h); return adaptiveBin(flat, w, h, 25, 12); };
-  PLScan.legendAnalyse = legendAnalyse; PLScan.legendSwatches = legendSwatches;
+  PLScan.legendAnalyse = legendAnalyse; PLScan.legendTiles = legendTiles; PLScan.matchColour = matchColour; PLScan.isColourChart = isColourChart; PLScan._toLab = toLab; PLScan.legendSwatches = legendSwatches;
   PLScan.analysePage = analysePage; PLScan.detectGrid = detectGrid; PLScan.readCells = readCells; PLScan.matchCells = matchCells; PLScan.findScale = findScale;
   PLScan.cutCell = cutCell; PLScan.CS = CS; PLScan.version = 1;
   PLScan._toCell = toCell; PLScan._cellFeatures = cellFeatures; PLScan._blurCell = blurCell; PLScan._lineMargins = lineMargins; PLScan._tanimoto = tanimoto; PLScan._inkMask = inkMask;
@@ -34118,19 +34559,19 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
       try {
         if (m.cmd === 'page') {
           const prog = p => self.postMessage({ seq: m.seq, progress: p });
-          const an = PLScan.analysePage(m.rgba, m.w, m.h, prog);
+          const an = PLScan.analysePage(m.rgba, m.w, m.h, prog, { colour: m.colour });
           if (!an.ok) { reply({ ok: false, reason: an.reason }); return; }
           const cells = PLScan.readCells(an.rgba, an.w, an.h, an.mesh, p => prog(0.6 + 0.4 * p));
           const n = cells.length, F2 = cells[0].f.length;
-          const feat = new Uint8Array(n * F2), featB = new Uint8Array(n * F2), frac = new Float32Array(n), sat = new Float32Array(n), hue = new Float32Array(n);
-          for (let i = 0; i < n; i++) { feat.set(quant(cells[i].f), i * F2); featB.set(quant(cells[i].fb), i * F2); frac[i] = cells[i].frac; sat[i] = cells[i].col.sat; hue[i] = cells[i].col.hue === null ? -1 : cells[i].col.hue; }
+          const feat = new Uint8Array(n * F2), featB = new Uint8Array(n * F2), frac = new Float32Array(n), sat = new Float32Array(n), hue = new Float32Array(n), bg = new Float32Array(n * 3), contrast = new Float32Array(n);
+          for (let i = 0; i < n; i++) { feat.set(quant(cells[i].f), i * F2); featB.set(quant(cells[i].fb), i * F2); frac[i] = cells[i].frac; sat[i] = cells[i].col.sat; hue[i] = cells[i].col.hue === null ? -1 : cells[i].col.hue; bg[i * 3] = cells[i].bg[0]; bg[i * 3 + 1] = cells[i].bg[1]; bg[i * 3 + 2] = cells[i].bg[2]; contrast[i] = cells[i].contrast; }
           // keep a reduced copy of the page (cell ≈ 24px) for crops; drop the full one
           const f = Math.max(1, Math.floor(Math.min(an.mesh.pitch[0], an.mesh.pitch[1]) / 24));
           const small = f > 1 ? shrink(an.rgba, an.w, an.h, f) : { rgba: an.rgba, w: an.w, h: an.h };
           const mesh = an.mesh; if (f > 1) { for (let i = 0; i < mesh.xs.length; i++) { mesh.xs[i] = (mesh.xs[i] + 0.5) / f - 0.5; mesh.ys[i] = (mesh.ys[i] + 0.5) / f - 0.5; } }
-          PAGES[m.id] = { rgba: small.rgba, w: small.w, h: small.h, mesh, feat, featB, frac, sat, hue, F2 };
+          PAGES[m.id] = { rgba: small.rgba, w: small.w, h: small.h, mesh, feat, featB, frac, sat, hue, bg, contrast, F2 };
           const th = shrink(small.rgba, small.w, small.h, Math.max(1, Math.ceil(Math.max(small.w, small.h) / 320)));
-          reply({ ok: true, cols: mesh.cols, rows: mesh.rows, colPhase: mesh.colPhase, rowPhase: mesh.rowPhase, realFrac: mesh.realFrac, skew: an.skew, thumb: th }, [th.rgba.buffer]);
+          reply({ ok: true, cols: mesh.cols, rows: mesh.rows, colPhase: mesh.colPhase, rowPhase: mesh.rowPhase, realFrac: mesh.realFrac, skew: an.skew, colour: an.colour, thumb: th }, [th.rgba.buffer]);
         } else if (m.cmd === 'drop') { delete PAGES[m.id]; reply({ ok: true }); }
         else if (m.cmd === 'cluster') {
           // unsupervised symbol classes across all pages (no legend needed)
@@ -34197,6 +34638,14 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
                 if (v > bs) { if (refK[j] !== bk) second = bs; bs = v; bk = refK[j]; } else if (refK[j] !== bk && v > second) second = v; }
               if (bk !== lab[i]) moved++; lab[i] = bk; conf[i] = bs; margin[i] = second < 0 ? 1 : bs - second; } }
           reply({ ok: true, labels: out, scale: fs.scale, scaleScore: fs.score, moved });
+        } else if (m.cmd === 'matchColour') {
+          // colour key (Riolis and similar): thread colour + symbol, page by page (each photo has its own light)
+          const ids = m.ids, T = m.templates, out = {}; let done = 0;
+          for (const id of ids) { const P = PAGES[id]; if (!P) continue; const n = P.frac.length, cells = new Array(n);
+            for (let i = 0; i < n; i++) cells[i] = { f: deq(P.feat.subarray(i * P.F2, (i + 1) * P.F2)), fb: deq(P.featB.subarray(i * P.F2, (i + 1) * P.F2)), frac: P.frac[i], contrast: P.contrast[i], bg: [P.bg[i * 3], P.bg[i * 3 + 1], P.bg[i * 3 + 2]] };
+            const r = PLScan.matchColour(cells, P.mesh.cols, P.mesh.rows, T, { onProgress: p => self.postMessage({ seq: m.seq, progress: (done + p) / ids.length }) });
+            out[id] = { lab: r.labels, conf: r.conf, margin: r.margin }; done++; }
+          reply({ ok: true, labels: out });
         } else if (m.cmd === 'crop') { reply({ ok: true, crop: crop(m.id, m.i, m.size || 48, false) }); }
         else if (m.cmd === 'crops') { const out = m.list.map(([id, i]) => PAGES[id] ? crop(id, i, m.size || 40, false).rgba : null); reply({ ok: true, crops: out }, out.filter(Boolean).map(a => a.buffer)); }
       } catch (err) { reply({ ok: false, reason: 'error', error: String(err && err.stack || err) }); }
@@ -34232,14 +34681,15 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
   const $ = id => document.getElementById(id);
   const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
   function t(k, fb){ try{ if (typeof I18N === 'object' && I18N && typeof LANG !== 'undefined' && I18N[LANG] && I18N[LANG][k]) return I18N[LANG][k]; }catch(e){} return fb; }
-  async function fileToRGBA(file, maxSide){
+  async function fileToRGBA(file, maxSide, rot){
     const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => null);
     let img = bmp;
     if (!img) { img = new Image(); img.src = URL.createObjectURL(file); await img.decode(); }
     let w = img.width, h = img.height; const MAX = maxSide || 4200; const k = Math.min(1, MAX / Math.max(w, h)); w = Math.round(w * k); h = Math.round(h * k);
-    const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const g = cv.getContext('2d', { willReadFrequently: true });
-    g.drawImage(img, 0, 0, w, h); const d = g.getImageData(0, 0, w, h); if (bmp && bmp.close) bmp.close();
-    return { rgba: d.data, w, h };
+    rot = ((rot || 0) % 4 + 4) % 4; const W = rot % 2 ? h : w, H = rot % 2 ? w : h;   // quarter turns clockwise
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d', { willReadFrequently: true });
+    g.translate(W / 2, H / 2); g.rotate(rot * Math.PI / 2); g.drawImage(img, -w / 2, -h / 2, w, h); const d = g.getImageData(0, 0, W, H); if (bmp && bmp.close) bmp.close();
+    return { rgba: d.data, w: W, h: H };
   }
   function rgbaToURL(im){ const cv = document.createElement('canvas'); cv.width = im.w; cv.height = im.h; cv.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(im.rgba), im.w, im.h), 0, 0); return cv.toDataURL('image/png'); }
   function rgbaToCanvas(im){ const cv = document.createElement('canvas'); cv.width = im.w; cv.height = im.h; cv.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(im.rgba), im.w, im.h), 0, 0); return cv; }
@@ -34284,6 +34734,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
       return '<div class="pls-page' + (p.ok ? '' : ' bad') + '" data-id="' + p.id + '">'
         + (p.thumbUrl ? '<img src="' + p.thumbUrl + '" alt="">' : '<div class="pls-ph"></div>')
         + '<div class="pls-meta"><b>Page ' + p.n + '</b>' + st + (w ? '<div class="pls-warn">' + esc(w.msg) + '</div>' : '') + '</div>'
+        + (p.status !== 'busy' ? '<button type="button" class="pls-rot" data-rot="' + p.id + '" aria-label="Rotate" title="Photo taken sideways? Turn it">↻</button>' : '')
         + '<button type="button" class="pls-x" data-del="' + p.id + '" aria-label="Remove">✕</button></div>';
     }).join('');
     const mapHtml = L ? pageMapSVG(L) : '';
@@ -34312,6 +34763,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     $('pls-cam').onchange = e => addFiles(e.target.files);
     $('pls-pick').onchange = e => addFiles(e.target.files);
     root.querySelectorAll('[data-del]').forEach(b => b.onclick = () => removePage(+b.getAttribute('data-del')));
+    root.querySelectorAll('[data-rot]').forEach(b => b.onclick = () => rotatePage(+b.getAttribute('data-rot')));
     $('pls-convert').onclick = convert;
   }
   // ── legend (colour key) ───────────────────────────────────────────────────
@@ -34321,42 +34773,47 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
   // read against browser-drawn fonts). Every reading is shown in an editable table.
   // S.legend = { pages:[{im, rows, templates, swatches, codes, counts, step}], cur, brand }
   const LSTEPS = ['symbol', 'swatch', 'code', 'count', 'done'];
-  function legendTemplates(){ const out = []; if (!S.legend) return out; for (const pg of S.legend.pages) if (pg.rows) pg.templates.forEach((t, i) => out.push({ t, sw: pg.swatches ? pg.swatches[i] : null, code: pg.codes ? pg.codes[i] : '', count: pg.counts ? pg.counts[i] : null })); return out; }
+  function legendTemplates(){ const out = []; if (!S.legend) return out; for (const pg of S.legend.pages) if (pg.rows) pg.templates.forEach((t, i) => out.push({ t, sw: pg.swatches ? pg.swatches[i] : null, code: pg.codes ? pg.codes[i] : '', count: pg.counts ? pg.counts[i] : null, colour: !!pg.colour })); return out; }
   function digitTemplates(){ if (!S.digits) { try { S.digits = PLScan.makeDigitTemplates(document); } catch (e) { S.digits = []; } } return S.digits; }
   function legendCardHTML(){
     const Lg = S.legend; const all = legendTemplates();
     let body = '';
     const addBtns = (first) => '<div class="pls-pages"><label class="pls-add"><input type="file" accept="image/*" capture="environment" class="pls-legcam" hidden><span>📷</span><b>' + (first ? 'Take photo' : 'Photo of the next page') + '</b></label>'
         + '<label class="pls-add alt"><input type="file" accept="image/*" class="pls-legpick" hidden><span>🖼</span><b>From photos</b></label></div>';
-    const brandSel = '<label class="pls-brand">Thread brand <select id="pls-brand"><option value="lucas">Luca-S</option><option value="dmc">DMC</option><option value="anchor">Anchor</option></select></label>';
+    const brandSel = '<label class="pls-brand">Thread brand <select id="pls-brand"><option value="lucas">Luca-S</option><option value="dmc">DMC</option><option value="anchor">Anchor</option><option value="kit">Kit’s own numbers (Riolis…)</option></select></label>';
     if (!Lg || !Lg.pages.length) {
-      body = '<p>Take a photo of the colour key — the table with one symbol per thread. If the key continues on another page, add that one too.</p>' + brandSel + addBtns(true);
+      body = '<p>Take a photo of the colour key — the table with one symbol (or coloured square) per thread. If the key continues on another page, add that one too.</p>' + brandSel + addBtns(true);
     } else {
       const pg = Lg.pages[Lg.cur];
-      const prompts = { symbol: 'Tap one of the symbols in the <b>symbol on the chart</b> column.', swatch: '<b>' + (pg.rows ? pg.rows.length : 0) + ' symbols found.</b> Now tap a <b>colour swatch</b> — or skip.', code: 'Tap a <b>thread number</b> — or skip.', count: 'Tap a <b>stitch count</b> — or skip.', done: 'Done. Tap a boxed symbol to remove that row; check the readings below.' };
+      const nRows = pg.rows ? pg.rows.length : 0, nLines = pg.lines ? pg.lines.length : 0;
+      const prompts = { symbol: 'Tap one of the symbols (or coloured squares) in the <b>symbol on the chart</b> column.', swatch: '<b>' + nRows + ' symbols found.</b> Now tap a <b>colour swatch</b> — or skip.',
+        code: (pg.colour ? '<b>' + nRows + ' colours found</b>' + (nLines ? ' (' + nLines + ' backstitch line' + (nLines > 1 ? 's' : '') + ' left out — backstitch is not read from photos yet)' : '') + '. ' : '') + 'Tap a <b>thread number</b> — or skip.',
+        count: 'Tap a <b>stitch count</b> — or skip.', done: 'Done. Tap a boxed symbol to remove that row; check the readings below.' };
       const tabs = Lg.pages.length > 1 ? '<div class="pls-legtabs">' + Lg.pages.map((p2, i) => '<button type="button" class="' + (i === Lg.cur ? 'on' : '') + '" data-legtab="' + i + '">Key page ' + (i + 1) + (p2.rows ? ' · ' + p2.rows.length : '') + '</button>').join('') + '</div>' : '';
       const skip = (pg.step !== 'symbol' && pg.step !== 'done') ? ' · <a href="#" id="pls-legskip">Skip</a>' : '';
       body = tabs + brandSel + '<p>' + prompts[pg.step] + '</p><div class="pls-legwrap"><canvas id="pls-legcv"></canvas></div>'
-        + '<div class="pls-legbar"><a href="#" id="pls-legreset">Remove this photo</a>' + skip + (pg.rows && pg.step !== 'symbol' ? ' · <a href="#" id="pls-legredo">Start this page again</a>' : '') + '</div>'
+        + '<div class="pls-legbar"><a href="#" id="pls-legreset">Remove this photo</a> · <a href="#" id="pls-legrot">↻ Turn photo</a>' + skip + (pg.rows && pg.step !== 'symbol' ? ' · <a href="#" id="pls-legredo">Start this page again</a>' : '') + '</div>'
         + (pg.rows ? legendTableHTML(pg) + '<p class="pls-legtotal"><b>' + all.length + ' symbols</b> in the key so far.</p>' + addBtns(false) : '');
     }
     return '<div class="pls-card"><div class="pls-step">2</div><div class="pls-body"><h3>Colour key</h3>' + body + '</div></div>';
   }
   function legendTableHTML(pg){
     const brand = (S.legend && S.legend.brand) || 'lucas';
+    const look = code => (code && brand !== 'kit' && typeof trkFindBrandCode === 'function') ? trkFindBrandCode(brand, code) : null;
     return '<div class="pls-legtable"><div class="pls-lt-head"><span style="grid-column:1/3">Symbol</span><span>Thread no.</span><span>Stitches</span><span></span></div>'
-      + pg.templates.map((t, i) => { const sw = pg.swatches && pg.swatches[i]; const code = (pg.codes && pg.codes[i]) || ''; const f = code ? (typeof trkFindBrandCode === 'function' ? trkFindBrandCode(brand, code) : null) : null; const col = f ? f : sw;
+      + pg.templates.map((t, i) => { const sw = pg.swatches && pg.swatches[i]; const code = (pg.codes && pg.codes[i]) || ''; const f = look(code); const col = f ? f : sw;
         return '<div class="pls-lt-row" data-i="' + i + '"><span class="pls-lt-sw" style="background:' + (col ? 'rgb(' + col.r + ',' + col.g + ',' + col.b + ')' : 'transparent') + ';' + (col ? '' : 'border-style:dashed') + '"></span><img src="' + t.url + '" alt="">'
-          + '<input class="pls-lt-code" data-i="' + i + '" value="' + esc(code) + '" placeholder="—" inputmode="text"' + (code && !f ? ' title="Not in the ' + brand + ' palette"' : '') + ' style="' + (code && !f ? 'border-color:#e0a060' : '') + '">'
+          + '<input class="pls-lt-code" data-i="' + i + '" value="' + esc(code) + '" placeholder="—" inputmode="text"' + (code && !f && brand !== 'kit' ? ' title="Not in the ' + brand + ' palette"' : '') + ' style="' + (code && !f && brand !== 'kit' ? 'border-color:#e0a060' : '') + '">'
           + '<input class="pls-lt-count" data-i="' + i + '" value="' + (pg.counts && pg.counts[i] != null ? pg.counts[i] : '') + '" placeholder="—" inputmode="numeric">'
           + '<button type="button" class="pls-lt-x" data-i="' + i + '" aria-label="Remove row">✕</button></div>'; }).join('') + '</div>';
   }
   function bindLegend(){
     document.querySelectorAll('.pls-legcam, .pls-legpick').forEach(inp => inp.onchange = e => legendFile(e.target.files[0]));
-    const bs = $('pls-brand'); if (bs) { bs.value = (S.legend && S.legend.brand) || 'lucas'; bs.onchange = () => { if (!S.legend) S.legend = { pages: [], cur: 0 }; S.legend.brand = bs.value; render(); }; }
+    const bs = $('pls-brand'); if (bs) { bs.value = (S.legend && S.legend.brand) || 'lucas'; bs.onchange = () => { if (!S.legend) S.legend = { pages: [], cur: 0 }; S.legend.brand = bs.value; S.legend.brandSet = true; render(); }; }
+    const ro = $('pls-legrot'); if (ro) ro.onclick = e => { e.preventDefault(); const pg = S.legend.pages[S.legend.cur]; pg.im = rotateIm(pg.im); pg.bmp = null; Object.assign(pg, { rows: null, templates: null, swatches: null, codes: null, counts: null, lines: null, colour: false, step: 'symbol', swatchX: null, codeX: null, countX: null, codeBoxes: null, countBoxes: null }); render(); };
     const rs = $('pls-legreset'); if (rs) rs.onclick = e => { e.preventDefault(); S.legend.pages.splice(S.legend.cur, 1); S.legend.cur = Math.max(0, S.legend.pages.length - 1); render(); };
     const sk = $('pls-legskip'); if (sk) sk.onclick = e => { e.preventDefault(); const pg = S.legend.pages[S.legend.cur]; pg.step = LSTEPS[LSTEPS.indexOf(pg.step) + 1] || 'done'; render(); };
-    const rd = $('pls-legredo'); if (rd) rd.onclick = e => { e.preventDefault(); const pg = S.legend.pages[S.legend.cur]; Object.assign(pg, { rows: null, templates: null, swatches: null, codes: null, counts: null, step: 'symbol', swatchX: null, codeX: null, countX: null }); render(); };
+    const rd = $('pls-legredo'); if (rd) rd.onclick = e => { e.preventDefault(); const pg = S.legend.pages[S.legend.cur]; Object.assign(pg, { rows: null, templates: null, swatches: null, codes: null, counts: null, lines: null, colour: false, step: 'symbol', swatchX: null, codeX: null, countX: null }); render(); };
     document.querySelectorAll('[data-legtab]').forEach(b => b.onclick = () => { S.legend.cur = +b.getAttribute('data-legtab'); render(); });
     const cv = $('pls-legcv'); if (cv) { drawLegend(cv); cv.onclick = e => legendTap(cv, e); }
     const pg = S.legend && S.legend.pages[S.legend.cur];
@@ -34365,6 +34822,11 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
       document.querySelectorAll('.pls-lt-count').forEach(inp => inp.onchange = () => { pg.counts = pg.counts || pg.templates.map(() => null); const v = parseInt(inp.value, 10); pg.counts[+inp.getAttribute('data-i')] = isNaN(v) ? null : v; });
       document.querySelectorAll('.pls-lt-x').forEach(b => b.onclick = () => removeLegendRow(pg, +b.getAttribute('data-i')));
     }
+  }
+  function rotateIm(im){ // quarter turn clockwise
+    const W = im.h, H = im.w, src = im.rgba, out = new Uint8ClampedArray(W * H * 4);
+    for (let y = 0; y < im.h; y++) for (let x = 0; x < im.w; x++) { const s2 = (y * im.w + x) * 4, d = (x * W + (W - 1 - y)) * 4; out[d] = src[s2]; out[d + 1] = src[s2 + 1]; out[d + 2] = src[s2 + 2]; out[d + 3] = 255; }
+    return { rgba: out, w: W, h: H };
   }
   function removeLegendRow(pg, i){ ['rows', 'templates', 'swatches', 'codes', 'counts'].forEach(k => { if (pg[k]) pg[k].splice(i, 1); }); render(); }
   async function legendFile(file){
@@ -34399,22 +34861,36 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     // a tap on a detected symbol box removes that row (any step after the first)
     if (pg.rows && pg.step !== 'symbol') { const hit = pg.templates.findIndex(t => x >= t.box[0] - 6 && x <= t.box[2] + 6 && y >= t.box[1] - 6 && y <= t.box[3] + 6); if (hit >= 0) { removeLegendRow(pg, hit); return; } }
     if (pg.step === 'symbol') {
-      const res = PLScan.legendAnalyse(pg.im.rgba, pg.im.w, pg.im.h, x, y);
+      // a key printed in colour (each thread a filled square, with or without a symbol — Riolis and similar)
+      // is read square by square; a classic key (symbols on white) by its glyphs
+      let res = null; try { const tl = PLScan.legendTiles(pg.im.rgba, pg.im.w, pg.im.h, x, y); if (tl.ok && isColourKey(tl)) res = tl; } catch (e) { console.warn('[scan] colour key', e); }
+      if (!res) res = PLScan.legendAnalyse(pg.im.rgba, pg.im.w, pg.im.h, x, y);
       if (!res.ok) { S.statusText = res.reason === 'nosymbol' ? 'Tap exactly on a symbol' : 'Could not find the symbol column there — try another symbol'; render(); return; }
       pg.rows = res.rows; pg.swatches = null; pg.codes = null; pg.counts = null; pg.swatchX = pg.codeX = pg.countX = null; pg.band = res.band;
       pg.templates = res.templates.map(t => Object.assign(t, { url: rgbaToURL({ rgba: t.rgba, w: t.size, h: t.size }) }));
-      pg.step = 'swatch'; S.statusText = '';
+      pg.colour = !!res.colour; pg.lines = res.lines || null;
+      if (pg.colour) { pg.swatches = res.swatches; pg.step = 'code'; if (!S.legend.brandSet) S.legend.brand = 'kit'; }   // the squares are the swatches
+      else pg.step = 'swatch';
+      S.statusText = '';
     } else if (pg.step === 'swatch') {
       pg.swatchX = x; pg.swatches = PLScan.legendSwatches(pg.im.rgba, pg.im.w, pg.im.h, pg.rows, x); pg.step = 'code';
     } else if (pg.step === 'code') {
-      const n = PLScan.legendNumbers(pg.im.rgba, pg.im.w, pg.im.h, pg.rows, x, digitTemplates());
-      pg.codeX = x; pg.codes = n.map(v => v && /^[0-9][0-9.+x]*$/.test(v.text) ? v.text.replace(/\.$/, '') : (v ? v.text.replace(/[?]/g, '') : '')); pg.codeBoxes = n.map(v => v && v.box); pg.step = 'count';
+      const n = PLScan.legendNumbers(pg.im.rgba, pg.im.w, pg.im.h, pg.rows, x, digitTemplates(), pg.colour ? columnXs(pg, x, y) : false);
+      pg.codeX = x; pg.codes = n.map(v => v && /^[0-9][0-9.+x]*$/.test(v.text) ? v.text.replace(/\.$/, '').replace(/\.\+|\+\./g, '+') : (v ? v.text.replace(/[?]/g, '') : '')); pg.codeBoxes = n.map(v => v && v.box); pg.step = 'count';
     } else if (pg.step === 'count') {
       const n = PLScan.legendNumbers(pg.im.rgba, pg.im.w, pg.im.h, pg.rows, x, digitTemplates());
       pg.countX = x; pg.counts = n.map(v => { if (!v) return null; const m = /^(\d+)/.exec(v.text.replace(/[?.]/g, '')); return m ? parseInt(m[1], 10) : null; }); pg.countBoxes = n.map(v => v && v.box); pg.step = 'done';
     }
     render();
   }
+  // a column tapped on a colour key, followed down the rows: it leans like the squares do
+  function columnXs(pg, x, y){
+    const cxs = pg.templates.map(t => (t.box[0] + t.box[2]) / 2), cys = pg.templates.map(t => (t.box[1] + t.box[3]) / 2);
+    let k = 0; cys.forEach((cy, i) => { if (Math.abs(cy - y) < Math.abs(cys[k] - y)) k = i; });
+    return cxs.map(cx => x + cx - cxs[k]);
+  }
+  // most squares coloured (not white with a symbol) → a colour key
+  function isColourKey(tl){ const sw = tl.swatches || []; if (sw.length < 3) return false; const col = sw.filter(c => (c.r + c.g + c.b) / 3 < 225 || Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b) > 25).length; return col >= 0.6 * sw.length; }
   function pageMapSVG(L){
     const sc = Math.min(260 / L.W, 160 / L.H); const w = Math.round(L.W * sc), h = Math.round(L.H * sc);
     let s = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="' + w + '" height="' + h + '" class="pls-svg"><rect x="0" y="0" width="' + w + '" height="' + h + '" rx="4" fill="#f3ebe9" stroke="#d9c8ce"/>';
@@ -34426,17 +34902,26 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
   async function addFiles(files){
     if (!files || !files.length) return;
     for (const f of Array.from(files)) {
-      const p = { id: ++S.seq * 1000 + S.pages.length, n: S.pages.length + 1, status: 'busy', ok: false, progress: 0, file: f };
+      const p = { id: ++S.seq * 1000 + S.pages.length, n: S.pages.length + 1, status: 'busy', ok: false, progress: 0, file: f, rot: 0 };
       S.pages.push(p); render();
+      await readPage(p);
+    }
+  }
+  // a page photo taken sideways: turn it a quarter and read it again
+  async function rotatePage(id){
+    const p = S.pages.find(q => q.id === id); if (!p || p.status === 'busy' || !p.file) return;
+    call({ cmd: 'drop', id: p.id }); p.rot = ((p.rot || 0) + 1) % 4; Object.assign(p, { status: 'busy', ok: false, progress: 0, thumbUrl: null }); render();
+    await readPage(p);
+  }
+  async function readPage(p){
       try {
-        const im = await fileToRGBA(f);
+        const im = await fileToRGBA(p.file, 0, p.rot);
         const r = await call({ cmd: 'page', id: p.id, rgba: im.rgba, w: im.w, h: im.h }, [im.rgba.buffer], pr => { p.progress = pr; const el = document.querySelector('.pls-page[data-id="' + p.id + '"] .pls-prog i'); if (el) el.style.width = Math.round(pr * 100) + '%'; });
         p.status = 'done';
-        if (r.ok) { Object.assign(p, { ok: true, cols: r.cols, rows: r.rows, colPhase: r.colPhase, rowPhase: r.rowPhase, realFrac: r.realFrac, thumbUrl: rgbaToURL(r.thumb) }); }
+        if (r.ok) { Object.assign(p, { ok: true, cols: r.cols, rows: r.rows, colPhase: r.colPhase, rowPhase: r.rowPhase, realFrac: r.realFrac, colour: !!r.colour, thumbUrl: rgbaToURL(r.thumb) }); }
         else { p.ok = false; p.reasonText = r.reason === 'nogrid' ? 'No grid found — retake flatter and closer' : 'Could not read this photo'; if (r.error) console.warn('[scan]', r.error); }
       } catch (err) { p.status = 'done'; p.ok = false; p.reasonText = 'Could not read this photo'; console.warn('[scan] page failed', err); }
       renumber(); render();
-    }
   }
   function renumber(){ S.pages.forEach((p, i) => p.n = i + 1); }
   function removePage(id){ const i = S.pages.findIndex(p => p.id === id); if (i < 0) return; S.pages.splice(i, 1); call({ cmd: 'drop', id }); renumber(); render(); }
@@ -34447,16 +34932,18 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     const L = layout(); if (!L || !L.complete || S.busy) return;
     S.busy = true; S.statusText = 'Finding the symbols…'; render();
     const ids = L.placed.map(p => p.id);
-    const legAll = legendTemplates(); const Lg = legAll.length >= 2 ? { templates: legAll.map(x => x.t), swatches: legAll.some(x => x.sw) ? legAll.map(x => x.sw) : null, codes: legAll.map(x => x.code || ''), counts: legAll.map(x => x.count) } : null;
-    const brand = (S.legend && S.legend.brand) || 'lucas'; const brandName = { lucas: 'Luca-S', dmc: 'DMC', anchor: 'Anchor' }[brand] || 'Luca-S';
+    const legAll = legendTemplates(); const Lg = legAll.length >= 2 ? { templates: legAll.map(x => x.t), swatches: legAll.some(x => x.sw) ? legAll.map(x => x.sw) : null, codes: legAll.map(x => x.code || ''), counts: legAll.map(x => x.count), colour: legAll.some(x => x.colour) } : null;
+    const brand = (S.legend && S.legend.brand) || 'lucas'; const brandName = { lucas: 'Luca-S', dmc: 'DMC', anchor: 'Anchor', kit: '' }[brand] ?? 'Luca-S';
     let r;
     if (Lg) {
       const T = Lg.templates.map((t, i) => ({ id: i, rgba: t.rgba, size: t.size }));
-      r = await call({ cmd: 'match', ids, templates: T }, [], pr => { const el = $('pls-status'); if (el) el.textContent = 'Reading the symbols… ' + Math.round(pr * 100) + '%'; });
-      console.log('[scan] match: glyph scale', r.scale, 'score', r.scaleScore && r.scaleScore.toFixed(3), 'moved in pass 2', r.moved);
+      const onPr = pr => { const el = $('pls-status'); if (el) el.textContent = (Lg.colour ? 'Reading colours and symbols… ' : 'Reading the symbols… ') + Math.round(pr * 100) + '%'; };
+      if (Lg.colour) r = await call({ cmd: 'matchColour', ids, templates: T }, [], onPr);
+      else { r = await call({ cmd: 'match', ids, templates: T }, [], onPr); console.log('[scan] match: glyph scale', r.scale, 'score', r.scaleScore && r.scaleScore.toFixed(3), 'moved in pass 2', r.moved); }
       if (r.ok) { // class list in legend order
         const counts = new Int32Array(T.length); for (const id of ids) for (const k of r.labels[id].lab) if (k >= 0) counts[k]++;
-        r.classes = T.map((t, k) => ({ k, n: counts[k], sat: 0, hue: -1 })); r.sprites = Lg.templates.map(t => spriteFromTemplate(t));
+        // a plain coloured square has no symbol: an empty sprite, the tracker shows its colour
+        r.classes = T.map((t, k) => ({ k, n: counts[k], sat: 0, hue: -1 })); r.sprites = Lg.templates.map((t, k) => Lg.colour && Lg.swatches && Lg.swatches[k] && !Lg.swatches[k].glyph ? blankSprite(t.size) : spriteFromTemplate(t));
       }
     } else {
       r = await call({ cmd: 'cluster', ids }, [], pr => { const el = $('pls-status'); if (el) el.textContent = 'Finding the symbols… ' + Math.round(pr * 100) + '%'; });
@@ -34480,12 +34967,13 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
       bySymbol[sym] = { nr: i + 1, symbol: sym, code, stitches: expected != null ? expected : counts[sym], scanned: true };
       // colour: the brand palette by thread number, else the legend swatch, else a hue / neutral grey
       let rgb = { r: 150, g: 150, b: 150 }, found = null;
-      try { if (code && typeof trkFindBrandCode === 'function') found = trkFindBrandCode(brand, code); } catch (e) {}
+      try { if (code && brand !== 'kit' && typeof trkFindBrandCode === 'function') found = trkFindBrandCode(brand, code); } catch (e) {}
       const sw = Lg && Lg.swatches ? Lg.swatches[c.k] : null;
       if (found) rgb = { r: found.r, g: found.g, b: found.b };
       else if (sw) rgb = { r: sw.r, g: sw.g, b: sw.b };
       else if (c.hue >= 0 && c.sat > 0.25) rgb = hsvToRgb(c.hue, 0.65, 0.75);
-      map[sym] = Object.assign({}, rgb, { code, stitches: counts[sym], label: code ? brandName + ' ' + code : 'Symbol ' + (i + 1), scanned: true });
+      const label = code ? (brand === 'kit' ? 'Colour ' + code.replace(/\+/g, ' + ') : brandName + ' ' + code) : (Lg && Lg.colour ? 'Colour ' + (i + 1) : 'Symbol ' + (i + 1));
+      map[sym] = Object.assign({}, rgb, { code, stitches: counts[sym], label, scanned: true });
       const sp = r.sprites[c.k]; if (sp) { const cv = sp.getContext ? sp : rgbaToCanvas(sp); sprites[sym] = { dark: cv, light: trkTintSprite(cv), url: cv.toDataURL() }; }
     });
     // hand over to the tracker exactly like the other upload formats
@@ -34501,7 +34989,9 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     window.plScanConfidence = conf; window.plScanMargin = margin; window.plScanSprites = sprites;
     // cells the recogniser is not sure about: low similarity, or two symbols nearly tied
     const unsure = new Set(); const unsureList = [];
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = y * W + x; if (cells[y][x] !== ' ' && (conf[i] < 0.65 || margin[i] < 0.08)) { unsure.add(y + ':' + x); unsureList.push(i); } }
+    // (colour keys score colour and symbol together on another scale: only a near tie counts)
+    const unsureAt = Lg && Lg.colour ? (i => margin[i] < 0.06) : (i => conf[i] < 0.65 || margin[i] < 0.08);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = y * W + x; if (cells[y][x] !== ' ' && unsureAt(i)) { unsure.add(y + ':' + x); unsureList.push(i); } }
     trackerGrid.unsure = unsure;
     // keep a small photo crop of each unsure cell for the review (this session only)
     window.plScanCrops = new Map();
@@ -34582,6 +35072,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     for (let i = 0; i < n * n; i++) { const ink = Math.min(1, Math.max(0, (paper - lum[i]) / span)); const a = Math.min(1, Math.max(0, (ink - 0.3) / 0.45)); id.data[i * 4] = id.data[i * 4 + 1] = id.data[i * 4 + 2] = 0; id.data[i * 4 + 3] = Math.round(a * 255); }
     g.putImageData(id, 0, 0); return cv;
   }
+  function blankSprite(n){ const cv = document.createElement('canvas'); cv.width = n; cv.height = n; return cv; }
   function hsvToRgb(h, s, v){ const i = Math.floor(h * 6), f = h * 6 - i, p = v * (1 - s), q = v * (1 - f * s), tt = v * (1 - (1 - f) * s); const [r, g, b] = [[v, tt, p], [q, v, p], [p, v, tt], [p, q, v], [tt, p, v], [v, p, q]][i % 6]; return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) }; }
 
   // ── entry ────────────────────────────────────────────────────────────────

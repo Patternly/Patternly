@@ -33,15 +33,15 @@ Two GitHub repos under the **Patternly** organisation are the source of truth; C
 | APNs | Key in Cloudflare (`APNS_KEY_ID/TEAM_ID/KEY_P8`) | iOS push |
 | Resend | Account Cristian already had; sending-only key for Patternly; sender `Patternly <patternly@luca-s.com>` | Studio invitations, set-up links, password resets |
 | GitHub Actions (app repo) | `push-auto.yml` hourly cron → middleware auto-notifications; `store-api.yml` runs `store/requests/*.json` against App Store Connect / Play and writes results to branch `store-results`; `android-release.yml` waits for keystore secrets | Secrets: `PUSH_CRON_KEY`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, `PLAY_SA_JSON`, (`ANDROID_KEYSTORE_B64` etc. not yet set) |
-| Claude session scratch | Scan prototype, harnesses and mock-ups live only in the session scratchpad (`scan/`, `ed/`, `mock/`, `brm/`) | Not in any repo; the shipped engine is embedded in `index.html` |
+| Scan harness | `tools/scan/` in this repo: `extract.sh` (engine out of `index.html`), `torgba.py`, `colour_run.js` (colour key + chart page from the command line, writes a side-by-side picture), README | Test photos are not in the repo; Riolis 2289 photos are in the project files `scan-tests/riolis-2289/`. Older prototypes lived only in session scratchpads and are gone |
 
 ## Code map
 
-Current versions: **editor v633**, **middleware v101**, **Studio v51**, app **1.4** (iOS build 3 / Android versionCode 9), `release-1.5` branch = version 10 / 1.5. Every build bumps its version constant; never re-issue a version with different contents.
+Current versions: **editor v634**, **middleware v101**, **Studio v51**, app **1.4** (iOS build 3 / Android versionCode 9), `release-1.5` branch = version 10 / 1.5. Every build bumps its version constant; never re-issue a version with different contents.
 
 | File | Size | What it is | Version constant |
 | --- | --- | --- | --- |
-| `Patternly/index.html` | 34,566 lines, 2.8 MB | The whole web app: landing pages, Editor, Tracker, converter, calculators, account/Plus, i18n table (`T` with en/fr/de/nl/ru/uk/es/it), Capacitor glue, scan engine. Single file by design. | `PATTERNLY_BUILD='v632'` (shown in Account footer and console) |
+| `Patternly/index.html` | 34,566 lines, 2.8 MB | The whole web app: landing pages, Editor, Tracker, converter, calculators, account/Plus, i18n table (`T` with en/fr/de/nl/ru/uk/es/it), Capacitor glue, scan engine. Single file by design. | `PATTERNLY_BUILD='v634'` (shown in Account footer and console) |
 | `Patternly/brands.html` | 4,897 lines, 750 KB | Partner Studio: landing/apply, sign-in, tabs (partner: Overview, My Patterns, Converter, My Customers, My Account; owner: Overview/revenue, Brands, Patterns, Converter, Customers, Branding, Users, Notifications). Contains the full converter as base64 blob iframe (`CONV_B64`). | `/* v51 */` comments; no constant |
 | `Patternly/functions/_middleware.js` | 4,836 lines | Cloudflare Pages Function: every API route, auth, storage, email, push, revenue | `MW_VERSION = "v101"` (reported by `/whoami`) |
 | `Patternly/CNAME` | — | `patternly.design` custom domain | — |
@@ -60,7 +60,7 @@ Current versions: **editor v633**, **middleware v101**, **Studio v51**, app **1.
 - Tracker state: `trackerGrid {cols,rows,cells,backstitch,knotsList,scanned,unsure}`, `trackerLegend.bySymbol`, `trackerColourMap`, `trackerSprites`, `trackerStitched`, selections `trkSelectedSyms` / `trkBsSel` / `trkKnotSel`, zoom `trackerCellPx` + `trkPinch*`, grid prefs `trkGridCfg` (localStorage `patternly_trk_grid`).
 - Rendering: `renderTracker()` (overview mode `_ov` when cells < 6 px, unsure overlay, backstitch + knots overlay, rulers), `updateTrackerProgressUI()` (side list + mobile colour sheet + selected-colour card + streak/progress).
 - Sync: `trkSaveProject` / `trkOpenProject` (local index `trkIndex()`), cloud `trkProgressUrl`, `trkCloudProjects`, `trkUserPatternUrl`, `pl_session` token — these are the RULE #1 markers.
-- Scan: `<script id="plscan-src">` = `PLScan` engine (run in a Web Worker from a Blob), followed by the scan UI script (`plScanOpen`, review popover, `plReviewBanner`). Sources kept in the session scratchpad as `plscan_engine.js` / `plscan_ui.js`; `update_scan.py <index.html> vNNN` re-embeds them.
+- Scan: `<script id="plscan-src">` = `PLScan` engine (run in a Web Worker from a Blob), followed by the scan UI script (`plScanOpen`, review popover, `plReviewBanner`). The embedded copy is the only source: edit it in `index.html`, test with `tools/scan/` (`./extract.sh` first). Colour charts (v634): `isColourChart` → `detectGridColour` (tile periodicity grid), `legendTiles` (key squares), `matchColour` (colour + symbol, light field); worker command `matchColour`.
 - Landing carousels (phones ≤860 px): `.lp-steps` + `.lp-steps-dots`, `.lp-features-grid` + `.lp-feat-dots`; native scroll-snap, one small script (search "Dots for the landing carousels") syncs the dots.
 - Native detection: `plIsApp()` (Capacitor); `body.pl-native` class marks the native shell (no Luca-S Shop links exist anywhere since v631); `setAppViewport()` locks zoom in the app; `--sa-top/--sa-bottom` safe-area vars.
 - i18n: `plT(key)` / `trkT(key, vars)` over table `T`; `data-i18n` attributes applied by `plApplyLang()`.
@@ -149,7 +149,7 @@ Play deadlines noted earlier: target API 36 before 1 Nov 2026 (done on `main`), 
 | Legend viewer, Backup | View uploaded legend PDF; download `.ptly`-style backup incl. progress |
 | Localisation | Everyday tracker screens in en/fr/de/nl/ru/uk/es/it (stage 1 done) |
 
-### Scan Your Pattern (BETA, v616–v623)
+### Scan Your Pattern (BETA, v616–v623, colour charts v634)
 
 | Step | What happens |
 | --- | --- |
@@ -157,6 +157,7 @@ Play deadlines noted earlier: target API 36 before 1 Nov 2026 (done on `main`), 
 | Page photos | One photo per chart page (page count asked first); engine flattens illumination, estimates skew, finds the grid pitch, grows a node lattice (repairs missed/duplicate lines), cuts cells, matches each cell to the key templates (Tanimoto, two-stage, pass-2 refinement) in a Web Worker |
 | Result | Tracker project with exact sprites, palette colours, expected counts; cells with low confidence/margin (~10 %) are flagged amber — "N stitches to check" review popover shows the photo crop and a chooser; flags persist with the project |
 | Measured accuracy | 92.6 % correct before review on compressed shadowed photos (BU5073), 95.2 % with a clean key, 98–99 % on 300 dpi scans; ~2 min per 160×160 chart in desktop Chrome |
+| Colour charts (v634) | Charts printed in colour (Riolis and similar: every cell filled with the thread colour, some colours with no symbol at all) are detected automatically (`isColourChart`, ≥35 % of the page filled). Grid: `detectGridColour` finds the lattice by periodicity in small tiles (grid-line valleys + colour edges that run across more than one cell, so glyphs centred in cells cannot lock it half a cell off), unwraps line numbers tile to tile and bridges creases. Key: tapping a coloured square runs `legendTiles`, which follows column A up and down (local paper level, so hand shadows and the grey band behind blended rows do not count as colour), keeps one template per square (inside of the square, white-balanced) and leaves backstitch line rows out. Thread numbers: stacked blend numbers read as "9+10". Matching: `matchColour` scores symbol likeness minus Lab colour distance, fits key colours onto the chart photo, takes plain squares' colour from the densest chart colour of that hue, estimates a light field from symbol-placed cells (shadows), and has a paper class (no stitch). Brand select has "Kit's own numbers (Riolis…)" (auto-chosen for colour keys): labels "Colour 7", "Colour 9 + 10", colours from the key squares. ↻ buttons turn sideways page photos and key photos |
 | Not yet | Live guided camera (outline, blur/tilt/shadow gate, auto-shutter — needs the 1.5 build), backstitch from photos, speed, B&W-only kits (customer sees no colour, so low value) |
 
 ### Editor and tools
@@ -183,7 +184,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 **RULE #1 — never break account-linked sync.** Before every push, grep these marker counts in `index.html` and compare with the previous commit: `trkProgressUrl` 4 lines, `trkCloudProjects` 4, `trkUserPatternUrl` 8, `pl_session` 27 occurrences (21 lines). Also: `ensurePageFooters` adds a footer only to `#account-page`, never `#tracker-page`; `/progress` latches code-opened kits to the signed-in customer.
 
-1. One fix per build; bump `PATTERNLY_BUILD` (editor), `MW_VERSION` (middleware) or the Studio `vNN` comment on every delivered change; never re-issue a version with different contents. Next numbers: editor **v634**, middleware **v102**, Studio **v52**.
+1. One fix per build; bump `PATTERNLY_BUILD` (editor), `MW_VERSION` (middleware) or the Studio `vNN` comment on every delivered change; never re-issue a version with different contents. Next numbers: editor **v635**, middleware **v102**, Studio **v52**.
 2. Every editor build: `node --check` on all 16 inline script blocks, then copy `index.html` to `patternly-app/www/index.html` and commit both repos ("www: editor vNNN").
 3. Commit as `-c user.name="Cristian" -c user.email="lucasukinfo@gmail.com"`, message ending with the Claude attribution lines; push to `main` directly (the Claude GitHub App has push access on both repos). The Patternly repo remote redirects ("repository moved") — harmless.
 4. Test before delivering: Playwright headless Chromium (`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`, `--no-sandbox`) against a local `python3 -m http.server` serving a copy of the file; iPhone viewport 390×844 with `isMobile`/`hasTouch`; `hj051.ptly` is the usual test pattern. No WebKit is available — anything iOS-specific needs Cristian's phone.
@@ -198,6 +199,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 | Date | Build | Change |
 | --- | --- | --- |
+| 28 Oct 2026 | Editor v634 | Scan Your Pattern reads charts printed in colour (Riolis tested with kit 2289): colour-chart grid finder, colour key squares with or without a symbol (plain colours matched by colour), backstitch line rows skipped, blended rows "9+10", "Kit's own numbers" brand option, shadow-tolerant colour matching with a paper (no stitch) class, ↻ turn buttons for sideways photos. Classic symbol charts (Luca-S) take the old path unchanged. Harness committed in `tools/scan/` |
 | 27 Oct 2026 | Editor v633 | Quick photo convert: "Upload Image" / "Try with your photo" on the main page and menu (`startWithPhoto`) now open a full-screen guided flow `#qc` (Photo → Pattern → PDF, modelled on stitchmate) instead of the full editor. Photo: type (photo / pixel art / printed chart → Scan Your Pattern), replace, crop & straighten, erase background (border auto + tap to erase). Pattern: cross stitch / needlepoint / diamond painting, size presets + custom, cm/in, hours estimate, brand, strands, fabric count + colour, colour style, colour count, fine-tune, detail level, confetti % + clean-up (Plus), Pattern / Finished look / Original preview, palette with skeins. PDF: name, page size, chart style, layout → editor PDF engine and free-export quota; also Open in Editor / Stitch it in the Tracker. Editor's own upload zone unchanged. English only for now |
 | 27 Oct 2026 | Editor v632 | Landing page on phones (≤860 px, web and apps): the three feature cards (Create Patterns / Convert Images / Stitch Tracker) are now a swipeable scroll-snap carousel with a peek of the next card and tappable dots, like the "three steps" section already was. One shared dots script drives both carousels; dark-mode dots fixed (the active dot was invisible in Night). Desktop layout unchanged |
 | 27 Oct 2026 | Editor v631 | Removed the "Luca-S Shop ↗" link everywhere (web and apps): landing header, mobile menu, editor top bar and the My Account list. The `.pl-shop-link` hide rule is gone with it; the `acct.shop` i18n strings are left unused. The Account footnote "Luca-S shop account ↗" (orders & addresses) is kept |
@@ -220,6 +222,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 ### Waiting on Cristian
 
+- [ ] Try v634 Scan Your Pattern on the Riolis 2289 kit (branch preview), and send the original full-resolution photos (not chat-compressed) of the key and the whole chart sheet
 - [ ] Check the v633 quick photo convert on the phone apps; decide whether confetti clean-up should stay Plus-only in the quick flow
 - [x] v633 merged (PR #4) and copied to `patternly-app/www/` (27 Oct)
 - [ ] Check v632 landing carousels on the phone (feature cards swipe, dots follow; "three steps" carousel unchanged apart from dark dots)
@@ -236,8 +239,11 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 ### Scan roadmap (BETA)
 
+- [ ] Riolis: re-test with Cristian's full-resolution photos (the ones tested were downscaled to 2016 px, ~14 px per cell); one photo of the whole sheet works best for one-sheet charts. Half stitches ("//" rows) are tracked as full stitches; backstitch rows are skipped
+- [ ] Colour charts: no measured accuracy yet (no ground truth); ~14 % of cells flagged "to check" on the downscaled Riolis photo
+- [ ] Tracker banner after any scan still says "✓ Exact import … nothing parsed from a picture" (`trackerShowVerification` treats scans as exact grids since v616); give scans their own line
 - [ ] Live guided camera: page outline, blur/tilt/shadow gate, auto-shutter, page-number detection (1.5 build)
-- [ ] Backstitch from photos; speed (~2 min per 160×160 chart); originals of BU5073 (key both sides + 6 pages) and a second brand's chart for testing
+- [ ] Backstitch from photos; speed (~2 min per 160×160 chart); originals of BU5073 (key both sides + 6 pages) for a regression run of the classic path (second brand received: Riolis 2289, 28 Oct)
 - [ ] Investigate: full-resolution key photo scores worse (85 %) than the 1800 px downscale (92.5 %); JS harness reports `nogrid` on 300 dpi scan pages and 94.9 % on scan p6 (in-app path unaffected)
 
 ### Tracker / parser backlog
