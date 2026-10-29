@@ -23,7 +23,7 @@ Two GitHub repos under the **Patternly** organisation are the source of truth; C
 | Public web app | https://luca-s.com/apps/patternly | Shopify App Proxy on the Luca-S store → Cloudflare Pages project (custom domain `patternly.design` in `CNAME`; raw `*.pages.dev` is signed-out only) |
 | Partner Studio | https://luca-s.com/apps/patternly/brands | `brands.html` at repo root |
 | Web repo | github.com/Patternly/Patternly (`main`) | `index.html`, `brands.html`, `functions/_middleware.js`, `CNAME`, `docs/HANDOVER.md`, `CLAUDE.md` |
-| App repo | github.com/Patternly/patternly-app (`main`; branch `release-1.5` unmerged; branch `store-results` written by Actions) | Capacitor project, `www/index.html` = copy of the editor |
+| App repo | github.com/Patternly/patternly-app (`main` = 1.5 since 29 Oct, `release-1.5` merged; branch `store-results` written by Actions) | Capacitor project, `www/index.html` = copy of the editor |
 | Cloudflare | Pages project for the web repo; KV namespaces (ENTITLEMENTS, PARTNERS, USER_PATTERNS, EDITOR_PATTERNS), R2 bucket bound as PATTERNS | Secrets/env set by Cristian in the Pages project settings (names in the Backend section) |
 | Shopify | Luca-S store (shop id 64819790053), Customer Account API OAuth client, App Proxy `/apps/patternly` | Plus also sold as a Shopify subscription product on web |
 | Apple | Team ID 466D5X6AYU, bundle `com.lucas.patternly`, App Store id 6795543177, App Store Connect API key (App Manager role) | iOS 1.4 live; builds via Codemagic workflow `ios-release` (integration "UK Luca-S LTD") |
@@ -32,12 +32,12 @@ Two GitHub repos under the **Patternly** organisation are the source of truth; C
 | Firebase | Project "Patternly" (FCM for Android push) | Service-account JSON in Cloudflare only |
 | APNs | Key in Cloudflare (`APNS_KEY_ID/TEAM_ID/KEY_P8`) | iOS push |
 | Resend | Account Cristian already had; sending-only key for Patternly; sender `Patternly <patternly@luca-s.com>` | Studio invitations, set-up links, password resets |
-| GitHub Actions (app repo) | `push-auto.yml` hourly cron → middleware auto-notifications; `store-api.yml` runs `store/requests/*.json` against App Store Connect / Play and writes results to branch `store-results`; `android-release.yml` waits for keystore secrets | Secrets: `PUSH_CRON_KEY`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, `PLAY_SA_JSON`, (`ANDROID_KEYSTORE_B64` etc. not yet set) |
+| GitHub Actions (app repo) | `push-auto.yml` hourly cron → middleware auto-notifications; `store-api.yml` runs `store/requests/*.json` against App Store Connect / Play and writes results to branch `store-results`; `android-release.yml` waits for keystore secrets | Secrets: `PUSH_CRON_KEY`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, `PLAY_SA_JSON`, (`ANDROID_KEYSTORE_B64` etc. and `CODEMAGIC_API_TOKEN` not yet set) |
 | Scan harness | `tools/scan/` in this repo: `extract.sh` (engine out of `index.html`), `torgba.py`, `colour_run.js` (colour key + chart page from the command line, writes a side-by-side picture), README | Test photos are not in the repo; Riolis 2289 photos are in the project files `scan-tests/riolis-2289/`. Older prototypes lived only in session scratchpads and are gone |
 
 ## Code map
 
-Current versions: **editor v640** (live on the website; not yet copied to patternly-app `www/`), **middleware v101**, **Studio v51**, app **1.4** (iOS build 3 / Android versionCode 9), `release-1.5` branch = version 10 / 1.5. Every build bumps its version constant; never re-issue a version with different contents.
+Current versions: **editor v640** (website and patternly-app `www/`), **middleware v101**, **Studio v51**, app **1.4** live in both stores (iOS build 3 / Android versionCode 9); app repo `main` = **1.5** (Android versionCode 10, iOS MARKETING_VERSION 1.5), not yet built. Every build bumps its version constant; never re-issue a version with different contents.
 
 | File | Size | What it is | Version constant |
 | --- | --- | --- | --- |
@@ -47,12 +47,12 @@ Current versions: **editor v640** (live on the website; not yet copied to patter
 | `Patternly/CNAME` | — | `patternly.design` custom domain | — |
 | `patternly-app/www/index.html` | copy | Exact copy of the editor committed after every editor build ("www: editor vNNN") | same |
 | `patternly-app/capacitor.config.json` | — | appId `com.lucas.patternly`, webDir `www`, `adjustMarginsForEdgeToEdge: disable`, PushNotifications presentation options | — |
-| `patternly-app/android/` | — | Gradle project; `variables.gradle` SDK 36; `AndroidManifest.xml` has CAMERA permission + camera feature (required=false) for Scan | versionCode 9 / 1.4 on `main` |
-| `patternly-app/ios/App/` | — | Xcode project, `App.entitlements`, `Info.plist` (NSCameraUsageDescription + NSPhotoLibraryUsageDescription added), `PatternlyWidget` extension + `PatternlyWidgetPlugin.swift`, `ios/profiles/*.mobileprovision` (app + widget App Store profiles) | MARKETING_VERSION 1.4 |
+| `patternly-app/android/` | — | Gradle project; `variables.gradle` SDK 36; `AndroidManifest.xml` has CAMERA permission + camera feature (required=false) for Scan; R8 minify/shrink + `EdgeToEdge.enable` (1.5) | versionCode 10 / 1.5 on `main` |
+| `patternly-app/ios/App/` | — | Xcode project, `App.entitlements`, `Info.plist` (NSCameraUsageDescription + NSPhotoLibraryUsageDescription added), `PatternlyWidget` extension + `PatternlyWidgetPlugin.swift`, `ios/profiles/*.mobileprovision` (app + widget App Store profiles) | MARKETING_VERSION 1.5 (build number set by Codemagic) |
 | `patternly-app/codemagic.yaml` | — | iOS release workflow: npm install → cap sync → unique build number → copy the two repo profiles → signed IPA → App Store Connect | — |
 | `patternly-app/store/` | — | `run.mjs` + `play-upload.mjs` executed by the Store API workflow; `requests/*.json` = one request per store action (create version, attach build, submit, promote) | — |
 | `patternly-app/.github/workflows/` | — | `push-auto.yml` (hourly), `store-api.yml`, `android-release.yml` | — |
-| `patternly-app/docs/NEXT_RELEASE_1.5.md` (branch `release-1.5`) | — | R8/edge-to-edge notes and the on-device test checklist | — |
+| `patternly-app/docs/NEXT_RELEASE_1.5.md` | — | R8/edge-to-edge notes and the on-device test checklist | — |
 
 ### Inside `index.html` — landmarks worth knowing
 
@@ -110,12 +110,12 @@ The only cron is GitHub Actions `push-auto.yml` at minute 7 every hour, which PO
 
 ## Native apps
 
-Both stores run **1.4** today; `main` already carries editor v631 and the camera permissions, so the next build is **1.5** once `release-1.5` is merged and tested on a real Android phone.
+Both stores run **1.4** today. App repo `main` is **1.5** since 29 Oct (editor v640 with the guided scanner, camera permissions, Android R8 + edge-to-edge, iOS 1.5): build iOS on Codemagic, Android on the PC, test, then submit/promote.
 
 | | iOS | Android |
 | --- | --- | --- |
 | Live version | 1.4 (build 3) on the App Store, id 6795543177 | 1.4 (versionCode 9) in production on Google Play |
-| How it is built | Codemagic `ios-release` (mac_mini_m2): profiles copied from `ios/profiles/`, App Store Connect integration "UK Luca-S LTD"; no Mac needed | Android Studio on Cristian's PC at `C:\patternly-app` (`git pull` → `npx cap sync android` → signed bundle). GitHub Actions `android-release.yml` is ready but waits for keystore secrets (he chose to keep builds on the PC for now) |
+| How it is built | Codemagic `ios-release` (mac_mini_m2): profiles copied from `ios/profiles/`, App Store Connect integration "UK Luca-S LTD"; no Mac needed. Start it in Codemagic (Start new build → branch `main` → workflow `ios-release`) or from GitHub: Actions → "Codemagic iOS build" → Run workflow, or Claude commits `store/ios-build.json` (`codemagic-ios.yml` + `store/codemagic.mjs`; result in `store-results/results/<id>.json`). Needs secret `CODEMAGIC_API_TOKEN` (optional variable `CODEMAGIC_APP_ID`) | Android Studio on Cristian's PC at `C:\patternly-app` (`git pull` → `npx cap sync android` → signed bundle). GitHub Actions `android-release.yml` is ready but waits for keystore secrets (he chose to keep builds on the PC for now) |
 | Store automation | `store/requests/*.json` committed to the app repo → `store-api.yml` executes against App Store Connect (create version, attach build, submit) and writes results to branch `store-results` | Same workflow via `play-upload.mjs`; the service account cannot promote to production — Cristian does that |
 | Sign-in | Shopify OAuth via in-app browser + Sign in with Apple | Shopify OAuth via in-app browser |
 | Purchases | RevenueCat (SDK key in the app, products above) | RevenueCat |
@@ -123,9 +123,9 @@ Both stores run **1.4** today; `main` already carries editor v631 and the camera
 | Widgets (1.4) | `PatternlyWidget` extension + App Group; small + wide; streak and % of pinned/last project; tap deep-links to the project | Home-screen widget provider; same data via `/streak` |
 | Deep links | `com.lucas.patternly://` scheme; QR / `?sku=&code=` open the kit | same |
 | Viewport | `setAppViewport()` locks pinch/zoom of the UI in the app (web untouched) | same, plus `--sa-bottom` measured for 3-button nav |
-| 1.5 pending (branch `release-1.5`) | nothing iOS-specific | R8 minify + shrink with Capacitor keep rules, `EdgeToEdge.enable`, version 10/1.5; checklist in `docs/NEXT_RELEASE_1.5.md` (sign-in, Plus purchase/restore, push, widget, QR, insets, dark mode) |
+| 1.5 (on `main`, not yet built) | Guided scanner camera via WKWebView getUserMedia (first time in the app: check the camera prompt and the live view on a real iPhone) | R8 minify + shrink with Capacitor keep rules, `EdgeToEdge.enable`, version 10/1.5; checklist in `docs/NEXT_RELEASE_1.5.md` (sign-in, Plus purchase/restore, push, widget, QR, insets, dark mode) |
 
-Play deadlines noted earlier: target API 36 before 1 Nov 2026 (done on `main`), DEX optimisation by Feb 2027 (in `release-1.5`).
+Play deadlines noted earlier: target API 36 before 1 Nov 2026 (done on `main`), DEX optimisation by Feb 2027 (R8 on `main` since 1.5).
 
 ## Features inventory
 
@@ -201,6 +201,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 | Date | Build | Change |
 | --- | --- | --- |
+| 29 Oct 2026 | App 1.5 prep | patternly-app `main`: `www/` = editor v640 (v634–v640 incl. guided scanner camera), `release-1.5` merged (R8 + edge-to-edge, versionCode 10 / 1.5), iOS MARKETING_VERSION 1.4 → 1.5, new `codemagic-ios.yml` + `store/codemagic.mjs` to start Codemagic `ios-release` from GitHub and report the result (needs `CODEMAGIC_API_TOKEN`) |
 | 29 Oct 2026 | Editor v640 | Scan tip: when someone picks a photo from the gallery for a key or chart page (phones and apps only), a small card suggests the scanner ("Take photo") instead, with Got it / Don't show again. Shown at most 3 times per device and 14 days apart; never for PDFs or desktop. Dark mode checked. Shipped with v638 (PR #6, merged 29 Oct) |
 | 29 Oct 2026 | Editor v638 | Scan Your Pattern guided scanner camera: on phones and in the apps, "Take photo" (chart pages and colour key) opens a live document-scanner view instead of the plain camera. Finds the page outline, warns live (too dark, glare, shadow, hold the phone straight, move closer, fit the whole page, hold still, focusing), captures automatically when everything is green for ~1 s (Auto can be switched off; round shutter always works), lets the person drag the corners, then straightens the page with a perspective warp and hands the flat JPEG to the existing reader. Chart pages: stays open for the next page and waits for the page to change before scanning again; "Done (n)". Phone light button where supported; "Use the camera app" fallback; camera-denied screen. Desktop unchanged. Tested with a simulated camera in Chromium (good / dark / shadow / tilted / far / blurred pages); not yet on a real iPhone or Android. PR #6 |
 | 29 Oct 2026 | Editor v639 | Scan key table: brand option renamed "Kit’s own numbers" (no brand name). With kit numbers each row's colour square is a colour picker (`.pls-lt-col`, sets `pg.swatches[i]`, keeps `glyph`), so a wrongly read colour can be fixed before converting; thread number, stitch count and remove-row were already editable. Dark mode for the table header/rows. (v638 is the guided camera, PR #6, built in parallel) |
@@ -242,7 +243,9 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 - [x] v631 (no Luca-S Shop links) copied to `patternly-app/www/` (27 Oct)
 - [x] v632 (landing carousels) copied to `patternly-app/www/` (27 Oct)
 - [ ] Decide whether the Account-page footnote link "Luca-S shop account ↗" should also be hidden in the apps
-- [ ] 1.5 app release: merge `release-1.5` into `main` (Claude), PC build → internal testing → tick the checklist → promote; iOS via Codemagic. Needed for in-app camera capture
+- [x] 1.5 prepared on app `main` (29 Oct): www = editor v640, `release-1.5` merged (Android 10 / 1.5), iOS MARKETING_VERSION 1.5, Codemagic bridge workflow added
+- [ ] 1.5 builds: iOS `ios-release` on Codemagic → TestFlight check → Claude creates App Store version 1.5 + submits (store request); Android PC build → internal testing → tick `docs/NEXT_RELEASE_1.5.md` → Cristian promotes
+- [ ] Optional: Cristian adds GitHub secret `CODEMAGIC_API_TOKEN` in patternly-app so Claude can start iOS builds and read their result
 - [ ] Grant lifetime Plus to Charly (add to `PLUS_CUSTOMERS`) and future influencers as they sign in
 - [ ] Shopify app scopes `read_products` / `write_products` still to be granted (needed for catalogue writes)
 - [ ] Android keystore + passwords as GitHub secrets if he ever wants Actions builds (currently builds on the PC by choice)
