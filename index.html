@@ -5412,7 +5412,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v634';
+window.PATTERNLY_BUILD='v635';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -33424,6 +33424,16 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     }
     return out;
   }
+  function resampleAvg(rgba, w, h, s) { // any factor s < 1, area average (colour charts)
+    const W = Math.max(1, Math.round(w * s)), H = Math.max(1, Math.round(h * s)), out = new Uint8ClampedArray(W * H * 4);
+    const sx = w / W, sy = h / H;
+    for (let y = 0; y < H; y++) { const y0 = Math.floor(y * sy), y1 = Math.max(y0 + 1, Math.floor((y + 1) * sy));
+      for (let x = 0; x < W; x++) { const x0 = Math.floor(x * sx), x1 = Math.max(x0 + 1, Math.floor((x + 1) * sx));
+        let r = 0, g = 0, b = 0, n = 0;
+        for (let v = y0; v < y1; v++) { let o = (v * w + x0) * 4; for (let u = x0; u < x1; u++, o += 4) { r += rgba[o]; g += rgba[o + 1]; b += rgba[o + 2]; n++; } }
+        const q = (y * W + x) * 4; out[q] = r / n; out[q + 1] = g / n; out[q + 2] = b / n; out[q + 3] = 255; } }
+    return { rgba: out, w: W, h: H, sx, sy };
+  }
   function downscale(rgba, w, h, f) { // integer factor; darkest-pixel pooling so 1px grid lines survive
     const W = Math.floor(w / f), H = Math.floor(h / f), out = new Uint8ClampedArray(W * H * 4);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -34177,6 +34187,10 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
 
   // ───────────────────────── top-level page pipeline ─────────────────────────
   // rgba full-res page photo. Returns {mesh (in the deskewed image's coords), rgba (deskewed), w, h, skew, scaleDown}
+  function scaleMesh(mesh, sx, sy) { // mesh found on a scaled copy → full-resolution coordinates
+    for (let i = 0; i < mesh.xs.length; i++) { mesh.xs[i] = (mesh.xs[i] + 0.5) * sx - 0.5; mesh.ys[i] = (mesh.ys[i] + 0.5) * sy - 0.5; }
+    mesh.pitch = [mesh.pitch[0] * sx, mesh.pitch[1] * sy];
+  }
   function analysePage(rgba, w, h, onProgress, opts) {
     opts = opts || {};
     const prog = p => onProgress && onProgress(p);
@@ -34194,11 +34208,17 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     // a chart printed in colour (cells filled with the thread colour) needs the periodicity grid finder
     const fill = opts.colour === undefined ? isColourChart(small.rgba, small.w, small.h) : (opts.colour ? 1 : 0), colour = fill >= 0.35;
     if (dbg) console.log('plscan: colour fill', fill.toFixed(2));
-    let mesh = (colour ? detectGridColour : detectGrid)(small.rgba, small.w, small.h, { debug: dbg });
-    if (!mesh && opts.colour === undefined) mesh = (colour ? detectGrid : detectGridColour)(small.rgba, small.w, small.h, { debug: dbg });
+    // darkest-pixel pooling keeps thin grid lines for ink charts but smears glyph ink across a
+    // colour chart's cells: the colour finder gets its own area-averaged copy at up to 2800 px
+    // (halving a sharp full-page scan leaves ~9 px cells, too small to lock on)
+    const CS = Math.min(1, 2800 / Math.max(fw, fh));
+    let avg = null; const colourIn = () => CS < 1 ? (avg || (avg = resampleAvg(full, fw, fh, CS))) : { rgba: full, w: fw, h: fh, sx: 1, sy: 1 };
+    const find = c => { if (!c) { const m = detectGrid(small.rgba, small.w, small.h, { debug: dbg }); if (m && f > 1) scaleMesh(m, f, f); return m; }
+      const s = colourIn(), m = detectGridColour(s.rgba, s.w, s.h, { debug: dbg }); if (m && s.sx !== 1) scaleMesh(m, s.sx, s.sy); return m; };
+    let mesh = find(colour);
+    if (!mesh && opts.colour === undefined) mesh = find(!colour);
     prog(0.6);
     if (!mesh) return { ok: false, reason: 'nogrid', skew };
-    if (f > 1) { for (let i = 0; i < mesh.xs.length; i++) { mesh.xs[i] = (mesh.xs[i] + 0.5) * f - 0.5; mesh.ys[i] = (mesh.ys[i] + 0.5) * f - 0.5; } mesh.pitch = [mesh.pitch[0] * f, mesh.pitch[1] * f]; }
     return { ok: true, mesh, rgba: full, w: fw, h: fh, skew, colour: !!mesh.colour, fill };
   }
 
