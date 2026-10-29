@@ -5415,7 +5415,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v639';
+window.PATTERNLY_BUILD='v640';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -36208,6 +36208,520 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
 
   window.qcOpen=open;
   window.qcClose=close;
+})();
+</script>
+
+<!-- Guided scanner camera (v638): live document-scanner view for Scan Your Pattern. Finds the page outline,
+     warns about light / angle / shadow / glare / blur, captures automatically when steady, straightens the page
+     (perspective correction) and hands a flat JPEG to the existing "Take photo" inputs (#pls-cam, .pls-legcam).
+     The phone camera app stays as a fallback. API: plCamOpen({multi, title, deliver(file)}), plCamClose(). -->
+<style id="plcam-style">
+.plcam{position:fixed;inset:0;z-index:9500;display:none;flex-direction:column;background:#0d0b10;color:#f4eef5;font-family:inherit;padding-top:var(--sa-top,0px);padding-bottom:var(--sa-bottom,0px);-webkit-user-select:none;user-select:none}
+body.plcam-open{overflow:hidden}
+body.plcam-open .plcam{display:flex}
+.plcam *{box-sizing:border-box}
+.plcam button{font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.plcam-top{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:.5rem;padding:.5rem .75rem;min-height:52px}
+.plcam-title{font-size:.95rem;font-weight:700;text-align:center;white-space:nowrap}
+.plcam-ib{width:40px;height:40px;border-radius:50%;border:none;background:rgba(255,255,255,.12);color:#fff;font-size:1.05rem;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.plcam-ib.on{background:#f5c96a;color:#2b2226}
+.plcam-ib[hidden]{display:none}
+.plcam-tr{justify-self:end;display:flex;gap:.5rem}
+.plcam-stage{position:relative;flex:1;min-height:0;overflow:hidden;touch-action:none}
+.plcam-stage video,.plcam-stage canvas{position:absolute;inset:0;width:100%;height:100%}
+.plcam-stage video{object-fit:contain;background:#000}
+.plcam-pill{position:absolute;left:12px;right:12px;top:12px;margin:0 auto;width:fit-content;max-width:calc(100% - 24px);display:flex;align-items:center;gap:.5rem;padding:.55rem .9rem;border-radius:999px;font-size:.9rem;font-weight:700;line-height:1.25;background:rgba(20,16,24,.82);color:#fff;box-shadow:0 4px 18px rgba(0,0,0,.35);transition:background .2s;text-align:center;pointer-events:none}
+.plcam-pill i{font-style:normal;font-size:1.05rem}
+.plcam-pill.warn{background:rgba(196,126,20,.94)}
+.plcam-pill.bad{background:rgba(176,40,58,.94)}
+.plcam-pill.info{background:rgba(52,88,160,.94)}
+.plcam-pill.good{background:rgba(40,128,76,.94)}
+.plcam-pill:empty{display:none}
+.plcam-err{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:.9rem;padding:1.5rem;text-align:center;font-size:.95rem;line-height:1.45}
+.plcam-err.on{display:flex}
+.plcam-err b{font-size:1.05rem}
+.plcam-bot{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:.5rem;padding:.7rem 1rem 1rem}
+.plcam-hint{grid-column:1/-1;text-align:center;font-size:.8rem;color:#c9bccd;min-height:1.1em;margin-bottom:.15rem}
+.plcam-left{justify-self:start;display:flex;flex-direction:column;align-items:flex-start;gap:.35rem}
+.plcam-right{justify-self:end}
+.plcam-shut{position:relative;width:74px;height:74px;border-radius:50%;border:4px solid #fff;background:transparent;cursor:pointer;padding:0}
+.plcam-shut::after{content:"";position:absolute;inset:5px;border-radius:50%;background:#fff;transition:transform .12s}
+.plcam-shut:active::after{transform:scale(.9)}
+.plcam-shut svg{position:absolute;inset:-4px;width:74px;height:74px;transform:rotate(-90deg);pointer-events:none}
+.plcam-shut svg circle{fill:none;stroke:#3fbf74;stroke-width:5;stroke-linecap:round}
+.plcam-shut:disabled{opacity:.5}
+.plcam-chip{display:inline-flex;align-items:center;gap:.4rem;border:none;border-radius:999px;background:rgba(255,255,255,.12);color:#fff;font-size:.8rem;font-weight:700;padding:.45rem .8rem;cursor:pointer;white-space:nowrap}
+.plcam-chip.on{background:#3a7d55}
+.plcam-chip.pri{background:#c8566a}
+.plcam-chip[hidden]{display:none}
+.plcam-alt{display:inline-flex;align-items:center;gap:.35rem;color:#c9bccd;font-size:.78rem;text-decoration:underline;cursor:pointer;background:none;border:none;padding:.2rem 0}
+.plcam-btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;border-radius:12px;font-size:.92rem;font-weight:700;padding:.75rem 1.2rem;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);background:transparent;color:#fff;white-space:nowrap}
+.plcam-btn.pri{background:#c8566a;border-color:#c8566a}
+.plcam-rev{display:none;flex-direction:column;gap:.6rem;padding:.7rem 1rem 1rem}
+.plcam-rev p{margin:0;text-align:center;font-size:.82rem;color:#c9bccd}
+.plcam-rev .row{display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap}
+.plcam.review .plcam-rev{display:flex}
+.plcam.review .plcam-bot,.plcam.review .plcam-pill,.plcam.review video{display:none}
+.plcam-busy{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(13,11,16,.6);font-weight:700}
+.plcam-busy.on{display:flex}
+.plcam-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .25s}
+.plcam-flash.on{opacity:.75;transition:none}
+.plcam-tip{position:fixed;left:12px;right:12px;bottom:calc(14px + var(--sa-bottom,0px));z-index:9400;margin:0 auto;max-width:440px;display:flex;gap:.7rem;align-items:flex-start;background:#fff;color:#2b2226;border:1px solid #efe3e6;border-radius:14px;padding:.85rem .95rem;box-shadow:0 10px 30px rgba(43,34,38,.18);font-size:.86rem;line-height:1.4;transform:translateY(130%);opacity:0;transition:transform .25s,opacity .25s}
+.plcam-tip.on{transform:none;opacity:1}
+.plcam-tip>span{font-size:1.3rem;line-height:1}
+.plcam-tip b{display:block;margin-bottom:.15rem}
+.plcam-tip .row{display:flex;gap:.5rem;margin-top:.55rem;flex-wrap:wrap}
+.plcam-tip button{font-family:inherit;font-size:.8rem;font-weight:700;border-radius:9px;padding:.42rem .8rem;cursor:pointer;border:1.5px solid #efe3e6;background:#fff;color:#2b2226;touch-action:manipulation}
+.plcam-tip button.pri{background:#8B1A2B;border-color:#8B1A2B;color:#fff}
+body.dark .plcam-tip{background:#221a2e;color:#f2ecf4;border-color:#3a2f47;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+body.dark .plcam-tip button{background:#2b2238;color:#f2ecf4;border-color:#3a2f47}
+body.dark .plcam-tip button.pri{background:#c8566a;border-color:#c8566a;color:#fff}
+@media (min-width:821px){.plcam-stage{margin:0 auto;width:min(100%,900px)}}
+</style>
+<div class="plcam" id="plcam" role="dialog" aria-modal="true" aria-label="Scan a page">
+  <div class="plcam-top">
+    <button type="button" class="plcam-ib" id="plcam-x" aria-label="Close">✕</button>
+    <div class="plcam-title" id="plcam-title">Scan page</div>
+    <div class="plcam-tr"><button type="button" class="plcam-ib" id="plcam-torch" aria-label="Light" title="Light" hidden>💡</button></div>
+  </div>
+  <div class="plcam-stage" id="plcam-stage">
+    <video id="plcam-video" playsinline muted autoplay></video>
+    <canvas id="plcam-ov"></canvas>
+    <div class="plcam-pill" id="plcam-pill"></div>
+    <div class="plcam-flash" id="plcam-flash"></div>
+    <div class="plcam-busy" id="plcam-busy">Straightening the page…</div>
+    <div class="plcam-err" id="plcam-err"></div>
+  </div>
+  <div class="plcam-bot">
+    <div class="plcam-hint" id="plcam-hint">Lay the page flat in good light. It is captured automatically when everything is green.</div>
+    <div class="plcam-left">
+      <button type="button" class="plcam-chip on" id="plcam-auto" aria-pressed="true">Auto ✓</button>
+      <label class="plcam-alt"><input type="file" accept="image/*" capture="environment" id="plcam-native" hidden>Use the camera app</label>
+    </div>
+    <button type="button" class="plcam-shut" id="plcam-shut" aria-label="Take the scan"><svg viewBox="0 0 74 74"><circle id="plcam-ring" cx="37" cy="37" r="34" stroke-dasharray="0 214" style="opacity:0"/></svg></button>
+    <div class="plcam-right"><button type="button" class="plcam-chip pri" id="plcam-done" hidden>Done</button></div>
+  </div>
+  <div class="plcam-rev">
+    <p id="plcam-revtxt">Drag the corners onto the page corners if they are off.</p>
+    <div class="row"><button type="button" class="plcam-btn" id="plcam-retake">Retake</button><button type="button" class="plcam-btn pri" id="plcam-use">Use this scan</button></div>
+  </div>
+</div>
+<script>
+(function(){
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const root = $('plcam'), video = $('plcam-video'), ov = $('plcam-ov'), stage = $('plcam-stage');
+  const C = { opts: null, stream: null, track: null, timer: 0, quad: null, okSince: 0, peak: 0, prevGray: null, auto: true, count: 0,
+              still: null, sq: null, drag: -1, torch: false, live: false, startedAt: 0, msg: null };
+  const AUTO_MS = 1100;            // everything green this long → capture
+  const TICK_MS = 110;
+
+  // ── geometry helpers ──────────────────────────────────────────────────────
+  const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  const tri = (a, b, c) => Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1])) / 2;
+  const polyArea = P => { let s = 0; for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length]; s += a[0] * b[1] - b[0] * a[1]; } return Math.abs(s) / 2; };
+  function hull(pts){
+    pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    const lo = [], up = [];
+    for (const p of pts) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+    for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+    lo.pop(); up.pop(); return lo.concat(up);
+  }
+  // drop near-collinear hull points (the row-extent staircase) so the corner search stays small
+  function simplify(H, tol){
+    let P = H.slice(), changed = true;
+    while (changed && P.length > 4) {
+      changed = false;
+      for (let i = 0; i < P.length && P.length > 4; i++) {
+        const a = P[(i + P.length - 1) % P.length], b = P[i], c = P[(i + 1) % P.length];
+        if (2 * tri(a, b, c) / Math.max(1e-6, dist(a, c)) < tol) { P.splice(i, 1); changed = true; i--; }
+      }
+    }
+    return P;
+  }
+  function maxQuad(P){ // largest-area quadrilateral with corners on the hull
+    const n = P.length; if (n < 4) return null;
+    let best = 0, Q = null;
+    for (let i = 0; i < n; i++) for (let k = i + 2; k < n; k++) {
+      let a1 = 0, j1 = -1; for (let j = i + 1; j < k; j++) { const a = tri(P[i], P[j], P[k]); if (a > a1) { a1 = a; j1 = j; } }
+      let a2 = 0, l1 = -1; for (let l = k + 1; l < n + i; l++) { const a = tri(P[k], P[l % n], P[i]); if (a > a2) { a2 = a; l1 = l % n; } }
+      if (j1 >= 0 && l1 >= 0 && a1 + a2 > best) { best = a1 + a2; Q = [P[i], P[j1], P[k], P[l1]]; }
+    }
+    return Q;
+  }
+  function orderQuad(Q){ // → [top-left, top-right, bottom-right, bottom-left]
+    const cx = Q.reduce((s, p) => s + p[0], 0) / 4, cy = Q.reduce((s, p) => s + p[1], 0) / 4;
+    const S = Q.slice().sort((a, b) => Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx));
+    let s0 = 0; for (let i = 1; i < 4; i++) if (S[i][0] + S[i][1] < S[s0][0] + S[s0][1]) s0 = i;
+    return [0, 1, 2, 3].map(i => S[(s0 + i) % 4].slice());
+  }
+  // homography mapping the unit square (0,0)(1,0)(1,1)(0,1) onto quad q
+  function squareToQuad(q){
+    const [x0, y0] = q[0], [x1, y1] = q[1], [x2, y2] = q[2], [x3, y3] = q[3];
+    const dx1 = x1 - x2, dx2 = x3 - x2, dy1 = y1 - y2, dy2 = y3 - y2, sx = x0 - x1 + x2 - x3, sy = y0 - y1 + y2 - y3;
+    let g = 0, h = 0;
+    if (Math.abs(sx) > 1e-9 || Math.abs(sy) > 1e-9) { const den = dx1 * dy2 - dx2 * dy1; g = (sx * dy2 - dx2 * sy) / den; h = (dx1 * sy - sx * dy1) / den; }
+    return [x1 - x0 + g * x1, x3 - x0 + h * x3, x0, y1 - y0 + g * y1, y3 - y0 + h * y3, y0, g, h];
+  }
+
+  // ── frame analysis ────────────────────────────────────────────────────────
+  const small = document.createElement('canvas'), sg = small.getContext('2d', { willReadFrequently: true });
+  const crop = document.createElement('canvas'), cg = crop.getContext('2d', { willReadFrequently: true });
+  function blur(src, w, h){ // two 3-tap box passes
+    const t = new Float32Array(w * h), o = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) { const r = y * w; for (let x = 0; x < w; x++) t[r + x] = (src[r + Math.max(0, x - 1)] + src[r + x] + src[r + Math.min(w - 1, x + 1)]) / 3; }
+    for (let y = 0; y < h; y++) { const u = Math.max(0, y - 1) * w, d = Math.min(h - 1, y + 1) * w, r = y * w; for (let x = 0; x < w; x++) o[r + x] = (t[u + x] + t[r + x] + t[d + x]) / 3; }
+    return o;
+  }
+  function otsu(g){
+    const hist = new Float64Array(256); for (let i = 0; i < g.length; i++) hist[g[i] | 0]++;
+    let sum = 0; for (let i = 0; i < 256; i++) sum += i * hist[i];
+    let wB = 0, sB = 0, best = -1, th = 128; const N = g.length;
+    for (let t = 0; t < 256; t++) { wB += hist[t]; if (!wB) continue; const wF = N - wB; if (!wF) break; sB += t * hist[t]; const mB = sB / wB, mF = (sum - sB) / wF, v = wB * wF * (mB - mF) * (mB - mF); if (v > best) { best = v; th = t; } }
+    let nB = 0, nF = 0, mB = 0, mF = 0; for (let i = 0; i < N; i++) { if (g[i] > th) { nF++; mF += g[i]; } else { nB++; mB += g[i]; } }
+    mB = nB ? mB / nB : 0; mF = nF ? mF / nF : 0;
+    return { th, mB, gap: mF - mB };
+  }
+  // the page = the largest bright blob whose outline is four-sided
+  function blobQuad(g, w, h, th, lab, stack){
+    lab.fill(0); let bestN = 0, bestL = 0, L = 0;
+    for (let s = 0; s < w * h; s++) {
+      if (lab[s] || g[s] <= th) continue;
+      L++; let sp = 0, n = 0; stack[sp++] = s; lab[s] = L;
+      while (sp) { const p = stack[--sp]; n++; const x = p % w;
+        if (x > 0 && !lab[p - 1] && g[p - 1] > th) { lab[p - 1] = L; stack[sp++] = p - 1; }
+        if (x < w - 1 && !lab[p + 1] && g[p + 1] > th) { lab[p + 1] = L; stack[sp++] = p + 1; }
+        if (p >= w && !lab[p - w] && g[p - w] > th) { lab[p - w] = L; stack[sp++] = p - w; }
+        if (p < w * (h - 1) && !lab[p + w] && g[p + w] > th) { lab[p + w] = L; stack[sp++] = p + w; } }
+      if (n > bestN) { bestN = n; bestL = L; }
+    }
+    if (bestN < w * h * 0.06) return { why: 'small' };
+    const pts = [];
+    for (let y = 0; y < h; y++) { let a = -1, b = -1; const r = y * w; for (let x = 0; x < w; x++) if (lab[r + x] === bestL) { if (a < 0) a = x; b = x; } if (a >= 0) pts.push([a, y], [b + 1, y], [a, y + 1], [b + 1, y + 1]); }
+    const H = simplify(hull(pts), Math.max(1, w / 160));
+    const Q0 = maxQuad(H); if (!Q0) return { why: 'shape' };
+    const q = orderQuad(Q0), qa = polyArea(q), fit = qa / Math.max(1, polyArea(H));
+    if (fit < 0.88) return { why: 'shape', fit };
+    const m = 2, edge = q.filter(p => p[0] <= m || p[1] <= m || p[0] >= w - m || p[1] >= h - m).length;
+    return { q, area: qa / (w * h), edge, full: qa > w * h * 0.93, fit };
+  }
+  function findPage(g, w, h){
+    const o = otsu(g); if (o.gap < 28) return { why: 'contrast' };
+    const lab = new Int32Array(w * h), stack = new Int32Array(w * h);
+    // a shadow can split the paper at the Otsu level: retry closer to the background's brightness
+    let first = null;
+    for (const f of [1, 0.6, 0.35]) {
+      const r = blobQuad(g, w, h, o.mB + (o.th - o.mB) * f, lab, stack);
+      if (!first) first = r;
+      if (r.q && !r.full) return r;
+    }
+    return first;
+  }
+  // light, shadow, glare: the brightest pixels of each ninth of the page are paper (or the palest stitches),
+  // so a shadow shows up as one ninth whose brightest part is much darker than the others'
+  function lightCheck(g, rgba, w, h, q){
+    const H = squareToQuad(q), at = (u, v) => { const d = H[6] * u + H[7] * v + 1; return [(H[0] * u + H[1] * v + H[2]) / d, (H[3] * u + H[4] * v + H[5]) / d]; };
+    const spots = [], N = 14; let sat = 0, tot = 0;
+    for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) {
+      const vals = [];
+      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+        const [x, y] = at((a + (i + 0.5) / N) / 3 * 0.96 + 0.02, (b + (j + 0.5) / N) / 3 * 0.96 + 0.02); const xi = Math.round(x), yi = Math.round(y);
+        if (xi < 0 || yi < 0 || xi >= w || yi >= h) continue; const p = yi * w + xi; vals.push(g[p]);
+        tot++; if (rgba[p * 4] >= 250 && rgba[p * 4 + 1] >= 250 && rgba[p * 4 + 2] >= 250) sat++;
+      }
+      vals.sort((x, y) => x - y); if (vals.length) spots.push(vals[Math.floor(vals.length * 0.96)]);
+    }
+    spots.sort((x, y) => x - y);
+    const paper = spots.length ? spots[Math.floor(spots.length / 2)] : 0, lo = spots[0] || 0, hi = spots[spots.length - 1] || 1;
+    return { paper, even: lo / Math.max(1, hi), glare: tot ? sat / tot : 0 };
+  }
+  // focus: contrast-normalised gradient energy on a crop of the full-resolution frame, sized to a fifth of
+  // the page so the number means the same at any distance (what matters is how crisp the cells are)
+  function sharpness(cx, cy, side){
+    const vw = video.videoWidth, vh = video.videoHeight, S = 224, src = Math.max(96, Math.min(Math.round(side), vw, vh));
+    const sx = Math.max(0, Math.min(vw - src, Math.round(cx - src / 2))), sy = Math.max(0, Math.min(vh - src, Math.round(cy - src / 2)));
+    const n = Math.min(S, src); crop.width = n; crop.height = n; cg.drawImage(video, sx, sy, src, src, 0, 0, n, n);
+    const d = cg.getImageData(0, 0, n, n).data, g = new Float32Array(n * n); let mean = 0;
+    for (let i = 0; i < n * n; i++) { g[i] = (d[i * 4] * 77 + d[i * 4 + 1] * 150 + d[i * 4 + 2] * 29) / 256; mean += g[i]; }
+    mean /= n * n; let v = 0, e = 0;
+    for (let y = 1; y < n - 1; y++) for (let x = 1; x < n - 1; x++) { const p = y * n + x, gx = g[p + 1] - g[p - 1], gy = g[p + n] - g[p - n]; e += gx * gx + gy * gy; const dd = g[p] - mean; v += dd * dd; }
+    return v < 1 ? 0 : e / v;
+  }
+  function analyse(){
+    const vw = video.videoWidth, vh = video.videoHeight; if (!vw || !vh) return null;
+    const k = 240 / Math.max(vw, vh), w = Math.round(vw * k), h = Math.round(vh * k);
+    small.width = w; small.height = h; sg.drawImage(video, 0, 0, w, h);
+    const rgba = sg.getImageData(0, 0, w, h).data, raw = new Float32Array(w * h);
+    for (let i = 0; i < w * h; i++) raw[i] = (rgba[i * 4] * 77 + rgba[i * 4 + 1] * 150 + rgba[i * 4 + 2] * 29) / 256;
+    const g = blur(raw, w, h);
+    let motion = 0; if (C.prevGray && C.prevGray.length === g.length) { for (let i = 0; i < g.length; i += 3) motion += Math.abs(g[i] - C.prevGray[i]); motion /= g.length / 3; }
+    C.prevGray = g;
+    if (C.lastGray && C.lastGray.length === g.length) { let d = 0; for (let i = 0; i < g.length; i += 3) d += Math.abs(g[i] - C.lastGray[i]); if (d / (g.length / 3) > 14) C.lastGray = null; }
+    const pg = findPage(g, w, h);
+    const r = { k, w, h, motion, page: pg };
+    if (pg.q) {
+      // smooth the outline over frames so it does not jitter
+      if (C.quad && C.quad.k === k && pg.q.every((p, i) => dist(p, C.quad.q[i]) < w * 0.06)) pg.q = pg.q.map((p, i) => [C.quad.q[i][0] * 0.5 + p[0] * 0.5, C.quad.q[i][1] * 0.5 + p[1] * 0.5]);
+      C.quad = { q: pg.q, k, w, h };
+      r.light = lightCheck(g, rgba, w, h, pg.q);
+      const cx = pg.q.reduce((s, p) => s + p[0], 0) / 4 / k, cy = pg.q.reduce((s, p) => s + p[1], 0) / 4 / k;
+      r.sharp = sharpness(cx, cy, Math.min(dist(pg.q[0], pg.q[1]), dist(pg.q[0], pg.q[3])) / k / 5);
+      C.peak = Math.max(r.sharp, C.peak * 0.985);
+      const sides = [dist(pg.q[0], pg.q[1]), dist(pg.q[1], pg.q[2]), dist(pg.q[2], pg.q[3]), dist(pg.q[3], pg.q[0])];
+      r.tb = Math.min(sides[0], sides[2]) / Math.max(sides[0], sides[2]);
+      r.lr = Math.min(sides[1], sides[3]) / Math.max(sides[1], sides[3]);
+      r.topSmall = sides[0] < sides[2]; r.leftSmall = sides[3] < sides[1];
+    } else C.quad = null;
+    return r;
+  }
+  // first failing check wins: the person fixes one thing at a time
+  function verdict(r){
+    const p = r.page;
+    if (C.lastGray) return { lv: 'info', ic: '📄', t: 'Now put the next page under the camera', h: 'The scan starts again when the page changes. Tap Done when all pages are in.' };
+    if (!p.q) {
+      if (p.why === 'contrast') return { lv: 'bad', ic: '🔍', t: 'Can’t see the page edges', h: 'Put the page on a darker surface so its edges stand out.' };
+      return { lv: 'bad', ic: '🔍', t: 'Looking for the page…', h: 'Hold the phone above the whole page.' };
+    }
+    if (p.full) return { lv: 'warn', ic: '↔', t: 'Move back a little', h: 'All four page corners need to be in view — or put the page on a darker surface.' };
+    if (p.edge >= 1) return { lv: 'warn', ic: '↔', t: 'Fit the whole page in view', h: 'Move back until all four corners are inside the picture.' };
+    if (r.light.paper < 100) return { lv: 'bad', ic: '💡', t: 'Too dark — add more light', h: C.track && hasTorch() ? 'Turn on a lamp or tap 💡 for the phone light.' : 'Turn on a lamp or move near a window.' };
+    if (r.light.glare > 0.035 && r.light.paper < 232) return { lv: 'warn', ic: '✨', t: 'Glare on the page', h: 'Move away from the lamp or tilt the page slightly.' };
+    if (r.light.even < 0.6) return { lv: 'warn', ic: '🌗', t: 'Shadow on the page', h: 'Keep your hand and phone’s shadow off the page, or move the light.' };
+    if (r.tb < 0.86 || r.lr < 0.86) return { lv: 'warn', ic: '📐', t: 'Hold the phone straight above the page', h: (r.tb < r.lr ? (r.topSmall ? 'The top of the page is farther away — move the phone towards the top of the page.' : 'The bottom of the page is farther away — move the phone towards the bottom of the page.') : (r.leftSmall ? 'The left side is farther away — move the phone to the left.' : 'The right side is farther away — move the phone to the right.')) };
+    if (p.area < 0.28) return { lv: 'warn', ic: '🔎', t: 'Move closer', h: 'Let the page fill most of the picture.' };
+    if (r.motion > 7) return { lv: 'warn', ic: '✋', t: 'Hold still', h: 'Keep the phone steady for a moment.' };
+    if (r.sharp < C.peak * 0.6 || r.sharp < 0.1) return { lv: 'warn', ic: '◎', t: 'Focusing… hold still', h: 'Tap the screen to focus if it stays blurry.' };
+    return { lv: 'good', ic: '✓', t: C.auto ? 'Hold still — scanning' : 'Looks good — tap the button', h: '' };
+  }
+
+  // ── drawing ───────────────────────────────────────────────────────────────
+  function fitRect(sw, sh){ // where a sw×sh image sits inside the stage (object-fit: contain)
+    const W = stage.clientWidth, Hh = stage.clientHeight, s = Math.min(W / sw, Hh / sh);
+    return { x: (W - sw * s) / 2, y: (Hh - sh * s) / 2, s };
+  }
+  function sizeOverlay(){
+    const dpr = window.devicePixelRatio || 1, W = stage.clientWidth, Hh = stage.clientHeight;
+    if (ov.width !== Math.round(W * dpr) || ov.height !== Math.round(Hh * dpr)) { ov.width = Math.round(W * dpr); ov.height = Math.round(Hh * dpr); }
+    const g = ov.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, Hh); return g;
+  }
+  function drawQuad(g, q, fr, col, fill){
+    g.beginPath(); q.forEach((p, i) => { const x = fr.x + p[0] * fr.s, y = fr.y + p[1] * fr.s; i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.closePath();
+    if (fill) { g.fillStyle = fill; g.fill(); }
+    g.lineWidth = 3; g.lineJoin = 'round'; g.strokeStyle = col; g.stroke();
+  }
+  function drawLive(r, v){
+    const g = sizeOverlay(); if (!r || !r.page.q) return;
+    const fr = fitRect(video.videoWidth, video.videoHeight), q = r.page.q.map(p => [p[0] / r.k, p[1] / r.k]);
+    const col = v.lv === 'good' ? '#3fbf74' : v.lv === 'warn' ? '#f2b33d' : v.lv === 'info' ? '#7fa4e8' : '#e2546a';
+    drawQuad(g, q, fr, col, v.lv === 'good' ? 'rgba(63,191,116,.16)' : 'rgba(242,179,61,.10)');
+    g.fillStyle = col; q.forEach(p => { g.beginPath(); g.arc(fr.x + p[0] * fr.s, fr.y + p[1] * fr.s, 6, 0, Math.PI * 2); g.fill(); });
+  }
+  function setMsg(v){
+    const key = v.lv + v.t; if (C.msg === key) return; C.msg = key;
+    const pill = $('plcam-pill'); pill.className = 'plcam-pill ' + v.lv; pill.innerHTML = '<i>' + v.ic + '</i><span>' + v.t + '</span>';
+    $('plcam-hint').textContent = v.h || (C.auto ? 'Captured automatically when the outline turns green.' : 'Tap the round button to take the scan.');
+  }
+  function ring(f){ const r = $('plcam-ring'); f = Math.max(0, Math.min(1, f)); r.setAttribute('stroke-dasharray', (214 * f).toFixed(1) + ' 214'); r.style.opacity = f > 0 ? 1 : 0; }
+
+  // ── live loop ─────────────────────────────────────────────────────────────
+  function tick(){
+    C.timer = 0; if (!C.live) return;
+    let r = null; try { r = analyse(); } catch (e) { console.warn('[plcam]', e); }
+    C.last = r;
+    if (r) {
+      const v = verdict(r); setMsg(v); drawLive(r, v);
+      const now = performance.now();
+      if (v.lv === 'good' && now - C.startedAt > 900) { if (!C.okSince) C.okSince = now; } else C.okSince = 0;
+      ring(C.auto && C.okSince ? (now - C.okSince) / AUTO_MS : 0);
+      if (C.auto && C.okSince && now - C.okSince >= AUTO_MS) { C.okSince = 0; ring(0); capture(); return; }
+    }
+    C.timer = setTimeout(tick, TICK_MS);
+  }
+  function hasTorch(){ try { const c = C.track && C.track.getCapabilities && C.track.getCapabilities(); return !!(c && c.torch); } catch (e) { return false; } }
+  async function startCamera(){
+    stopCamera(); showErr('');
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { showErr('nosupport'); return; }
+    try {
+      C.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 4032 }, height: { ideal: 3024 } } });
+    } catch (e) {
+      try { C.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' } } }); }
+      catch (e2) { showErr(e2 && (e2.name === 'NotAllowedError' || e2.name === 'SecurityError') ? 'denied' : 'nocam'); return; }
+    }
+    if (!document.body.classList.contains('plcam-open')) { stopCamera(); return; }
+    C.track = C.stream.getVideoTracks()[0];
+    try { const c = C.track.getCapabilities ? C.track.getCapabilities() : {}; if (c.focusMode && c.focusMode.includes('continuous')) await C.track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch (e) {}
+    video.srcObject = C.stream; try { await video.play(); } catch (e) {}
+    $('plcam-torch').hidden = !hasTorch(); C.torch = false; $('plcam-torch').classList.remove('on');
+    C.live = true; C.startedAt = performance.now(); C.peak = 0; C.prevGray = null; C.quad = null; C.msg = null; C.okSince = 0;
+    if (!C.timer) C.timer = setTimeout(tick, 250);
+  }
+  function stopCamera(){
+    C.live = false; if (C.timer) { clearTimeout(C.timer); C.timer = 0; }
+    if (C.stream) C.stream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
+    C.stream = null; C.track = null; try { video.srcObject = null; } catch (e) {}
+  }
+  function showErr(kind){
+    const el = $('plcam-err'); if (!kind) { el.classList.remove('on'); el.innerHTML = ''; return; }
+    const txt = kind === 'denied' ? '<b>Camera access is off</b><span>Allow the camera for Patternly in your phone’s Settings, then try again. You can also use the camera app.</span>'
+      : kind === 'nosupport' ? '<b>Live scanning isn’t available here</b><span>Use the camera app instead — it works the same, without the live guide.</span>'
+      : '<b>The camera didn’t start</b><span>Another app may be using it. Try again, or use the camera app.</span>';
+    el.innerHTML = txt + '<div style="display:flex;gap:.6rem;flex-wrap:wrap;justify-content:center"><button type="button" class="plcam-btn" id="plcam-again">Try again</button><button type="button" class="plcam-btn pri" id="plcam-app">Use the camera app</button></div>';
+    el.classList.add('on'); $('plcam-pill').innerHTML = ''; C.msg = null;
+    $('plcam-again').onclick = startCamera; $('plcam-app').onclick = () => $('plcam-native').click();
+  }
+
+  // ── capture → review → straighten ─────────────────────────────────────────
+  function capture(){
+    const vw = video.videoWidth, vh = video.videoHeight; if (!vw || !C.live) return;
+    const cv = document.createElement('canvas'); cv.width = vw; cv.height = vh; cv.getContext('2d').drawImage(video, 0, 0, vw, vh);
+    const f = $('plcam-flash'); f.classList.add('on'); setTimeout(() => f.classList.remove('on'), 60);
+    if (navigator.vibrate) try { navigator.vibrate(30); } catch (e) {}
+    let q;
+    if (C.quad) { // outline found: scale up and push each corner ~1% outwards so no stitch is cut off
+      const k = C.quad.k, cx = C.quad.q.reduce((s, p) => s + p[0], 0) / 4 / k, cy = C.quad.q.reduce((s, p) => s + p[1], 0) / 4 / k;
+      q = C.quad.q.map(p => { const x = p[0] / k, y = p[1] / k; return [Math.max(0, Math.min(vw, cx + (x - cx) * 1.012)), Math.max(0, Math.min(vh, cy + (y - cy) * 1.012))]; });
+    } else q = [[0, 0], [vw, 0], [vw, vh], [0, vh]];
+    C.lastGray = C.opts.multi ? C.prevGray : null;
+    stopCamera();
+    C.still = cv; C.sq = q; root.classList.add('review'); drawReview();
+  }
+  function drawReview(){
+    const g = sizeOverlay(), cv = C.still; if (!cv) return;
+    const fr = fitRect(cv.width, cv.height); g.drawImage(cv, fr.x, fr.y, cv.width * fr.s, cv.height * fr.s);
+    g.save(); g.fillStyle = 'rgba(0,0,0,.45)'; g.beginPath(); g.rect(fr.x, fr.y, cv.width * fr.s, cv.height * fr.s);
+    C.sq.slice().reverse().forEach((p, i) => { const x = fr.x + p[0] * fr.s, y = fr.y + p[1] * fr.s; i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.closePath(); g.fill('evenodd'); g.restore();
+    drawQuad(g, C.sq, fr, '#3fbf74');
+    C.sq.forEach((p, i) => { const x = fr.x + p[0] * fr.s, y = fr.y + p[1] * fr.s; g.beginPath(); g.arc(x, y, i === C.drag ? 16 : 13, 0, Math.PI * 2); g.fillStyle = 'rgba(63,191,116,.35)'; g.fill(); g.lineWidth = 3; g.strokeStyle = '#fff'; g.stroke(); });
+  }
+  function stagePt(e){ const r = stage.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+  stage.addEventListener('pointerdown', e => {
+    if (!root.classList.contains('review') || !C.still) { // live view: tap to focus where possible
+      try { if (C.track && C.track.getCapabilities && (C.track.getCapabilities().focusMode || []).includes('single-shot')) C.track.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] }).then(() => C.track && C.track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] })).catch(() => {}); } catch (e2) {}
+      return;
+    }
+    const fr = fitRect(C.still.width, C.still.height), [x, y] = stagePt(e);
+    let bi = -1, bd = 44; C.sq.forEach((p, i) => { const d = Math.hypot(fr.x + p[0] * fr.s - x, fr.y + p[1] * fr.s - y); if (d < bd) { bd = d; bi = i; } });
+    if (bi < 0) return; C.drag = bi; try { stage.setPointerCapture(e.pointerId); } catch (e2) {} e.preventDefault(); drawReview();
+  });
+  stage.addEventListener('pointermove', e => {
+    if (C.drag < 0 || !C.still) return; const fr = fitRect(C.still.width, C.still.height), [x, y] = stagePt(e);
+    C.sq[C.drag] = [Math.max(0, Math.min(C.still.width, (x - fr.x) / fr.s)), Math.max(0, Math.min(C.still.height, (y - fr.y) / fr.s))]; drawReview();
+  });
+  const endDrag = () => { if (C.drag >= 0) { C.drag = -1; drawReview(); } };
+  stage.addEventListener('pointerup', endDrag); stage.addEventListener('pointercancel', endDrag);
+
+  // perspective-correct the quad into a flat page (bilinear sampling)
+  function straighten(cv, quad){
+    const q = orderQuad(quad);
+    let W = Math.round(Math.max(dist(q[0], q[1]), dist(q[3], q[2]))), H = Math.round(Math.max(dist(q[0], q[3]), dist(q[1], q[2])));
+    const cap = 4000 / Math.max(W, H); if (cap < 1) { W = Math.round(W * cap); H = Math.round(H * cap); }
+    const sw = cv.width, sh = cv.height, src = cv.getContext('2d').getImageData(0, 0, sw, sh).data;
+    const out = document.createElement('canvas'); out.width = W; out.height = H;
+    const og = out.getContext('2d'), od = og.createImageData(W, H), d = od.data, M = squareToQuad(q);
+    for (let y = 0; y < H; y++) {
+      const v = (y + 0.5) / H;
+      for (let x = 0; x < W; x++) {
+        const u = (x + 0.5) / W, den = M[6] * u + M[7] * v + 1;
+        let fx = (M[0] * u + M[1] * v + M[2]) / den - 0.5, fy = (M[3] * u + M[4] * v + M[5]) / den - 0.5;
+        if (fx < 0) fx = 0; if (fy < 0) fy = 0; if (fx > sw - 1.001) fx = sw - 1.001; if (fy > sh - 1.001) fy = sh - 1.001;
+        const x0 = fx | 0, y0 = fy | 0, ax = fx - x0, ay = fy - y0, p = (y0 * sw + x0) * 4, p2 = p + sw * 4, o = (y * W + x) * 4;
+        for (let c = 0; c < 3; c++) { const t = src[p + c] + (src[p + 4 + c] - src[p + c]) * ax, b = src[p2 + c] + (src[p2 + 4 + c] - src[p2 + c]) * ax; d[o + c] = t + (b - t) * ay; }
+        d[o + 3] = 255;
+      }
+    }
+    og.putImageData(od, 0, 0); return out;
+  }
+  function deliverCanvas(cv){
+    return new Promise(res => cv.toBlob(b => res(b), 'image/jpeg', 0.93)).then(b => {
+      if (!b) return; const file = new File([b], 'scan-' + Date.now() + '.jpg', { type: 'image/jpeg' });
+      try { C.opts.deliver(file); } catch (e) { console.warn('[plcam] deliver', e); }
+    });
+  }
+  async function useScan(){
+    if (!C.still) return; $('plcam-busy').classList.add('on');
+    await new Promise(r => setTimeout(r, 30));
+    try { await deliverCanvas(straighten(C.still, C.sq)); } catch (e) { console.warn('[plcam]', e); try { await deliverCanvas(C.still); } catch (e2) {} }
+    $('plcam-busy').classList.remove('on'); C.still = null; C.count++;
+    if (C.opts.multi) { root.classList.remove('review'); updateTitle(); startCamera(); }
+    else close();
+  }
+  function updateTitle(){
+    $('plcam-title').textContent = C.opts.multi ? 'Chart page ' + (C.opts.first + C.count) : (C.opts.title || 'Scan page');
+    $('plcam-done').hidden = !(C.opts.multi && C.count > 0);
+    if (C.opts.multi && C.count > 0) $('plcam-done').textContent = 'Done (' + C.count + ')';
+    $('plcam-use').textContent = C.opts.multi ? 'Use · next page' : 'Use this scan';
+  }
+
+  // ── open / close ──────────────────────────────────────────────────────────
+  function open(opts){
+    C.opts = Object.assign({ multi: false, title: 'Scan page', first: 1, deliver: () => {} }, opts || {});
+    C.count = 0; C.still = null; C.lastGray = null; root.classList.remove('review'); updateTitle();
+    document.body.classList.add('plcam-open'); startCamera();
+  }
+  function close(){ stopCamera(); C.still = null; root.classList.remove('review'); document.body.classList.remove('plcam-open'); sizeOverlay(); }
+  $('plcam-x').onclick = close;
+  $('plcam-done').onclick = close;
+  $('plcam-shut').onclick = () => { if (C.live) capture(); };
+  $('plcam-retake').onclick = () => { C.still = null; C.lastGray = null; root.classList.remove('review'); startCamera(); };
+  $('plcam-use').onclick = useScan;
+  $('plcam-auto').onclick = () => { C.auto = !C.auto; const b = $('plcam-auto'); b.classList.toggle('on', C.auto); b.setAttribute('aria-pressed', C.auto); b.textContent = C.auto ? 'Auto ✓' : 'Auto off'; C.msg = null; C.okSince = 0; ring(0); try { localStorage.setItem('patternly_scan_auto', C.auto ? '1' : '0'); } catch (e) {} };
+  try { if (localStorage.getItem('patternly_scan_auto') === '0') $('plcam-auto').click(); } catch (e) {}
+  $('plcam-torch').onclick = async () => { if (!C.track) return; C.torch = !C.torch; try { await C.track.applyConstraints({ advanced: [{ torch: C.torch }] }); } catch (e) { C.torch = false; } $('plcam-torch').classList.toggle('on', C.torch); };
+  $('plcam-native').onchange = e => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return; try { C.opts.deliver(f); } catch (e2) {} C.count++; if (C.opts.multi) updateTitle(); else close(); };
+  document.addEventListener('visibilitychange', () => { if (!document.body.classList.contains('plcam-open') || root.classList.contains('review')) return; if (document.hidden) stopCamera(); else startCamera(); });
+  window.addEventListener('resize', () => { if (!document.body.classList.contains('plcam-open')) return; if (root.classList.contains('review')) drawReview(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('plcam-open')) close(); });
+
+  // ── hook into Scan Your Pattern's "Take photo" buttons ────────────────────
+  // Phones and the apps get the live scanner; desktops keep the file picker. The picked file reaches the
+  // scan UI through the original <input>, so its own handlers (addFiles / legendFile) stay the only path.
+  function wanted(){
+    try {
+      if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) || typeof DataTransfer !== 'function' || window.isSecureContext === false) return false;
+      return (typeof plIsApp === 'function' && plIsApp()) || (window.matchMedia && window.matchMedia('(pointer:coarse)').matches);
+    } catch (e) { return false; }
+  }
+  let feeding = false;
+  function feed(sel, file){
+    const inp = document.querySelector(sel); if (!inp) return;
+    const dt = new DataTransfer(); dt.items.add(file); inp.files = dt.files;
+    feeding = true; try { inp.dispatchEvent(new Event('change', { bubbles: true })); } finally { feeding = false; }
+  }
+  // A photo picked from the gallery instead of scanned: suggest the scanner, but rarely — the first time,
+  // then at most once a fortnight and three times in all, never after "Don't show again". PDFs are scans already.
+  const TIP_KEY = 'patternly_scan_tip';
+  function tipState(){ try { return JSON.parse(localStorage.getItem(TIP_KEY) || '{}') || {}; } catch (e) { return {}; } }
+  function tipSave(st){ try { localStorage.setItem(TIP_KEY, JSON.stringify(st)); } catch (e) {} }
+  function maybeTip(files){
+    if (!wanted() || !files || !Array.from(files).some(f => /^image\//.test(f.type || '') || /\.(jpe?g|png|heic|heif|webp)$/i.test(f.name || ''))) return;
+    const st = tipState(), now = Date.now();
+    if (st.off || (st.n || 0) >= 3 || (st.last && now - st.last < 14 * 864e5)) return;
+    tipSave({ n: (st.n || 0) + 1, last: now });
+    let el = $('plcam-tip');
+    if (!el) { el = document.createElement('div'); el.id = 'plcam-tip'; el.className = 'plcam-tip'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+    el.innerHTML = '<span>📷</span><div><b>Tip: scan instead of uploading a photo</b>“Take photo” opens the scanner: it finds the page, checks the light and angle and straightens the page, so more stitches are read correctly.'
+      + '<div class="row"><button type="button" class="pri" data-t="ok">Got it</button><button type="button" data-t="off">Don’t show again</button></div></div>';
+    const hide = () => { el.classList.remove('on'); clearTimeout(el._t); };
+    el.querySelector('[data-t="ok"]').onclick = hide;
+    el.querySelector('[data-t="off"]').onclick = () => { const s2 = tipState(); s2.off = true; tipSave(s2); hide(); };
+    requestAnimationFrame(() => el.classList.add('on')); clearTimeout(el._t); el._t = setTimeout(hide, 15000);
+  }
+  document.addEventListener('change', e => {
+    const t = e.target; if (feeding || !t || !t.matches || !t.matches('#pls-pick, .pls-legpick')) return;
+    maybeTip(t.files);
+  }, true);
+  document.addEventListener('click', e => {
+    const lab = e.target.closest && e.target.closest('label.pls-add'); if (!lab) return;
+    const inp = lab.querySelector('#pls-cam, .pls-legcam'); if (!inp || !wanted()) return;
+    e.preventDefault(); e.stopPropagation();
+    if (inp.id === 'pls-cam') open({ multi: true, first: document.querySelectorAll('#trk-scan .pls-page').length + 1, deliver: f => feed('#pls-cam', f) });
+    else open({ multi: false, title: 'Colour key', deliver: f => feed('.pls-legcam', f) });
+  }, true);
+
+  window.plCamOpen = open;
+  window.plCamClose = close;
+  window.plCamDebug = () => C.last && { motion: C.last.motion, page: C.last.page && { area: C.last.page.area, edge: C.last.page.edge, why: C.last.page.why }, light: C.last.light, sharp: C.last.sharp, peak: C.peak, tb: C.last.tb, lr: C.last.lr };
 })();
 </script>
 
