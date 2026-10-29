@@ -37,7 +37,7 @@ Two GitHub repos under the **Patternly** organisation are the source of truth; C
 
 ## Code map
 
-Current versions: **editor v640** (PR #6 branch preview; main is v639), **middleware v101**, **Studio v51**, app **1.4** (iOS build 3 / Android versionCode 9), `release-1.5` branch = version 10 / 1.5. Every build bumps its version constant; never re-issue a version with different contents.
+Current versions: **editor v640** (live on the website; not yet copied to patternly-app `www/`), **middleware v101**, **Studio v51**, app **1.4** (iOS build 3 / Android versionCode 9), `release-1.5` branch = version 10 / 1.5. Every build bumps its version constant; never re-issue a version with different contents.
 
 | File | Size | What it is | Version constant |
 | --- | --- | --- | --- |
@@ -201,7 +201,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 | Date | Build | Change |
 | --- | --- | --- |
-| 29 Oct 2026 | Editor v640 | Scan tip: when someone picks a photo from the gallery for a key or chart page (phones and apps only), a small card suggests the scanner ("Take photo") instead, with Got it / Don't show again. Shown at most 3 times per device and 14 days apart; never for PDFs or desktop. Dark mode checked. Ships with v638 on PR #6 |
+| 29 Oct 2026 | Editor v640 | Scan tip: when someone picks a photo from the gallery for a key or chart page (phones and apps only), a small card suggests the scanner ("Take photo") instead, with Got it / Don't show again. Shown at most 3 times per device and 14 days apart; never for PDFs or desktop. Dark mode checked. Shipped with v638 (PR #6, merged 29 Oct) |
 | 29 Oct 2026 | Editor v638 | Scan Your Pattern guided scanner camera: on phones and in the apps, "Take photo" (chart pages and colour key) opens a live document-scanner view instead of the plain camera. Finds the page outline, warns live (too dark, glare, shadow, hold the phone straight, move closer, fit the whole page, hold still, focusing), captures automatically when everything is green for ~1 s (Auto can be switched off; round shutter always works), lets the person drag the corners, then straightens the page with a perspective warp and hands the flat JPEG to the existing reader. Chart pages: stays open for the next page and waits for the page to change before scanning again; "Done (n)". Phone light button where supported; "Use the camera app" fallback; camera-denied screen. Desktop unchanged. Tested with a simulated camera in Chromium (good / dark / shadow / tilted / far / blurred pages); not yet on a real iPhone or Android. PR #6 |
 | 29 Oct 2026 | Editor v639 | Scan key table: brand option renamed "Kit’s own numbers" (no brand name). With kit numbers each row's colour square is a colour picker (`.pls-lt-col`, sets `pg.swatches[i]`, keeps `glyph`), so a wrongly read colour can be fixed before converting; thread number, stitch count and remove-row were already editable. Dark mode for the table header/rows. (v638 is the guided camera, PR #6, built in parallel) |
 | 29 Oct 2026 | Editor v637 | Colour keys with the kit's own numbers: `PLScan.kitCodes(nums, swatches)` decodes the whole number column together instead of digit by digit. `legendNumbers` tokens now carry `alt` (each digit's best shape-filtered score); a Viterbi pass keeps each row's first number equal or +1 to the row above (soft, cost 0.8), allows one lost/extra glyph at a cost, and picks a blend's second number partly by colour (the square should look like the mean of the two single colours, ΔE/80). Riolis 2289: misread numbers 6→1 (phone photo), 6→0 (other photo), 6→3 (Preview scan JPEG), 6→2 (Preview PDF). Used only when the key is a colour key and brand = kit |
@@ -252,7 +252,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 - [ ] Riolis: re-test with Cristian's full-resolution photos (the ones tested were downscaled to 2016 px, ~14 px per cell); one photo of the whole sheet works best for one-sheet charts. Half stitches ("//" rows) are tracked as full stitches; backstitch rows are skipped
 - [ ] Colour charts: no measured accuracy yet (no ground truth). Downscaled Riolis photo: 1,821 of 11,000 cells read as empty canvas (left blank, not counted), ~17 % of the 9,2xx stitches flagged "to check". 68 empty cells were close calls and are not flagged (review only covers stitched cells), so a very light colour could be missed silently
 - [ ] Tracker banner after any scan still says "✓ Exact import … nothing parsed from a picture" (`trackerShowVerification` treats scans as exact grids since v616); give scans their own line
-- [x] Live guided camera: page outline, light/glare/shadow/tilt/blur warnings, auto-shutter, straighten (v638, PR #6)
+- [x] Live guided camera: page outline, light/glare/shadow/tilt/blur warnings, auto-shutter, straighten (v638, PR #6 merged 29 Oct)
 - [ ] Test v638/v640 on a real iPhone and Android phone (web and app): thresholds were tuned on a simulated camera; check auto-capture isn't too strict/too eager, the tilt hint direction, the light button on Android
 - [ ] Page-number detection in the camera (not built)
 - [ ] Backstitch from photos; speed (~2 min per 160×160 chart); originals of BU5073 (key both sides + 6 pages) for a regression run of the classic path (second brand received: Riolis 2289, 28 Oct)
