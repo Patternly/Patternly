@@ -3401,6 +3401,9 @@ body.dark #trk-kits-sort{background:#221b2d;border-color:#4a3d55;color:#e7dcea}
 .pls-lt-row{border-bottom:1px solid #f3ebe9}.pls-lt-row:last-child{border-bottom:0}
 .pls-lt-row img{width:30px;height:30px;border:1px solid #eadde1;border-radius:6px;background:#fff}
 .pls-lt-sw{width:16px;height:16px;border-radius:5px;border:1px solid #d9c8ce}
+.pls-lt-swed{position:relative;cursor:pointer;width:18px;height:18px;box-shadow:0 0 0 2px #fff,0 0 0 3px #d9c8ce}.pls-lt-swed input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;padding:0;border:0}
+body.dark .pls-lt-head{background:#2a2235;border-color:#4a3d55;color:#b9adc4}body.dark .pls-lt-row{border-color:#3a2f45}
+body.dark .pls-lt-swed{box-shadow:0 0 0 2px #221b2d,0 0 0 3px #4a3d55}
 .pls-lt-row input{min-width:0;width:100%;padding:.35rem .45rem;border:1.5px solid #e6d9dd;border-radius:8px;font-size:.88rem;background:#fff;color:var(--lp-ink,#2b2226)}
 .pls-lt-x{border:0;background:#f3ebe9;border-radius:50%;width:26px;height:26px;cursor:pointer;color:#6a626f;font-size:.75rem}
 body.dark .pls-legtable,body.dark .pls-lt-row input,body.dark .pls-brand select{background:#221b2d;color:#eee;border-color:#4a3d55}
@@ -5412,7 +5415,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v637';
+window.PATTERNLY_BUILD='v639';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -34866,7 +34869,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     let body = '';
     const addBtns = (first) => '<div class="pls-pages"><label class="pls-add"><input type="file" accept="image/*" capture="environment" class="pls-legcam" hidden><span>📷</span><b>' + (first ? 'Take photo' : 'Photo of the next page') + '</b></label>'
         + '<label class="pls-add alt"><input type="file" accept="image/*,application/pdf,.pdf" class="pls-legpick" hidden><span>🖼</span><b>Photos or PDF</b></label></div>';
-    const brandSel = '<label class="pls-brand">Thread brand <select id="pls-brand"><option value="lucas">Luca-S</option><option value="dmc">DMC</option><option value="anchor">Anchor</option><option value="kit">Kit’s own numbers (Riolis…)</option></select></label>';
+    const brandSel = '<label class="pls-brand">Thread brand <select id="pls-brand"><option value="lucas">Luca-S</option><option value="dmc">DMC</option><option value="anchor">Anchor</option><option value="kit">Kit’s own numbers</option></select></label>';
     if (!Lg || !Lg.pages.length) {
       body = '<p>Take a photo of the colour key — the table with one symbol (or coloured square) per thread. If the key continues on another page, add that one too.</p>' + brandSel + addBtns(true);
     } else {
@@ -34888,7 +34891,11 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     const look = code => (code && brand !== 'kit' && typeof trkFindBrandCode === 'function') ? trkFindBrandCode(brand, code) : null;
     return '<div class="pls-legtable"><div class="pls-lt-head"><span style="grid-column:1/3">Symbol</span><span>Thread no.</span><span>Stitches</span><span></span></div>'
       + pg.templates.map((t, i) => { const sw = pg.swatches && pg.swatches[i]; const code = (pg.codes && pg.codes[i]) || ''; const f = look(code); const col = f ? f : sw;
-        return '<div class="pls-lt-row" data-i="' + i + '"><span class="pls-lt-sw" style="background:' + (col ? 'rgb(' + col.r + ',' + col.g + ',' + col.b + ')' : 'transparent') + ';' + (col ? '' : 'border-style:dashed') + '"></span><img src="' + t.url + '" alt="">'
+        // kit's own numbers: the colour is the key square's, so it can be corrected here (thread brands: by the number)
+        const hex = col ? '#' + [col.r, col.g, col.b].map(v => Math.max(0, Math.min(255, v | 0)).toString(16).padStart(2, '0')).join('') : '#999999';
+        const swHtml = brand === 'kit' ? '<label class="pls-lt-sw pls-lt-swed" title="Change this colour" style="background:' + hex + '"><input type="color" class="pls-lt-col" data-i="' + i + '" value="' + hex + '" aria-label="Colour of row ' + (i + 1) + '"></label>'
+          : '<span class="pls-lt-sw" style="background:' + (col ? 'rgb(' + col.r + ',' + col.g + ',' + col.b + ')' : 'transparent') + ';' + (col ? '' : 'border-style:dashed') + '"></span>';
+        return '<div class="pls-lt-row" data-i="' + i + '">' + swHtml + '<img src="' + t.url + '" alt="">'
           + '<input class="pls-lt-code" data-i="' + i + '" value="' + esc(code) + '" placeholder="—" inputmode="text"' + (code && !f && brand !== 'kit' ? ' title="Not in the ' + brand + ' palette"' : '') + ' style="' + (code && !f && brand !== 'kit' ? 'border-color:#e0a060' : '') + '">'
           + '<input class="pls-lt-count" data-i="' + i + '" value="' + (pg.counts && pg.counts[i] != null ? pg.counts[i] : '') + '" placeholder="—" inputmode="numeric">'
           + '<button type="button" class="pls-lt-x" data-i="' + i + '" aria-label="Remove row">✕</button></div>'; }).join('') + '</div>';
@@ -34907,6 +34914,10 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
       document.querySelectorAll('.pls-lt-code').forEach(inp => inp.onchange = () => { pg.codes = pg.codes || pg.templates.map(() => ''); pg.codes[+inp.getAttribute('data-i')] = inp.value.trim(); render(); });
       document.querySelectorAll('.pls-lt-count').forEach(inp => inp.onchange = () => { pg.counts = pg.counts || pg.templates.map(() => null); const v = parseInt(inp.value, 10); pg.counts[+inp.getAttribute('data-i')] = isNaN(v) ? null : v; });
       document.querySelectorAll('.pls-lt-x').forEach(b => b.onclick = () => removeLegendRow(pg, +b.getAttribute('data-i')));
+      document.querySelectorAll('.pls-lt-col').forEach(inp => {
+        const set = () => { const v = inp.value, i = +inp.getAttribute('data-i'); pg.swatches = pg.swatches || pg.templates.map(() => null);
+          pg.swatches[i] = Object.assign({}, pg.swatches[i] || {}, { r: parseInt(v.slice(1, 3), 16), g: parseInt(v.slice(3, 5), 16), b: parseInt(v.slice(5, 7), 16), edited: true }); inp.parentNode.style.background = v; };
+        inp.oninput = set; inp.onchange = set; });
     }
   }
   function rotateIm(im){ // quarter turn clockwise
