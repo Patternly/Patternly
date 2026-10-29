@@ -110,7 +110,7 @@ The only cron is GitHub Actions `push-auto.yml` at minute 7 every hour, which PO
 
 ## Native apps
 
-Both stores run **1.4** today. App repo `main` is **1.5** since 29 Oct (editor v640 with the guided scanner, camera permissions, Android R8 + edge-to-edge, iOS 1.5): build iOS on Codemagic, Android with GitHub Actions "Android release", test, then submit/promote.
+Both stores run **1.4** today; **iOS 1.5 is in App Store review** (submitted 29 Oct 17:39 UTC, build 1793294562, version id `e731c76c-b46d-4ec9-ac68-b8d14cb910dd`, release after approval). App repo `main` is **1.5** since 29 Oct (editor v640 with the guided scanner, camera permissions, Android R8 + edge-to-edge, iOS 1.5): build iOS on Codemagic, Android with GitHub Actions "Android release", test, then submit/promote.
 
 | | iOS | Android |
 | --- | --- | --- |
@@ -123,7 +123,7 @@ Both stores run **1.4** today. App repo `main` is **1.5** since 29 Oct (editor v
 | Widgets (1.4) | `PatternlyWidget` extension + App Group; small + wide; streak and % of pinned/last project; tap deep-links to the project | Home-screen widget provider; same data via `/streak` |
 | Deep links | `com.lucas.patternly://` scheme; QR / `?sku=&code=` open the kit | same |
 | Viewport | `setAppViewport()` locks pinch/zoom of the UI in the app (web untouched) | same, plus `--sa-bottom` measured for 3-button nav |
-| 1.5 (on `main`, not yet built) | Guided scanner camera via WKWebView getUserMedia (first time in the app: check the camera prompt and the live view on a real iPhone) | R8 minify + shrink with Capacitor keep rules, `EdgeToEdge.enable`, version 10/1.5; checklist in `docs/NEXT_RELEASE_1.5.md` (sign-in, Plus purchase/restore, push, widget, QR, insets, dark mode) |
+| 1.5 | iOS built on Codemagic 29 Oct (started from GitHub via `codemagic-ios.yml`, 13 min) and submitted for review (`store/requests/asc-15-submit.json`). Guided scanner camera via WKWebView getUserMedia (first time in the app: check the camera prompt and the live view on a real iPhone) | R8 minify + shrink with Capacitor keep rules, `EdgeToEdge.enable`, version 10/1.5; checklist in `docs/NEXT_RELEASE_1.5.md` (sign-in, Plus purchase/restore, push, widget, QR, insets, dark mode) |
 
 Play deadlines noted earlier: target API 36 before 1 Nov 2026 (done on `main`), DEX optimisation by Feb 2027 (R8 on `main` since 1.5).
 
@@ -202,6 +202,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 | Date | Build | Change |
 | --- | --- | --- |
 | 29 Oct 2026 | Android CI | patternly-app `android-release.yml` reworked so Android releases need no PC: Run workflow button with inputs, next free versionCode read from Play, `google-services.json` from secret `ANDROID_GOOGLE_SERVICES_JSON` (it is not in git; without it push would silently break), missing-secret check, upload-key SHA-1 in the result, release notes only in listing languages, dry-run test build; runner's own Android SDK (setup-android failed). New `docs/ANDROID_RELEASE_CI.md` with secret setup steps |
+| 29 Oct 2026 | App 1.5 (iOS) | First Codemagic build started from GitHub (`store/ios-build.json` → `codemagic-ios.yml`, 13 min, build 1793294562). App Store version 1.5 created with What's New (Scan Your Pattern + guided camera, colour charts/PDFs, quick photo convert, zoom, phone toolbar) and submitted for review (`asc-15-submit`) |
 | 29 Oct 2026 | App 1.5 prep | patternly-app `main`: `www/` = editor v640 (v634–v640 incl. guided scanner camera), `release-1.5` merged (R8 + edge-to-edge, versionCode 10 / 1.5), iOS MARKETING_VERSION 1.4 → 1.5, new `codemagic-ios.yml` + `store/codemagic.mjs` to start Codemagic `ios-release` from GitHub and report the result (needs `CODEMAGIC_API_TOKEN`) |
 | 29 Oct 2026 | Editor v640 | Scan tip: when someone picks a photo from the gallery for a key or chart page (phones and apps only), a small card suggests the scanner ("Take photo") instead, with Got it / Don't show again. Shown at most 3 times per device and 14 days apart; never for PDFs or desktop. Dark mode checked. Shipped with v638 (PR #6, merged 29 Oct) |
 | 29 Oct 2026 | Editor v638 | Scan Your Pattern guided scanner camera: on phones and in the apps, "Take photo" (chart pages and colour key) opens a live document-scanner view instead of the plain camera. Finds the page outline, warns live (too dark, glare, shadow, hold the phone straight, move closer, fit the whole page, hold still, focusing), captures automatically when everything is green for ~1 s (Auto can be switched off; round shutter always works), lets the person drag the corners, then straightens the page with a perspective warp and hands the flat JPEG to the existing reader. Chart pages: stays open for the next page and waits for the page to change before scanning again; "Done (n)". Phone light button where supported; "Use the camera app" fallback; camera-denied screen. Desktop unchanged. Tested with a simulated camera in Chromium (good / dark / shadow / tilted / far / blurred pages); not yet on a real iPhone or Android. PR #6 |
@@ -245,7 +246,8 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 - [x] v632 (landing carousels) copied to `patternly-app/www/` (27 Oct)
 - [ ] Decide whether the Account-page footnote link "Luca-S shop account ↗" should also be hidden in the apps
 - [x] 1.5 prepared on app `main` (29 Oct): www = editor v640, `release-1.5` merged (Android 10 / 1.5), iOS MARKETING_VERSION 1.5, Codemagic bridge workflow added
-- [ ] 1.5 builds: iOS `ios-release` on Codemagic → TestFlight check → Claude creates App Store version 1.5 + submits (store request); Android: GitHub "Android release" (after the secrets) → internal testing → tick `docs/NEXT_RELEASE_1.5.md` → Cristian promotes
+- [x] iOS 1.5 built on Codemagic and submitted for App Store review (29 Oct); watch for approval or rejection (state request with the 1.5 version id)
+- [ ] Android 1.5: GitHub "Android release" (after the secrets) → internal testing → tick `docs/NEXT_RELEASE_1.5.md` → Cristian promotes
 - [x] Cristian added GitHub secret `CODEMAGIC_API_TOKEN` (29 Oct) in patternly-app so Claude can start iOS builds and read their result
 - [ ] Grant lifetime Plus to Charly (add to `PLUS_CUSTOMERS`) and future influencers as they sign in
 - [ ] Shopify app scopes `read_products` / `write_products` still to be granted (needed for catalogue writes)
