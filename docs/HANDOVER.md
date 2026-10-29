@@ -240,7 +240,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 ### Scan roadmap (BETA)
 
 - [ ] Riolis: re-test with Cristian's full-resolution photos (the ones tested were downscaled to 2016 px, ~14 px per cell); one photo of the whole sheet works best for one-sheet charts. Half stitches ("//" rows) are tracked as full stitches; backstitch rows are skipped
-- [ ] Colour charts: no measured accuracy yet (no ground truth); ~14 % of cells flagged "to check" on the downscaled Riolis photo
+- [ ] Colour charts: no measured accuracy yet (no ground truth). Downscaled Riolis photo: 1,821 of 11,000 cells read as empty canvas (left blank, not counted), ~17 % of the 9,2xx stitches flagged "to check". 68 empty cells were close calls and are not flagged (review only covers stitched cells), so a very light colour could be missed silently
 - [ ] Tracker banner after any scan still says "✓ Exact import … nothing parsed from a picture" (`trackerShowVerification` treats scans as exact grids since v616); give scans their own line
 - [ ] Live guided camera: page outline, blur/tilt/shadow gate, auto-shutter, page-number detection (1.5 build)
 - [ ] Backstitch from photos; speed (~2 min per 160×160 chart); originals of BU5073 (key both sides + 6 pages) for a regression run of the classic path (second brand received: Riolis 2289, 28 Oct)
