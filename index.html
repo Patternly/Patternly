@@ -5412,7 +5412,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v636';
+window.PATTERNLY_BUILD='v637';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -34520,15 +34520,17 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
         for (let yy = c.y0; yy <= c.y1; yy++) for (let xx = c.x0; xx <= c.x1; xx++) if (ink[yy * w + xx]) { sx += xx; sy += yy; sxx += xx * xx; syy += yy * yy; sxy += xx * yy; nn++; }
         const diag = nn > 2 ? (sxy / nn - (sx / nn) * (sy / nn)) / Math.sqrt(Math.max(1e-6, (sxx / nn - (sx / nn) ** 2) * (syy / nn - (sy / nn) ** 2))) : 0;
         const slashy = diag < -0.45;
+        const alt = {};   // each digit's own best score (shape-filtered like best), for kitCodes
         const narrow = asp < 0.42;
         for (const t of digits) {
           if (narrow ? !(t.ch === '1' || t.ch === '/' || (t.ch === '.' && ch < 0.5 * hm)) : Math.abs(Math.log(asp / t.aspect)) > 0.45) continue;
           if (t.ch === '.' && ch >= 0.5 * hm) continue;
           if ((t.ch === '/') !== slashy && (t.ch === '/' || t.ch === '1')) continue;
           const v = tanimotoF(m, t.m); if (!best || v > best.v) best = { ch: t.ch, v };
+          if (t.ch >= '0' && t.ch <= '9' && !(alt[t.ch] >= v)) alt[t.ch] = v;
         }
         if (!best) { best = { ch: '?', v: 0 }; }
-        tokens.push({ ch: best.ch, s: best.v }); text += best.ch; conf = Math.min(conf, best.v);
+        tokens.push({ ch: best.ch, s: best.v, alt }); text += best.ch; conf = Math.min(conf, best.v);
       }
       return { text, conf, tokens }; };
       // two numbers stacked in one row (a blend of two threads, often behind a brace): read each line
@@ -34544,6 +34546,51 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     });
     return out;
   }
+  // A kit's own colour numbers (Riolis and similar) run 1, 2, 3… down the key, blends listed under
+  // their first colour ("2", "2+3", "3"…), and a blend only names numbers the key has. Small
+  // stacked digits are easily misread one by one, so the whole column is decoded together:
+  // each number is scored digit by digit from the glyph scores, and a row's first number is
+  // expected to stay the same or go up by one (a soft rule: strong glyph evidence still wins).
+  // swatches (optional, one {r,g,b} per row): a blend's square is printed in the mix of its two
+  // threads, so "a+b" should look like the average of the squares of a and of b
+  function kitCodes(nums, swatches) {
+    const parts = nums.map(v => { if (!v || !v.tokens) return null; const ps = [[]];
+      for (const t of v.tokens) { if (t.ch === '+') ps.push([]); else if (t.alt) ps[ps.length - 1].push(t.alt); }
+      return ps.filter(p => p.length && p.length <= 3).slice(0, 2); });
+    const fit = (gl, d) => { let c = 0; for (let k = 0; k < d.length; k++) { const a = gl[k]; let mx = -1; for (const ch in a) mx = Math.max(mx, a[ch]); c += mx - (a[d[k]] ?? -1); } return c; };
+    // one glyph lost or two run together ("11" read as one "1"), or one speck too many: allowed at a cost
+    const costOf = (gl, n) => { const d = String(n);
+      if (d.length === gl.length) return fit(gl, d);
+      if (d.length === gl.length + 1) { let b = Infinity; for (let k = 0; k < d.length; k++) b = Math.min(b, fit(gl, d.slice(0, k) + d.slice(k + 1))); return 0.7 + b; }
+      if (d.length + 1 === gl.length) { let b = Infinity; for (let k = 0; k < gl.length; k++) b = Math.min(b, fit(gl.slice(0, k).concat(gl.slice(k + 1)), d)); return 0.7 + b; }
+      return Infinity; };
+    const NMAX = 99, JUMP = 0.8, rows = parts.map(p => p && p.length ? p : null);
+    // Viterbi over the first number of each row
+    let prev = null; const back = [];
+    rows.forEach((p, i) => {
+      const cur = new Float64Array(NMAX + 1).fill(Infinity), arg = new Int32Array(NMAX + 1).fill(-1);
+      for (let n = 1; n <= NMAX; n++) {
+        const e = p ? costOf(p[0], n) : 0; if (e === Infinity) continue;
+        if (!prev) { cur[n] = e; continue; }
+        for (let m = 1; m <= NMAX; m++) { if (prev[m] === Infinity) continue; const v = prev[m] + e + (n === m || n === m + 1 ? 0 : JUMP); if (v < cur[n]) { cur[n] = v; arg[n] = m; } }
+      }
+      if (!p && prev) { for (let n = 1; n <= NMAX; n++) { cur[n] = prev[n]; arg[n] = n; } }
+      back.push(arg); prev = cur;
+    });
+    if (!prev) return nums.map(() => '');
+    let n = 1; for (let k = 1; k <= NMAX; k++) if (prev[k] < prev[n]) n = k;
+    const first = new Array(rows.length); for (let i = rows.length - 1; i >= 0; i--) { first[i] = n; n = back[i][n] > 0 ? back[i][n] : n; }
+    const top = Math.max(...first);
+    const sw = (swatches || []).map(c => c ? [c.r / 255, c.g / 255, c.b / 255] : null), single = {};
+    rows.forEach((p, i) => { if (p && p.length === 1 && sw[i]) (single[first[i]] || (single[first[i]] = [])).push(sw[i]); });
+    const mean = a => a && [0, 1, 2].map(k => a.reduce((s, v) => s + v[k], 0) / a.length);
+    const colourCost = (i, a, b) => { const A = mean(single[a]), B = mean(single[b]); if (!sw[i] || !A || !B) return 0;
+      const L1 = toLab(sw[i]), L2 = toLab([0, 1, 2].map(k => (A[k] + B[k]) / 2)); return Math.hypot(L1[0] - L2[0], L1[1] - L2[1], L1[2] - L2[2]) / 80; };
+    return rows.map((p, i) => { if (!p) return ''; let t = String(first[i]);
+      if (p[1]) { let bn = 0, bc = Infinity; for (let m = 1; m <= top; m++) { if (m === first[i]) continue; const c = costOf(p[1], m) + colourCost(i, first[i], m); if (c < bc) { bc = c; bn = m; } } if (bn) t += '+' + bn; }
+      return t; });
+  }
+  PLScan.kitCodes = kitCodes;
   PLScan.makeDigitTemplates = makeDigitTemplates; PLScan.legendNumbers = legendNumbers; PLScan._glyphMap = glyphMap; PLScan._components = components; PLScan._prep = (rgba,w,h)=>{ const g = gray(rgba, w, h), flat = flatten(g, w, h); return adaptiveBin(flat, w, h, 25, 12); };
   PLScan.legendAnalyse = legendAnalyse; PLScan.legendTiles = legendTiles; PLScan.matchColour = matchColour; PLScan.isColourChart = isColourChart; PLScan._toLab = toLab; PLScan.legendSwatches = legendSwatches;
   PLScan.analysePage = analysePage; PLScan.detectGrid = detectGrid; PLScan.readCells = readCells; PLScan.matchCells = matchCells; PLScan.findScale = findScale;
@@ -34920,7 +34967,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
       pg.swatchX = x; pg.swatches = PLScan.legendSwatches(pg.im.rgba, pg.im.w, pg.im.h, pg.rows, x); pg.step = 'code';
     } else if (pg.step === 'code') {
       const n = PLScan.legendNumbers(pg.im.rgba, pg.im.w, pg.im.h, pg.rows, x, digitTemplates(), pg.colour ? columnXs(pg, x, y) : false);
-      pg.codeX = x; pg.codes = n.map(v => v && /^[0-9][0-9.+x]*$/.test(v.text) ? v.text.replace(/\.$/, '').replace(/\.\+|\+\./g, '+') : (v ? v.text.replace(/[?]/g, '') : '')); pg.codeBoxes = n.map(v => v && v.box); pg.step = 'count';
+      pg.codeX = x; pg.codes = pg.colour && S.legend.brand === 'kit' ? PLScan.kitCodes(n, pg.swatches) : n.map(v => v && /^[0-9][0-9.+x]*$/.test(v.text) ? v.text.replace(/\.$/, '').replace(/\.\+|\+\./g, '+') : (v ? v.text.replace(/[?]/g, '') : '')); pg.codeBoxes = n.map(v => v && v.box); pg.step = 'count';
     } else if (pg.step === 'count') {
       const n = PLScan.legendNumbers(pg.im.rgba, pg.im.w, pg.im.h, pg.rows, x, digitTemplates());
       pg.countX = x; pg.counts = n.map(v => { if (!v) return null; const m = /^(\d+)/.exec(v.text.replace(/[?.]/g, '')); return m ? parseInt(m[1], 10) : null; }); pg.countBoxes = n.map(v => v && v.box); pg.step = 'done';
