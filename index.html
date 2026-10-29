@@ -5412,7 +5412,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v635';
+window.PATTERNLY_BUILD='v636';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -34711,6 +34711,25 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     g.translate(W / 2, H / 2); g.rotate(rot * Math.PI / 2); g.drawImage(img, -w / 2, -h / 2, w, h); const d = g.getImageData(0, 0, W, H); if (bmp && bmp.close) bmp.close();
     return { rgba: d.data, w: W, h: H };
   }
+  // scanned PDFs (iOS Preview / Files / Notes scans, office scanners): one image per page,
+  // rendered at up to 3600 px on the long side (the grid finders work below that anyway)
+  const isPdf = f => f && (f.type === 'application/pdf' || /\.pdf$/i.test(f.name || ''));
+  async function pdfPages(file, maxPages){
+    if (!window.pdfjsLib) throw new Error('pdf.js not loaded');
+    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    const out = [], n = Math.min(pdf.numPages, maxPages || 40), base = (file.name || 'scan').replace(/\.pdf$/i, '');
+    for (let i = 1; i <= n; i++) {
+      const page = await pdf.getPage(i), v1 = page.getViewport({ scale: 1 });
+      const vp = page.getViewport({ scale: 3600 / Math.max(v1.width, v1.height) });
+      const cv = document.createElement('canvas'); cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+      const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height);
+      await page.render({ canvasContext: g, viewport: vp }).promise; page.cleanup();
+      const blob = await new Promise(res => cv.toBlob(res, 'image/jpeg', 0.92)); cv.width = cv.height = 0;
+      if (blob) out.push(new File([blob], base + (n > 1 ? ' p' + i : '') + '.jpg', { type: 'image/jpeg' }));
+    }
+    try { pdf.destroy(); } catch (e) {}
+    return { files: out, total: pdf.numPages };
+  }
   function rgbaToURL(im){ const cv = document.createElement('canvas'); cv.width = im.w; cv.height = im.h; cv.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(im.rgba), im.w, im.h), 0, 0); return cv.toDataURL('image/png'); }
   function rgbaToCanvas(im){ const cv = document.createElement('canvas'); cv.width = im.w; cv.height = im.h; cv.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(im.rgba), im.w, im.h), 0, 0); return cv; }
 
@@ -34770,7 +34789,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
       + '<p>In reading order: left to right, then the next row of pages. Each page is read as soon as it arrives.</p>'
       + '<div class="pls-pages">' + pagesHtml
       + '<label class="pls-add"><input type="file" accept="image/*" capture="environment" id="pls-cam" hidden><span>📷</span><b>Take photo</b></label>'
-      + '<label class="pls-add alt"><input type="file" accept="image/*" multiple id="pls-pick" hidden><span>🖼</span><b>From photos</b></label>'
+      + '<label class="pls-add alt"><input type="file" accept="image/*,application/pdf,.pdf" multiple id="pls-pick" hidden><span>🖼</span><b>Photos or PDF</b></label>'
       + '</div>' + (mapHtml ? '<div class="pls-map">' + mapHtml + '<div class="pls-mapcap">' + (L.complete ? 'All ' + L.W + ' × ' + L.H + ' stitches covered' : (L.covered.toLocaleString() + ' of ' + (L.W * L.H).toLocaleString() + ' stitches covered — add the remaining pages')) + '</div></div>' : '')
       + '</div></div>'
       + '<div class="pls-actions"><button type="button" class="btn btn-primary" id="pls-convert" ' + ((L && L.complete && !S.busy) ? '' : 'disabled') + '>Convert ' + (okN ? '(' + okN + ' page' + (okN > 1 ? 's' : '') + ')' : '') + '</button>'
@@ -34799,7 +34818,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     const Lg = S.legend; const all = legendTemplates();
     let body = '';
     const addBtns = (first) => '<div class="pls-pages"><label class="pls-add"><input type="file" accept="image/*" capture="environment" class="pls-legcam" hidden><span>📷</span><b>' + (first ? 'Take photo' : 'Photo of the next page') + '</b></label>'
-        + '<label class="pls-add alt"><input type="file" accept="image/*" class="pls-legpick" hidden><span>🖼</span><b>From photos</b></label></div>';
+        + '<label class="pls-add alt"><input type="file" accept="image/*,application/pdf,.pdf" class="pls-legpick" hidden><span>🖼</span><b>Photos or PDF</b></label></div>';
     const brandSel = '<label class="pls-brand">Thread brand <select id="pls-brand"><option value="lucas">Luca-S</option><option value="dmc">DMC</option><option value="anchor">Anchor</option><option value="kit">Kit’s own numbers (Riolis…)</option></select></label>';
     if (!Lg || !Lg.pages.length) {
       body = '<p>Take a photo of the colour key — the table with one symbol (or coloured square) per thread. If the key continues on another page, add that one too.</p>' + brandSel + addBtns(true);
@@ -34853,6 +34872,11 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     if (!file) return;
     S.statusText = ''; if (!S.legend) S.legend = { pages: [], cur: 0, brand: 'lucas' };
     try {
+      if (isPdf(file)) { // the key is on one page: take the first, say so when there were more
+        S.statusText = 'Opening the PDF…'; render();
+        const r = await pdfPages(file, 1); file = r.files[0]; S.statusText = r.total > 1 ? 'Used page 1 of ' + r.total + ' of the PDF for the colour key' : '';
+        if (!file) throw new Error('empty PDF');
+      }
       const im = await fileToRGBA(file, 1800);   // ~30px glyphs on an A4 key: enough for symbols and digits, and measurably better than full size
       S.legend.pages.push({ im, rows: null, templates: null, swatches: null, codes: null, counts: null, step: 'symbol' }); S.legend.cur = S.legend.pages.length - 1;
     } catch (e) { S.statusText = 'Could not read that photo'; }
@@ -34921,7 +34945,13 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
   }
   async function addFiles(files){
     if (!files || !files.length) return;
+    const list = [];
     for (const f of Array.from(files)) {
+      if (!isPdf(f)) { list.push(f); continue; }
+      S.statusText = 'Opening the PDF…'; render();
+      try { list.push(...(await pdfPages(f)).files); S.statusText = ''; } catch (e) { S.statusText = 'Could not open that PDF'; console.warn('[scan] pdf', e); render(); }
+    }
+    for (const f of list) {
       const p = { id: ++S.seq * 1000 + S.pages.length, n: S.pages.length + 1, status: 'busy', ok: false, progress: 0, file: f, rot: 0 };
       S.pages.push(p); render();
       await readPage(p);

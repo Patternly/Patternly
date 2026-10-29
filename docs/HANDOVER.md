@@ -37,11 +37,11 @@ Two GitHub repos under the **Patternly** organisation are the source of truth; C
 
 ## Code map
 
-Current versions: **editor v635**, **middleware v101**, **Studio v51**, app **1.4** (iOS build 3 / Android versionCode 9), `release-1.5` branch = version 10 / 1.5. Every build bumps its version constant; never re-issue a version with different contents.
+Current versions: **editor v636**, **middleware v101**, **Studio v51**, app **1.4** (iOS build 3 / Android versionCode 9), `release-1.5` branch = version 10 / 1.5. Every build bumps its version constant; never re-issue a version with different contents.
 
 | File | Size | What it is | Version constant |
 | --- | --- | --- | --- |
-| `Patternly/index.html` | 34,566 lines, 2.8 MB | The whole web app: landing pages, Editor, Tracker, converter, calculators, account/Plus, i18n table (`T` with en/fr/de/nl/ru/uk/es/it), Capacitor glue, scan engine. Single file by design. | `PATTERNLY_BUILD='v635'` (shown in Account footer and console) |
+| `Patternly/index.html` | 34,566 lines, 2.8 MB | The whole web app: landing pages, Editor, Tracker, converter, calculators, account/Plus, i18n table (`T` with en/fr/de/nl/ru/uk/es/it), Capacitor glue, scan engine. Single file by design. | `PATTERNLY_BUILD='v636'` (shown in Account footer and console) |
 | `Patternly/brands.html` | 4,897 lines, 750 KB | Partner Studio: landing/apply, sign-in, tabs (partner: Overview, My Patterns, Converter, My Customers, My Account; owner: Overview/revenue, Brands, Patterns, Converter, Customers, Branding, Users, Notifications). Contains the full converter as base64 blob iframe (`CONV_B64`). | `/* v51 */` comments; no constant |
 | `Patternly/functions/_middleware.js` | 4,836 lines | Cloudflare Pages Function: every API route, auth, storage, email, push, revenue | `MW_VERSION = "v101"` (reported by `/whoami`) |
 | `Patternly/CNAME` | — | `patternly.design` custom domain | — |
@@ -184,7 +184,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 **RULE #1 — never break account-linked sync.** Before every push, grep these marker counts in `index.html` and compare with the previous commit: `trkProgressUrl` 4 lines, `trkCloudProjects` 4, `trkUserPatternUrl` 8, `pl_session` 27 occurrences (21 lines). Also: `ensurePageFooters` adds a footer only to `#account-page`, never `#tracker-page`; `/progress` latches code-opened kits to the signed-in customer.
 
-1. One fix per build; bump `PATTERNLY_BUILD` (editor), `MW_VERSION` (middleware) or the Studio `vNN` comment on every delivered change; never re-issue a version with different contents. Next numbers: editor **v636**, middleware **v102**, Studio **v52**.
+1. One fix per build; bump `PATTERNLY_BUILD` (editor), `MW_VERSION` (middleware) or the Studio `vNN` comment on every delivered change; never re-issue a version with different contents. Next numbers: editor **v637** (v638 reserved for the guided scanner camera thread), middleware **v102**, Studio **v52**.
 2. Every editor build: `node --check` on all 16 inline script blocks, then copy `index.html` to `patternly-app/www/index.html` and commit both repos ("www: editor vNNN").
 3. Commit as `-c user.name="Cristian" -c user.email="lucasukinfo@gmail.com"`, message ending with the Claude attribution lines; push to `main` directly (the Claude GitHub App has push access on both repos). The Patternly repo remote redirects ("repository moved") — harmless.
 4. Test before delivering: Playwright headless Chromium (`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`, `--no-sandbox`) against a local `python3 -m http.server` serving a copy of the file; iPhone viewport 390×844 with `isMobile`/`hasTouch`; `hj051.ptly` is the usual test pattern. No WebKit is available — anything iOS-specific needs Cristian's phone.
@@ -199,6 +199,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 | Date | Build | Change |
 | --- | --- | --- |
+| 29 Oct 2026 | Editor v636 | Scan Your Pattern takes scanned PDFs: the two "From photos" inputs (now "Photos or PDF", `#pls-pick`, `.pls-legpick`) accept PDF; `pdfPages` renders each page with pdf.js at 3600 px long side to a JPEG File, so page cards, ↻ turn and reading work as for photos. Chart: every page (max 40) becomes a page card. Key: first page only (status says so when the PDF has more). Tested end-to-end with Cristian's iOS Preview scan of Riolis 2289: 110×110. v634–v635 merged to main (PR #5) |
 | 29 Oct 2026 | Editor v635 | Colour charts: the grid finder gets its own area-averaged copy of the page at up to 2800 px (`resampleAvg`, `scaleMesh` in `analysePage`) instead of the darkest-pixel halving used for ink charts. Sharp full-page scans (iOS Preview scan of Riolis 2289, 2493×3450) halved to ~9 px cells and the grid failed (6×6); now 110×110 found. Ink-chart path unchanged |
 | 28 Oct 2026 | Editor v634 | Scan Your Pattern reads charts printed in colour (Riolis tested with kit 2289): colour-chart grid finder, colour key squares with or without a symbol (plain colours matched by colour), backstitch line rows skipped, blended rows "9+10", "Kit's own numbers" brand option, shadow-tolerant colour matching with a paper (no stitch) class, ↻ turn buttons for sideways photos. Classic symbol charts (Luca-S) take the old path unchanged. Harness committed in `tools/scan/` |
 | 27 Oct 2026 | Editor v633 | Quick photo convert: "Upload Image" / "Try with your photo" on the main page and menu (`startWithPhoto`) now open a full-screen guided flow `#qc` (Photo → Pattern → PDF, modelled on stitchmate) instead of the full editor. Photo: type (photo / pixel art / printed chart → Scan Your Pattern), replace, crop & straighten, erase background (border auto + tap to erase). Pattern: cross stitch / needlepoint / diamond painting, size presets + custom, cm/in, hours estimate, brand, strands, fabric count + colour, colour style, colour count, fine-tune, detail level, confetti % + clean-up (Plus), Pattern / Finished look / Original preview, palette with skeins. PDF: name, page size, chart style, layout → editor PDF engine and free-export quota; also Open in Editor / Stitch it in the Tracker. Editor's own upload zone unchanged. English only for now |
@@ -223,8 +224,9 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 ### Waiting on Cristian
 
-- [ ] Try v635 Scan Your Pattern on the Riolis 2289 kit (branch preview). Full-page iOS Preview scan received 29 Oct (`scan-tests/riolis-2289/preview_scan.pdf`): 110×110, 2,406 empty cells, ~15 % of stitches flagged, 6/29 key numbers misread
-- [ ] Scan Your Pattern accepts images only (`accept="image/*"`): a scanned PDF (iOS Preview / Files / Notes scans) cannot be added as key or chart page; add PDF pages via pdf.js
+- [ ] Try v636 Scan Your Pattern on the Riolis 2289 kit (live on the website; PDF scans can be added directly). Full-page iOS Preview scan received 29 Oct (`scan-tests/riolis-2289/preview_scan.pdf`): 110×110, 2,406 empty cells, ~15 % of stitches flagged, 6/29 key numbers misread
+- [x] Scanned PDFs as key / chart pages (v636)
+- [ ] Colour key walk: tapping a coloured square in Riolis 2289 finds 28 of 29 squares (misses the near-white square with a dot, colour 1, at the top); tapping that white square itself is fragile (works on the JPEG, `nosymbol` on the PDF render)
 - [ ] Check the v633 quick photo convert on the phone apps; decide whether confetti clean-up should stay Plus-only in the quick flow
 - [x] v633 merged (PR #4) and copied to `patternly-app/www/` (27 Oct)
 - [ ] Check v632 landing carousels on the phone (feature cards swipe, dots follow; "three steps" carousel unchanged apart from dark dots)
