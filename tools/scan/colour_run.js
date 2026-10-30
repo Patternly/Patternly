@@ -8,12 +8,14 @@ const L = P.legendTiles(new Uint8ClampedArray(fs.readFileSync(kf)), +kw, +kh, +t
 if (!L.ok) { console.log('key not read:', L.reason); process.exit(1); }
 console.log('key squares', L.templates.length, 'plain', L.swatches.filter(s => !s.glyph).length, 'backstitch lines', L.lines.length);
 const prog = () => {}; prog.debug = true;
-let t = Date.now(); const an = P.analysePage(new Uint8ClampedArray(fs.readFileSync(cf)), +cw, +chh, prog);
+let t = Date.now(); const an = P.analysePage(new Uint8ClampedArray(fs.readFileSync(cf)), +cw, +chh, prog, { colour: true }); // the app says colour when the key is a colour key
 if (!an.ok) { console.log('chart page:', an.reason); process.exit(1); }
 const m = an.mesh; console.log('grid', m.cols, 'x', m.rows, 'colour', an.colour, Date.now() - t, 'ms');
 t = Date.now(); const cells = P.readCells(an.rgba, an.w, an.h, m);
+console.log('cells', Date.now() - t, 'ms'); t = Date.now();
 const r = P.matchColour(cells, m.cols, m.rows, L.templates.map((x, i) => ({ id: i, rgba: x.rgba, size: x.size })), { debug: true });
-console.log('cells + match', Date.now() - t, 'ms');
+console.log('match', Date.now() - t, 'ms');
+fs.writeFileSync(out + '/labels.json', JSON.stringify({ cols: m.cols, rows: m.rows, labels: Array.from(r.labels), margin: Array.from(r.margin, v => +v.toFixed(3)) }));
 let uns = 0; for (const v of r.margin) if (v < 0.06) uns++; console.log('to check (margin < 0.06):', uns, (100 * uns / r.margin.length).toFixed(1) + '%');
 // side by side: photo cells | recognised key squares (magenta corner = to check)
 const S = 16, W1 = m.cols + 1, img = Buffer.alloc(m.rows * S * m.cols * S * 2 * 3);

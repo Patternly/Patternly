@@ -5415,7 +5415,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v649';
+window.PATTERNLY_BUILD='v644';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -33729,6 +33729,58 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     }
     return best;
   }
+  // node-by-node lattice tracking. Evidence for a node at (x, y): long-run edge pixels on the vertical
+  // line through it (±half a cell) plus on the horizontal line through it. Nodes are visited in rings
+  // from the centre; each is predicted from its refined neighbours (straight continuation), then
+  // snapped within ±0.3 cell to the best evidence. pad = lines added on each side by extrapolation.
+  function trackMesh(X0, Y0, W0, H0, ex, ey, em, w, h, px, py, pad) {
+    const W = W0 + 2 * pad, H = H0 + 2 * pad, X = new Float32Array(W * H).fill(NaN), Y = new Float32Array(W * H).fill(NaN);
+    for (let r = 0; r < H0; r++) for (let c = 0; c < W0; c++) { X[(r + pad) * W + c + pad] = X0[r * W0 + c]; Y[(r + pad) * W + c + pad] = Y0[r * W0 + c]; }
+    fillMesh(X, W, H); fillMesh(Y, W, H);
+    // prefix sums: column sums of ex (vertical lines), row sums of ey (horizontal lines)
+    const Ex = new Float32Array(w * h), Ey = new Float32Array(w * h);
+    for (let i = 0; i < w * h; i++) { Ex[i] = ex[i] + 0.3 * Math.min(1, em.ex[i] / 60); Ey[i] = ey[i] + 0.3 * Math.min(1, em.ey[i] / 60); }
+    const cx = new Float32Array((h + 1) * w), ry = new Float32Array(h * (w + 1));
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { cx[(y + 1) * w + x] = cx[y * w + x] + Ex[y * w + x]; ry[y * (w + 1) + x + 1] = ry[y * (w + 1) + x] + Ey[y * w + x]; }
+    const hx = Math.max(2, Math.round(px * 0.45)), hy = Math.max(2, Math.round(py * 0.45));
+    const score = (x, y) => { if (x < hx + 1 || y < hy + 1 || x >= w - hx - 1 || y >= h - hy - 1) return 0;
+      return (cx[(y + hy + 1) * w + x] - cx[(y - hy) * w + x]) + (ry[y * (w + 1) + x + hx + 1] - ry[y * (w + 1) + x - hx]); };
+    const done = new Uint8Array(W * H), IX = X.slice(), IY = Y.slice();
+    const snap = (i, x0, y0, rx, ry2) => {
+      let bs = -1, bx = 0, by = 0; const xi = Math.round(x0), yi = Math.round(y0);
+      for (let dy = -ry2; dy <= ry2; dy++) for (let dx = -rx; dx <= rx; dx++) { const v = score(xi + dx, yi + dy) - 0.02 * (dx * dx + dy * dy); if (v > bs) { bs = v; bx = dx; by = dy; } }
+      // weak evidence (paper, a fold): keep the prediction
+      if (bs < 0.4 * (hx + hy)) { X[i] = x0; Y[i] = y0; return; }
+      const sub = (a, b, c) => { const d = a - 2 * b + c; return d < 0 ? Math.max(-0.5, Math.min(0.5, 0.5 * (a - c) / d)) : 0; };
+      X[i] = xi + bx + sub(score(xi + bx - 1, yi + by), bs, score(xi + bx + 1, yi + by)); Y[i] = yi + by + sub(score(xi + bx, yi + by - 1), bs, score(xi + bx, yi + by + 1));
+    };
+    const c0 = W >> 1, r0 = H >> 1; snap(r0 * W + c0, X[r0 * W + c0], Y[r0 * W + c0], Math.round(px * 0.45), Math.round(py * 0.45)); done[r0 * W + c0] = 1;
+    const RX = Math.max(1, Math.round(px * 0.3)), RY = Math.max(1, Math.round(py * 0.3));
+    for (let ring = 1; ring < Math.max(W, H); ring++) {
+      for (let pass = 0; pass < 2; pass++)   // pass 0: nodes with a refined straight neighbour line; pass 1: the rest of the ring
+      for (let r = r0 - ring; r <= r0 + ring; r++) for (let c = c0 - ring; c <= c0 + ring; c++) {
+        if (r < 0 || c < 0 || r >= H || c >= W || done[r * W + c] || Math.max(Math.abs(r - r0), Math.abs(c - c0)) !== ring) continue;
+        let sx = 0, sy = 0, n = 0;
+        for (const [dr, dc] of [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+          const r1 = r + dr, c1 = c + dc, r2 = r + 2 * dr, c2 = c + 2 * dc; if (r1 < 0 || c1 < 0 || r1 >= H || c1 >= W || !done[r1 * W + c1]) continue;
+          const a = r1 * W + c1;
+          if (pass === 0 && !(r2 >= 0 && c2 >= 0 && r2 < H && c2 < W && done[r2 * W + c2])) continue;
+          // the tiles' local geometry (pitch, direction) carried from the refined neighbour: no
+          // straight-line extrapolation, which amplifies noise over a page of weak evidence
+          const qx = X[a] + IX[r * W + c] - IX[a], qy = Y[a] + IY[r * W + c] - IY[a];
+          const wt = (dr && dc) ? 0.5 : 1; sx += wt * qx; sy += wt * qy; n += wt; }
+        if (!n) continue;
+        snap(r * W + c, sx / n, sy / n, RX, RY); done[r * W + c] = 1;
+      }
+    }
+    // the correction (tracked − tiles) changes slowly across the page; a node that jumped to a glyph
+    // edge stands out: median of the correction over 5×5 nodes
+    const med = (A, I) => { const D = new Float32Array(W * H), o = new Float32Array(W * H), t = [];
+      for (let i = 0; i < W * H; i++) D[i] = A[i] - I[i];
+      for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) { t.length = 0; for (let rr = Math.max(0, r - 2); rr <= Math.min(H - 1, r + 2); rr++) for (let cc = Math.max(0, c - 2); cc <= Math.min(W - 1, c + 2); cc++) t.push(D[rr * W + cc]); t.sort((a, b) => a - b); o[r * W + c] = I[r * W + c] + t[t.length >> 1]; }
+      return o; };
+    return { X: med(X, IX), Y: med(Y, IY), W, H };
+  }
   function detectGridColour(rgba, w, h, opts) {
     opts = opts || {};
     const g = gray(rgba, w, h), flat = flatten(g, w, h);
@@ -33814,10 +33866,14 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     for (let r = 0; r < H1; r++) for (let c = 0; c < W1; c++) if (SW[r * W1 + c] > 0) { covC[c]++; covR[r]++; }
     const run = (cov, n, frac) => { let mx = 0; for (let i = 0; i < n; i++) mx = Math.max(mx, cov[i]); let bs = 0, be = -1, cs = -1; for (let i = 0; i <= n; i++) { const ok = i < n && cov[i] >= frac * mx; if (ok && cs < 0) cs = i; if (!ok && cs >= 0) { if (i - 1 - cs > be - bs) { bs = cs; be = i - 1; } cs = -1; } } return [bs, be]; };
     const [ca, cb] = run(covC, W1, 0.25), [ra, rb] = run(covR, H1, 0.25);
-    const cW = cb - ca + 1, cH = rb - ra + 1;
-    const Xc = new Float32Array(cW * cH), Yc = new Float32Array(cW * cH);
+    let cW = cb - ca + 1, cH = rb - ra + 1;
+    let Xc = new Float32Array(cW * cH), Yc = new Float32Array(cW * cH);
     for (let r = 0; r < cH; r++) for (let c = 0; c < cW; c++) { Xc[r * cW + c] = X[(r + ra) * W1 + c + ca]; Yc[r * cW + c] = Y[(r + ra) * W1 + c + ca]; }
     fillMesh(Xc, cW, cH); fillMesh(Yc, cW, cH);
+    // tiles see straight lines over ~8 cells: a curled page edge bends faster than that. Follow the
+    // lines node by node from the middle out, and let the mesh grow two lines past the tiles' extent
+    // (the border trim below drops the ones that carry no grid line)
+    if (opts.track !== false) { const tm = trackMesh(Xc, Yc, cW, cH, ex, ey, em, w, h, p0x, p0y, 2); Xc = tm.X; Yc = tm.Y; cW = tm.W; cH = tm.H; }
     const vb = valleyBin(flat, w, h, 10);
     const support = (vert, idx) => { let on = 0, n = 0; const N = vert ? cH - 1 : cW - 1;
       for (let s = 0; s < N; s++) { const a = vert ? s * cW + idx : idx * cW + s, b = vert ? a + cW : a + 1;
@@ -33997,11 +34053,13 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
       if (v > 0.5) { cr += R; cg += G; cb += B; n++; }
     }
     const col = n >= 4 ? [cr / n, cg / n, cb / n] : [1, 1, 1];
-    // background (thread) colour of the cell: the pixels that are not ink, raw 0..1 (not white-balanced)
-    let br = 0, bg2 = 0, bb2 = 0, bn = 0;
-    for (let y = tt; y < IN - bb; y++) for (let x = ll; x < IN - rr; x++) { const i = y * IN + x; if (ink[i] < 0.2) { br += rgb[i * 3]; bg2 += rgb[i * 3 + 1]; bb2 += rgb[i * 3 + 2]; bn++; } }
-    if (bn < 20) { bn = 0; br = bg2 = bb2 = 0; for (let i = 0; i < IN * IN; i++) { br += rgb[i * 3]; bg2 += rgb[i * 3 + 1]; bb2 += rgb[i * 3 + 2]; bn++; } }
-    return { ink, inkBlack: inkB, col, frac: n / ink.length, bg: [br / bn / 255, bg2 / bn / 255, bb2 / bn / 255], contrast };
+    // background (thread) colour of the cell, raw 0..1 (not white-balanced): per-channel median of the
+    // inner area. Not "the pixels that are not ink": a symbol with white parts (a white box on a dark
+    // square, an outlined box) made the white the paper level and its square read as white
+    const idx = []; for (let y = tt; y < IN - bb; y++) for (let x = ll; x < IN - rr; x++) idx.push(y * IN + x);
+    if (idx.length < 20) for (let i = 0; i < IN * IN; i++) idx.push(i);
+    const bg = [0, 1, 2].map(k => { const v = Float32Array.from(idx, i => rgb[i * 3 + k]).sort(); return v[v.length >> 1] / 255; });
+    return { ink, inkBlack: inkB, col, frac: n / ink.length, bg, contrast };
   }
   function colourDesc(rgb) {
     const mx = Math.max(rgb[0], rgb[1], rgb[2]), mn = Math.min(rgb[0], rgb[1], rgb[2]), sat = mx - mn;
@@ -34045,6 +34103,15 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
   }
   function tanimoto(a, b) { let ab = 0, a2 = 0, b2 = 0; for (let i = 0; i < a.length; i++) { ab += a[i] * b[i]; a2 += a[i] * a[i]; b2 += b[i] * b[i]; } return ab / Math.max(a2 + b2 - ab, 1e-6); }
 
+  // colour charts: the cell's inner area as a TH×TH colour picture (0..1), for matching chart cells to each other
+  const TH = 8;
+  function thumb(cell) {
+    const o = new Float32Array(TH * TH * 3), sc = IN / TH;
+    for (let y = 0; y < TH; y++) for (let x = 0; x < TH; x++) { let r = 0, g = 0, b = 0, n = 0;
+      for (let yy = Math.floor(y * sc); yy < Math.floor((y + 1) * sc); yy++) for (let xx = Math.floor(x * sc); xx < Math.floor((x + 1) * sc); xx++) { const s = ((yy + M) * CS + xx + M) * 3; r += cell[s]; g += cell[s + 1]; b += cell[s + 2]; n++; }
+      const d = (y * TH + x) * 3; o[d] = r / n / 255; o[d + 1] = g / n / 255; o[d + 2] = b / n / 255; }
+    return o;
+  }
   // mesh → list of cells (row-major) features
   function readCells(rgba, w, h, mesh, onProgress) {
     const { cols, rows, xs, ys } = mesh, W1 = cols + 1, out = new Array(cols * rows);
@@ -34052,7 +34119,9 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
       for (let j = 0; j < cols; j++) {
         const a = i * W1 + j, b = a + 1, c = a + W1 + 1, d = a + W1;
         const q = [xs[a], ys[a], xs[b], ys[b], xs[c], ys[c], xs[d], ys[d]];
-        out[i * cols + j] = cellFeatures(cutCell(rgba, w, h, q));
+        const cell = cutCell(rgba, w, h, q), o = cellFeatures(cell);
+        if (mesh.colour) o.th = thumb(cell);
+        out[i * cols + j] = o;
       }
       if (onProgress && (i % 8 === 0)) onProgress(i / rows);
     }
@@ -34071,8 +34140,9 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     }
     return out;
   }
-  function rescaleCell(cell, k) { // scale glyph about the centre, white fill
+  function rescaleCell(cell, k, fill) { // scale glyph about the centre; fill = background [r,g,b] 0..255 (white by default)
     const out = new Float32Array(CS * CS * 3).fill(255);
+    if (fill) for (let i = 0; i < CS * CS; i++) { out[i * 3] = fill[0]; out[i * 3 + 1] = fill[1]; out[i * 3 + 2] = fill[2]; }
     for (let v = 0; v < CS; v++) for (let u = 0; u < CS; u++) {
       const sx = (u - CS / 2) / k + CS / 2, sy = (v - CS / 2) / k + CS / 2, x0 = Math.floor(sx), y0 = Math.floor(sy);
       if (x0 < 0 || y0 < 0 || x0 >= CS - 1 || y0 >= CS - 1) continue;
@@ -34081,8 +34151,9 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     }
     return out;
   }
-  function shiftCell(cell, dx, dy) {
+  function shiftCell(cell, dx, dy, fill) {
     const out = new Float32Array(CS * CS * 3).fill(255);
+    if (fill) for (let i = 0; i < CS * CS; i++) { out[i * 3] = fill[0]; out[i * 3 + 1] = fill[1]; out[i * 3 + 2] = fill[2]; }
     for (let v = 0; v < CS; v++) for (let u = 0; u < CS; u++) { const sx = u - dx, sy = v - dy; if (sx < 0 || sy < 0 || sx >= CS || sy >= CS) continue; const o = (v * CS + u) * 3, s = (sy * CS + sx) * 3; out[o] = cell[s]; out[o + 1] = cell[s + 1]; out[o + 2] = cell[s + 2]; }
     return out;
   }
@@ -34091,14 +34162,17 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     for (let c = 0; c < 3; c++) { for (let i = 0; i < ch.length; i++) ch[i] = cell[i * 3 + c]; const b = smallBlur(ch, CS, sigma); for (let i = 0; i < ch.length; i++) out[i * 3 + c] = b[i]; }
     return out;
   }
-  function buildBank(tcells, scales, shifts) {
+  function buildBank(tcells, scales, shifts, ownFill) {
     const bank = [];
     for (const t of tcells) {
-      const cd = colourDesc(inkMask(t.cell).col);
+      const mk = inkMask(t.cell), cd = colourDesc(mk.col);
+      // a key square filled with its thread colour must shrink into that colour, not into white:
+      // a white rim becomes the "paper" and the whole coloured square reads as ink
+      const fill = ownFill ? mk.bg.map(v => v * 255) : null;
       for (const k of scales) {
-        const base = blurCell(rescaleCell(t.cell, k), 1.0);
+        const base = blurCell(rescaleCell(t.cell, k, fill), 1.0);
         for (const dy of shifts) for (const dx of shifts) {
-          const sh = (dx || dy) ? shiftCell(base, dx, dy) : base;
+          const sh = (dx || dy) ? shiftCell(base, dx, dy, fill) : base;
           bank.push({ id: t.id, f: inkFeature(inkMask(sh).ink), col: cd, black: cd.hue === null });
         }
       }
@@ -34163,7 +34237,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     const tf = tcells.map(t => cellFeatures(t.cell));
     const tLab = tf.map(f => toLab(f.bg)), tGlyph = tf.map(hasGlyph);
     // the key square was cropped inside its outline, the chart cell is cut on the grid lines: chart glyphs are smaller
-    const bank = buildBank(tcells.filter((t, k) => tGlyph[k]), [0.72, 0.8, 0.88], [-1, 0, 1]);
+    const bank = buildBank(tcells.filter((t, k) => tGlyph[k]), [0.72, 0.8, 0.88], [-1, 0, 1], true);
     const byId = new Map(); for (const e of bank) (byId.get(e.id) || byId.set(e.id, []).get(e.id)).push(e);
     // white point of this photo: the brightest cells
     const W = [0, 1, 2].map(c => { const a = Float32Array.from(cells, x => x.bg[c]).sort(); return Math.max(0.2, a[Math.floor(a.length * 0.97)]); });
@@ -34180,7 +34254,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     }
     let paperLab = [100, 0, 0]; const illum = new Float32Array(n).fill(1);
     const labels = new Int16Array(n), conf = new Float32Array(n), margin = new Float32Array(n), lab = new Array(n);
-    let cLab = tLab.map(v => v.slice()), fit = null;
+    let cLab = tLab.map(v => v.slice()), fit = null; const keyScore = new Float32Array(n * (K + 1));
     const Yof = L => { const fy = (L + 16) / 116; return fy > 0.2069 ? fy * fy * fy : (fy - 16 / 116) / 7.787; };
     for (let it = 0; it < 4; it++) {
       const wL = it === 0 ? 0.35 : 1;  // first pass: trust hue more than lightness (shadows, exposure)
@@ -34189,8 +34263,9 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
         const L = lab[i];
         const dE = (q, w2) => Math.sqrt(w2 * (L[0] - q[0]) ** 2 + (L[1] - q[1]) ** 2 + (L[2] - q[2]) ** 2);
         let bs = blankSim(cells[i]) - 0.02 * dE(paperLab, wL), bk = -1, sc = -1e9;   // paper: no symbol, paper colour
+        if (it === 3) keyScore[i * (K + 1) + K] = bs;
         // a plain square's printed lightness in the key often differs from the chart's: start from its hue
-        for (let k = 0; k < K; k++) { const v = glyphSim[i * K + k] - 0.02 * dE(cLab[k], it === 0 && !tGlyph[k] ? 0.1 : wL); if (v > bs) { sc = bs; bs = v; bk = k; } else if (v > sc) sc = v; }
+        for (let k = 0; k < K; k++) { const v = glyphSim[i * K + k] - 0.02 * dE(cLab[k], it === 0 && !tGlyph[k] ? 0.1 : wL); if (it === 3) keyScore[i * (K + 1) + k] = v; if (v > bs) { sc = bs; bs = v; bk = k; } else if (v > sc) sc = v; }
         labels[i] = bk; conf[i] = bs; margin[i] = bs - sc;
       }
       if (opts.onProgress) opts.onProgress(0.7 + 0.075 * (it + 1));
@@ -34235,8 +34310,31 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
       const srt = Float32Array.from(illum).sort(), ref = srt[Math.floor(srt.length * 0.75)] || 1;
       for (let i = 0; i < n; i++) illum[i] = Math.min(1.1, illum[i] / ref);
     }
+    if (cells[0].th && opts.proto !== false) protoPass(cells, n, K, labels, conf, margin, keyScore, W, illum, opts);
     if (opts.debug) console.log('key→chart Lab fit', JSON.stringify(fit && fit.map(f => f.map(x => +x.toFixed(2)))));
     return { labels, conf, margin, illum, white: W, classLab: cLab, keyLab: tLab, glyph: tGlyph };
+  }
+
+  // second opinion from the chart itself: every class's cells look alike on one page (same print, same light),
+  // so each class gets a picture made from its own confident cells and every cell is compared with those
+  function protoPass(cells, n, K, labels, conf, margin, keyScore, W, illum, opts) {
+    const TP = cells[0].th.length / 3, C = K + 1, thL = new Float32Array(n * TP * 3);
+    for (let i = 0; i < n; i++) { const t = cells[i].th, il = illum[i];
+      for (let p = 0; p < TP; p++) { const L = toLab([t[p * 3] / W[0] / il, t[p * 3 + 1] / W[1] / il, t[p * 3 + 2] / W[2] / il]); thL.set(L, (i * TP + p) * 3); } }
+    const A = opts.protoA != null ? opts.protoA : 1, B = opts.protoB != null ? opts.protoB : 1, wL = 0.5;
+    const proto = new Float32Array(C * TP * 3), has = new Uint8Array(C), cnt = new Float32Array(C), dist = new Float32Array(C);
+    for (let pass = 0; pass < (opts.protoIter || 2); pass++) {
+      proto.fill(0); cnt.fill(0);
+      for (let i = 0; i < n; i++) { if (margin[i] < 0.05) continue; const k = labels[i] < 0 ? K : labels[i]; cnt[k]++; const o = k * TP * 3, s = i * TP * 3; for (let q = 0; q < TP * 3; q++) proto[o + q] += thL[s + q]; }
+      for (let k = 0; k < C; k++) { has[k] = cnt[k] >= 6 ? 1 : 0; if (has[k]) for (let q = 0; q < TP * 3; q++) proto[k * TP * 3 + q] /= cnt[k]; }
+      for (let i = 0; i < n; i++) { const s = i * TP * 3; let dmin = 1e9;
+        for (let k = 0; k < C; k++) { if (!has[k]) continue; const o = k * TP * 3; let d = 0;
+          for (let p = 0; p < TP; p++) { const a = s + p * 3, b = o + p * 3, x = thL[a] - proto[b], y = thL[a + 1] - proto[b + 1], z = thL[a + 2] - proto[b + 2]; d += Math.sqrt(wL * x * x + y * y + z * z); }
+          dist[k] = d / TP; if (dist[k] < dmin) dmin = dist[k]; }
+        let bs = -1e9, sc = -1e9, bk = -1;
+        for (let k = 0; k < C; k++) { const pd = has[k] ? dist[k] : dmin + 12; const v = A * keyScore[i * C + k] - B * 0.02 * pd; if (v > bs) { sc = bs; bs = v; bk = k; } else if (v > sc) sc = v; }
+        labels[i] = bk === K ? -1 : bk; conf[i] = bs; margin[i] = bs - sc; }
+    }
   }
 
   // ───────────────────────── top-level page pipeline ─────────────────────────
@@ -34664,7 +34762,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
   PLScan.legendAnalyse = legendAnalyse; PLScan.legendTiles = legendTiles; PLScan.matchColour = matchColour; PLScan.isColourChart = isColourChart; PLScan._toLab = toLab; PLScan.legendSwatches = legendSwatches;
   PLScan.analysePage = analysePage; PLScan.detectGrid = detectGrid; PLScan.readCells = readCells; PLScan.matchCells = matchCells; PLScan.findScale = findScale;
   PLScan.cutCell = cutCell; PLScan.CS = CS; PLScan.version = 1;
-  PLScan._toCell = toCell; PLScan._cellFeatures = cellFeatures; PLScan._blurCell = blurCell; PLScan._lineMargins = lineMargins; PLScan._tanimoto = tanimoto; PLScan._inkMask = inkMask;
+  PLScan._toCell = toCell; PLScan._cellFeatures = cellFeatures; PLScan._blurCell = blurCell; PLScan._lineMargins = lineMargins; PLScan._tanimoto = tanimoto; PLScan._inkMask = inkMask; PLScan._buildBank = buildBank; PLScan._inkFeature = inkFeature;
   root.PLScan = PLScan;
   if (typeof module !== 'undefined') module.exports = PLScan;
 })(typeof self !== 'undefined' ? self : this);
@@ -34700,12 +34798,13 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
           const cells = PLScan.readCells(an.rgba, an.w, an.h, an.mesh, p => prog(0.6 + 0.4 * p));
           const n = cells.length, F2 = cells[0].f.length;
           const feat = new Uint8Array(n * F2), featB = new Uint8Array(n * F2), frac = new Float32Array(n), sat = new Float32Array(n), hue = new Float32Array(n), bg = new Float32Array(n * 3), contrast = new Float32Array(n);
-          for (let i = 0; i < n; i++) { feat.set(quant(cells[i].f), i * F2); featB.set(quant(cells[i].fb), i * F2); frac[i] = cells[i].frac; sat[i] = cells[i].col.sat; hue[i] = cells[i].col.hue === null ? -1 : cells[i].col.hue; bg[i * 3] = cells[i].bg[0]; bg[i * 3 + 1] = cells[i].bg[1]; bg[i * 3 + 2] = cells[i].bg[2]; contrast[i] = cells[i].contrast; }
+          const TH = cells[0].th ? cells[0].th.length : 0, thb = TH ? new Uint8Array(n * TH) : null;
+          for (let i = 0; i < n; i++) { feat.set(quant(cells[i].f), i * F2); featB.set(quant(cells[i].fb), i * F2); frac[i] = cells[i].frac; sat[i] = cells[i].col.sat; hue[i] = cells[i].col.hue === null ? -1 : cells[i].col.hue; bg[i * 3] = cells[i].bg[0]; bg[i * 3 + 1] = cells[i].bg[1]; bg[i * 3 + 2] = cells[i].bg[2]; contrast[i] = cells[i].contrast; if (thb) thb.set(quant(cells[i].th), i * TH); }
           // keep a reduced copy of the page (cell ≈ 24px) for crops; drop the full one
           const f = Math.max(1, Math.floor(Math.min(an.mesh.pitch[0], an.mesh.pitch[1]) / 24));
           const small = f > 1 ? shrink(an.rgba, an.w, an.h, f) : { rgba: an.rgba, w: an.w, h: an.h };
           const mesh = an.mesh; if (f > 1) { for (let i = 0; i < mesh.xs.length; i++) { mesh.xs[i] = (mesh.xs[i] + 0.5) / f - 0.5; mesh.ys[i] = (mesh.ys[i] + 0.5) / f - 0.5; } }
-          PAGES[m.id] = { rgba: small.rgba, w: small.w, h: small.h, mesh, feat, featB, frac, sat, hue, bg, contrast, F2 };
+          PAGES[m.id] = { rgba: small.rgba, w: small.w, h: small.h, mesh, feat, featB, frac, sat, hue, bg, contrast, F2, th: thb, TH };
           const th = shrink(small.rgba, small.w, small.h, Math.max(1, Math.ceil(Math.max(small.w, small.h) / 320)));
           reply({ ok: true, cols: mesh.cols, rows: mesh.rows, colPhase: mesh.colPhase, rowPhase: mesh.rowPhase, realFrac: mesh.realFrac, skew: an.skew, colour: an.colour, thumb: th }, [th.rgba.buffer]);
         } else if (m.cmd === 'drop') { delete PAGES[m.id]; reply({ ok: true }); }
@@ -34778,7 +34877,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
           // colour key (Riolis and similar): thread colour + symbol, page by page (each photo has its own light)
           const ids = m.ids, T = m.templates, out = {}; let done = 0;
           for (const id of ids) { const P = PAGES[id]; if (!P) continue; const n = P.frac.length, cells = new Array(n);
-            for (let i = 0; i < n; i++) cells[i] = { f: deq(P.feat.subarray(i * P.F2, (i + 1) * P.F2)), fb: deq(P.featB.subarray(i * P.F2, (i + 1) * P.F2)), frac: P.frac[i], contrast: P.contrast[i], bg: [P.bg[i * 3], P.bg[i * 3 + 1], P.bg[i * 3 + 2]] };
+            for (let i = 0; i < n; i++) { cells[i] = { f: deq(P.feat.subarray(i * P.F2, (i + 1) * P.F2)), fb: deq(P.featB.subarray(i * P.F2, (i + 1) * P.F2)), frac: P.frac[i], contrast: P.contrast[i], bg: [P.bg[i * 3], P.bg[i * 3 + 1], P.bg[i * 3 + 2]] }; if (P.th) cells[i].th = deq(P.th.subarray(i * P.TH, (i + 1) * P.TH)); }
             const r = PLScan.matchColour(cells, P.mesh.cols, P.mesh.rows, T, { onProgress: p => self.postMessage({ seq: m.seq, progress: (done + p) / ids.length }) });
             out[id] = { lab: r.labels, conf: r.conf, margin: r.margin }; done++; }
           reply({ ok: true, labels: out });
