@@ -37,7 +37,7 @@ Two GitHub repos under the **Patternly** organisation are the source of truth; C
 
 ## Code map
 
-Current versions: **editor v640** (website and patternly-app `www/`), **middleware v101**, **Studio v51**, app **1.4** live in both stores (iOS build 3 / Android versionCode 9); app repo `main` = **1.5** (Android versionCode 10, iOS MARKETING_VERSION 1.5), not yet built. Every build bumps its version constant; never re-issue a version with different contents.
+Current versions: **editor v641** (website and patternly-app `www/`), **middleware v101**, **Studio v51**, app **1.4** live in both stores (iOS build 3 / Android versionCode 9); app repo `main` = **1.5** (Android versionCode 10, iOS MARKETING_VERSION 1.5), not yet built. Every build bumps its version constant; never re-issue a version with different contents.
 
 | File | Size | What it is | Version constant |
 | --- | --- | --- | --- |
@@ -186,7 +186,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 **RULE #1 — never break account-linked sync.** Before every push, grep these marker counts in `index.html` and compare with the previous commit: `trkProgressUrl` 4 lines, `trkCloudProjects` 4, `trkUserPatternUrl` 8, `pl_session` 27 occurrences (21 lines). Also: `ensurePageFooters` adds a footer only to `#account-page`, never `#tracker-page`; `/progress` latches code-opened kits to the signed-in customer.
 
-1. One fix per build; bump `PATTERNLY_BUILD` (editor), `MW_VERSION` (middleware) or the Studio `vNN` comment on every delivered change; never re-issue a version with different contents. Next numbers: editor **v641** (v638 + v640 = guided scanner camera and scan tip, PR #6 on `claude/project-thread-rcyu34`), middleware **v102**, Studio **v52**.
+1. One fix per build; bump `PATTERNLY_BUILD` (editor), `MW_VERSION` (middleware) or the Studio `vNN` comment on every delivered change; never re-issue a version with different contents. Next numbers: editor **v642**, middleware **v102**, Studio **v52**.
 2. Every editor build: `node --check` on all 17 inline script blocks, then copy `index.html` to `patternly-app/www/index.html` and commit both repos ("www: editor vNNN").
 3. Commit as `-c user.name="Cristian" -c user.email="lucasukinfo@gmail.com"`, message ending with the Claude attribution lines; push to `main` directly (the Claude GitHub App has push access on both repos). The Patternly repo remote redirects ("repository moved") — harmless.
 4. Test before delivering: Playwright headless Chromium (`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`, `--no-sandbox`) against a local `python3 -m http.server` serving a copy of the file; iPhone viewport 390×844 with `isMobile`/`hasTouch`; `hj051.ptly` is the usual test pattern. No WebKit is available — anything iOS-specific needs Cristian's phone.
@@ -201,6 +201,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 | Date | Build | Change |
 | --- | --- | --- |
+| 30 Oct 2026 | Editor v641 | Tracker banner after Scan Your Pattern: `trackerShowVerification` now checks `trackerGrid.scanned` first and says "✓ Read from your photos. N colours on a W×H grid" plus how many stitches are marked to check (or "No stitches left to check"), instead of "Exact import … nothing parsed from a picture". `plReviewBanner` refreshes the line, so the count follows the review. Also shown when a saved scan project is reopened |
 | 30 Oct 2026 | Android 1.5 | First Android release built entirely on GitHub: 1.5 (10) to internal testing (run 41032464209), then promoted to Production (`play-promote-v10`) |
 | 29 Oct 2026 | Android CI | patternly-app `android-release.yml` reworked so Android releases need no PC: Run workflow button with inputs, next free versionCode read from Play, `google-services.json` from secret `ANDROID_GOOGLE_SERVICES_JSON` (it is not in git; without it push would silently break), missing-secret check, upload-key SHA-1 in the result, release notes only in listing languages, dry-run test build; runner's own Android SDK (setup-android failed). New `docs/ANDROID_RELEASE_CI.md` with secret setup steps |
 | 30 Oct 2026 | App 1.5 (iOS) live | Apple approved 1.5; App Store state READY_FOR_SALE (checked with `asc-15-state-1`) |
@@ -261,7 +262,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 - [ ] Riolis: re-test with Cristian's full-resolution photos (the ones tested were downscaled to 2016 px, ~14 px per cell); one photo of the whole sheet works best for one-sheet charts. Half stitches ("//" rows) are tracked as full stitches; backstitch rows are skipped
 - [ ] Colour charts: no measured accuracy yet (no ground truth). Downscaled Riolis photo: 1,821 of 11,000 cells read as empty canvas (left blank, not counted), ~17 % of the 9,2xx stitches flagged "to check". 68 empty cells were close calls and are not flagged (review only covers stitched cells), so a very light colour could be missed silently
-- [ ] Tracker banner after any scan still says "✓ Exact import … nothing parsed from a picture" (`trackerShowVerification` treats scans as exact grids since v616); give scans their own line
+- [x] (v641) Tracker banner after any scan still says "✓ Exact import … nothing parsed from a picture" (`trackerShowVerification` treats scans as exact grids since v616); give scans their own line
 - [x] Live guided camera: page outline, light/glare/shadow/tilt/blur warnings, auto-shutter, straighten (v638, PR #6 merged 29 Oct)
 - [ ] Test v638/v640 on a real iPhone and Android phone (web and app): thresholds were tuned on a simulated camera; check auto-capture isn't too strict/too eager, the tilt hint direction, the light button on Android
 - [ ] Page-number detection in the camera (not built)

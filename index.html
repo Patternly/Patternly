@@ -5415,7 +5415,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v640';
+window.PATTERNLY_BUILD='v641';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -24562,6 +24562,18 @@ function trkOpenManualColours(){
 }
 
 function trackerShowVerification(){
+  // Scan Your Pattern results are built like an exact import (trkExactGrid), but they WERE
+  // read from pictures — say so, and point at the flagged stitches instead of claiming exactness.
+  if(trackerGrid && trackerGrid.scanned && trackerLegend){
+    const box=document.getElementById('trk-verify');
+    const nU=trackerGrid.unsure?trackerGrid.unsure.size:0;
+    box.style.borderColor='#3f8f5f';
+    box.innerHTML=`<b style="color:#2E7D32">✓ Read from your photos.</b> ${trackerLegend.rowCount} colours on a ${trackerGrid.cols}×${trackerGrid.rows} grid. `+
+      (nU ? `${nU.toLocaleString()} stitch${nU===1?'':'es'} the scanner wasn’t sure about ${nU===1?'is':'are'} marked — check ${nU===1?'it':'them'} against your paper chart.`
+          : 'No stitches left to check. A quick look against your paper chart is still worthwhile.');
+    trackerStitched = trackerStitched || Array.from({length: trackerGrid.rows}, ()=>Array(trackerGrid.cols).fill(false));
+    return true;
+  }
   if(window.trkExactGrid && trackerLegend && trackerLegend.byCode && trackerGrid){
     const box=document.getElementById('trk-verify');
     box.style.borderColor='#3f8f5f';
@@ -35124,6 +35136,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
   const R = { list: [], idx: 0, open: false };
   window.plReviewBanner = function(){
     let el = $('pls-review');
+    try { if (trackerGrid && trackerGrid.scanned && typeof trackerShowVerification === 'function') trackerShowVerification(); } catch (e) {}
     const n = (typeof trackerGrid !== 'undefined' && trackerGrid && trackerGrid.unsure) ? trackerGrid.unsure.size : 0;
     if (!n) { if (el) el.remove(); plReviewClose(); return; }
     if (!el) { el = document.createElement('div'); el.id = 'pls-review'; const v = $('trk-verify'); if (v && v.parentNode) v.parentNode.insertBefore(el, v); else { const ws = $('trk-workspace'); if (ws) ws.insertBefore(el, ws.firstChild); } }
