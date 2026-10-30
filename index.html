@@ -5415,7 +5415,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v650';
+window.PATTERNLY_BUILD='v651';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -9709,7 +9709,7 @@ function rgbToHsl(r,g,b){
 // Returns palette indices in display order based on paletteSort
 function sortedPaletteIndices(){
   const pal=activePalette();
-  const idxs=pal.map((_,i)=>i);
+  const idxs=pal.map((_,i)=>i).filter(i=>!pal[i].blend); // blends are not library threads
   if(paletteSort==='color'){
     idxs.sort((a,b)=>{
       const [ha,sa,la]=rgbToHsl(pal[a].r,pal[a].g,pal[a].b);
@@ -9731,6 +9731,41 @@ function sortedPaletteIndices(){
   return idxs; // 'number' = natural palette order (already numbered/sorted)
 }
 function activePalette(){ return PALETTES[currentBrand].colours; }
+
+// ── Blended threads (v651) ──────────────────────────────────────────────────
+// A blend is one strand each of two threads in one stitch. Blends are appended
+// to the END of a brand's colours array ({…, blend:[a,b]}), so every real
+// thread keeps its index and the grid, renderers, PDF and OXS export use them
+// like any colour. Nearest-thread matchers skip blend entries, so a plain
+// conversion never picks one. Saved patterns store plBlendsOf(brand) and
+// reloading calls plBlendsRestore, which rebuilds the tail in the same order.
+Object.values(PALETTES).forEach(P=>{ P.baseLen=P.colours.length; });
+function plShortCode(t){ const m=String(t.sku||'').match(/^(?:Luca-S|DMC|Anchor|Cosmo|Madeira)-(.+)$/i); return m?m[1]:String(t.label||t.sku||''); }
+function plBlendEntry(brand,a,b){
+  const cols=PALETTES[brand].colours, A=cols[a], B=cols[b];
+  // label "DMC 310 + 413" (brand word once), sku "DMC-310+413"
+  const pre=(String(A.label).match(/^([A-Za-z]+) /)||[])[1];
+  const lb=pre && String(B.label).indexOf(pre+' ')===0 ? A.label+' + '+String(B.label).slice(pre.length+1) : A.label+' + '+B.label;
+  return {r:Math.round((A.r+B.r)/2), g:Math.round((A.g+B.g)/2), b:Math.round((A.b+B.b)/2),
+          label:lb, sku:A.sku+'+'+plShortCode(B), variantSource:'blend', blend:[a,b]};
+}
+function plBlendEnsure(brand,a,b){
+  if(a>b){ const t=a; a=b; b=t; }
+  const P=PALETTES[brand], cols=P.colours;
+  for(let i=P.baseLen;i<cols.length;i++){ const bl=cols[i].blend; if(bl[0]===a && bl[1]===b) return i; }
+  cols.push(plBlendEntry(brand,a,b));
+  return cols.length-1;
+}
+function plBlendsOf(brand){ const P=PALETTES[brand]; return P.colours.slice(P.baseLen).map(c=>c.blend.slice()); }
+function plBlendsRestore(brand,list){
+  const P=PALETTES[brand]; if(!P) return;
+  P.colours.length=P.baseLen;
+  (Array.isArray(list)?list:[]).forEach(bl=>{
+    const a=bl&&bl[0]|0, b=bl&&bl[1]|0;
+    if(a<P.baseLen && b<P.baseLen) P.colours.push(plBlendEntry(brand,a,b));
+    else P.colours.push(Object.assign({},P.colours[0],{blend:[0,0]})); // keep indices stable even if damaged
+  });
+}
 function colourHex(i){ const c=activePalette()[i]; return rgbToHex(c); }
 function colourLabel(i){ return activePalette()[i].label; }
 function colourSku(i){ return activePalette()[i].sku; }
@@ -10072,6 +10107,7 @@ function closestPaletteIdxP(r,g,b) {
   const pal=activePalette();
   let best=0, min=Infinity;
   for(let i=0;i<pal.length;i++){
+    if(pal[i].blend) continue;
     const d=colorDistP({r,g,b},pal[i]);
     if(d<min){min=d;best=i;}
   }
@@ -10081,6 +10117,7 @@ function closestPaletteIdx(r,g,b) {
   const pal=activePalette();
   let best=0, min=Infinity;
   for(let i=0;i<pal.length;i++){
+    if(pal[i].blend) continue;
     const d=colorDist({r,g,b},pal[i]);
     if(d<min){min=d;best=i;}
   }
@@ -11313,7 +11350,8 @@ async function edBrandRemap(brand){
     if(idx===null||idx===undefined) return idx;
     if(remap.has(idx)) return remap.get(idx);
     const s=srcCols[idx]; let d=0;
-    if(s){ const {c}=thNearest(brand, thRgbToLab(s.r,s.g,s.b)); d=dstCols.indexOf(c); if(d<0) d=0; }
+    if(s && s.blend){ const a=mapIdx(s.blend[0]), b=mapIdx(s.blend[1]); d=a===b?a:plBlendEnsure(brand,a,b); }
+    else if(s){ const {c}=thNearest(brand, thRgbToLab(s.r,s.g,s.b)); d=dstCols.indexOf(c); if(d<0) d=0; }
     remap.set(idx,d); return d;
   };
   for(const L of (layers||[])){
@@ -13559,7 +13597,7 @@ function cvRender(){
     let r=0,g=0,b=0; for(const i of box){ r+=chan(i,0); g+=chan(i,1); b+=chan(i,2); }
     r/=box.length; g/=box.length; b/=box.length;
     let bi=0,bdist=1e9;
-    for(let p=0;p<pal.length;p++){ const d=(pal[p].r-r)**2+(pal[p].g-g)**2+(pal[p].b-b)**2; if(d<bdist){bdist=d;bi=p;} }
+    for(let p=0;p<pal.length;p++){ if(pal[p].blend) continue; const d=(pal[p].r-r)**2+(pal[p].g-g)**2+(pal[p].b-b)**2; if(d<bdist){bdist=d;bi=p;} }
     return pal[bi];
   });
   const cv=document.getElementById('cv-canvas');
@@ -13980,7 +14018,14 @@ document.getElementById('add-cart-btn').addEventListener('click',()=>{
   const metersPer100={11:0.58,14:0.43,16:0.4,18:0.38,20:0.34,25:0.27}[fabricCount] || 0.38;
   const items=[];
 
-  Object.entries(stitchData).sort((a,b)=>b[1]-a[1]).forEach(([ci,count])=>{
+  // a blend uses one strand of each thread: half the length from each (v651)
+  const need={};
+  Object.entries(stitchData).forEach(([ci,count])=>{
+    const t=activePalette()[ci]; if(!t) return;
+    if(t.blend) t.blend.forEach(j=>{ need[j]=(need[j]||0)+count/2; });
+    else need[ci]=(need[ci]||0)+count;
+  });
+  Object.entries(need).sort((a,b)=>b[1]-a[1]).forEach(([ci,count])=>{
     const meters=(count*metersPer100)/100*1.15;
     const skeins=Math.ceil(meters/8);
     const variantId=variantIdFor(parseInt(ci));
@@ -14071,6 +14116,7 @@ function saveToBrowser(){
   const name=document.getElementById('pattern-name').value||'pattern';
   if(typeof lySyncActive==='function') lySyncActive();
   const payload={name,brand:currentBrand,cols:COLS,rows:ROWS,grid,stitchGrid,knots,lines,workingPalette:[...workingPalette],settings:pjCollectSettings(),version:3,savedAt:Date.now()};
+  const _bl=plBlendsOf(currentBrand); if(_bl.length) payload.blends=_bl; // v651: blend tail, same order as the indices
   if(typeof layers!=='undefined' && layers && layers.length>1){
     payload.layers=layers.map(L=>({name:L.name, visible:L.visible, locked:L.locked, grid:L.grid, stitchGrid:L.stitchGrid, lines:L.lines, knots:L.knots}));
     payload.activeLayer=activeLayerIdx;
@@ -16212,6 +16258,7 @@ function wpRepBuildGrid(filter){
   const lightOf=c=>0.299*c.r+0.587*c.g+0.114*c.b;
   let idxs=pal.map((c,ci)=>ci).filter(ci=>{
     const c=pal[ci];
+    if(c.blend) return false;
     return !f || (c.label||'').toLowerCase().includes(f) || colourShortCode(ci).toLowerCase().includes(f);
   });
   if(wpRepSort==='code')  idxs.sort((a,b)=>colourShortCode(a).localeCompare(colourShortCode(b),undefined,{numeric:true}));
@@ -16771,6 +16818,7 @@ function pjLoadIntoEditor(d){
   currentProjectId=d.id;
   document.getElementById('pattern-name').value=d.name||'pattern';
   if(d.brand && PALETTES[d.brand]){ currentBrand=d.brand; const sel=document.getElementById('brand-select'); if(sel) sel.value=currentBrand; const ib=document.getElementById('img-brand-select'); if(ib) ib.value=currentBrand; document.getElementById('brand-label').textContent=PALETTES[currentBrand].name; buildPalette(); }
+  plBlendsRestore(currentBrand, d.blends); // v651: rebuild the blend tail before any colour is read
   COLS=d.cols||50; ROWS=d.rows||50;
   grid=d.grid||[];
   stitchGrid=(d.stitchGrid&&d.stitchGrid.length===ROWS)
@@ -19110,6 +19158,7 @@ document.querySelectorAll('.ct-btn[data-tool]').forEach(btn=>{
     const pal = activePalette();
     let bestIdx=0, bestDist=Infinity;
     for(let i=0;i<pal.length;i++){
+      if(pal[i].blend) continue;
       const d=(pal[i].r-r)**2+(pal[i].g-g)**2+(pal[i].b-b)**2;
       if(d<bestDist){ bestDist=d; bestIdx=i; }
     }
@@ -19275,7 +19324,7 @@ function goHome(){
   }
   function lpcNearest(pal,r,g,b,D){
     let bi=0,bd=Infinity;
-    for(let i=0;i<pal.length;i++){ const d=D({r,g,b},pal[i]); if(d<bd){bd=d;bi=i;} }
+    for(let i=0;i<pal.length;i++){ if(pal[i].blend) continue; const d=D({r,g,b},pal[i]); if(d<bd){bd=d;bi=i;} }
     return bi;
   }
   function lpcMap(d,pal,D){
@@ -27605,7 +27654,7 @@ function trkSkipBuild(brand){
       colourfulCount++;
       if(pal){
         let bi=0,bd=1e9;
-        for(let p=0;p<pal.length;p++){ const d=(pal[p].r-col.r)**2+(pal[p].g-col.g)**2+(pal[p].b-col.b)**2; if(d<bd){bd=d;bi=p;} }
+        for(let p=0;p<pal.length;p++){ if(pal[p].blend) continue; const d=(pal[p].r-col.r)**2+(pal[p].g-col.g)**2+(pal[p].b-col.b)**2; if(d<bd){bd=d;bi=p;} }
         col={r:pal[bi].r,g:pal[bi].g,b:pal[bi].b}; label=PALETTES[brand].name+' '+pal[bi].label; code=pal[bi].label;
       }
     } else {
@@ -27667,8 +27716,14 @@ function trkShopList(){
     const it={label, code:code||label, sku:code||label, r:col.r|0, g:col.g|0, b:col.b|0, stitches:st, metres:m};
     const bp=code.split('+').map(x=>x.trim()).filter(Boolean);
     if(bp.length===2){
-      const at=label.indexOf(code), pre=at>0?label.slice(0,at).replace(/\bblend\b/i,'').trim():'';
-      it.parts=bp.map(c=>({label:(pre&&!/^[A-Za-z]/.test(c)?pre+' ':'')+c, code:c, sku:(pre&&!/^[A-Za-z]/.test(c)?pre+' ':'')+c, r:col.r|0, g:col.g|0, b:col.b|0}));
+      // "DMC-322+825" → DMC-322 and DMC-825; "337+331" with label "Luca-S 337+331" → Luca-S 337 / 331
+      const bpre=(bp[0].match(/^([A-Za-z][\w -]*)-\w+$/)||[])[1];
+      const at=label.indexOf(code), lpre=at>0?label.slice(0,at).replace(/\bblend\b/i,'').trim():'';
+      it.parts=bp.map(c=>{
+        const sku=bpre&&!/^[A-Za-z][\w -]*-/.test(c)?bpre+'-'+c:c;
+        const lb=/^[A-Za-z][\w -]*-\w+$/.test(sku)?sku.replace(/-(\w+)$/,' $1'):(lpre?lpre+' ':'')+sku;
+        return {label:lb, code:c, sku:/^[A-Za-z]/.test(sku)?sku:lb, r:col.r|0, g:col.g|0, b:col.b|0};
+      });
     }
     items.push(it);
   });
@@ -29000,7 +29055,8 @@ function thQuality(dE){
   if(dE<10) return {cls:'b-fair', icon:'≈', name:'Fair'};
   return {cls:'b-appr', icon:'~', name:'Approx'};
 }
-function thPal(brand){ return PALETTES[brand]; }
+// Thread Hub works on real threads only: hide the blend tail (v651)
+function thPal(brand){ const P=PALETTES[brand]; return (!P || P.baseLen==null || P.colours.length===P.baseLen) ? P : {name:P.name, colours:P.colours.slice(0,P.baseLen)}; }
 const TH_BRANDS=[['lucas','Luca-S'],['dmc','DMC'],['anchor','Anchor'],['cosmo','Cosmo'],['madeira','Madeira']];
 function thBrandCode(brand,c){ // display code from a palette entry
   if(c.sku){ const m=c.sku.match(/^(?:Luca-S|DMC|Anchor|Cosmo|Madeira)[ -](.+)$/i); if(m) return m[1]; }
@@ -32738,7 +32794,9 @@ function pjMakeThumb(d){
   const cv=document.createElement('canvas');
   cv.width=cols*scale; cv.height=rows*scale;
   const cx=cv.getContext('2d');
-  const pal=(PALETTES[d.brand]&&PALETTES[d.brand].colours)||PALETTES[Object.keys(PALETTES)[0]].colours;
+  const P=PALETTES[d.brand]||PALETTES[Object.keys(PALETTES)[0]];
+  // saved blends (v651) sit after the brand's threads, in the pattern's own order
+  const pal=P.colours.slice(0,P.baseLen).concat((d.blends||[]).map(bl=>{ const A=P.colours[bl[0]]||P.colours[0], B=P.colours[bl[1]]||A; return {r:(A.r+B.r)/2|0,g:(A.g+B.g)/2|0,b:(A.b+B.b)/2|0}; }));
   const g=d.grid||[];
   for(let r=0;r<rows;r++){
     const row=g[r]; if(!row) continue;
@@ -35402,6 +35460,10 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
         <div class="qc-lbl">Colour count <span id="qc-colors-v"></span></div>
         <input type="range" id="qc-colors" min="2" max="125" step="1">
         <p class="qc-hint" id="qc-typical"></p>
+        <div id="qc-blend-wrap">
+          <div class="qc-row" style="margin-top:.6rem"><span style="font-size:.8rem;font-weight:700">Blended threads <span class="qc-tag fill" style="margin-left:.25rem">New</span></span><button type="button" class="qc-tog" id="qc-blend-tog" aria-label="Blended threads"></button></div>
+          <p class="qc-hint" id="qc-blend-hint">One strand each of two threads in a stitch, for smoother skin tones, skies and gradients.</p>
+        </div>
         <div class="qc-row" style="margin-top:.6rem"><span style="font-size:.8rem;font-weight:700">Fine-tune brightness &amp; contrast</span><button type="button" class="qc-tog" id="qc-ft-tog" aria-label="Fine-tune"></button></div>
         <div id="qc-ft" style="display:none">
           <div class="qc-lbl">Brightness <span id="qc-br-v">0</span></div><input type="range" id="qc-br" min="-50" max="50" value="0">
@@ -35502,7 +35564,7 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
   const QC={
     step:1, kind:'photo', craft:prefs.craft||'cross', drill:prefs.drill||'square', units:prefs.units||'cm',
     brand:prefs.brand||'', strands:prefs.strands||2, countKey:prefs.countKey||'a14', fabricHex:prefs.fabricHex||'',
-    W:0, H:0, lock:true, preset:1, style:'balanced', colors:30, detail:2, clean:0, br:0, ct:0, sa:0,
+    W:0, H:0, lock:true, preset:1, style:'balanced', colors:30, detail:2, clean:0, br:0, ct:0, sa:0, blends:false,
     view:'pattern', zoom:1, showConf:false, name:'My Pattern', bgOn:false, bgTol:28,
     crop:{x:0,y:0,w:1,h:1}, rot:0, rot90:0, bgSeeds:[], bgAuto:true
   };
@@ -35619,9 +35681,33 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
   }
 
   // ── conversion: same palette mapping and colour-cap rule as the editor's convertImage ──
+  // ── Blended threads (v651): candidate blends = each thread with its nearest
+  // neighbours (close enough that the mix reads as one colour). Built once per
+  // brand. Entries {r,g,b,label,blend:[a,b]} are appended after the brand's
+  // threads in a palette local to quick convert; handoff() registers the used
+  // ones in the editor palette (plBlendEnsure).
+  const blendCache={};
+  function blendSet(brand){
+    if(blendCache[brand]) return blendCache[brand];
+    const P=PALETTES[brand], base=P.colours.slice(0,P.baseLen), n=base.length, K=6, seen=new Set();
+    const cands=[], byThread=base.map(()=>[]);
+    for(let a=0;a<n;a++){
+      const near=[];
+      for(let b=0;b<n;b++){ if(b===a) continue; const d=colorDistP(base[a],base[b]); if(d>400 && d<9000) near.push([d,b]); }
+      near.sort((x,y)=>x[0]-y[0]);
+      near.slice(0,K).forEach(([,b])=>{
+        const lo=Math.min(a,b), hi=Math.max(a,b), k=lo*4096+hi; if(seen.has(k)) return; seen.add(k);
+        const e=plBlendEntry(brand,lo,hi); const ci=n+cands.length;
+        cands.push(e); byThread[lo].push(ci); byThread[hi].push(ci);
+      });
+    }
+    return blendCache[brand]={pal:base.concat(cands), n, byThread};
+  }
   function convert(){
     if(!prepCv) return null;
-    const W=QC.W, H=QC.H, pal=PALETTES[QC.brand].colours;
+    const useBlend=QC.blends && QC.craft!=='diamond';
+    const BS=useBlend?blendSet(QC.brand):null;
+    const W=QC.W, H=QC.H, pal=BS?BS.pal:PALETTES[QC.brand].colours.slice(0,PALETTES[QC.brand].baseLen), NB=BS?BS.n:pal.length;
     const t=mkCv(W,H), g=t.getContext('2d');
     if(QC.kind==='pixel') g.imageSmoothingEnabled=false;
     g.drawImage(prepCv,0,0,W,H);
@@ -35634,7 +35720,17 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
       let idx=cache.get(key);
       if(idx===undefined){
         const px={r:d[o],g:d[o+1],b:d[o+2]}; let best=0,mn=Infinity;
-        for(let p=0;p<pal.length;p++){ const dd=colorDistP(px,pal[p]); if(dd<mn){mn=dd;best=p;} }
+        if(!BS){ for(let p=0;p<NB;p++){ const dd=colorDistP(px,pal[p]); if(dd<mn){mn=dd;best=p;} } }
+        else{
+          // nearest threads first, then only the blends made from them; a blend
+          // must be clearly closer (70 %) than the best single thread to win
+          const top=[[Infinity,0],[Infinity,0],[Infinity,0],[Infinity,0]];
+          for(let p=0;p<NB;p++){ const dd=colorDistP(px,pal[p]); if(dd<top[3][0]){ top[3]=[dd,p]; top.sort((x,y)=>x[0]-y[0]); } }
+          best=top[0][1]; mn=top[0][0];
+          let bb=-1, bm=mn*0.7;
+          for(const [d0,p] of top){ if(!isFinite(d0)) continue; for(const ci of BS.byThread[p]){ const dd=colorDistP(px,pal[ci]); if(dd<bm){bm=dd;bb=ci;} } }
+          if(bb>=0) best=bb;
+        }
         idx=best; cache.set(key,idx);
       }
       mapped[i]=idx; usage.set(idx,(usage.get(idx)||0)+1);
@@ -35676,7 +35772,7 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
     for(let i=0;i<N;i++){ const v=idx[i]; if(v<0) continue; filled++; counts.set(v,(counts.get(v)||0)+1); }
     const used=[...counts.keys()].sort((a,b)=>counts.get(b)-counts.get(a));
     const singles=countSingles(idx,W,H);
-    return {W,H,idx,used,counts,filled,singles,singlesBefore,brand:QC.brand};
+    return {W,H,idx,used,counts,filled,singles,singlesBefore,brand:QC.brand,pal,nBase:NB};
   }
   function majority(idx,W,H){
     const src=idx.slice();
@@ -35742,7 +35838,7 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
       return;
     }
     if(!res) return;
-    const {W,H,idx}=res, pal=PALETTES[res.brand].colours;
+    const {W,H,idx,pal}=res;
     const cell=fitCell(W,H)*QC.zoom;
     $('qc-zv').textContent=QC.zoom===1?'Fit':Math.round(QC.zoom*100)+'%';
     const g=sizeCanvas(W,H,cell);
@@ -35777,9 +35873,10 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
       g.stroke();
     }
   }
+  function rgbOf(c){ return `rgb(${c.r},${c.g},${c.b})`; }
   function shade(c,k){ const f=v=>Math.max(0,Math.min(255,Math.round(v*k))); return `rgb(${f(c.r)},${f(c.g)},${f(c.b)})`; }
   function drawFinished(g,cell){
-    const {W,H,idx}=res, pal=PALETTES[res.brand].colours, CW=W*cell, CH=H*cell;
+    const {W,H,idx,pal}=res, CW=W*cell, CH=H*cell;
     g.fillStyle=QC.fabricHex; g.fillRect(0,0,CW,CH);
     if(cell<3){
       for(let y=0;y<H;y++)for(let x=0;x<W;x++){ const v=idx[y*W+x]; if(v<0) continue; const c=pal[v]; g.fillStyle=`rgb(${c.r},${c.g},${c.b})`; g.fillRect(x*cell,y*cell,cell+0.5,cell+0.5); }
@@ -35804,11 +35901,13 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
         g.fillStyle='rgba(255,255,255,.35)'; g.fillRect(x0+cell*0.3,y0+cell*0.26,cell*0.14,cell*0.1);
         continue;
       }
+      // a blend shows its two threads, one on each leg
+      const c2=c.blend?pal[c.blend[1]]:c, c1=c.blend?pal[c.blend[0]]:c;
       g.lineWidth=lw;
-      g.strokeStyle=shade(c,0.78);
+      g.strokeStyle=shade(c1,0.78);
       g.beginPath(); g.moveTo(x0+m,y0+cell-m); g.lineTo(x0+cell-m,y0+m); g.stroke();
       if(QC.craft==='cross'){
-        g.strokeStyle=`rgb(${c.r},${c.g},${c.b})`;
+        g.strokeStyle=`rgb(${c2.r},${c2.g},${c2.b})`;
         g.beginPath(); g.moveTo(x0+m,y0+m); g.lineTo(x0+cell-m,y0+cell-m); g.stroke();
         g.lineWidth=lw*0.28; g.strokeStyle=shade(c,1.18);
         g.beginPath(); g.moveTo(x0+m*1.4,y0+m*1.1); g.lineTo(x0+cell-m*1.6,y0+cell-m*1.9); g.stroke();
@@ -35854,6 +35953,8 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
     $('qc-colors').value=QC.colors; $('qc-colors-v').textContent=QC.colors+' max';
     $('qc-detail').value=QC.detail; $('qc-detail-v').textContent=DETAIL[QC.detail].l; $('qc-detail-hint').textContent=DETAIL[QC.detail].h;
     $('qc-detail').disabled=QC.kind==='pixel';
+    $('qc-blend-tog').classList.toggle('on',QC.blends);
+    $('qc-blend-wrap').style.display=QC.craft==='diamond'?'none':'';
     const plus=isPlus();
     $('qc-clean').disabled=!plus; $('qc-conf-plus').style.display=plus?'none':'';
     $('qc-clean').value=plus?QC.clean:0; $('qc-clean-v').textContent=(plus?QC.clean:0)+'%';
@@ -35865,31 +35966,31 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
     $('qc-conf-pct').textContent=pct.toFixed(1)+'%';
     const b=$('qc-conf-badge');
     b.className='qc-badge '+(pct<2?'good':pct<6?'ok':'bad'); b.textContent=pct<2?'Easy to stitch':pct<6?'OK':'Needs work';
-    const pal=PALETTES[res.brand].colours;
+    const pal=res.pal;
     $('qc-pal-n').textContent=` ${res.used.length} colours`;
     $('qc-pal-strip').innerHTML=res.used.map(v=>{ const c=pal[v]; return `<i style="background:rgb(${c.r},${c.g},${c.b});flex-grow:${Math.max(1,res.counts.get(v))}"></i>`; }).join('');
     $('qc-pal-list').innerHTML=threadRows().map(t=>`<div class="qc-thr"><i style="background:${t.css}"></i><b>${esc(t.label)}</b><span>${t.n.toLocaleString()} · ${t.amount}</span></div>`).join('');
     paintFinal();
   }
   function threadRows(){
-    const pal=PALETTES[res.brand].colours;
+    const pal=res.pal;
     const n=perInch(), mp100=({11:0.58,14:0.43,16:0.4,18:0.38,20:0.34,25:0.27})[Math.round(n)]||0.4;
     return res.used.map(v=>{
       const c=pal[v], cnt=res.counts.get(v);
       let amount;
       if(QC.craft==='diamond') amount=`${Math.ceil(cnt*1.05).toLocaleString()} drills`;
       else { const m=cnt*mp100/100*1.15*(QC.strands/2); const sk=Math.max(1,Math.ceil(m/8)); amount=`${sk} skein${sk>1?'s':''}`; }
-      return {css:`rgb(${c.r},${c.g},${c.b})`,label:c.label,n:cnt,amount};
+      return {css:c.blend?`linear-gradient(135deg,${rgbOf(pal[c.blend[0]])} 50%,${rgbOf(pal[c.blend[1]])} 50%)`:rgbOf(c),label:c.label+(c.blend?' (blend)':''),n:cnt,amount};
     });
   }
   // Shopping list: same thread maths as the palette rows (skeins = metres / 8)
   function shopList(){
     if(!res || typeof plShopOpen!=='function') return;
-    const pal=res.pal||PALETTES[res.brand].colours, n=perInch(), mp100=({11:0.58,14:0.43,16:0.4,18:0.38,20:0.34,25:0.27})[Math.round(n)]||0.4;
+    const pal=res.pal, n=perInch(), mp100=({11:0.58,14:0.43,16:0.4,18:0.38,20:0.34,25:0.27})[Math.round(n)]||0.4;
     const items=res.used.map(v=>{
       const t=pal[v], cnt=res.counts.get(v);
       const it=Object.assign(plShopThread(res.brand,t),{stitches:cnt,metres:cnt*mp100/100*1.15*(QC.strands/2)});
-      if(t.blend) it.parts=t.blend.map(j=>plShopThread(res.brand,PALETTES[res.brand].colours[j]));
+      if(t.blend) it.parts=t.blend.map(j=>plShopThread(res.brand,pal[j]));
       return it;
     });
     plShopOpen({title:(QC.name||'My Pattern').trim()||'My Pattern', brand:PALETTES[res.brand].name, note:QC.strands+' strand'+(QC.strands>1?'s':'')+' · '+(CRAFTS[QC.craft].counts.find(c=>c.k===QC.countKey)||{l:''}).l+'.', items});
@@ -35976,7 +36077,7 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
     $('qc-sug-pixel').style.display=QC.kind==='pixel'?'':'none';
     if(!QC.brand || !PALETTES[QC.brand]) QC.brand=(typeof currentBrand!=='undefined'&&PALETTES[currentBrand])?currentBrand:Object.keys(PALETTES)[0];
     if(!QC.fabricHex) QC.fabricHex=FABRIC_COLOURS[1].hex;
-    QC.style='balanced'; QC.br=QC.ct=QC.sa=0; QC.colors=QC.kind==='pixel'?60:30; QC.detail=2; QC.clean=0; QC.view='pattern'; QC.preset=1; QC.W=0; QC.H=0; res=null;
+    QC.style='balanced'; QC.br=QC.ct=QC.sa=0; QC.colors=QC.kind==='pixel'?60:30; QC.detail=2; QC.clean=0; QC.blends=false; QC.view='pattern'; QC.preset=1; QC.W=0; QC.H=0; res=null;
     $('qc-name').value=QC.name;
     ['br','ct','sa'].forEach(k=>{ $('qc-'+k).value=0; $('qc-'+k+'-v').textContent='0'; });
     rebuildFrom(0);
@@ -36020,17 +36121,20 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
     colorLimitEl.value=Math.min(60,QC.colors);
     if(QC.colors>60) colorLimitEl.dataset.customValue=QC.colors; else delete colorLimitEl.dataset.customValue;
     const clv=$('color-limit-val'); if(clv) clv.textContent=QC.colors;
-    grid=Array.from({length:r.H},(_,y)=>Array.from({length:r.W},(_,x)=>{ const v=r.idx[y*r.W+x]; return v<0?null:v; }));
+    // preview palette index → editor palette index (blends get their editor slot)
+    const toEd=new Map(); r.used.forEach(v=>{ const t=r.pal[v]; toEd.set(v, v<r.nBase?v:plBlendEnsure(r.brand,t.blend[0],t.blend[1])); });
+    const used=r.used.map(v=>toEd.get(v)), edIdx=Int32Array.from(r.idx,v=>v<0?-1:toEd.get(v));
+    grid=Array.from({length:r.H},(_,y)=>Array.from({length:r.W},(_,x)=>{ const v=edIdx[y*r.W+x]; return v<0?null:v; }));
     lySyncActive();
     uploadedImg=im;
     const ul=$('upload-label'); if(ul) ul.textContent='✅ '+(QC.name||'photo');
     const cs=$('clear-image-section'); if(cs) cs.style.display='';
     const os=$('img-overlay-section'); if(os) os.style.display='';
-    workingPalette=new Set(r.used);
-    if(r.used.length) setActiveColor(r.used[0]);
+    workingPalette=new Set(used);
+    if(used.length) setActiveColor(used[0]);
     buildWorkingPalette(); buildPalette();
     const pal=PALETTES[r.brand].colours;
-    lastRender={w:r.W,h:r.H,finalIndices:Array.from(r.idx),reducedPalette:r.used.map(i=>({...pal[i],idx:i})),topColorIndices:r.used.slice()};
+    lastRender={w:r.W,h:r.H,finalIndices:Array.from(edIdx),reducedPalette:used.map(i=>({...pal[i],idx:i})),topColorIndices:used.slice()};
     render();
     try{ updateCartPreview(); }catch(e){}
     try{ updateColourCount(); }catch(e){}
@@ -36164,7 +36268,7 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
   // step 2 controls
   $('qc-craft').addEventListener('click',e=>{ const b=e.target.closest('.qc-chip'); if(!b) return; QC.craft=b.dataset.v;
     const cs=CRAFTS[QC.craft].counts; if(cs.length && !cs.some(c=>c.k===QC.countKey)) QC.countKey=cs[1]?cs[1].k:cs[0].k;
-    savePrefs(); paintFabric(); paintSize(); paintFinal(); if(QC.view==='finished') draw(); });
+    savePrefs(); paintFabric(); paintSize(); paintColours(); if(QC.blends) queue(false); else { paintFinal(); if(QC.view==='finished') draw(); } });
   $('qc-drill').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; QC.drill=b.dataset.v; savePrefs(); paintFabric(); paintSize(); paintFinal(); if(QC.view==='finished') draw(); });
   $('qc-units').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; QC.units=b.dataset.v; paintSeg('qc-units',QC.units); savePrefs(); paintSize(); paintFinal(); });
   $('qc-sizes').addEventListener('click',e=>{ const b=e.target.closest('.qc-size[data-i]'); if(!b) return; setSizeFromPreset(+b.dataset.i); paintSize(); queue(false); });
@@ -36185,6 +36289,7 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
   $('qc-fabcol').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; QC.fabricHex=b.dataset.v; savePrefs(); paintFabric(); if(QC.view!=='pattern') draw(); });
   $('qc-cstyle').innerHTML=STYLES.map(s=>`<button type="button" class="qc-chip" data-v="${s.v}"><span class="qc-stripe">${s.c.map(c=>`<i style="background:${c}"></i>`).join('')}</span>${s.l}</button>`).join('');
   $('qc-cstyle').addEventListener('click',e=>{ const b=e.target.closest('.qc-chip'); if(!b) return; QC.style=b.dataset.v; paintColours(); queue(true); });
+  $('qc-blend-tog').addEventListener('click',()=>{ QC.blends=!QC.blends; paintColours(); queue(false); });
   $('qc-colors').addEventListener('input',function(){ QC.colors=+this.value; $('qc-colors-v').textContent=QC.colors+' max'; queue(false); });
   $('qc-ft-tog').addEventListener('click',function(){ const on=!this.classList.contains('on'); this.classList.toggle('on',on); $('qc-ft').style.display=on?'':'none'; });
   ['br','ct','sa'].forEach(k=>$('qc-'+k).addEventListener('input',function(){ QC[k]=+this.value; $('qc-'+k+'-v').textContent=this.value; queue(true); }));
