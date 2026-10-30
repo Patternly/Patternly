@@ -5415,7 +5415,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v648';
+window.PATTERNLY_BUILD='v649';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -29965,7 +29965,7 @@ var _plStreakDay='', _plStreakSrv=null;
 function plStreakDays(){ try{ return JSON.parse(localStorage.getItem('pl_streak_days')||'[]'); }catch(e){ return []; } }
 function plStreakRecord(){
   var d=new Date().toISOString().slice(0,10); if(d===_plStreakDay) return; _plStreakDay=d;
-  try{ var a=plStreakDays(); if(a[a.length-1]!==d){ a.push(d); if(a.length>60) a.splice(0,a.length-60); localStorage.setItem('pl_streak_days',JSON.stringify(a)); } }catch(e){}
+  try{ var a=plStreakDays(); if(a[a.length-1]!==d){ a.push(d); if(a.length>60) a.splice(0,a.length-60); localStorage.setItem('pl_streak_days',JSON.stringify(a)); if(plStreakCalc(a).streak>=7) plRateWin('streak'); } }catch(e){}
   if(document.getElementById('trk-streak')&&document.getElementById('trk-streak').style.display!=='none') plStreakRender();
   try{ if(typeof plWidgetUpdate==='function') plWidgetUpdate(); }catch(e){}
 }
@@ -30024,6 +30024,32 @@ async function plStreakShare(){
   var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='patternly-streak.png'; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },2000);
   try{ toast(text); }catch(e){}
 }
+// ─── v649: store rating prompt after a win (native apps only) ───────────────
+// Right after a good moment (a scan finished with nothing left to check, a PDF made
+// from a photo, a 7-day streak) the app asks the OS for its own rating sheet
+// (iOS SKStoreReviewController, Play In-App Review via the PatternlyReview plugin,
+// app 1.6+). Never on the website or in older app builds; only after 3 days of use;
+// at most once every 120 days and 3 times in all. The OS may still skip it.
+var PL_RATE_KEY='pl_rate';
+function plRateState(){ try{ return JSON.parse(localStorage.getItem(PL_RATE_KEY)||'{}')||{}; }catch(e){ return {}; } }
+function plRateSave(st){ try{ localStorage.setItem(PL_RATE_KEY,JSON.stringify(st)); }catch(e){} }
+function plRatePlugin(){ try{ var C=window.Capacitor, P=C&&C.Plugins; if(!plIsApp()||!P||!P.PatternlyReview) return null; if(C.isPluginAvailable&&!C.isPluginAvailable('PatternlyReview')) return null; return P.PatternlyReview; }catch(e){ return null; } }
+function plRateWin(kind){
+  if(!plRatePlugin()) return;
+  var st=plRateState(), now=Date.now();
+  if(!st.first){ st.first=now; plRateSave(st); }
+  st.wins=(st.wins||0)+1; plRateSave(st);
+  if(now-st.first<3*864e5 || (st.asks||0)>=3 || (st.last && now-st.last<120*864e5)) return;
+  // let the win land first; skip when the person has left the app meanwhile
+  setTimeout(function(){
+    if(document.visibilityState!=='visible') return;
+    var s2=plRateState(); if(s2.last && Date.now()-s2.last<120*864e5) return;
+    s2.asks=(s2.asks||0)+1; s2.last=Date.now(); s2.kind=kind; plRateSave(s2);
+    try{ var pr=plRatePlugin().request(); if(pr&&pr.catch) pr.catch(function(){}); }catch(e){}
+  },2500);
+}
+// the 3-day clock starts on the first app launch with this build
+(function(){ try{ if(plRatePlugin()){ var st=plRateState(); if(!st.first){ st.first=Date.now(); plRateSave(st); } } }catch(e){} })();
 // ─── v613: home-screen widget data (native app only) ────────────────────────
 // Hands the native widget (iOS WidgetKit / Android AppWidget) a small JSON
 // snapshot: streak, last-7-days, and one project (pinned, else last worked).
@@ -35187,6 +35213,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     try { renderTracker(); updateTrackerProgressUI(); } catch (e) {}
     try { trkSaveProject(); } catch (e) {}
     try { plReviewBanner(); } catch (e) {}
+    try { if (!unsure.size && typeof plRateWin === 'function') plRateWin('scan'); } catch (e) {}
     S.pages.forEach(p => call({ cmd: 'drop', id: p.id })); S.pages = [];
   }
 
@@ -35220,7 +35247,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
   }
   function plReviewShow(){
     while (R.idx < R.list.length && !trackerGrid.unsure.has(R.list[R.idx][0] + ':' + R.list[R.idx][1])) R.idx++;
-    if (R.idx >= R.list.length) { plReviewClose(); plReviewBanner(); try { toast(tx('sc.rv.all')); } catch (e) {} return; }
+    if (R.idx >= R.list.length) { plReviewClose(); plReviewBanner(); try { toast(tx('sc.rv.all')); } catch (e) {} try { if (!trackerGrid.unsure.size && typeof plRateWin === 'function') plRateWin('scan'); } catch (e) {} return; }
     const [r, c] = R.list[R.idx]; focusCell(r, c);
     const W = trackerGrid.cols, sym = trackerGrid.cells[r][c], crop = window.plScanCrops && window.plScanCrops.get(r * W + c);
     let p = $('pls-rev'); if (!p) { p = document.createElement('div'); p.id = 'pls-rev'; document.body.appendChild(p); }
@@ -36123,7 +36150,7 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
         const {pdf,pages}=expBuildPdf();
         await expEmbedInto(pdf);
         const ok=await expBlobDownload(pdf.output('blob'), name+'.pdf');
-        if(ok!==false) toast(tx(pages!==1?'qc.savedn':'qc.saved1',{n:pages}));
+        if(ok!==false){ toast(tx(pages!==1?'qc.savedn':'qc.saved1',{n:pages})); try{ if(typeof plRateWin==='function') plRateWin('pdf'); }catch(e){} }
       } finally { Object.assign(EXP,keep); }
     }catch(e){ console.error(e); toast(tx('qc.e.export')); }
     finally{ btn.disabled=false; btn.innerHTML=lbl; }
