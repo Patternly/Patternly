@@ -5415,7 +5415,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v645';
+window.PATTERNLY_BUILD='v646';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -34056,9 +34056,10 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     // background (thread) colour of the cell, raw 0..1 (not white-balanced): per-channel median of the
     // inner area. Not "the pixels that are not ink": a symbol with white parts (a white box on a dark
     // square, an outlined box) made the white the paper level and its square read as white
-    const idx = []; for (let y = tt; y < IN - bb; y++) for (let x = ll; x < IN - rr; x++) idx.push(y * IN + x);
-    if (idx.length < 20) for (let i = 0; i < IN * IN; i++) idx.push(i);
-    const bg = [0, 1, 2].map(k => { const v = Float32Array.from(idx, i => rgb[i * 3 + k]).sort(); return v[v.length >> 1] / 255; });
+    const all = (IN - tt - bb) * (IN - ll - rr) < 20, bg = [0, 0, 0];
+    for (let k = 0; k < 3; k++) { _hist.fill(0); let cnt = 0;
+      for (let y = all ? 0 : tt; y < (all ? IN : IN - bb); y++) for (let x = all ? 0 : ll; x < (all ? IN : IN - rr); x++) { _hist[Math.max(0, Math.min(255, rgb[(y * IN + x) * 3 + k] | 0))]++; cnt++; }
+      let acc = 0, v = 0; for (; v < 256; v++) { acc += _hist[v]; if (acc > cnt >> 1) break; } bg[k] = Math.min(v, 255) / 255; }
     return { ink, inkBlack: inkB, col, frac: n / ink.length, bg, contrast };
   }
   function colourDesc(rgb) {
@@ -34101,6 +34102,11 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     const m = inkMask(cell);
     return { f: inkFeature(m.ink), fb: inkFeature(m.inkBlack), col: colourDesc(m.col), frac: m.frac, bg: m.bg, contrast: m.contrast };
   }
+  // Tanimoto against a bank entry with both squared lengths known (identical result, a third of the work);
+  // a cell's lengths are cached on it (c._n / c._nb for f / fb)
+  function tanimotoE(c, e) { const a = e.black ? c.fb : c.f; let na = e.black ? c._nb : c._n;
+    if (na === undefined) { na = 0; for (let x = 0; x < a.length; x++) na += a[x] * a[x]; if (e.black) c._nb = na; else c._n = na; }
+    const b = e.f; let ab = 0; for (let x = 0; x < a.length; x++) ab += a[x] * b[x]; return ab / Math.max(na + e.nb - ab, 1e-6); }
   function tanimoto(a, b) { let ab = 0, a2 = 0, b2 = 0; for (let i = 0; i < a.length; i++) { ab += a[i] * b[i]; a2 += a[i] * a[i]; b2 += b[i] * b[i]; } return ab / Math.max(a2 + b2 - ab, 1e-6); }
 
   // colour charts: the cell's inner area as a TH×TH colour picture (0..1), for matching chart cells to each other
@@ -34173,7 +34179,8 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
         const base = blurCell(rescaleCell(t.cell, k, fill), 1.0);
         for (const dy of shifts) for (const dx of shifts) {
           const sh = (dx || dy) ? shiftCell(base, dx, dy, fill) : base;
-          bank.push({ id: t.id, f: inkFeature(inkMask(sh).ink), col: cd, black: cd.hue === null });
+          const f = inkFeature(inkMask(sh).ink); let q = 0; for (let x = 0; x < f.length; x++) q += f[x] * f[x];
+          bank.push({ id: t.id, f, nb: q, col: cd, black: cd.hue === null });
         }
       }
     }
@@ -34188,7 +34195,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     let bestK = 1, bestS = -1;
     for (let k = 0.8; k <= 1.85; k += 0.1) {
       const b = buildBank(tcells, [k], [0]); let s = 0;
-      for (const c of samp) { let m = 0; for (const e of b) { const v = tanimoto(e.black ? c.fb : c.f, e.f); if (v > m) m = v; } s += m; }
+      for (const c of samp) { let m = 0; for (const e of b) { const v = tanimotoE(c, e); if (v > m) m = v; } s += m; }
       s /= Math.max(samp.length, 1); if (s > bestS) { bestS = s; bestK = k; }
     }
     return { scale: bestK, score: bestS };
@@ -34205,10 +34212,10 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     const labels = new Array(cells.length), conf = new Float32Array(cells.length), TOPN = 5;
     for (let i = 0; i < cells.length; i++) {
       const c = cells[i]; const best = new Map(); // id -> best coarse score
-      for (const e of coarse) { const v = tanimoto(e.black ? c.fb : c.f, e.f) - colourPenalty(c.col, e.col); if (!best.has(e.id) || v > best.get(e.id)) best.set(e.id, v); }
+      for (const e of coarse) { const v = tanimotoE(c, e) - colourPenalty(c.col, e.col); if (!best.has(e.id) || v > best.get(e.id)) best.set(e.id, v); }
       const cand = [...best.entries()].sort((a, b) => b[1] - a[1]).slice(0, TOPN);
       let bs = -Infinity, bid = null;
-      for (const [id] of cand) for (const e of fine.get(id)) { const v = tanimoto(e.black ? c.fb : c.f, e.f) - colourPenalty(c.col, e.col); if (v > bs) { bs = v; bid = id; } }
+      for (const [id] of cand) for (const e of fine.get(id)) { const v = tanimotoE(c, e) - colourPenalty(c.col, e.col); if (v > bs) { bs = v; bid = id; } }
       labels[i] = bid; conf[i] = bs;
       if (opts.onProgress && (i % 500 === 0)) opts.onProgress(i / cells.length);
     }
@@ -34242,14 +34249,25 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     // white point of this photo: the brightest cells
     const W = [0, 1, 2].map(c => { const a = Float32Array.from(cells, x => x.bg[c]).sort(); return Math.max(0.2, a[Math.floor(a.length * 0.97)]); });
     const blankSim = c => hasGlyph(c) ? Math.max(0.1, 0.65 - Math.min(0.55, (c.frac - 0.02) * 6)) : 0.65;
-    const glyphSim = new Float32Array(n * K);
-    for (let i = 0; i < n; i++) { const c = cells[i];
+    // symbol likeness, cell × every shifted/scaled key symbol: the hot loop of the whole scan. Same Tanimoto
+    // as tanimoto(), with each vector's squared length computed once (only the dot product per pair)
+    const glyphSim = new Float32Array(n * K), FF = F * F;
+    const bk = templates.map(t => { const es = byId.get(t.id) || [], M = new Float32Array(es.length * FF), nb = new Float32Array(es.length), bl = new Uint8Array(es.length);
+      es.forEach((e, j) => { M.set(e.f, j * FF); let q = 0; for (let x = 0; x < FF; x++) q += e.f[x] * e.f[x]; nb[j] = q; bl[j] = e.black ? 1 : 0; }); return { M, nb, bl, m: es.length }; });
+    const sq = a => { let q = 0; for (let x = 0; x < FF; x++) q += a[x] * a[x]; return q; };
+    // coarse first (the unshifted variants: 3 of 27), then every shift only for the closest symbols
+    const sim = (c, na, nfb, B, j) => { const a = B.bl[j] ? c.fb : c.f, nn = B.bl[j] ? nfb : na, M = B.M, o = j * FF; let ab = 0; for (let x = 0; x < FF; x++) ab += a[x] * M[o + x]; return ab / Math.max(nn + B.nb[j] - ab, 1e-6); };
+    const CENTRE = 4, NSH = 9, TOP = opts.top || 10, cand = [];
+    for (let i = 0; i < n; i++) { const c = cells[i], g = hasGlyph(c), nf = sq(c.f), nfb = sq(c.fb); cand.length = 0;
       for (let k = 0; k < K; k++) {
-        let v;
-        if (!tGlyph[k]) v = blankSim(c);
-        else { v = 0; for (const e of byId.get(templates[k].id) || []) { const t = tanimoto(e.black ? c.fb : c.f, e.f); if (t > v) v = t; } if (!hasGlyph(c)) v = Math.min(v, 0.15); }
-        glyphSim[i * K + k] = v;
+        if (!tGlyph[k]) { glyphSim[i * K + k] = blankSim(c); continue; }
+        const B = bk[k]; let v = 0;
+        for (let j = CENTRE; j < B.m; j += NSH) { const t = sim(c, nf, nfb, B, j); if (t > v) v = t; }
+        glyphSim[i * K + k] = v; cand.push(k);
       }
+      if (g) { cand.sort((a, b) => glyphSim[i * K + b] - glyphSim[i * K + a]);
+        for (let q = 0; q < Math.min(TOP, cand.length); q++) { const k = cand[q], B = bk[k]; let v = glyphSim[i * K + k]; for (let j = 0; j < B.m; j++) { if (j % NSH === CENTRE) continue; const t = sim(c, nf, nfb, B, j); if (t > v) v = t; } glyphSim[i * K + k] = v; } }
+      else for (const k of cand) glyphSim[i * K + k] = Math.min(glyphSim[i * K + k], 0.15);
       if (opts.onProgress && (i % 400 === 0)) opts.onProgress(0.7 * i / n);
     }
     let paperLab = [100, 0, 0]; const illum = new Float32Array(n).fill(1);
@@ -34816,6 +34834,9 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     function quant(f){ const u = new Uint8Array(f.length); for (let i = 0; i < f.length; i++) u[i] = Q(f[i]); return u; }
     function deq(u){ const f = new Float32Array(u.length); for (let i = 0; i < u.length; i++) f[i] = u[i] / 255; return f; }
     function tani(a, b){ let ab = 0, a2 = 0, b2 = 0; for (let i = 0; i < a.length; i++) { ab += a[i] * b[i]; a2 += a[i] * a[i]; b2 += b[i] * b[i]; } return ab / Math.max(a2 + b2 - ab, 1e-6); }
+    // same as tani() with both squared lengths known: one dot product per pair
+    function sq(a){ let q = 0; for (let i = 0; i < a.length; i++) q += a[i] * a[i]; return q; }
+    function taniN(a, na, b, nb){ let ab = 0; for (let i = 0; i < a.length; i++) ab += a[i] * b[i]; return ab / Math.max(na + nb - ab, 1e-6); }
     function shrink(rgba, w, h, f){ const W = Math.floor(w / f), H = Math.floor(h / f), o = new Uint8ClampedArray(W * H * 4), n = f * f; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { let r = 0, g = 0, b = 0; for (let yy = 0; yy < f; yy++) for (let xx = 0; xx < f; xx++) { const i = ((y * f + yy) * w + x * f + xx) * 4; r += rgba[i]; g += rgba[i + 1]; b += rgba[i + 2]; } const k = (y * W + x) * 4; o[k] = r / n; o[k + 1] = g / n; o[k + 2] = b / n; o[k + 3] = 255; } return { rgba: o, w: W, h: H }; }
     self.onmessage = e => {
       const m = e.data, reply = (r, tr) => self.postMessage(Object.assign({ seq: m.seq }, r), tr || []);
@@ -34895,10 +34916,11 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
           top.forEach((arr, k) => { if (arr.length < 4) return; arr.sort((a, b) => b[0] - a[0]); const n = Math.max(4, Math.min(30, arr.length >> 1)); const mf = new Float32Array(F2), mb = new Float32Array(F2);
             for (let j = 0; j < n; j++) { const c = pageCells[arr[j][1]][arr[j][2]]; for (let q = 0; q < F2; q++) { mf[q] += c.f[q] / n; mb[q] += c.fb[q] / n; } } refF.push(mf); refB.push(mb); refK.push(k); });
           const tcol = T.map(t => null); // colour handled by pass 1 penalties already
+          const nF = refF.map(sq), nB = refB.map(sq);
           let moved = 0;
           for (const id of ids) { const cells = pageCells[id], { lab, conf } = out[id]; const margin = new Float32Array(cells.length).fill(1); out[id].margin = margin;
-            for (let i = 0; i < cells.length; i++) { if (lab[i] < 0 && cells[i].frac < 0.012) continue; let bs = conf[i], bk = lab[i], second = -1;
-              for (let j = 0; j < refF.length; j++) { const s1 = tani(cells[i].f, refF[j]), s2 = tani(cells[i].fb, refB[j]); const v = Math.max(s1, s2) - 0.02;
+            for (let i = 0; i < cells.length; i++) { if (lab[i] < 0 && cells[i].frac < 0.012) continue; let bs = conf[i], bk = lab[i], second = -1; const nf = sq(cells[i].f), nfb = sq(cells[i].fb);
+              for (let j = 0; j < refF.length; j++) { const s1 = taniN(cells[i].f, nf, refF[j], nF[j]), s2 = taniN(cells[i].fb, nfb, refB[j], nB[j]); const v = Math.max(s1, s2) - 0.02;
                 if (v > bs) { if (refK[j] !== bk) second = bs; bs = v; bk = refK[j]; } else if (refK[j] !== bk && v > second) second = v; }
               if (bk !== lab[i]) moved++; lab[i] = bk; conf[i] = bs; margin[i] = second < 0 ? 1 : bs - second; } }
           reply({ ok: true, labels: out, scale: fs.scale, scaleScore: fs.score, moved });
