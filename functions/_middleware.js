@@ -12,7 +12,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v102";
+const MW_VERSION = "v103";
 
 const enc = new TextEncoder();
 
@@ -1154,8 +1154,9 @@ async function pushAutoOnProgress(env, cid, id, rec, nameHint) {
 // inactive projects / win-back. Bounded work per call.
 // v102: the run is called through the Shopify App Proxy, which gives up after 60 s (504) —
 // every scheduled run hit that. Records are now read in parallel, and each scan stops at a
-// time budget; a scan that stops early keeps its cursor, so the next run picks the batch up
-// again (everything it sends is guarded by the per-person sent/cap marks).
+// time budget. v103: each scan gets its own slice of the budget (pending + progress scan to
+// 20 s, weekly scan to 30 s, streak-at-risk to 40 s) and always moves its cursor on, so a slow
+// batch can never block the run: what a stopped scan skipped comes round on its next pass.
 const PUSH_AUTO_BUDGET_MS = 40000;
 async function kvJsonMany(env, names) {
   const out = new Array(names.length);
@@ -1166,14 +1167,14 @@ async function kvJsonMany(env, names) {
   return out;
 }
 async function pushAutoRun(env) {
-  const t0 = Date.now(), late = () => Date.now() - t0 > PUSH_AUTO_BUDGET_MS;
+  const t0 = Date.now(), late = (ms) => Date.now() - t0 > (ms || PUSH_AUTO_BUDGET_MS);
   const cfg = await pushAutoCfg(env);
   const out = { queued_sent: 0, inactive: 0, winback: 0, scanned: 0 };
   // 1. pending queue
   const pend = await env.ENTITLEMENTS.list({ prefix: "pushauto:pending:", limit: 200 });
   const pendVals = await kvJsonMany(env, pend.keys.map(k => k.name));
   for (let pi = 0; pi < pend.keys.length; pi++) {
-    if (late()) { out.partial = true; break; }
+    if (late(15000)) { out.partial = true; break; }
     const k = pend.keys[pi], cid = k.name.slice("pushauto:pending:".length);
     const p = pendVals[pi];
     if (!p) { await env.ENTITLEMENTS.delete(k.name); continue; }
@@ -1221,7 +1222,7 @@ async function pushAutoRun(env) {
   if (cfg.inactive.on || cfg.winback.on || cfg.nearly.on || cfg.newkit.on || cfg.summary.on) {
     let st = null; try { st = JSON.parse((await env.ENTITLEMENTS.get("pushauto:scan")) || "null"); } catch (e) {}
     st = st || { cursor: null };
-    const listed = await env.ENTITLEMENTS.list({ prefix: "prog:", limit: 150, cursor: st.cursor || undefined });
+    const listed = await env.ENTITLEMENTS.list({ prefix: "prog:", limit: 100, cursor: st.cursor || undefined });
     const byCid = {}, progVals = await kvJsonMany(env, listed.keys.map(k => k.name));
     let stopped = false;
     for (let ki = 0; ki < listed.keys.length; ki++) {
@@ -1234,7 +1235,7 @@ async function pushAutoRun(env) {
     out.scanned = listed.keys.length;
     const now = Date.now();
     for (const cid of Object.keys(byCid)) {
-      if (late()) { stopped = true; out.partial = true; break; }
+      if (late(20000)) { stopped = true; out.partial = true; break; }
       const u = await pushAutoUser(env, cid); const sent = u.sent || (u.sent = {});
       if (u.last && now - u.last < cfg.cap_days * 86400000) continue;
       const projs = byCid[cid];
@@ -1287,19 +1288,19 @@ async function pushAutoRun(env) {
       }
       if (did) await pushAutoUserSave(env, cid, u);
     }
-    if (!stopped) st.cursor = listed.list_complete ? null : listed.cursor; st.last = now;
+    st.cursor = listed.list_complete ? null : listed.cursor; st.last = now; if (stopped) st.stopped = now;
     await env.ENTITLEMENTS.put("pushauto:scan", JSON.stringify(st));
   }
   // 3. weekly touch: anyone (with or without projects) silent for weekly.days
   out.weekly = 0;
-  if ((cfg.weekly.on || cfg.unopened.on || cfg.plus.on) && !late()) {
+  if ((cfg.weekly.on || cfg.unopened.on || cfg.plus.on) && !late(28000)) {
     let ws = null; try { ws = JSON.parse((await env.ENTITLEMENTS.get("pushauto:wscan")) || "null"); } catch (e) {}
     ws = ws || { cursor: null };
     const listed = await env.ENTITLEMENTS.list({ prefix: "push:", limit: 120, cursor: ws.cursor || undefined });
     const now = Date.now(), gap = cfg.weekly.days * 86400000, seenCid = new Set(), devVals = await kvJsonMany(env, listed.keys.map(k => k.name));
     let wstopped = false;
     for (let ki = 0; ki < listed.keys.length; ki++) {
-      if (late()) { wstopped = true; out.partial = true; break; }
+      if (late(30000)) { wstopped = true; out.partial = true; break; }
       const k = listed.keys[ki], d = devVals[ki];
       if (!d || !d.token) continue;
       const sid = d.cid ? String(d.cid) : ("anon:" + k.name.slice(-24));
@@ -1340,7 +1341,7 @@ async function pushAutoRun(env) {
       else { if (pushQuietNow(cfg, d.tz || "")) continue; const t = pushAutoText(d.lang || "en", "weekly", { i: idx }); const r = await pushSendOne(env, { key: k.name, ...d }, { title: t.title, body: t.body, url: t.shop ? cfg.shop_url : "#tracker" }); if (r.ok) { n = 1; await pushAutoStat(env, "weekly", 1); } else if (r.gone) { try { await env.ENTITLEMENTS.delete(k.name); } catch (e) {} } }
       if (n || await env.ENTITLEMENTS.get("pushauto:pending:" + sid)) { u.last = now; u.wk = idx + 1; await pushAutoUserSave(env, sid, u); out.weekly += n; }
     }
-    if (!wstopped) ws.cursor = listed.list_complete ? null : listed.cursor; ws.last = now;
+    ws.cursor = listed.list_complete ? null : listed.cursor; ws.last = now; if (wstopped) ws.stopped = now;
     await env.ENTITLEMENTS.put("pushauto:wscan", JSON.stringify(ws));
   }
   // 4. v101: streak at risk — streak ≥ min, nothing stitched today (their time),
@@ -1374,7 +1375,7 @@ async function pushAutoRun(env) {
       u.atrisk = today; await pushAutoUserSave(env, cid, u);
       if (sent) { out.atrisk += 1; await pushAutoStat(env, "atrisk", 1); }
     }
-    if (!astopped) as.cursor = listed.list_complete ? null : listed.cursor; as.last = Date.now();
+    as.cursor = listed.list_complete ? null : listed.cursor; as.last = Date.now(); if (astopped) as.stopped = as.last;
     await env.ENTITLEMENTS.put("pushauto:ascan", JSON.stringify(as));
   }
   out.ms = Date.now() - t0;
