@@ -5415,7 +5415,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v640';
+window.PATTERNLY_BUILD='v650';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -6345,6 +6345,7 @@ document.addEventListener('DOMContentLoaded', function(){
             </span>
             <span class="trk-group" id="trk-backupgroup">
               <button id="trk-legend-btn" type="button" onclick="trkViewLegend()" data-i18n-title="t.legend" title="View the legend you uploaded — symbols, thread codes and stitch counts" style="display:none">📋 <span data-i18n="trk.legend">Legend</span></button>
+              <button id="trk-shop-btn" type="button" onclick="trkShopList()" title="Threads to buy for this pattern, with skeins per colour">🧾 <span>Shopping list</span></button>
               <button id="trk-export-btn" type="button" onclick="trkExportBackup()" data-i18n-title="t.backup" title="Download a backup of this pattern including your stitched progress">⬇ <span data-i18n="trk.backup">Back up</span></button>
             </span>
           </div>
@@ -9223,11 +9224,7 @@ body.dark .ifsize-note,body.dark .ifsize-ttl{color:#a596ab}
       </div>
       <div style="padding:.6rem .75rem;border-top:1px solid #efe0e2;flex-shrink:0">
         <button id="clear-palette-btn" style="width:100%;padding:.45rem;border-radius:7px;background:#f8ecee;border:none;cursor:pointer;font-size:.78rem;font-weight:600;color:var(--muted);font-family:inherit;transition:background .15s,color .15s">🗑 <span data-i18n="pal.clear">Clear Palette</span></button>
-        <div style="display:flex;align-items:center;gap:.4rem;margin-top:.45rem">
-          <span style="font-size:.7rem;color:var(--muted);font-weight:600;white-space:nowrap">Shopping list</span>
-          <button id="pal-export-csv" onclick="palExport('csv')" style="flex:1;padding:.4rem;border-radius:7px;background:#f4eef7;border:none;cursor:pointer;font-size:.72rem;font-weight:700;color:#6b4a7a;font-family:inherit">CSV <small style="opacity:.7">Plus</small></button>
-          <button id="pal-export-pdf" onclick="palExport('pdf')" style="flex:1;padding:.4rem;border-radius:7px;background:#f4eef7;border:none;cursor:pointer;font-size:.72rem;font-weight:700;color:#6b4a7a;font-family:inherit">PDF <small style="opacity:.7">Plus</small></button>
-        </div>
+        <button id="pal-shop-btn" type="button" onclick="plShopEditor()" style="width:100%;margin-top:.45rem;padding:.45rem;border-radius:7px;background:#f4eef7;border:none;cursor:pointer;font-size:.78rem;font-weight:700;color:#6b4a7a;font-family:inherit">🧾 Thread shopping list</button>
       </div>
     </div>
 
@@ -14861,73 +14858,33 @@ async function dlFile(blob, filename){
 }
 
 function expBlobDownload(blob, filename){ return dlFile(blob, filename); }
-// ── Palette shopping-list export (Plus) ─────────────────────────────────────
-// Read-only: reads the used colours + stitch counts (via the PDF engine's own
-// helpers, so it respects layers) and writes a CSV or PDF. Never mutates the
-// pattern, palette, or any sync data.
-function palExportRows(){
-  const used=(typeof expUsedColours==='function')?expUsedColours():[];
-  const counts=(typeof expCounts==='function')?expCounts():{};
-  const pal=(typeof activePalette==='function')?activePalette():[];
-  return used.map(i=>{
-    const t=pal[i]||{r:0,g:0,b:0};
-    const hex='#'+[t.r,t.g,t.b].map(x=>(x|0).toString(16).padStart(2,'0')).join('').toUpperCase();
-    return { code:(typeof colourLabel==='function'?colourLabel(i):('#'+i)),
-             sku:(typeof colourSku==='function'?(colourSku(i)||''):''),
-             hex, r:t.r|0,g:t.g|0,b:t.b|0, stitches:counts[i]||0 };
-  });
+// ── Thread shopping list (v650, free for everyone) ──────────────────────────
+// Read-only: used colours + stitch counts (layers flattened, same helpers as the
+// PDF engine) and backstitch lengths, handed to the shared sheet (plShopOpen).
+// Thread per 100 crosses = the editor's cart table, +15 % for starts and ends.
+function plShopThread(brand, t){
+  const nm=(PALETTES[brand]&&PALETTES[brand].name)||'';
+  const lb=String(t.label||t.sku||'');
+  return {label: (nm && lb.indexOf(nm)!==0 && !/^(DMC|Anchor|Cosmo|Madeira)\b/.test(lb)) ? nm+' '+lb : lb, code:lb, sku:t.sku||lb, r:t.r, g:t.g, b:t.b};
 }
-function _palDL(blob, filename){
-  try{
-    const u=URL.createObjectURL(blob); const a=document.createElement('a');
-    a.href=u; a.download=filename; document.body.appendChild(a); a.click();
-    setTimeout(()=>{ a.remove(); URL.revokeObjectURL(u); }, 1500);
-  }catch(e){ console.warn('[pal] download failed', e); }
-}
-function _palName(){ return (((document.getElementById('pattern-name')||{}).value||'pattern').trim())||'pattern'; }
-function palExportCSV(){
-  const rows=palExportRows(); if(!rows.length){ if(typeof toast==='function') toast('No colours used yet'); return; }
-  const brand=(PALETTES[currentBrand]&&PALETTES[currentBrand].name)||currentBrand;
-  const esc=s=>'"'+String(s).replace(/"/g,'""')+'"';
-  let csv='Brand,Colour,SKU,Hex,Stitches\n';
-  rows.forEach(r=>{ csv+=[esc(brand),esc(r.code),esc(r.sku),r.hex,r.stitches].join(',')+'\n'; });
-  csv+=[esc(brand),'TOTAL','','',rows.reduce((a,r)=>a+r.stitches,0)].join(',')+'\n';
-  _palDL(new Blob([csv],{type:'text/csv;charset=utf-8'}), _palName()+' - palette.csv');
-  if(typeof toast==='function') toast('Shopping list (CSV) saved');
-}
-function palExportPDF(){
-  const rows=palExportRows(); if(!rows.length){ if(typeof toast==='function') toast('No colours used yet'); return; }
-  const { jsPDF }=window.jspdf; const pdf=new jsPDF({unit:'mm',format:'a4'});
-  const brand=(PALETTES[currentBrand]&&PALETTES[currentBrand].name)||currentBrand;
-  const m=15; let y=m+2;
-  pdf.setFont(undefined,'bold'); pdf.setFontSize(15); pdf.setTextColor(30,25,32);
-  pdf.text(_palName()+' \u2014 thread shopping list', m, y); y+=7;
-  pdf.setFont(undefined,'normal'); pdf.setFontSize(9.5); pdf.setTextColor(120,105,112);
-  pdf.text(brand+'  \u00b7  '+rows.length+' colours  \u00b7  '+rows.reduce((a,r)=>a+r.stitches,0)+' stitches', m, y); y+=9;
-  pdf.setFontSize(8.5); pdf.setTextColor(90,80,86);
-  pdf.text('Colour', m+9, y); pdf.text('SKU', m+82, y); pdf.text('Hex', m+120, y); pdf.text('Stitches', m+150, y);
-  y+=1.5; pdf.setDrawColor(200,190,196); pdf.line(m,y,m+180,y); y+=5;
-  rows.forEach(r=>{
-    if(y>285){ pdf.addPage(); y=m; }
-    pdf.setFillColor(r.r,r.g,r.b); pdf.setDrawColor(120,110,116); pdf.rect(m,y-3.6,6,4.8,'FD');
-    pdf.setFontSize(9); pdf.setTextColor(40,34,40);
-    pdf.text(String(r.code).slice(0,46), m+9, y);
-    pdf.text(String(r.sku).slice(0,20), m+82, y);
-    pdf.text(r.hex, m+120, y);
-    pdf.text(String(r.stitches), m+150, y);
-    y+=6.4;
-  });
-  _palDL(pdf.output('blob'), _palName()+' - palette.pdf');
-  if(typeof toast==='function') toast('Shopping list (PDF) saved');
-}
-// Whole feature is Plus.
-function palExport(kind){
-  if(!(typeof lucasAuth==='function' && lucasAuth() && lucasAuth().plus)){
-    if(typeof toast==='function') toast('Palette shopping-list export is a Plus feature \u2014 opening Plus\u2026');
-    if(typeof openPricing==='function') openPricing();
-    return;
-  }
-  if(kind==='pdf') palExportPDF(); else palExportCSV();
+function plShopEditor(){
+  if(typeof plShopOpen!=='function') return;
+  const pal=activePalette(), counts=expCounts(), fc=fabricCount||14;
+  const mp100={11:0.58,14:0.43,16:0.4,18:0.38,20:0.34,25:0.27}[Math.round(fc)]||0.4;
+  const items=[];
+  const add=(ci,stitches,metres)=>{
+    const t=pal[ci]; if(!t) return;
+    const it=Object.assign(plShopThread(currentBrand,t),{stitches,metres});
+    if(t.blend) it.parts=t.blend.map(j=>plShopThread(currentBrand,pal[j]));
+    items.push(it);
+  };
+  Object.keys(counts).forEach(ci=>add(+ci, counts[ci], counts[ci]*mp100/100*1.15));
+  // Backstitch: one strand, about 2.2× the line length, 6 strands per skein
+  const {lines:bl}=lyFlatten(), len={};
+  (bl||[]).forEach(l=>{ if(l&&l.ci!=null) len[l.ci]=(len[l.ci]||0)+Math.hypot(l.x2-l.x1,l.y2-l.y1); });
+  Object.keys(len).forEach(ci=>add(+ci, 0, len[ci]*0.0254/fc*2.2/6*1.15));
+  const name=(((document.getElementById('pattern-name')||{}).value||'').trim())||'My pattern';
+  plShopOpen({title:name, brand:(PALETTES[currentBrand]&&PALETTES[currentBrand].name)||currentBrand, items});
 }
 
 
@@ -27685,6 +27642,39 @@ function trkApplyViewAvail(){
   if(trackerBwOnly){ trackerViewMode='bw'; bbtn.classList.add('active'); cbtn.classList.remove('active'); }  trkApplyKitProtection();
 }
 
+// ── Thread shopping list for the open tracker pattern (v650) ──
+// Stitch totals per symbol, metres from the pattern (.ptly) when it has them,
+// otherwise the Luca-S per-count estimate (m per 1000 crosses). Blend codes
+// "337+331" are split into their two threads by the shared sheet.
+function trkShopList(){
+  if(typeof plShopOpen!=='function' || !trackerGrid || !trackerLegend) return;
+  const total={};
+  for(let r=0;r<trackerGrid.rows;r++)for(let c=0;c<trackerGrid.cols;c++){ const s=trackerGrid.cells[r][c]; if(s!==' ') total[s]=(total[s]||0)+1; }
+  const T={14:5.0,16:4.4,18:3.9,20:3.6,25:2.9}, fc=trackerLegend.fabricCount||14;
+  const kc=Object.keys(T).map(Number).reduce((a,b)=>Math.abs(b-fc)<Math.abs(a-fc)?b:a);
+  const perSt=T[kc]/1000;
+  const items=[], seen=new Set();
+  const syms=Object.keys(trackerLegend.bySymbol||{}).concat(Object.keys(total));
+  syms.forEach(sym=>{
+    if(seen.has(sym)) return; seen.add(sym);
+    const col=trackerColourMap&&trackerColourMap[sym]; if(!col) return;
+    const st=total[sym]||0, m=isFinite(col.metres)?+col.metres:st*perSt;
+    if(!(st>0 || m>0)) return;
+    const code=String(col.code||'').trim();
+    let label=String(col.label||code||sym).trim();
+    // Patternly exports carry "Luca-S-84" as code and "084" as label: show "Luca-S 084"
+    if(/^\d/.test(label) && /^[A-Za-z][\w -]*-\w+$/.test(code)) label=code.replace(/-[^-]+$/,'')+' '+label;
+    const it={label, code:code||label, sku:code||label, r:col.r|0, g:col.g|0, b:col.b|0, stitches:st, metres:m};
+    const bp=code.split('+').map(x=>x.trim()).filter(Boolean);
+    if(bp.length===2){
+      const at=label.indexOf(code), pre=at>0?label.slice(0,at).replace(/\bblend\b/i,'').trim():'';
+      it.parts=bp.map(c=>({label:(pre&&!/^[A-Za-z]/.test(c)?pre+' ':'')+c, code:c, sku:(pre&&!/^[A-Za-z]/.test(c)?pre+' ':'')+c, r:col.r|0, g:col.g|0, b:col.b|0}));
+    }
+    items.push(it);
+  });
+  plShopOpen({title:trackerProjectName||'My pattern', brand:'', note:'Fabric '+fc+' count.', items});
+}
+
 // Luca-S catalogue patterns are paid content: trackable on screen but not
 // exportable to a file (the backup JSON holds the full chart). Their progress
 // already syncs to the customer account, so no local backup is needed. User
@@ -31232,6 +31222,7 @@ function trkFsPanel(kind){
       actions.appendChild(mkBtn('💡 Gestures & tips', ()=>trkShowTips()));
       const hasLegend=!!(document.getElementById('trk-legend-btn') && document.getElementById('trk-legend-btn').style.display!=='none');
       if(hasLegend) actions.appendChild(mkBtn('📋 View legend', ()=>trkViewLegend()));
+      actions.appendChild(mkBtn('🧾 Thread shopping list', ()=>trkShopList()));
       // Backup files exist for USER-uploaded patterns. Luca-S kits are excluded
       // everywhere else (their chart is licensed content and progress already
       // syncs through the account) — this sheet was the one spot missing the gate.
@@ -35297,6 +35288,7 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
 .qc-thr{display:grid;grid-template-columns:22px 1fr auto;gap:.55rem;align-items:center;padding:.32rem 0;border-bottom:1px solid var(--qc-line);font-size:.8rem}
 .qc-thr i{width:22px;height:22px;border-radius:6px;border:1px solid rgba(0,0,0,.12)}
 .qc-thr span{color:var(--qc-mute);font-size:.75rem;text-align:right}
+.qc-shop{width:100%;margin-top:.55rem;font-size:.8rem;padding:.5rem .8rem}
 .qc-stage{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--qc-stage);position:relative}
 .qc-view{flex:1;min-height:0;overflow:auto;display:flex;padding:18px;overscroll-behavior:contain}
 .qc-view canvas{margin:auto;display:block;box-shadow:0 4px 18px rgba(0,0,0,.18);image-rendering:pixelated;flex:none}
@@ -35448,6 +35440,7 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
           <button type="button" class="qc-pri" id="qc-dl">⬇ Download PDF</button>
           <button type="button" class="qc-sec" id="qc-ed2">✎ Open in Editor</button>
           <button type="button" class="qc-sec" id="qc-trk">🧵 Stitch it in the Tracker</button>
+          <button type="button" class="qc-sec" id="qc-shop2">🧾 Thread shopping list</button>
         </div>
         <p class="qc-hint">Want to change single stitches, add text or backstitch? Open it in the Editor; your settings come with it.</p>
       </div>
@@ -35455,6 +35448,7 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
         <button type="button" class="qc-pal-head" id="qc-pal-head"><span style="margin:0;color:inherit;font-size:.88rem;font-weight:800">Your palette<span id="qc-pal-n"></span></span><span id="qc-pal-arrow">▸</span></button>
         <div class="qc-pal-strip" id="qc-pal-strip"></div>
         <div class="qc-pal-list" id="qc-pal-list"></div>
+        <button type="button" class="qc-sec qc-shop" id="qc-shop">🧾 Thread shopping list</button>
       </div>
     </aside>
     <main class="qc-stage">
@@ -35850,6 +35844,7 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
     $('qc-count-lbl').style.display=cr.counts.length?'':'none';
     $('qc-count').innerHTML=cr.counts.map(c=>`<button type="button" class="qc-chip${c.k===QC.countKey?' on':''}" data-v="${c.k}">${c.l}</button>`).join('');
     $('qc-count').style.display=cr.counts.length?'':'none';
+    $('qc-shop').style.display=$('qc-shop2').style.display=QC.craft==='diamond'?'none':'';
     paintSeg('qc-strands',QC.strands); paintSeg('qc-drill',QC.drill); paintChips('qc-craft',QC.craft); paintChips('qc-brand',QC.brand);
     $('qc-fabcol').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===QC.fabricHex));
     const f=FABRIC_COLOURS.find(f=>f.hex===QC.fabricHex); $('qc-fabname').textContent=f?f.name:'';
@@ -35886,6 +35881,18 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
       else { const m=cnt*mp100/100*1.15*(QC.strands/2); const sk=Math.max(1,Math.ceil(m/8)); amount=`${sk} skein${sk>1?'s':''}`; }
       return {css:`rgb(${c.r},${c.g},${c.b})`,label:c.label,n:cnt,amount};
     });
+  }
+  // Shopping list: same thread maths as the palette rows (skeins = metres / 8)
+  function shopList(){
+    if(!res || typeof plShopOpen!=='function') return;
+    const pal=res.pal||PALETTES[res.brand].colours, n=perInch(), mp100=({11:0.58,14:0.43,16:0.4,18:0.38,20:0.34,25:0.27})[Math.round(n)]||0.4;
+    const items=res.used.map(v=>{
+      const t=pal[v], cnt=res.counts.get(v);
+      const it=Object.assign(plShopThread(res.brand,t),{stitches:cnt,metres:cnt*mp100/100*1.15*(QC.strands/2)});
+      if(t.blend) it.parts=t.blend.map(j=>plShopThread(res.brand,PALETTES[res.brand].colours[j]));
+      return it;
+    });
+    plShopOpen({title:(QC.name||'My Pattern').trim()||'My Pattern', brand:PALETTES[res.brand].name, note:QC.strands+' strand'+(QC.strands>1?'s':'')+' · '+(CRAFTS[QC.craft].counts.find(c=>c.k===QC.countKey)||{l:''}).l+'.', items});
   }
   function paintFinal(){
     if(!res) return;
@@ -36128,6 +36135,8 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
   $('qc-ed2').addEventListener('click',()=>handoff(true));
   $('qc-dl').addEventListener('click',downloadPdf);
   $('qc-trk').addEventListener('click',toTracker);
+  $('qc-shop').addEventListener('click',shopList);
+  $('qc-shop2').addEventListener('click',shopList);
   root.querySelectorAll('[data-kind]').forEach(b=>b.addEventListener('click',()=>{
     const k=b.dataset.kind;
     if(k==='chart'){ openScan(); return; }
@@ -36725,5 +36734,212 @@ body.dark .plcam-tip button.pri{background:#c8566a;border-color:#c8566a;color:#f
 })();
 </script>
 
+<!-- ── Thread shopping list (v650, free for everyone) ──────────────────────
+     One sheet shared by the Editor, quick photo convert and the Tracker:
+     skeins per colour, "have" ticks remembered per thread across all
+     patterns (localStorage patternly_shop), copy / share / CSV / PDF. Callers pass the rows; blends
+     (rows with parts) are split into their component threads here. -->
+<style id="plshop-style">
+.plshop{--ps-bg:#fff;--ps-line:#efe3e6;--ps-ink:#2b2226;--ps-mute:#7d6b72;--ps-acc:#8B1A2B;--ps-soft:#fdedf0;--ps-chip:#f7f1f2;--ps-ok:#2e7d4f;
+  position:fixed;inset:0;z-index:9500;display:none;align-items:center;justify-content:center;background:rgba(20,12,18,.45);font-family:inherit;padding:1rem}
+body.dark .plshop{--ps-bg:#221a2e;--ps-line:#3a2f47;--ps-ink:#f2ecf4;--ps-mute:#a596ab;--ps-acc:#d66a7d;--ps-soft:#3a2230;--ps-chip:#2b2238;--ps-ok:#7fd6a0}
+.plshop.on{display:flex}
+.plshop *{box-sizing:border-box}
+.plshop button{font-family:inherit;touch-action:manipulation;cursor:pointer}
+.ps-card{background:var(--ps-bg);color:var(--ps-ink);width:min(560px,100%);max-height:min(88vh,860px);border-radius:18px;display:flex;flex-direction:column;box-shadow:0 18px 60px rgba(0,0,0,.28);overflow:hidden}
+.ps-head{display:flex;align-items:flex-start;gap:.75rem;padding:1rem 1.1rem .7rem;border-bottom:1px solid var(--ps-line)}
+.ps-head h3{margin:0;font-size:1.08rem;font-weight:800;line-height:1.25}
+.ps-head p{margin:.2rem 0 0;font-size:.78rem;color:var(--ps-mute)}
+.ps-x{margin-left:auto;flex:none;width:34px;height:34px;border-radius:50%;border:none;background:var(--ps-chip);color:var(--ps-ink);font-size:1rem;line-height:1}
+.ps-sum{display:flex;gap:.5rem;padding:.75rem 1.1rem 0}
+.ps-sum div{flex:1;background:var(--ps-chip);border-radius:12px;padding:.55rem .7rem}
+.ps-sum b{display:block;font-size:1.15rem;font-weight:800}
+.ps-sum span{font-size:.72rem;color:var(--ps-mute);font-weight:600}
+.ps-sum .need b{color:var(--ps-acc)}
+.ps-sum .have b{color:var(--ps-ok)}
+.ps-bar{display:flex;align-items:center;gap:.5rem;padding:.7rem 1.1rem .5rem}
+.ps-seg{display:inline-flex;background:var(--ps-chip);border-radius:999px;padding:3px}
+.ps-seg button{border:none;background:none;color:var(--ps-mute);font-size:.76rem;font-weight:700;padding:.32rem .8rem;border-radius:999px}
+.ps-seg button.on{background:var(--ps-bg);color:var(--ps-ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.ps-bar .ps-all{margin-left:auto;border:none;background:none;color:var(--ps-acc);font-size:.76rem;font-weight:700;padding:.3rem .2rem}
+.ps-list{flex:1;overflow-y:auto;padding:0 1.1rem .4rem;-webkit-overflow-scrolling:touch}
+.ps-row{display:flex;align-items:center;gap:.65rem;padding:.55rem 0;border-bottom:1px solid var(--ps-line)}
+.ps-row:last-child{border-bottom:none}
+.ps-sw{width:30px;height:30px;border-radius:8px;flex:none;border:1px solid rgba(0,0,0,.14)}
+.ps-txt{flex:1;min-width:0}
+.ps-txt b{display:block;font-size:.86rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ps-txt span{font-size:.72rem;color:var(--ps-mute)}
+.ps-qty{text-align:right;flex:none;font-size:.82rem;font-weight:800;min-width:64px}
+.ps-qty small{display:block;font-size:.68rem;font-weight:600;color:var(--ps-mute)}
+.ps-have{flex:none;display:inline-flex;align-items:center;gap:.3rem;border:1.5px solid var(--ps-line);background:var(--ps-bg);color:var(--ps-mute);border-radius:999px;font-size:.72rem;font-weight:700;padding:.32rem .65rem .32rem .45rem}
+.ps-have i{width:16px;height:16px;border-radius:50%;border:1.5px solid currentColor;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:.62rem;line-height:1}
+.ps-row.got .ps-have{border-color:var(--ps-ok);color:var(--ps-ok)}
+.ps-row.got .ps-have i{background:var(--ps-ok);border-color:var(--ps-ok);color:var(--ps-bg)}
+.ps-row.got .ps-txt b,.ps-row.got .ps-qty{opacity:.5;text-decoration:line-through}
+.ps-empty{padding:1.6rem 0;text-align:center;color:var(--ps-mute);font-size:.84rem}
+.ps-note{padding:.2rem 1.1rem .5rem;font-size:.7rem;color:var(--ps-mute);line-height:1.4}
+.ps-foot{display:grid;grid-template-columns:repeat(4,1fr);gap:.45rem;padding:.75rem 1.1rem calc(.85rem + var(--sa-bottom,0px));border-top:1px solid var(--ps-line)}
+.ps-foot button{border:1.5px solid var(--ps-line);background:var(--ps-bg);color:var(--ps-ink);border-radius:10px;font-size:.78rem;font-weight:700;padding:.6rem .3rem}
+.ps-foot button.pri{background:var(--ps-acc);border-color:var(--ps-acc);color:#fff}
+body.dark #pal-shop-btn{background:#2f2540!important;color:#d9c3e6!important}
+@media (max-width:560px){
+  .plshop{padding:0;align-items:flex-end}
+  .ps-sum div{padding:.45rem .55rem}
+  .ps-sum b{font-size:1.02rem}
+  .ps-sum span{font-size:.66rem;line-height:1.25;display:block}
+  .ps-card{width:100%;max-height:92vh;border-radius:18px 18px 0 0}
+}
+</style>
+<div id="plshop" class="plshop" role="dialog" aria-modal="true" aria-label="Thread shopping list">
+  <div class="ps-card">
+    <div class="ps-head"><div><h3 id="ps-title">Thread shopping list</h3><p id="ps-sub"></p></div><button type="button" class="ps-x" id="ps-x" aria-label="Close">✕</button></div>
+    <div class="ps-sum"><div class="need"><b id="ps-need">0</b><span id="ps-need-l">skeins to buy</span></div><div class="have"><b id="ps-have">0</b><span>colours you have</span></div><div><b id="ps-tot">0</b><span>colours in total</span></div></div>
+    <div class="ps-bar"><span class="ps-seg" id="ps-filter"><button type="button" data-v="all" class="on">All</button><button type="button" data-v="need">To buy</button><button type="button" data-v="have">Have</button></span><button type="button" class="ps-all" id="ps-clear">Clear ticks</button></div>
+    <div class="ps-list" id="ps-list"></div>
+    <div class="ps-note" id="ps-note"></div>
+    <div class="ps-foot"><button type="button" class="pri" id="ps-share">Share</button><button type="button" id="ps-copy">Copy</button><button type="button" id="ps-csv">CSV</button><button type="button" id="ps-pdf">PDF</button></div>
+  </div>
+</div>
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const root=$('plshop'); if(!root) return;
+  const STORE='patternly_shop', SKEIN_M=8;
+  let cur=null, filter='all';
+  const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  // "Have" ticks are a stash per thread (brand SKU), shared by every
+  // pattern's list on this device: tick DMC 310 once and every list knows.
+  function loadHave(){ try{ const o=JSON.parse(localStorage.getItem(STORE)||'{}'); return (o&&o.h)||{}; }catch(e){ return {}; } }
+  function saveHave(h){ try{ localStorage.setItem(STORE, JSON.stringify({h})); }catch(e){} }
+  // Rows → one row per real thread. A blend row ({parts:[a,b]}) uses one
+  // strand of each thread instead of two of one, so each part gets half its
+  // thread length and is merged with the same thread used on its own.
+  function aggregate(items){
+    const map=new Map();
+    const add=(t,metres,stitches,inBlend)=>{
+      // same thread from any source ("Luca-S-084", "Luca-S 84") → one key
+      const k=String(t.sku||t.code||t.label).toUpperCase().replace(/[^A-Z0-9+]/g,'').replace(/(\D)0+(\d)/g,'$1$2');
+      let r=map.get(k);
+      if(!r){ r={key:k,label:t.label||t.code||'',code:t.code||'',sku:t.sku||'',r:t.r|0,g:t.g|0,b:t.b|0,metres:0,stitches:0,blend:0}; map.set(k,r); }
+      r.metres+=metres; r.stitches+=stitches; if(inBlend) r.blend+=stitches;
+    };
+    (items||[]).forEach(it=>{
+      const m=Math.max(0,+it.metres||0), st=Math.max(0,+it.stitches||0);
+      if(it.parts && it.parts.length){ it.parts.forEach(p=>add(p,m/it.parts.length,st,true)); }
+      else add(it,m,st,false);
+    });
+    const rows=[...map.values()].filter(r=>r.metres>0||r.stitches>0);
+    rows.forEach(r=>{ r.skeins=Math.max(1,Math.ceil(r.metres/SKEIN_M-1e-9)); });
+    return rows.sort((a,b)=>String(a.code||a.label).localeCompare(String(b.code||b.label),undefined,{numeric:true}));
+  }
+  const fmtM=m=>m>=10?Math.round(m)+' m':m>=1?m.toFixed(1)+' m':Math.max(1,Math.round(m*100))+' cm';
+  function haveSet(){ return loadHave(); }
+  function setHave(k,on){ const h=loadHave(); if(on) h[k]=1; else delete h[k]; saveHave(h); }
+  function paint(){
+    const have=haveSet(), rows=cur.rows;
+    let need=0, got=0;
+    rows.forEach(r=>{ if(have[r.key]) got++; else need+=r.skeins; });
+    $('ps-need').textContent=need; $('ps-need-l').textContent=need===1?'skein to buy':'skeins to buy';
+    $('ps-have').textContent=got; $('ps-tot').textContent=rows.length;
+    const show=rows.filter(r=>filter==='all'||(filter==='have')===!!have[r.key]);
+    $('ps-list').innerHTML=show.length? show.map(r=>{
+      const sub=[r.stitches?r.stitches.toLocaleString()+' stitches':'', r.blend?('incl. '+r.blend.toLocaleString()+' in blends'):'', r.metres?'≈ '+fmtM(r.metres):''].filter(Boolean).join(' · ');
+      return `<div class="ps-row${have[r.key]?' got':''}" data-k="${esc(r.key)}"><span class="ps-sw" style="background:rgb(${r.r},${r.g},${r.b})"></span><span class="ps-txt"><b>${esc(r.label)}</b><span>${esc(sub)}</span></span><span class="ps-qty">${r.skeins}<small>skein${r.skeins>1?'s':''}</small></span><button type="button" class="ps-have" aria-pressed="${have[r.key]?'true':'false'}"><i>${have[r.key]?'✓':''}</i>Have</button></div>`;
+    }).join('') : `<div class="ps-empty">${filter==='have'?'Tick the threads you already have.':filter==='need'?'You have every thread for this pattern 🎉':'No threads in this pattern yet.'}</div>`;
+    $('ps-clear').style.visibility=got?'visible':'hidden';
+  }
+  function textList(){
+    const have=haveSet();
+    const need=cur.rows.filter(r=>!have[r.key]);
+    const lines=[cur.title+' — threads to buy ('+cur.brand+')'];
+    need.forEach(r=>lines.push('☐ '+r.label+' — '+r.skeins+' skein'+(r.skeins>1?'s':'')));
+    if(!need.length) lines.push('Nothing to buy, you have every thread.');
+    lines.push('', 'Made with Patternly');
+    return lines.join('\n');
+  }
+  function fileName(ext){ return (String(cur.title||'pattern').replace(/[\\/:*?"<>|]+/g,' ').trim()||'pattern')+' - shopping list.'+ext; }
+  function download(blob,name){
+    if(typeof rawDownload==='function') return rawDownload(blob,name);
+    const u=URL.createObjectURL(blob), a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),1500);
+  }
+  const say=m=>{ try{ toast(m); }catch(e){} };
+  async function copy(){
+    const t=textList();
+    try{ await navigator.clipboard.writeText(t); say('Shopping list copied'); return; }catch(e){}
+    try{ const ta=document.createElement('textarea'); ta.value=t; ta.style.cssText='position:fixed;opacity:0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); say('Shopping list copied'); }catch(e){ say('Could not copy, please try CSV'); }
+  }
+  async function share(){
+    const t=textList();
+    if(navigator.share){ try{ await navigator.share({title:cur.title+' — shopping list', text:t}); return; }catch(e){ if(e&&e.name==='AbortError') return; } }
+    copy();
+  }
+  function csv(){
+    const have=haveSet(), q=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';
+    let out='Brand,Thread,SKU,Hex,Stitches,In blends,Metres,Skeins,Have\n';
+    cur.rows.forEach(r=>{
+      const hex='#'+[r.r,r.g,r.b].map(v=>v.toString(16).padStart(2,'0')).join('').toUpperCase();
+      out+=[q(cur.brand),q(r.label),q(r.sku),hex,r.stitches,r.blend,r.metres.toFixed(2),r.skeins,have[r.key]?'yes':'no'].join(',')+'\n';
+    });
+    download(new Blob(['﻿'+out],{type:'text/csv;charset=utf-8'}), fileName('csv'));
+    say('Shopping list (CSV) saved');
+  }
+  function pdf(){
+    if(!window.jspdf){ say('PDF is not available offline, try CSV'); return; }
+    const {jsPDF}=window.jspdf, doc=new jsPDF({unit:'mm',format:'a4'}), have=haveSet();
+    const m=15; let y=m+2;
+    doc.setFont(undefined,'bold'); doc.setFontSize(15); doc.setTextColor(30,25,32);
+    doc.text(String(cur.title).slice(0,60)+' — thread shopping list', m, y); y+=7;
+    const need=cur.rows.filter(r=>!have[r.key]).reduce((s,r)=>s+r.skeins,0);
+    doc.setFont(undefined,'normal'); doc.setFontSize(9.5); doc.setTextColor(120,105,112);
+    doc.text(cur.brand+'  ·  '+cur.rows.length+' colours  ·  '+need+' skeins to buy'+(cur.note?'  ·  '+cur.note:''), m, y); y+=9;
+    doc.setFontSize(8.5); doc.setTextColor(90,80,86);
+    doc.text('Have', m, y); doc.text('Thread', m+19, y); doc.text('Stitches', m+120, y); doc.text('Length', m+142, y); doc.text('Skeins', m+165, y);
+    y+=1.5; doc.setDrawColor(200,190,196); doc.line(m,y,m+180,y); y+=5.5;
+    cur.rows.forEach(r=>{
+      if(y>284){ doc.addPage(); y=m; }
+      doc.setDrawColor(120,110,116); doc.rect(m+.5,y-3.4,3.8,3.8);
+      if(have[r.key]){ doc.setDrawColor(46,125,79); doc.setLineWidth(.6); doc.line(m+1.1,y-1.6,m+2.2,y-.3); doc.line(m+2.2,y-.3,m+4,y-3); doc.setLineWidth(.2); }
+      doc.setFillColor(r.r,r.g,r.b); doc.setDrawColor(120,110,116); doc.rect(m+9,y-3.6,6,4.8,'FD');
+      doc.setFontSize(9); doc.setTextColor(40,34,40);
+      doc.text(String(r.label).slice(0,52), m+19, y);
+      doc.text(r.stitches.toLocaleString(), m+120, y);
+      doc.text(fmtM(r.metres), m+142, y);
+      doc.setFont(undefined,'bold'); doc.text(String(r.skeins), m+165, y); doc.setFont(undefined,'normal');
+      y+=6.6;
+    });
+    y+=3; if(y>284){ doc.addPage(); y=m; }
+    doc.setFontSize(7.5); doc.setTextColor(140,125,132);
+    doc.text('Skeins are estimates (8 m skeins, about 15% extra for starts and ends). Made with Patternly.', m, y);
+    download(doc.output('blob'), fileName('pdf'));
+    say('Shopping list (PDF) saved');
+  }
+  function close(){ root.classList.remove('on'); cur=null; }
+  // o = {title, brand, note, items:[{label,code,sku,r,g,b,stitches,metres,parts?}]}
+  function open(o){
+    cur={title:o.title||'My pattern', brand:o.brand||'', note:o.note||'', rows:aggregate(o.items)};
+    filter='all'; $('ps-filter').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v==='all'));
+    $('ps-title').textContent=cur.title;
+    $('ps-sub').textContent='Thread shopping list'+(cur.brand?' · '+cur.brand:'');
+    $('ps-note').textContent=(o.note?o.note+' ':'')+'Estimates for 8 m skeins, with a little extra. “Have” ticks are remembered on this device for all your patterns.';
+    paint(); root.classList.add('on');
+  }
+  $('ps-x').addEventListener('click',close);
+  root.addEventListener('click',e=>{ if(e.target===root) close(); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape' && root.classList.contains('on')) close(); });
+  $('ps-list').addEventListener('click',e=>{
+    const b=e.target.closest('.ps-have'); if(!b||!cur) return;
+    const k=b.closest('.ps-row').dataset.k, on=!haveSet()[k];
+    setHave(k,on); paint();
+  });
+  $('ps-filter').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; filter=b.dataset.v; $('ps-filter').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); paint(); });
+  $('ps-clear').addEventListener('click',()=>{ const h=loadHave(); cur.rows.forEach(r=>delete h[r.key]); saveHave(h); paint(); });
+  $('ps-copy').addEventListener('click',copy);
+  $('ps-share').addEventListener('click',share);
+  $('ps-csv').addEventListener('click',csv);
+  $('ps-pdf').addEventListener('click',pdf);
+  window.plShopOpen=open;
+  window.plShopClose=close;
+})();
+</script>
 </body>
 </html>
