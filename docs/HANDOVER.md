@@ -1,6 +1,6 @@
 # Patternly Handover
 
-_Living document. Updated in the same commit as every build (see CLAUDE.md). Last updated 2026-10-29 by Claude for Cristian._
+_Living document. Updated in the same commit as every build (see CLAUDE.md). Last updated 2026-10-30 by Claude for Cristian._
 
 ## What Patternly is
 
@@ -37,7 +37,7 @@ Two GitHub repos under the **Patternly** organisation are the source of truth; C
 
 ## Code map
 
-Current versions: **editor v649** (website and patternly-app `www/`), **middleware v103**, **Studio v51**, app **1.4** live in both stores (iOS build 3 / Android versionCode 9); app repo `main` = **1.5** (Android versionCode 10, iOS MARKETING_VERSION 1.5), not yet built. Every build bumps its version constant; never re-issue a version with different contents.
+Current versions: **editor v646** (website and patternly-app `www/`; build numbers are reserved per thread, so v646 = the scan-accuracy thread's last build, merged after v649 and containing it), **middleware v103**, **Studio v51**, app **1.4** live in both stores (iOS build 3 / Android versionCode 9); app repo `main` = **1.5** (Android versionCode 10, iOS MARKETING_VERSION 1.5), not yet built. Every build bumps its version constant; never re-issue a version with different contents.
 
 | File | Size | What it is | Version constant |
 | --- | --- | --- | --- |
@@ -161,7 +161,8 @@ Play deadlines noted earlier: target API 36 before 1 Nov 2026 (done on `main`), 
 | Measured accuracy | Classic (symbol) charts: 92.6 % correct before review on compressed shadowed photos (BU5073), 95.2 % with a clean key, 98–99 % on 300 dpi scans; ~2 min per 160×160 chart in desktop Chrome. Colour charts (v644): Riolis 2289 88 % on the iOS Preview scan, ~85 % on a downscaled phone photo |
 | Colour charts (v634) | Charts printed in colour (Riolis and similar: every cell filled with the thread colour, some colours with no symbol at all) are detected automatically (`isColourChart`, ≥35 % of the page filled). Grid: `detectGridColour` finds the lattice by periodicity in small tiles (grid-line valleys + colour edges that run across more than one cell, so glyphs centred in cells cannot lock it half a cell off), unwraps line numbers tile to tile and bridges creases. Key: tapping a coloured square runs `legendTiles`, which follows column A up and down (local paper level, so hand shadows and the grey band behind blended rows do not count as colour), keeps one template per square (inside of the square, white-balanced) and leaves backstitch line rows out. Thread numbers: stacked blend numbers read as "9+10". Matching: `matchColour` scores symbol likeness minus Lab colour distance, fits key colours onto the chart photo, takes plain squares' colour from the densest chart colour of that hue, estimates a light field from symbol-placed cells (shadows), and has a paper class (no stitch). Brand select has "Kit's own numbers (Riolis…)" (auto-chosen for colour keys): labels "Colour 7", "Colour 9 + 10", colours from the key squares. ↻ buttons turn sideways page photos and key photos |
 | Guided camera (v638) | On phones and in the apps "Take photo" opens a live scanner: page outline, warnings for dark / glare / shadow / tilt / too far / movement / focus, auto-capture, corner adjust, straightened flat page (like the iOS Preview scan). Camera app and Photos or PDF remain as fallbacks; gallery photos get an occasional tip to scan instead (v640) |
-| Not yet | Page-number detection in the camera, backstitch from photos, speed, B&W-only kits (customer sees no colour, so low value) |
+| Half stitches (v645) | Colour keys: the stitch-type icon right of each square (╲ = half, ※ / ╳ = cross) marks a colour as half stitches; its cells go into `halfCells` / `partMask` |
+| Not yet | Page-number detection in the camera, backstitch from photos, half stitches on classic (symbol) keys, B&W-only kits (customer sees no colour, so low value) |
 
 ### Editor and tools
 
@@ -187,7 +188,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 **RULE #1 — never break account-linked sync.** Before every push, grep these marker counts in `index.html` and compare with the previous commit: `trkProgressUrl` 4 lines, `trkCloudProjects` 4, `trkUserPatternUrl` 8, `pl_session` 27 occurrences (21 lines). Also: `ensurePageFooters` adds a footer only to `#account-page`, never `#tracker-page`; `/progress` latches code-opened kits to the signed-in customer.
 
-1. One fix per build; bump `PATTERNLY_BUILD` (editor), `MW_VERSION` (middleware) or the Studio `vNN` comment on every delivered change; never re-issue a version with different contents. Next numbers: editor **v643** (ranges reserved per thread on 30 Oct: v641–v643 quick fixes, v644–v647 scan accuracy, v648–v649 translations + review prompt, v650–v652 backstitch / shopping list / blends; next unreserved **v653**), middleware **v104**, Studio **v52**.
+1. One fix per build; bump `PATTERNLY_BUILD` (editor), `MW_VERSION` (middleware) or the Studio `vNN` comment on every delivered change; never re-issue a version with different contents. Next numbers: editor **v647** is the scan-accuracy thread's last reserved number (ranges per thread on 30 Oct: v641–v643 quick fixes, v644–v647 scan accuracy (v644–v646 used), v648–v649 translations + review prompt, v650–v652 backstitch / shopping list / blends; next unreserved **v653**), middleware **v104**, Studio **v52**.
 2. Every editor build: `node --check` on all 18 inline script blocks, then copy `index.html` to `patternly-app/www/index.html` and commit both repos ("www: editor vNNN").
 3. Commit as `-c user.name="Cristian" -c user.email="lucasukinfo@gmail.com"`, message ending with the Claude attribution lines; push to `main` directly (the Claude GitHub App has push access on both repos). The Patternly repo remote redirects ("repository moved") — harmless.
 4. Test before delivering: Playwright headless Chromium (`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`, `--no-sandbox`) against a local `python3 -m http.server` serving a copy of the file; iPhone viewport 390×844 with `isMobile`/`hasTouch`; `hj051.ptly` is the usual test pattern. No WebKit is available — anything iOS-specific needs Cristian's phone.
