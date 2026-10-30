@@ -5415,7 +5415,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v651';
+window.PATTERNLY_BUILD='v652';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -8099,6 +8099,9 @@ body.dark .ifsize-note,body.dark .ifsize-ttl{color:#a596ab}
             Adjust Colors
           </button>
         </div>
+        <div style="margin-bottom:.6rem">
+          <button id="outline-btn" type="button" onclick="plOutlineOpen()" style="width:100%;padding:.45rem;border-radius:7px;background:#f4eef7;border:none;cursor:pointer;font-size:.78rem;font-weight:700;color:#6b4a7a;font-family:inherit">〰 Backstitch outlines</button>
+        </div>
         <div class="row-label"><span data-i18n="ed.colours">Colours</span> <span id="color-limit-val">20</span></div>
         <input type="range" id="color-limit" class="full-range" min="2" max="60" value="20"/>
         <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.5rem">
@@ -10561,6 +10564,92 @@ function renderPattern() {
   drawBackstitches(ctx, CELL);
   drawKnots(ctx, CELL);
   updateColourCount();
+}
+
+// ── Automatic backstitch outlines (v652) ────────────────────────────────────
+// Shared by quick photo convert and the editor's "Backstitch outlines" dialog.
+// idx = cell colour per stitch (row-major, -1 = empty), colOf(v) → {r,g,b},
+// nearest(r,g,b) → thread index. Lines run along cell edges where the two
+// sides differ clearly (ΔE in Lab), around the subject when the background is
+// empty, short specks are dropped, single-step staircases become diagonals
+// and straight runs are merged. Returns [{x1,y1,x2,y2,ci}] in grid corners.
+// opt: {level:0 fewer|1 balanced|2 more, colour:'auto'|'black'|'brown'|'grey', subject:true}
+const PL_OUTLINE_INK={black:[18,18,20],brown:[66,42,30],grey:[78,78,84]};
+function plOutlineSegs(idx, W, H, colOf, nearest, opt){
+  opt=opt||{};
+  const level=opt.level==null?1:opt.level;
+  const TH=[30,21,14][level], MINLEN=[7,4,3][level];
+  const lab=new Map();
+  const labOf=v=>{ let l=lab.get(v); if(!l){ const c=colOf(v); l=thRgbToLab(c.r,c.g,c.b); lab.set(v,l); } return l; };
+  const at=(x,y)=>(x<0||y<0||x>=W||y>=H)?-1:idx[y*W+x];
+  // edge strength between two cells → the cell whose colour the line follows (darker side), or -2 = no line
+  const edge=(a,b)=>{
+    if(a===b) return -2;
+    if(a<0||b<0){ if(opt.subject===false) return -2; return a<0?b:a; }
+    const A=labOf(a), B=labOf(b);
+    if(thDeltaE(A,B)<TH) return -2;
+    return A[0]<=B[0]?a:b;
+  };
+  // hE[y*W+x] = horizontal edge from (x,y) to (x+1,y), y in 0..H; vE[y*(W+1)+x] = vertical (x,y)→(x,y+1)
+  const hE=new Int32Array(W*(H+1)).fill(-2), vE=new Int32Array((W+1)*H).fill(-2);
+  for(let y=0;y<=H;y++)for(let x=0;x<W;x++) hE[y*W+x]=edge(at(x,y-1),at(x,y));
+  for(let y=0;y<H;y++)for(let x=0;x<=W;x++) vE[y*(W+1)+x]=edge(at(x-1,y),at(x,y));
+  // the picture's own border is not an outline unless the subject touches an empty background
+  for(let x=0;x<W;x++){ if(at(x,0)>=0) hE[x]=-2; if(at(x,H-1)>=0) hE[H*W+x]=-2; }
+  for(let y=0;y<H;y++){ if(at(0,y)>=0) vE[y*(W+1)]=-2; if(at(W-1,y)>=0) vE[y*(W+1)+W]=-2; }
+  // drop short pieces: connected components over the corner lattice
+  const N=(W+1)*(H+1), par=new Int32Array(N); for(let i=0;i<N;i++) par[i]=i;
+  const find=i=>{ while(par[i]!==i){ par[i]=par[par[i]]; i=par[i]; } return i; };
+  const join=(a,b)=>{ a=find(a); b=find(b); if(a!==b) par[a]=b; };
+  const node=(x,y)=>y*(W+1)+x;
+  for(let y=0;y<=H;y++)for(let x=0;x<W;x++) if(hE[y*W+x]>-2) join(node(x,y),node(x+1,y));
+  for(let y=0;y<H;y++)for(let x=0;x<=W;x++) if(vE[y*(W+1)+x]>-2) join(node(x,y),node(x,y+1));
+  const size=new Int32Array(N);
+  for(let y=0;y<=H;y++)for(let x=0;x<W;x++) if(hE[y*W+x]>-2) size[find(node(x,y))]++;
+  for(let y=0;y<H;y++)for(let x=0;x<=W;x++) if(vE[y*(W+1)+x]>-2) size[find(node(x,y))]++;
+  for(let y=0;y<=H;y++)for(let x=0;x<W;x++) if(hE[y*W+x]>-2 && size[find(node(x,y))]<MINLEN) hE[y*W+x]=-2;
+  for(let y=0;y<H;y++)for(let x=0;x<=W;x++) if(vE[y*(W+1)+x]>-2 && size[find(node(x,y))]<MINLEN) vE[y*(W+1)+x]=-2;
+  const H_=(x,y)=>(x<0||x>=W||y<0||y>H)?-2:hE[y*W+x], V_=(x,y)=>(x<0||x>W||y<0||y>=H)?-2:vE[y*(W+1)+x];
+  // single-step staircases → diagonals across the corner cell
+  const diag=[];
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const T=H_(x,y), B=H_(x,y+1), L=V_(x,y), R=V_(x+1,y);
+    const on=[T,B,L,R].filter(v=>v>-2).length; if(on!==2) continue;
+    let d=null;
+    if(T>-2&&R>-2 && H_(x-1,y)<=-2 && V_(x+1,y+1)<=-2){ d=[x,y,x+1,y+1,T]; hE[y*W+x]=-2; vE[y*(W+1)+x+1]=-2; }
+    else if(T>-2&&L>-2 && H_(x+1,y)<=-2 && V_(x,y+1)<=-2){ d=[x+1,y,x,y+1,T]; hE[y*W+x]=-2; vE[y*(W+1)+x]=-2; }
+    else if(B>-2&&R>-2 && H_(x-1,y+1)<=-2 && V_(x+1,y-1)<=-2){ d=[x+1,y,x,y+1,B]; hE[(y+1)*W+x]=-2; vE[y*(W+1)+x+1]=-2; }
+    else if(B>-2&&L>-2 && H_(x+1,y+1)<=-2 && V_(x,y-1)<=-2){ d=[x,y,x+1,y+1,B]; hE[(y+1)*W+x]=-2; vE[y*(W+1)+x]=-2; }
+    if(d) diag.push(d);
+  }
+  // line colour: a darker shade of the side it follows, or one ink colour
+  const inkCache=new Map();
+  const ink=v=>{
+    if(inkCache.has(v)) return inkCache.get(v);
+    let ci;
+    if(opt.colour && PL_OUTLINE_INK[opt.colour]){ const k=PL_OUTLINE_INK[opt.colour]; ci=nearest(k[0],k[1],k[2]); }
+    else { const c=colOf(v), f=0.42; ci=nearest(c.r*f,c.g*f,c.b*f); }
+    inkCache.set(v,ci); return ci;
+  };
+  const out=[];
+  // merge straight runs of the same ink
+  for(let y=0;y<=H;y++){ let x=0; while(x<W){ const v=hE[y*W+x]; if(v<=-2){ x++; continue; } const ci=ink(v); let e=x+1; while(e<W && hE[y*W+e]>-2 && ink(hE[y*W+e])===ci) e++; out.push({x1:x,y1:y,x2:e,y2:y,ci}); x=e; } }
+  for(let x=0;x<=W;x++){ let y=0; while(y<H){ const v=vE[y*(W+1)+x]; if(v<=-2){ y++; continue; } const ci=ink(v); let e=y+1; while(e<H && vE[e*(W+1)+x]>-2 && ink(vE[e*(W+1)+x])===ci) e++; out.push({x1:x,y1:y,x2:x,y2:e,ci}); y=e; } }
+  diag.forEach(([x1,y1,x2,y2,v])=>out.push({x1,y1,x2,y2,ci:ink(v)}));
+  return out;
+}
+// Backstitch lines of a chart tile, clipped to it (PDF chart pages, v652)
+function expTileLines(lines,c0,r0,nc,nr){
+  const out=[];
+  (lines||[]).forEach(l=>{
+    if(!l || l.type==='halfstitch_tl' || l.type==='halfstitch_tr') return;
+    let t0=0,t1=1; const dx=l.x2-l.x1, dy=l.y2-l.y1;
+    const clip=(p,q)=>{ if(p===0) return q>=0; const t=q/p; if(p<0){ if(t>t1) return false; if(t>t0) t0=t; } else { if(t<t0) return false; if(t<t1) t1=t; } return true; };
+    if(!(clip(-dx,l.x1-c0)&&clip(dx,c0+nc-l.x1)&&clip(-dy,l.y1-r0)&&clip(dy,r0+nr-l.y1))) return;
+    if(t1-t0<=1e-9) return;
+    out.push({x1:l.x1+dx*t0-c0, y1:l.y1+dy*t0-r0, x2:l.x1+dx*t1-c0, y2:l.y1+dy*t1-r0, ci:l.ci, long:l.type==='long'});
+  });
+  return out;
 }
 
 // Backstitch / contour lines along grid edges (and diagonals)
@@ -14423,6 +14512,14 @@ function expRenderTile(c0,r0,nc,nr,uPalette,opts){
   for(let c=0;c<=nc;c++){ if((c0+c)%10===0){ g.moveTo(band+c*px,band); g.lineTo(band+c*px,band+nr*px);} }
   for(let r=0;r<=nr;r++){ if((r0+r)%10===0){ g.moveTo(band,band+r*px); g.lineTo(band+nc*px,band+r*px);} }
   g.stroke();
+  // Backstitch on top of the grid (v652)
+  g.lineCap='round';
+  expTileLines(lines,c0,r0,nc,nr).forEach(s=>{
+    const col=activePalette()[s.ci]||{r:0,g:0,b:0};
+    g.strokeStyle=EXP.style==='bw'?'#111':`rgb(${col.r},${col.g},${col.b})`;
+    g.lineWidth=Math.max(1.5,px*(s.long?0.2:0.13));
+    g.beginPath(); g.moveTo(band+s.x1*px,band+s.y1*px); g.lineTo(band+s.x2*px,band+s.y2*px); g.stroke();
+  });
   if(band){
     g.fillStyle='#5e4f55'; g.font=`${Math.round(px*0.5)}px "DM Sans",sans-serif`;
     g.textAlign='center'; g.textBaseline='middle';
@@ -14483,6 +14580,15 @@ function expDrawTileVector(pdf, c0, r0, nc, nr, uPalette, L, opts){
   pdf.setDrawColor(mj.r,mj.g,mj.b); pdf.setLineWidth(wMaj);
   for(let c=0;c<=nc;c++) if((c0+c)%10===0) pdf.line(gx+c*cell, gy, gx+c*cell, gy+nr*cell);
   for(let r=0;r<=nr;r++) if((r0+r)%10===0) pdf.line(gx, gy+r*cell, gx+nc*cell, gy+r*cell);
+  // Backstitch on top of the grid (v652)
+  pdf.setLineCap && pdf.setLineCap('round');
+  expTileLines(lines,c0,r0,nc,nr).forEach(s=>{
+    const col=activePalette()[s.ci]||{r:0,g:0,b:0};
+    if(EXP.style==='bw') pdf.setDrawColor(17,17,17); else pdf.setDrawColor(col.r,col.g,col.b);
+    pdf.setLineWidth(Math.max(0.25,cell*(s.long?0.2:0.13)));
+    pdf.line(gx+s.x1*cell, gy+s.y1*cell, gx+s.x2*cell, gy+s.y2*cell);
+  });
+  pdf.setLineCap && pdf.setLineCap('butt');
   // Ruler numbers (in the reserved band)
   pdf.setFont('helvetica','normal'); pdf.setFontSize(Math.max(3.5, 0.5*cell/0.3528)); pdf.setTextColor(94,79,85);
   for(let c=0;c<=nc;c++) if((c0+c)%10===0) pdf.text(String(c0+c), gx+c*cell, L.m+L.headH+band*0.5, {align:'center', baseline:'middle'});
@@ -14501,6 +14607,10 @@ function expKeyRows(uPalette,counts){
   });
   if(EXP.sort==='count') rows.sort((a,b)=>b.count-a.count);
   else if(EXP.sort==='code') rows.sort((a,b)=>String(a.code).localeCompare(String(b.code),undefined,{numeric:true}));
+  // Backstitch threads after the crosses: one row per thread, total length (v652)
+  const {lines}=lyFlatten(), len=new Map();
+  (lines||[]).forEach(l=>{ if(!l || l.ci==null || l.type==='halfstitch_tl' || l.type==='halfstitch_tr') return; len.set(l.ci,(len.get(l.ci)||0)+Math.hypot(l.x2-l.x1,l.y2-l.y1)); });
+  len.forEach((cells,ci)=>{ const col=activePalette()[ci]; if(col) rows.push({ci, col, sym:'', code:(col.sku||col.label||String(ci)), count:0, bs:true, lenM:cells*0.0254/(fabricCount||14)*2.2}); });
   return rows;
 }
 function expUsageFor(count){
@@ -14523,6 +14633,15 @@ function expRenderKeyPage(rows, pageIdx, perPage){
   g.strokeStyle='#e8dce0'; g.beginPath(); g.moveTo(40,top-12); g.lineTo(W-40,top-12); g.stroke();
   slice.forEach((row,i)=>{
     const y=top+i*rowH+rowH/2;
+    if(row.bs){
+      g.strokeStyle=`rgb(${row.col.r},${row.col.g},${row.col.b})`; g.lineWidth=6; g.lineCap='round';
+      g.beginPath(); g.moveTo(44,y); g.lineTo(80,y); g.stroke(); g.lineCap='butt'; g.lineWidth=1;
+      g.font='600 22px "DM Sans",sans-serif'; g.fillStyle='#2b2226'; g.fillText(String(row.code),170,y);
+      g.fillStyle='#5e4f55'; g.fillText('Backstitch',420,y);
+      if(EXP.usage) g.fillText(`${row.lenM.toFixed(1)} m  ·  1 strand`,620,y);
+      g.strokeStyle='#f1e8ea'; g.beginPath(); g.moveTo(40,y+rowH/2); g.lineTo(W-40,y+rowH/2); g.stroke();
+      return;
+    }
     g.fillStyle=`rgb(${row.col.r},${row.col.g},${row.col.b})`;
     g.fillRect(40,y-16,44,32);
     g.strokeStyle='#c9bcc2'; g.strokeRect(40,y-16,44,32);
@@ -14559,6 +14678,17 @@ function expDrawKeyPageVector(pdf, rows, pageIdx, perPage, L, fontOk){
   pdf.setDrawColor(232,220,224); pdf.setLineWidth(0.2); pdf.line(X(40),Y(top-12),X(VW-40),Y(top-12));
   slice.forEach((row,i)=>{
     const cy=top+i*rowH+rowH/2;
+    if(row.bs){
+      pdf.setDrawColor(row.col.r,row.col.g,row.col.b); pdf.setLineWidth(6*s);
+      pdf.line(X(44),Y(cy),X(80),Y(cy));
+      pdf.setFont('helvetica','bold'); pdf.setFontSize(FS(22)); pdf.setTextColor(43,34,38);
+      pdf.text(String(row.code), X(170), Y(cy), {baseline:'middle'});
+      pdf.setFont('helvetica','normal'); pdf.setTextColor(94,79,85);
+      pdf.text('Backstitch', X(420), Y(cy), {baseline:'middle'});
+      if(EXP.usage) pdf.text(`${row.lenM.toFixed(1)} m  ·  1 strand`, X(620), Y(cy), {baseline:'middle'});
+      pdf.setDrawColor(241,232,234); pdf.setLineWidth(0.15); pdf.line(X(40),Y(cy+rowH/2),X(VW-40),Y(cy+rowH/2));
+      return;
+    }
     pdf.setFillColor(row.col.r,row.col.g,row.col.b);
     pdf.setDrawColor(201,188,194); pdf.setLineWidth(0.2);
     pdf.rect(X(40), Y(cy-16), 44*s, 32*s, 'FD');
@@ -35475,6 +35605,16 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
         <div class="qc-lbl">Level <span id="qc-detail-v"></span></div>
         <input type="range" id="qc-detail" min="0" max="2" step="1">
         <p class="qc-hint" id="qc-detail-hint"></p>
+        <div id="qc-ol-wrap">
+          <div class="qc-row" style="margin-top:.8rem"><span style="font-size:.8rem;font-weight:700">Backstitch outlines <span class="qc-tag fill" style="margin-left:.25rem">New</span></span><button type="button" class="qc-tog" id="qc-ol-tog" aria-label="Backstitch outlines"></button></div>
+          <p class="qc-hint">Thin lines around shapes and the subject, for crisp edges.</p>
+          <div id="qc-ol-opts" style="display:none">
+            <div class="qc-lbl">Amount</div>
+            <div class="qc-seg" id="qc-ol-level"><button type="button" data-v="0">Fewer</button><button type="button" data-v="1">Balanced</button><button type="button" data-v="2">More</button></div>
+            <div class="qc-lbl">Line colour</div>
+            <div class="qc-chips" id="qc-ol-col"><button type="button" class="qc-chip" data-v="auto">Darker shade</button><button type="button" class="qc-chip" data-v="black">Black</button><button type="button" class="qc-chip" data-v="brown">Dark brown</button><button type="button" class="qc-chip" data-v="grey">Dark grey</button></div>
+          </div>
+        </div>
 
         <div class="qc-h"><span class="n">6</span>Clean up</div>
         <div class="qc-box">
@@ -35564,7 +35704,7 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
   const QC={
     step:1, kind:'photo', craft:prefs.craft||'cross', drill:prefs.drill||'square', units:prefs.units||'cm',
     brand:prefs.brand||'', strands:prefs.strands||2, countKey:prefs.countKey||'a14', fabricHex:prefs.fabricHex||'',
-    W:0, H:0, lock:true, preset:1, style:'balanced', colors:30, detail:2, clean:0, br:0, ct:0, sa:0, blends:false,
+    W:0, H:0, lock:true, preset:1, style:'balanced', colors:30, detail:2, clean:0, br:0, ct:0, sa:0, blends:false, ol:false, olLevel:1, olCol:'auto',
     view:'pattern', zoom:1, showConf:false, name:'My Pattern', bgOn:false, bgTol:28,
     crop:{x:0,y:0,w:1,h:1}, rot:0, rot90:0, bgSeeds:[], bgAuto:true
   };
@@ -35772,7 +35912,13 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
     for(let i=0;i<N;i++){ const v=idx[i]; if(v<0) continue; filled++; counts.set(v,(counts.get(v)||0)+1); }
     const used=[...counts.keys()].sort((a,b)=>counts.get(b)-counts.get(a));
     const singles=countSingles(idx,W,H);
-    return {W,H,idx,used,counts,filled,singles,singlesBefore,brand:QC.brand,pal,nBase:NB};
+    // Backstitch outlines (v652): lines in real threads (never blends)
+    let lines=[];
+    if(QC.ol && QC.craft!=='diamond'){
+      const near=(r,g,b)=>{ let bi=0,bd=Infinity; for(let p=0;p<NB;p++){ const dd=colorDistP({r,g,b},pal[p]); if(dd<bd){bd=dd;bi=p;} } return bi; };
+      lines=plOutlineSegs(idx,W,H,v=>pal[v],near,{level:QC.olLevel,colour:QC.olCol,subject:true});
+    }
+    return {W,H,idx,used,counts,filled,singles,singlesBefore,brand:QC.brand,pal,nBase:NB,lines};
   }
   function majority(idx,W,H){
     const src=idx.slice();
@@ -35872,6 +36018,12 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
       for(let y=0;y<=H;y+=10){ g.moveTo(0,y*cell); g.lineTo(CW,y*cell); }
       g.stroke();
     }
+    drawLines(g,cell,0.16);
+  }
+  function drawLines(g,cell,k){
+    if(!res.lines || !res.lines.length) return;
+    g.lineCap='round'; g.lineWidth=Math.max(1,cell*k);
+    res.lines.forEach(l=>{ const c=res.pal[l.ci]; g.strokeStyle=rgbOf(c); g.beginPath(); g.moveTo(l.x1*cell,l.y1*cell); g.lineTo(l.x2*cell,l.y2*cell); g.stroke(); });
   }
   function rgbOf(c){ return `rgb(${c.r},${c.g},${c.b})`; }
   function shade(c,k){ const f=v=>Math.max(0,Math.min(255,Math.round(v*k))); return `rgb(${f(c.r)},${f(c.g)},${f(c.b)})`; }
@@ -35880,6 +36032,7 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
     g.fillStyle=QC.fabricHex; g.fillRect(0,0,CW,CH);
     if(cell<3){
       for(let y=0;y<H;y++)for(let x=0;x<W;x++){ const v=idx[y*W+x]; if(v<0) continue; const c=pal[v]; g.fillStyle=`rgb(${c.r},${c.g},${c.b})`; g.fillRect(x*cell,y*cell,cell+0.5,cell+0.5); }
+      if(QC.craft!=='diamond') drawLines(g,cell,0.3);
       return;
     }
     // fabric weave holes
@@ -35916,6 +36069,7 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
         g.beginPath(); g.moveTo(x0+m*1.2,y0+cell-m*1.7); g.lineTo(x0+cell-m*1.7,y0+m*1.2); g.stroke();
       }
     }
+    if(QC.craft!=='diamond') drawLines(g,cell,0.12);
   }
 
   // ── side panel rendering ──
@@ -35954,6 +36108,9 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
     $('qc-detail').value=QC.detail; $('qc-detail-v').textContent=DETAIL[QC.detail].l; $('qc-detail-hint').textContent=DETAIL[QC.detail].h;
     $('qc-detail').disabled=QC.kind==='pixel';
     $('qc-blend-tog').classList.toggle('on',QC.blends);
+    $('qc-ol-tog').classList.toggle('on',QC.ol); $('qc-ol-opts').style.display=QC.ol?'':'none';
+    $('qc-ol-wrap').style.display=QC.craft==='diamond'?'none':'';
+    paintSeg('qc-ol-level',QC.olLevel); paintChips('qc-ol-col',QC.olCol);
     $('qc-blend-wrap').style.display=QC.craft==='diamond'?'none':'';
     const plus=isPlus();
     $('qc-clean').disabled=!plus; $('qc-conf-plus').style.display=plus?'none':'';
@@ -35969,19 +36126,26 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
     const pal=res.pal;
     $('qc-pal-n').textContent=` ${res.used.length} colours`;
     $('qc-pal-strip').innerHTML=res.used.map(v=>{ const c=pal[v]; return `<i style="background:rgb(${c.r},${c.g},${c.b});flex-grow:${Math.max(1,res.counts.get(v))}"></i>`; }).join('');
-    $('qc-pal-list').innerHTML=threadRows().map(t=>`<div class="qc-thr"><i style="background:${t.css}"></i><b>${esc(t.label)}</b><span>${t.n.toLocaleString()} · ${t.amount}</span></div>`).join('');
+    $('qc-pal-list').innerHTML=threadRows().map(t=>`<div class="qc-thr"><i style="background:${t.css}"></i><b>${esc(t.label)}</b><span>${t.n?t.n.toLocaleString()+' · ':''}${t.amount}</span></div>`).join('');
     paintFinal();
+  }
+  // backstitch length per thread → skein metres (one strand, ~2.2× the line, 6 strands per skein, +15 %)
+  function lineMetres(){
+    const m=new Map(), inch=perInch();
+    (res.lines||[]).forEach(l=>m.set(l.ci,(m.get(l.ci)||0)+Math.hypot(l.x2-l.x1,l.y2-l.y1)*0.0254/inch*2.2/6*1.15));
+    return m;
   }
   function threadRows(){
     const pal=res.pal;
     const n=perInch(), mp100=({11:0.58,14:0.43,16:0.4,18:0.38,20:0.34,25:0.27})[Math.round(n)]||0.4;
+    const bs=[...lineMetres()].map(([v,m])=>{ const c=pal[v], sk=Math.max(1,Math.ceil(m/8)); return {css:rgbOf(c),label:c.label+' (backstitch)',n:0,amount:`${sk} skein${sk>1?'s':''}`}; });
     return res.used.map(v=>{
       const c=pal[v], cnt=res.counts.get(v);
       let amount;
       if(QC.craft==='diamond') amount=`${Math.ceil(cnt*1.05).toLocaleString()} drills`;
       else { const m=cnt*mp100/100*1.15*(QC.strands/2); const sk=Math.max(1,Math.ceil(m/8)); amount=`${sk} skein${sk>1?'s':''}`; }
       return {css:c.blend?`linear-gradient(135deg,${rgbOf(pal[c.blend[0]])} 50%,${rgbOf(pal[c.blend[1]])} 50%)`:rgbOf(c),label:c.label+(c.blend?' (blend)':''),n:cnt,amount};
-    });
+    }).concat(bs);
   }
   // Shopping list: same thread maths as the palette rows (skeins = metres / 8)
   function shopList(){
@@ -35993,6 +36157,7 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
       if(t.blend) it.parts=t.blend.map(j=>plShopThread(res.brand,pal[j]));
       return it;
     });
+    lineMetres().forEach((m,v)=>items.push(Object.assign(plShopThread(res.brand,pal[v]),{stitches:0,metres:m})));
     plShopOpen({title:(QC.name||'My Pattern').trim()||'My Pattern', brand:PALETTES[res.brand].name, note:QC.strands+' strand'+(QC.strands>1?'s':'')+' · '+(CRAFTS[QC.craft].counts.find(c=>c.k===QC.countKey)||{l:''}).l+'.', items});
   }
   function paintFinal(){
@@ -36077,7 +36242,7 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
     $('qc-sug-pixel').style.display=QC.kind==='pixel'?'':'none';
     if(!QC.brand || !PALETTES[QC.brand]) QC.brand=(typeof currentBrand!=='undefined'&&PALETTES[currentBrand])?currentBrand:Object.keys(PALETTES)[0];
     if(!QC.fabricHex) QC.fabricHex=FABRIC_COLOURS[1].hex;
-    QC.style='balanced'; QC.br=QC.ct=QC.sa=0; QC.colors=QC.kind==='pixel'?60:30; QC.detail=2; QC.clean=0; QC.blends=false; QC.view='pattern'; QC.preset=1; QC.W=0; QC.H=0; res=null;
+    QC.style='balanced'; QC.br=QC.ct=QC.sa=0; QC.colors=QC.kind==='pixel'?60:30; QC.detail=2; QC.clean=0; QC.blends=false; QC.ol=false; QC.view='pattern'; QC.preset=1; QC.W=0; QC.H=0; res=null;
     $('qc-name').value=QC.name;
     ['br','ct','sa'].forEach(k=>{ $('qc-'+k).value=0; $('qc-'+k+'-v').textContent='0'; });
     rebuildFrom(0);
@@ -36125,6 +36290,8 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
     const toEd=new Map(); r.used.forEach(v=>{ const t=r.pal[v]; toEd.set(v, v<r.nBase?v:plBlendEnsure(r.brand,t.blend[0],t.blend[1])); });
     const used=r.used.map(v=>toEd.get(v)), edIdx=Int32Array.from(r.idx,v=>v<0?-1:toEd.get(v));
     grid=Array.from({length:r.H},(_,y)=>Array.from({length:r.W},(_,x)=>{ const v=edIdx[y*r.W+x]; return v<0?null:v; }));
+    lines=(r.lines||[]).map(l=>({x1:l.x1,y1:l.y1,x2:l.x2,y2:l.y2,ci:l.ci,type:'backstitch',strands:1,auto:1}));
+    lines.forEach(l=>{ if(!used.includes(l.ci)) used.push(l.ci); });
     lySyncActive();
     uploadedImg=im;
     const ul=$('upload-label'); if(ul) ul.textContent='✅ '+(QC.name||'photo');
@@ -36268,7 +36435,7 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
   // step 2 controls
   $('qc-craft').addEventListener('click',e=>{ const b=e.target.closest('.qc-chip'); if(!b) return; QC.craft=b.dataset.v;
     const cs=CRAFTS[QC.craft].counts; if(cs.length && !cs.some(c=>c.k===QC.countKey)) QC.countKey=cs[1]?cs[1].k:cs[0].k;
-    savePrefs(); paintFabric(); paintSize(); paintColours(); if(QC.blends) queue(false); else { paintFinal(); if(QC.view==='finished') draw(); } });
+    savePrefs(); paintFabric(); paintSize(); paintColours(); if(QC.blends||QC.ol) queue(false); else { paintFinal(); if(QC.view==='finished') draw(); } });
   $('qc-drill').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; QC.drill=b.dataset.v; savePrefs(); paintFabric(); paintSize(); paintFinal(); if(QC.view==='finished') draw(); });
   $('qc-units').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; QC.units=b.dataset.v; paintSeg('qc-units',QC.units); savePrefs(); paintSize(); paintFinal(); });
   $('qc-sizes').addEventListener('click',e=>{ const b=e.target.closest('.qc-size[data-i]'); if(!b) return; setSizeFromPreset(+b.dataset.i); paintSize(); queue(false); });
@@ -36289,6 +36456,9 @@ body.dark .qc-badge.good{background:#1d3a28;color:#8fe0a8}body.dark .qc-badge.ok
   $('qc-fabcol').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; QC.fabricHex=b.dataset.v; savePrefs(); paintFabric(); if(QC.view!=='pattern') draw(); });
   $('qc-cstyle').innerHTML=STYLES.map(s=>`<button type="button" class="qc-chip" data-v="${s.v}"><span class="qc-stripe">${s.c.map(c=>`<i style="background:${c}"></i>`).join('')}</span>${s.l}</button>`).join('');
   $('qc-cstyle').addEventListener('click',e=>{ const b=e.target.closest('.qc-chip'); if(!b) return; QC.style=b.dataset.v; paintColours(); queue(true); });
+  $('qc-ol-tog').addEventListener('click',()=>{ QC.ol=!QC.ol; paintColours(); queue(false); });
+  $('qc-ol-level').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; QC.olLevel=+b.dataset.v; paintColours(); queue(false); });
+  $('qc-ol-col').addEventListener('click',e=>{ const b=e.target.closest('.qc-chip'); if(!b) return; QC.olCol=b.dataset.v; paintColours(); queue(false); });
   $('qc-blend-tog').addEventListener('click',()=>{ QC.blends=!QC.blends; paintColours(); queue(false); });
   $('qc-colors').addEventListener('input',function(){ QC.colors=+this.value; $('qc-colors-v').textContent=QC.colors+' max'; queue(false); });
   $('qc-ft-tog').addEventListener('click',function(){ const on=!this.classList.contains('on'); this.classList.toggle('on',on); $('qc-ft').style.display=on?'':'none'; });
@@ -36886,7 +37056,11 @@ body.dark .plshop{--ps-bg:#221a2e;--ps-line:#3a2f47;--ps-ink:#f2ecf4;--ps-mute:#
 .ps-foot{display:grid;grid-template-columns:repeat(4,1fr);gap:.45rem;padding:.75rem 1.1rem calc(.85rem + var(--sa-bottom,0px));border-top:1px solid var(--ps-line)}
 .ps-foot button{border:1.5px solid var(--ps-line);background:var(--ps-bg);color:var(--ps-ink);border-radius:10px;font-size:.78rem;font-weight:700;padding:.6rem .3rem}
 .ps-foot button.pri{background:var(--ps-acc);border-color:var(--ps-acc);color:#fff}
-body.dark #pal-shop-btn{background:#2f2540!important;color:#d9c3e6!important}
+body.dark #pal-shop-btn,body.dark #outline-btn{background:#2f2540!important;color:#d9c3e6!important}
+.plol-lbl{font-size:.8rem;font-weight:700;margin:.8rem 0 .4rem}
+.plol-seg{display:flex}
+.plol-seg button{flex:1}
+.plol-note{font-size:.74rem;color:var(--ps-mute);margin:.8rem 0 0;line-height:1.4}
 @media (max-width:560px){
   .plshop{padding:0;align-items:flex-end}
   .ps-sum div{padding:.45rem .55rem}
@@ -36895,6 +37069,57 @@ body.dark #pal-shop-btn{background:#2f2540!important;color:#d9c3e6!important}
   .ps-card{width:100%;max-height:92vh;border-radius:18px 18px 0 0}
 }
 </style>
+<div id="plol" class="plshop" role="dialog" aria-modal="true" aria-label="Backstitch outlines">
+  <div class="ps-card" style="width:min(420px,100%)">
+    <div class="ps-head"><div><h3>Backstitch outlines</h3><p>Thin lines along the edges of shapes, added on top of your stitches.</p></div><button type="button" class="ps-x" id="plol-x" aria-label="Close">✕</button></div>
+    <div style="padding:.4rem 1.1rem .6rem">
+      <div class="plol-lbl">Amount</div>
+      <span class="ps-seg plol-seg" id="plol-level"><button type="button" data-v="0">Fewer</button><button type="button" data-v="1" class="on">Balanced</button><button type="button" data-v="2">More</button></span>
+      <div class="plol-lbl">Line colour</div>
+      <span class="ps-seg plol-seg" id="plol-col"><button type="button" data-v="auto" class="on">Shade</button><button type="button" data-v="black">Black</button><button type="button" data-v="brown">Brown</button><button type="button" data-v="grey">Grey</button></span>
+      <p class="plol-note" id="plol-note"></p>
+    </div>
+    <div class="ps-foot" style="grid-template-columns:1fr 1fr"><button type="button" id="plol-rm">Remove outlines</button><button type="button" class="pri" id="plol-ok">Add outlines</button></div>
+  </div>
+</div>
+<script>
+// Editor: automatic backstitch outlines from the stitches (v652). Lines are
+// flagged auto:1 so "Remove outlines" / a re-run only replace their own lines;
+// hand-drawn backstitch is never touched. Undoable (saveState).
+(function(){
+  const $=id=>document.getElementById(id), root=$('plol'); if(!root) return;
+  const o={level:1,colour:'auto'};
+  const seg=(id,k,num)=>$(id).addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; o[k]=num?+b.dataset.v:b.dataset.v; $(id).querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); });
+  seg('plol-level','level',true); seg('plol-col','colour',false);
+  function autoCount(){ return (lines||[]).filter(l=>l&&l.auto).length; }
+  function done(msg){ if(typeof _lyFlatCache!=='undefined') _lyFlatCache=null; lySyncActive(); try{ buildWorkingPalette(); }catch(e){} render(); root.classList.remove('on'); try{ toast(msg); }catch(e){} }
+  window.plOutlineOpen=function(){
+    const n=autoCount();
+    $('plol-note').textContent=n?'This pattern has '+n+' outline lines from before; adding again replaces them.':'Works best on converted photos and drawings with clear shapes. You can undo it.';
+    $('plol-rm').style.display=n?'':'none';
+    root.classList.add('on');
+  };
+  $('plol-x').addEventListener('click',()=>root.classList.remove('on'));
+  root.addEventListener('click',e=>{ if(e.target===root) root.classList.remove('on'); });
+  $('plol-ok').addEventListener('click',()=>{
+    lyEnsure(); lySyncActive();
+    const fg=lyFlatten().grid, pal=activePalette();
+    const idx=new Int32Array(COLS*ROWS);
+    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){ const v=(fg[r]||[])[c]; idx[r*COLS+c]=(v===null||v===undefined)?-1:v; }
+    if(!idx.some(v=>v>=0)){ root.classList.remove('on'); try{ toast('Add some stitches first'); }catch(e){} return; }
+    saveState('Backstitch outlines');
+    const segs=plOutlineSegs(idx,COLS,ROWS,v=>pal[v],(r,g,b)=>closestPaletteIdxP(r,g,b),{level:o.level,colour:o.colour,subject:true});
+    lines=lines.filter(l=>!(l&&l.auto)).concat(segs.map(l=>({x1:l.x1,y1:l.y1,x2:l.x2,y2:l.y2,ci:l.ci,type:'backstitch',strands:1,auto:1})));
+    segs.forEach(l=>workingPalette.add(l.ci));
+    done(segs.length?segs.length+' outline lines added':'No clear edges found, try More');
+  });
+  $('plol-rm').addEventListener('click',()=>{
+    saveState('Remove outlines');
+    lines=lines.filter(l=>!(l&&l.auto));
+    done('Outlines removed');
+  });
+})();
+</script>
 <div id="plshop" class="plshop" role="dialog" aria-modal="true" aria-label="Thread shopping list">
   <div class="ps-card">
     <div class="ps-head"><div><h3 id="ps-title">Thread shopping list</h3><p id="ps-sub"></p></div><button type="button" class="ps-x" id="ps-x" aria-label="Close">✕</button></div>
