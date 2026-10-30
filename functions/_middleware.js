@@ -12,7 +12,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v101";
+const MW_VERSION = "v102";
 
 const enc = new TextEncoder();
 
@@ -1152,14 +1152,30 @@ async function pushAutoOnProgress(env, cid, id, rec, nameHint) {
 }
 // Hourly job: flush the quiet-hours queue, then advance the rolling scan for
 // inactive projects / win-back. Bounded work per call.
+// v102: the run is called through the Shopify App Proxy, which gives up after 60 s (504) —
+// every scheduled run hit that. Records are now read in parallel, and each scan stops at a
+// time budget; a scan that stops early keeps its cursor, so the next run picks the batch up
+// again (everything it sends is guarded by the per-person sent/cap marks).
+const PUSH_AUTO_BUDGET_MS = 40000;
+async function kvJsonMany(env, names) {
+  const out = new Array(names.length);
+  for (let i = 0; i < names.length; i += 50) {
+    const part = await Promise.all(names.slice(i, i + 50).map(n => env.ENTITLEMENTS.get(n).then(v => { try { return JSON.parse(v || "null"); } catch (e) { return null; } }, () => null)));
+    part.forEach((v, j) => out[i + j] = v);
+  }
+  return out;
+}
 async function pushAutoRun(env) {
+  const t0 = Date.now(), late = () => Date.now() - t0 > PUSH_AUTO_BUDGET_MS;
   const cfg = await pushAutoCfg(env);
   const out = { queued_sent: 0, inactive: 0, winback: 0, scanned: 0 };
   // 1. pending queue
   const pend = await env.ENTITLEMENTS.list({ prefix: "pushauto:pending:", limit: 200 });
-  for (const k of pend.keys) {
-    const cid = k.name.slice("pushauto:pending:".length);
-    let p = null; try { p = JSON.parse((await env.ENTITLEMENTS.get(k.name)) || "null"); } catch (e) {}
+  const pendVals = await kvJsonMany(env, pend.keys.map(k => k.name));
+  for (let pi = 0; pi < pend.keys.length; pi++) {
+    if (late()) { out.partial = true; break; }
+    const k = pend.keys[pi], cid = k.name.slice("pushauto:pending:".length);
+    const p = pendVals[pi];
     if (!p) { await env.ENTITLEMENTS.delete(k.name); continue; }
     const devs = await pushDevicesForCid(env, cid);
     if (!devs.length) { await env.ENTITLEMENTS.delete(k.name); continue; }
@@ -1206,17 +1222,19 @@ async function pushAutoRun(env) {
     let st = null; try { st = JSON.parse((await env.ENTITLEMENTS.get("pushauto:scan")) || "null"); } catch (e) {}
     st = st || { cursor: null };
     const listed = await env.ENTITLEMENTS.list({ prefix: "prog:", limit: 150, cursor: st.cursor || undefined });
-    const byCid = {};
-    for (const k of listed.keys) {
-      const parts = k.name.split(":"); if (parts.length < 3) continue;
+    const byCid = {}, progVals = await kvJsonMany(env, listed.keys.map(k => k.name));
+    let stopped = false;
+    for (let ki = 0; ki < listed.keys.length; ki++) {
+      const k = listed.keys[ki], parts = k.name.split(":"); if (parts.length < 3) continue;
       const cid = parts.slice(1, -1).join(":"), sku = parts[parts.length - 1];
-      let r = null; try { r = JSON.parse((await env.ENTITLEMENTS.get(k.name)) || "null"); } catch (e) {}
+      const r = progVals[ki];
       if (!r || !(r.total | 0)) continue;
       (byCid[cid] = byCid[cid] || []).push({ sku, pct: Math.min(100, Math.floor((r.done | 0) * 100 / (r.total | 0))), ts: +r.ts || 0, done: r.done | 0, total: r.total | 0 });
     }
     out.scanned = listed.keys.length;
     const now = Date.now();
     for (const cid of Object.keys(byCid)) {
+      if (late()) { stopped = true; out.partial = true; break; }
       const u = await pushAutoUser(env, cid); const sent = u.sent || (u.sent = {});
       if (u.last && now - u.last < cfg.cap_days * 86400000) continue;
       const projs = byCid[cid];
@@ -1269,18 +1287,20 @@ async function pushAutoRun(env) {
       }
       if (did) await pushAutoUserSave(env, cid, u);
     }
-    st.cursor = listed.list_complete ? null : listed.cursor; st.last = now;
+    if (!stopped) st.cursor = listed.list_complete ? null : listed.cursor; st.last = now;
     await env.ENTITLEMENTS.put("pushauto:scan", JSON.stringify(st));
   }
   // 3. weekly touch: anyone (with or without projects) silent for weekly.days
   out.weekly = 0;
-  if (cfg.weekly.on || cfg.unopened.on || cfg.plus.on) {
+  if ((cfg.weekly.on || cfg.unopened.on || cfg.plus.on) && !late()) {
     let ws = null; try { ws = JSON.parse((await env.ENTITLEMENTS.get("pushauto:wscan")) || "null"); } catch (e) {}
     ws = ws || { cursor: null };
     const listed = await env.ENTITLEMENTS.list({ prefix: "push:", limit: 120, cursor: ws.cursor || undefined });
-    const now = Date.now(), gap = cfg.weekly.days * 86400000, seenCid = new Set();
-    for (const k of listed.keys) {
-      let d = null; try { d = JSON.parse((await env.ENTITLEMENTS.get(k.name)) || "null"); } catch (e) {}
+    const now = Date.now(), gap = cfg.weekly.days * 86400000, seenCid = new Set(), devVals = await kvJsonMany(env, listed.keys.map(k => k.name));
+    let wstopped = false;
+    for (let ki = 0; ki < listed.keys.length; ki++) {
+      if (late()) { wstopped = true; out.partial = true; break; }
+      const k = listed.keys[ki], d = devVals[ki];
       if (!d || !d.token) continue;
       const sid = d.cid ? String(d.cid) : ("anon:" + k.name.slice(-24));
       if (seenCid.has(sid)) continue; seenCid.add(sid);
@@ -1320,20 +1340,23 @@ async function pushAutoRun(env) {
       else { if (pushQuietNow(cfg, d.tz || "")) continue; const t = pushAutoText(d.lang || "en", "weekly", { i: idx }); const r = await pushSendOne(env, { key: k.name, ...d }, { title: t.title, body: t.body, url: t.shop ? cfg.shop_url : "#tracker" }); if (r.ok) { n = 1; await pushAutoStat(env, "weekly", 1); } else if (r.gone) { try { await env.ENTITLEMENTS.delete(k.name); } catch (e) {} } }
       if (n || await env.ENTITLEMENTS.get("pushauto:pending:" + sid)) { u.last = now; u.wk = idx + 1; await pushAutoUserSave(env, sid, u); out.weekly += n; }
     }
-    ws.cursor = listed.list_complete ? null : listed.cursor; ws.last = now;
+    if (!wstopped) ws.cursor = listed.list_complete ? null : listed.cursor; ws.last = now;
     await env.ENTITLEMENTS.put("pushauto:wscan", JSON.stringify(ws));
   }
   // 4. v101: streak at risk — streak ≥ min, nothing stitched today (their time),
   // evening window 19:00–21:59 local. Deliberately ignores the cap (it is the
   // one time-critical message), still once per day per person.
   out.atrisk = 0;
-  if (cfg.atrisk.on) {
+  if (cfg.atrisk.on && !late()) {
     let as = null; try { as = JSON.parse((await env.ENTITLEMENTS.get("pushauto:ascan")) || "null"); } catch (e) {}
     as = as || { cursor: null };
     const listed = await env.ENTITLEMENTS.list({ prefix: "pushauto:u:", limit: 300, cursor: as.cursor || undefined });
-    for (const k of listed.keys) {
-      const cid = k.name.slice("pushauto:u:".length); if (cid.startsWith("anon:")) continue;
-      let u = null; try { u = JSON.parse((await env.ENTITLEMENTS.get(k.name)) || "null"); } catch (e) {}
+    const uVals = await kvJsonMany(env, listed.keys.map(k => k.name));
+    let astopped = false;
+    for (let ki = 0; ki < listed.keys.length; ki++) {
+      if (late()) { astopped = true; out.partial = true; break; }
+      const k = listed.keys[ki], cid = k.name.slice("pushauto:u:".length); if (cid.startsWith("anon:")) continue;
+      const u = uVals[ki];
       if (!u || (u.streak | 0) < cfg.atrisk.min || !Array.isArray(u.act) || !u.act.length) continue;
       const devs = await pushDevicesForCid(env, cid); if (!devs.length) continue;
       const tz = devs[0].tz || "Europe/London";
@@ -1351,9 +1374,10 @@ async function pushAutoRun(env) {
       u.atrisk = today; await pushAutoUserSave(env, cid, u);
       if (sent) { out.atrisk += 1; await pushAutoStat(env, "atrisk", 1); }
     }
-    as.cursor = listed.list_complete ? null : listed.cursor; as.last = Date.now();
+    if (!astopped) as.cursor = listed.list_complete ? null : listed.cursor; as.last = Date.now();
     await env.ENTITLEMENTS.put("pushauto:ascan", JSON.stringify(as));
   }
+  out.ms = Date.now() - t0;
   await env.ENTITLEMENTS.put("pushauto:lastrun", JSON.stringify({ ts: Date.now(), ...out }));
   return out;
 }
