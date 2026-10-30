@@ -5415,7 +5415,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v644';
+window.PATTERNLY_BUILD='v645';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -34401,6 +34401,34 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     return o;
   }
   // known = { s, pitch } from a key already read: just the one square under the tap (a row the walk missed)
+  // stitch type printed right of each key square (Riolis: ※ / ╳ cross stitch, ╲╲ / ╲ half stitch): the
+  // dark strokes of a cross have no slant overall, a half stitch is one slant. Sets t.half = 9 (╲, top-left
+  // to bottom-right) or 6 (╱) on the templates, 0 for a cross. The icon sits about 0.25–1.3 squares right
+  // of the square; the squares' right edges are fitted as a line (a tilted photo), so one badly cut square
+  // does not move its own icon window onto the square or the braces of a blend
+  function stitchKinds(rgba, w, h, templates) {
+    const sz = templates.map(t => Math.max(t.box[2] - t.box[0], t.box[3] - t.box[1]) + 1).sort((a, b) => a - b), S = sz[sz.length >> 1] || 20;
+    const pts = templates.map(t => [(t.box[1] + t.box[3]) / 2, t.box[2]]);
+    let fit = null;
+    if (pts.length >= 4) for (let pass = 0; pass < 2; pass++) { const use = fit ? pts.filter(([y, x]) => Math.abs(x - (fit[0] + fit[1] * y)) < 0.2 * S) : pts; if (use.length < 3) break;
+      const n = use.length, my = use.reduce((a, p) => a + p[0], 0) / n, mx = use.reduce((a, p) => a + p[1], 0) / n; let sxy = 0, syy = 0; for (const [y, x] of use) { sxy += (y - my) * (x - mx); syy += (y - my) ** 2; }
+      const b = syy > 1e-6 ? sxy / syy : 0; fit = [mx - b * my, b]; }
+    const g = (x, y) => { const i = (y * w + x) * 4; return Math.min(rgba[i], rgba[i + 1], rgba[i + 2]); };
+    for (const t of templates) {
+      const cy = (t.box[1] + t.box[3]) / 2, x1 = fit && Math.abs(t.box[2] - (fit[0] + fit[1] * cy)) > 0.2 * S ? fit[0] + fit[1] * cy : t.box[2];
+      const ax = Math.max(0, Math.round(x1 + 0.25 * S)), bx = Math.min(w - 1, Math.round(x1 + 1.3 * S)), ay = Math.max(0, Math.round(cy - 0.6 * S)), by = Math.min(h - 1, Math.round(cy + 0.6 * S));
+      t.half = 0; if (bx - ax < 4 || by - ay < 4) continue;
+      const v = []; for (let y = ay; y <= by; y++) for (let x = ax; x <= bx; x++) v.push(g(x, y)); v.sort((a, b) => a - b);
+      const thr = v[Math.floor(v.length * 0.6)] - 55;
+      let n = 0, sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0; const X = [], Y = [];
+      for (let y = ay; y <= by; y++) for (let x = ax; x <= bx; x++) if (g(x, y) < thr) { n++; sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y; X.push(x); Y.push(y); }
+      if (n < 0.04 * S * S) continue;
+      const mx = sx / n, my = sy / n, vx = sxx / n - mx * mx, vy = syy / n - my * my, c = (sxy / n - mx * my) / Math.sqrt(Math.max(vx * vy, 1e-6));
+      // a stitch icon is about as wide as tall; a slanted digit (7, 4) is narrow
+      X.sort((a, b) => a - b); Y.sort((a, b) => a - b); const ext = A => A[Math.floor(A.length * 0.97)] - A[Math.floor(A.length * 0.03)];
+      if (Math.abs(c) > 0.55 && ext(X) >= 0.5 * S && ext(Y) >= 0.5 * S) t.half = c > 0 ? 9 : 6;
+    }
+  }
   function legendTiles(rgba, w, h, tapX, tapY, known) {
     // a window around (cx,cy): white-balanced colours (nrm), colour mask (m) and its components
     const look = (cx, cy, rx, ry, s, tl, ts, open) => {
@@ -34531,6 +34559,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     });
     const swatches = templates.map(t => { const f = cellFeatures(toCell(t.rgba, t.size)); return { r: Math.round(Math.min(1, f.bg[0]) * 255), g: Math.round(Math.min(1, f.bg[1]) * 255), b: Math.round(Math.min(1, f.bg[2]) * 255), glyph: hasGlyph(f) }; });
     const lineCols = lines.map(o => { const L2 = o.L; let r = 0, g = 0, b = 0, n = 0; for (let y = o.c.y0; y <= o.c.y1; y++) for (let x = o.c.x0; x <= o.c.x1; x++) { const k = y * L2.W + x; if (!L2.m[k]) continue; r += L2.nrm[k * 3]; g += L2.nrm[k * 3 + 1]; b += L2.nrm[k * 3 + 2]; n++; } n = Math.max(n, 1); return { box: o.box, row: { y0: Math.round(o.cy - pitch / 2), y1: Math.round(o.cy + pitch / 2) }, r: Math.round(Math.min(1, r / n) * 255), g: Math.round(Math.min(1, g / n) * 255), b: Math.round(Math.min(1, b / n) * 255) }; });
+    stitchKinds(rgba, w, h, templates);
     return { ok: true, colour: true, band: [Math.min(...tiles.map(t => t.box[0])), Math.max(...tiles.map(t => t.box[2]))], rows: templates.map(t => t.row), templates, swatches, lines: lineCols, glyph: s, pitch, tapComp: seed.box };
   }
   function legendAnalyse(rgba, w, h, tapX, tapY) {
@@ -34759,7 +34788,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
   }
   PLScan.kitCodes = kitCodes;
   PLScan.makeDigitTemplates = makeDigitTemplates; PLScan.legendNumbers = legendNumbers; PLScan._glyphMap = glyphMap; PLScan._components = components; PLScan._prep = (rgba,w,h)=>{ const g = gray(rgba, w, h), flat = flatten(g, w, h); return adaptiveBin(flat, w, h, 25, 12); };
-  PLScan.legendAnalyse = legendAnalyse; PLScan.legendTiles = legendTiles; PLScan.matchColour = matchColour; PLScan.isColourChart = isColourChart; PLScan._toLab = toLab; PLScan.legendSwatches = legendSwatches;
+  PLScan.legendAnalyse = legendAnalyse; PLScan.legendTiles = legendTiles; PLScan.matchColour = matchColour; PLScan.stitchKinds = stitchKinds; PLScan.isColourChart = isColourChart; PLScan._toLab = toLab; PLScan.legendSwatches = legendSwatches;
   PLScan.analysePage = analysePage; PLScan.detectGrid = detectGrid; PLScan.readCells = readCells; PLScan.matchCells = matchCells; PLScan.findScale = findScale;
   PLScan.cutCell = cutCell; PLScan.CS = CS; PLScan.version = 1;
   PLScan._toCell = toCell; PLScan._cellFeatures = cellFeatures; PLScan._blurCell = blurCell; PLScan._lineMargins = lineMargins; PLScan._tanimoto = tanimoto; PLScan._inkMask = inkMask; PLScan._buildBank = buildBank; PLScan._inkFeature = inkFeature;
@@ -35238,7 +35267,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     const L = layout(); if (!L || !L.complete || S.busy) return;
     S.busy = true; S.statusText = tx('sc.finding'); render();
     const ids = L.placed.map(p => p.id);
-    const legAll = legendTemplates(); const Lg = legAll.length >= 2 ? { templates: legAll.map(x => x.t), swatches: legAll.some(x => x.sw) ? legAll.map(x => x.sw) : null, codes: legAll.map(x => x.code || ''), counts: legAll.map(x => x.count), colour: legAll.some(x => x.colour) } : null;
+    const legAll = legendTemplates(); const Lg = legAll.length >= 2 ? { templates: legAll.map(x => x.t), swatches: legAll.some(x => x.sw) ? legAll.map(x => x.sw) : null, codes: legAll.map(x => x.code || ''), counts: legAll.map(x => x.count), colour: legAll.some(x => x.colour), half: legAll.map(x => (x.colour && x.t.half) || 0) } : null;
     const brand = (S.legend && S.legend.brand) || 'lucas'; const brandName = { lucas: 'Luca-S', dmc: 'DMC', anchor: 'Anchor', kit: '' }[brand] ?? 'Luca-S';
     let r;
     if (Lg) {
@@ -35261,8 +35290,11 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     const symOf = new Int32Array(r.classes.length); order.forEach((c, i) => symOf[c.k] = 0xE000 + i);
     const W = L.W, H = L.H, cells = Array.from({ length: H }, () => new Array(W).fill(' '));
     const conf = new Float32Array(W * H).fill(1), margin = new Float32Array(W * H).fill(1); const cellPage = {};
+    // half stitches: a colour whose key row shows the half-stitch icon (╲) is a half stitch in every cell
+    // (same halfCells / partMask the PDF and .oxs imports fill: drawing, counts and progress follow)
+    const halves = new Map();
     for (const p of L.placed) { const lab = r.labels[p.id].lab, cf = r.labels[p.id].conf, mg = r.labels[p.id].margin;
-      for (let i = 0; i < p.rows; i++) for (let j = 0; j < p.cols; j++) { const y = p.y + i, x = p.x + j; if (y >= H || x >= W) continue; const k = lab[i * p.cols + j]; cellPage[y * W + x] = [p.id, i * p.cols + j]; if (k >= 0) { cells[y][x] = String.fromCharCode(symOf[k]); conf[y * W + x] = cf[i * p.cols + j]; if (mg) margin[y * W + x] = mg[i * p.cols + j]; } } }
+      for (let i = 0; i < p.rows; i++) for (let j = 0; j < p.cols; j++) { const y = p.y + i, x = p.x + j; if (y >= H || x >= W) continue; const k = lab[i * p.cols + j]; cellPage[y * W + x] = [p.id, i * p.cols + j]; if (k >= 0) { cells[y][x] = String.fromCharCode(symOf[k]); conf[y * W + x] = cf[i * p.cols + j]; if (mg) margin[y * W + x] = mg[i * p.cols + j]; if (Lg && Lg.half[k]) halves.set(y + ':' + x, Lg.half[k]); } } }
     const counts = {}; for (const row of cells) for (const ch of row) if (ch !== ' ') counts[ch] = (counts[ch] || 0) + 1;
     const bySymbol = {}, map = {}, sprites = {};
     order.forEach((c, i) => {
@@ -35286,6 +35318,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     try { if (typeof trkResetUploads === 'function') trkResetUploads(); } catch (e) {}
     window.trkExactGrid = true; window.trkPdfLegendParsed = false; window.trkPdfLegend = null;
     trackerGrid = { cols: W, rows: H, cells, scanned: true };
+    if (halves.size) { trackerGrid.halfCells = new Set(halves.keys()); trackerGrid.partMask = halves; console.log('[scan] half stitches', halves.size); }
     trackerChartBuf = null; trackerLastChartFile = null; trackerLegendBuf = null; trackerLegendGlyphs = null;
     trackerLegend = { bySymbol, byCode: {}, pending: [], colours: Object.keys(bySymbol).length, fabricCount: null, stitchesSize: { w: W, h: H }, finishedSize: null, rowCount: Object.keys(bySymbol).length, scanned: true };
     trackerColourMap = map; trackerManual = false; trackerSymbolsOnly = true; trackerBwOnly = false;
