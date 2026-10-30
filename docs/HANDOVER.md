@@ -110,7 +110,7 @@ The only cron is GitHub Actions `push-auto.yml` at minute 7 every hour, which PO
 
 ## Native apps
 
-Both stores run **1.4** today; **iOS 1.5 is in App Store review** (submitted 29 Oct 17:39 UTC, build 1793294562, version id `e731c76c-b46d-4ec9-ac68-b8d14cb910dd`, release after approval). App repo `main` is **1.5** since 29 Oct (editor v640 with the guided scanner, camera permissions, Android R8 + edge-to-edge, iOS 1.5): build iOS on Codemagic, Android with GitHub Actions "Android release", test, then submit/promote.
+Both stores run **1.4** today; **iOS 1.5 is live on the App Store** (approved by 30 Oct 05:45 UTC, build 1793294562, version id `e731c76c-b46d-4ec9-ac68-b8d14cb910dd`). App repo `main` is **1.5** since 29 Oct (editor v640 with the guided scanner, camera permissions, Android R8 + edge-to-edge, iOS 1.5): build iOS on Codemagic, Android with GitHub Actions "Android release", test, then submit/promote.
 
 | | iOS | Android |
 | --- | --- | --- |
@@ -202,6 +202,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 | Date | Build | Change |
 | --- | --- | --- |
 | 29 Oct 2026 | Android CI | patternly-app `android-release.yml` reworked so Android releases need no PC: Run workflow button with inputs, next free versionCode read from Play, `google-services.json` from secret `ANDROID_GOOGLE_SERVICES_JSON` (it is not in git; without it push would silently break), missing-secret check, upload-key SHA-1 in the result, release notes only in listing languages, dry-run test build; runner's own Android SDK (setup-android failed). New `docs/ANDROID_RELEASE_CI.md` with secret setup steps |
+| 30 Oct 2026 | App 1.5 (iOS) live | Apple approved 1.5; App Store state READY_FOR_SALE (checked with `asc-15-state-1`) |
 | 29 Oct 2026 | App 1.5 (iOS) | First Codemagic build started from GitHub (`store/ios-build.json` → `codemagic-ios.yml`, 13 min, build 1793294562). App Store version 1.5 created with What's New (Scan Your Pattern + guided camera, colour charts/PDFs, quick photo convert, zoom, phone toolbar) and submitted for review (`asc-15-submit`) |
 | 29 Oct 2026 | App 1.5 prep | patternly-app `main`: `www/` = editor v640 (v634–v640 incl. guided scanner camera), `release-1.5` merged (R8 + edge-to-edge, versionCode 10 / 1.5), iOS MARKETING_VERSION 1.4 → 1.5, new `codemagic-ios.yml` + `store/codemagic.mjs` to start Codemagic `ios-release` from GitHub and report the result (needs `CODEMAGIC_API_TOKEN`) |
 | 29 Oct 2026 | Editor v640 | Scan tip: when someone picks a photo from the gallery for a key or chart page (phones and apps only), a small card suggests the scanner ("Take photo") instead, with Got it / Don't show again. Shown at most 3 times per device and 14 days apart; never for PDFs or desktop. Dark mode checked. Shipped with v638 (PR #6, merged 29 Oct) |
@@ -246,7 +247,8 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 - [x] v632 (landing carousels) copied to `patternly-app/www/` (27 Oct)
 - [ ] Decide whether the Account-page footnote link "Luca-S shop account ↗" should also be hidden in the apps
 - [x] 1.5 prepared on app `main` (29 Oct): www = editor v640, `release-1.5` merged (Android 10 / 1.5), iOS MARKETING_VERSION 1.5, Codemagic bridge workflow added
-- [x] iOS 1.5 built on Codemagic and submitted for App Store review (29 Oct); watch for approval or rejection (state request with the 1.5 version id)
+- [x] iOS 1.5 built on Codemagic, submitted 29 Oct, approved and live (READY_FOR_SALE) 30 Oct
+- [ ] Cristian: try the guided scanner camera in the iOS 1.5 app (first build with the live camera in the app)
 - [ ] Android 1.5: GitHub "Android release" (after the secrets) → internal testing → tick `docs/NEXT_RELEASE_1.5.md` → Cristian promotes
 - [x] Cristian added GitHub secret `CODEMAGIC_API_TOKEN` (29 Oct) in patternly-app so Claude can start iOS builds and read their result
 - [ ] Grant lifetime Plus to Charly (add to `PLUS_CUSTOMERS`) and future influencers as they sign in
