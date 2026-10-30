@@ -27,7 +27,7 @@ Two GitHub repos under the **Patternly** organisation are the source of truth; C
 | Cloudflare | Pages project for the web repo; KV namespaces (ENTITLEMENTS, PARTNERS, USER_PATTERNS, EDITOR_PATTERNS), R2 bucket bound as PATTERNS | Secrets/env set by Cristian in the Pages project settings (names in the Backend section) |
 | Shopify | Luca-S store (shop id 64819790053), Customer Account API OAuth client, App Proxy `/apps/patternly` | Plus also sold as a Shopify subscription product on web |
 | Apple | Team ID 466D5X6AYU, bundle `com.lucas.patternly`, App Store id 6795543177, App Store Connect API key (App Manager role) | iOS 1.4 live; builds via Codemagic workflow `ios-release` (integration "UK Luca-S LTD") |
-| Google Play | package `com.lucas.patternly`, service account `claude-play` in GCP project Patternly-Android (testing-track, store presence, review; **not** production release) | Play 1.4 (versionCode 9) in production; target/compile SDK 36 already |
+| Google Play | package `com.lucas.patternly`, service account `claude-play` in GCP project Patternly-Android (testing tracks, production release, store presence, reviews, financial read; confirmed in Play Console 30 Oct). Claude promotes to Production only when Cristian says so | Play 1.4 (versionCode 9) in production; target/compile SDK 36 already |
 | RevenueCat | Products `patternly_plus_monthly` / `patternly_plus_yearly`, entitlement `plus`, offering `default`; webhook → `/iap/webhook` | iOS/Android Plus purchases and the Studio revenue tab |
 | Firebase | Project "Patternly" (FCM for Android push) | Service-account JSON in Cloudflare only |
 | APNs | Key in Cloudflare (`APNS_KEY_ID/TEAM_ID/KEY_P8`) | iOS push |
@@ -249,12 +249,12 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 - [x] 1.5 prepared on app `main` (29 Oct): www = editor v640, `release-1.5` merged (Android 10 / 1.5), iOS MARKETING_VERSION 1.5, Codemagic bridge workflow added
 - [x] iOS 1.5 built on Codemagic, submitted 29 Oct, approved and live (READY_FOR_SALE) 30 Oct
 - [ ] Cristian: try the guided scanner camera in the iOS 1.5 app (first build with the live camera in the app)
-- [ ] Android 1.5: GitHub "Android release" (after the secrets) → internal testing → tick `docs/NEXT_RELEASE_1.5.md` → Cristian promotes
+- [ ] Android 1.5: GitHub "Android release" (after the secrets) → internal testing → tick `docs/NEXT_RELEASE_1.5.md` → promote on Cristian's go
 - [x] Cristian added GitHub secret `CODEMAGIC_API_TOKEN` (29 Oct) in patternly-app so Claude can start iOS builds and read their result
 - [ ] Grant lifetime Plus to Charly (add to `PLUS_CUSTOMERS`) and future influencers as they sign in
 - [ ] Shopify app scopes `read_products` / `write_products` still to be granted (needed for catalogue writes)
 - [x] Android secrets added by Cristian (30 Oct); first CI release 1.5 (10) uploaded to Play internal testing 30 Oct 09:22Z (run 41032464209, accepted by Play so the upload key matches)
-- [ ] Test 1.5 (10) from internal testing on a real Android phone (`docs/NEXT_RELEASE_1.5.md` checklist), then Cristian promotes to Production
+- [ ] Test 1.5 (10) from internal testing on a real Android phone (`docs/NEXT_RELEASE_1.5.md` checklist), then Claude promotes to Production via a `store/requests` promote request once Cristian says go
 
 ### Scan roadmap (BETA)
 
