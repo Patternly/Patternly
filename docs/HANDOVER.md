@@ -201,6 +201,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 | Date | Build | Change |
 | --- | --- | --- |
+| 30 Oct 2026 | Android 1.5 | First Android release built entirely on GitHub: 1.5 (10) to internal testing (run 41032464209), then promoted to Production (`play-promote-v10`) |
 | 29 Oct 2026 | Android CI | patternly-app `android-release.yml` reworked so Android releases need no PC: Run workflow button with inputs, next free versionCode read from Play, `google-services.json` from secret `ANDROID_GOOGLE_SERVICES_JSON` (it is not in git; without it push would silently break), missing-secret check, upload-key SHA-1 in the result, release notes only in listing languages, dry-run test build; runner's own Android SDK (setup-android failed). New `docs/ANDROID_RELEASE_CI.md` with secret setup steps |
 | 30 Oct 2026 | App 1.5 (iOS) live | Apple approved 1.5; App Store state READY_FOR_SALE (checked with `asc-15-state-1`) |
 | 29 Oct 2026 | App 1.5 (iOS) | First Codemagic build started from GitHub (`store/ios-build.json` → `codemagic-ios.yml`, 13 min, build 1793294562). App Store version 1.5 created with What's New (Scan Your Pattern + guided camera, colour charts/PDFs, quick photo convert, zoom, phone toolbar) and submitted for review (`asc-15-submit`) |
@@ -254,7 +255,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 - [ ] Grant lifetime Plus to Charly (add to `PLUS_CUSTOMERS`) and future influencers as they sign in
 - [ ] Shopify app scopes `read_products` / `write_products` still to be granted (needed for catalogue writes)
 - [x] Android secrets added by Cristian (30 Oct); first CI release 1.5 (10) uploaded to Play internal testing 30 Oct 09:22Z (run 41032464209, accepted by Play so the upload key matches)
-- [ ] Test 1.5 (10) from internal testing on a real Android phone (`docs/NEXT_RELEASE_1.5.md` checklist), then Claude promotes to Production via a `store/requests` promote request once Cristian says go
+- [x] Android 1.5 (10) promoted to Production 30 Oct 09:35Z on Cristian's go (store request `play-promote-v10`; phone test skipped by his choice, so watch Android vitals / reviews for R8 or edge-to-edge issues)
 
 ### Scan roadmap (BETA)
 
