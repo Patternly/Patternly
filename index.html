@@ -5415,7 +5415,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v641';
+window.PATTERNLY_BUILD='v642';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -34263,7 +34263,8 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     else for (let x = 0; x < w; x++) for (let y = 0; y < h; y++) { let m = 0; const y0 = Math.max(0, y - r), y1 = Math.min(h - 1, y + r); for (let k = y0; k <= y1; k++) if (a[k * w + x] > m) m = a[k * w + x]; o[y * w + x] = m; }
     return o;
   }
-  function legendTiles(rgba, w, h, tapX, tapY) {
+  // known = { s, pitch } from a key already read: just the one square under the tap (a row the walk missed)
+  function legendTiles(rgba, w, h, tapX, tapY, known) {
     // a window around (cx,cy): white-balanced colours (nrm), colour mask (m) and its components
     const look = (cx, cy, rx, ry, s, tl, ts, open) => {
       tl = tl || 0.84; ts = ts || 0.11;
@@ -34295,16 +34296,18 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
       return { x0, y0, W, H, nrm, m, comps };
     };
     // 1) the square under the tap
-    let t0 = null, tc = null, td = 1e9;
-    for (const [tl, ts, op] of [[0.84, 0.11, false], [0.84, 0.11, true], [0.74, 0.16, false]]) {
+    let t0 = null, tc = null, td = 1e9, s = known ? known.s : 0;
+    // last two passes: a near-white square (white with a dot, faint outline) only shows at paper-close thresholds
+    const PALE = [[0.92, 0.07, false], [0.95, 0.05, false]];
+    if (!known) for (const [tl, ts, op] of [[0.84, 0.11, false], [0.84, 0.11, true], [0.74, 0.16, false], ...PALE]) {
       t0 = look(tapX, tapY, 50, 50, 25, tl, ts, op); if (!t0) return { ok: false, reason: 'nosymbol' };
       tc = null; td = 1e9;
-      for (const c of t0.comps) { if (c.n < 12) continue; const bw = c.x1 - c.x0 + 1, bh = c.y1 - c.y0 + 1; if (bw > 90 || bh > 90 || bw > 1.6 * bh || bh > 1.6 * bw) continue; const dx = Math.max(c.x0 - (tapX - t0.x0), 0, (tapX - t0.x0) - c.x1), dy = Math.max(c.y0 - (tapY - t0.y0), 0, (tapY - t0.y0) - c.y1); const d = Math.hypot(dx, dy) - 0.01 * c.n; if (d < td) { td = d; tc = c; } }
+      for (const c of t0.comps) { if (c.n < 12) continue; const bw = c.x1 - c.x0 + 1, bh = c.y1 - c.y0 + 1; if (Math.max(bw, bh) < 8) continue; /* the dot inside a white square, not the square */ if (bw > 90 || bh > 90 || bw > 1.6 * bh || bh > 1.6 * bw) continue; const dx = Math.max(c.x0 - (tapX - t0.x0), 0, (tapX - t0.x0) - c.x1), dy = Math.max(c.y0 - (tapY - t0.y0), 0, (tapY - t0.y0) - c.y1); const d = Math.hypot(dx, dy) - 0.01 * c.n; if (d < td) { td = d; tc = c; } }
       if (tc && td <= 20) break;
     }
-    if (!tc || td > 20) return { ok: false, reason: 'nosymbol' };
-    let s = Math.max(tc.x1 - tc.x0 + 1, tc.y1 - tc.y0 + 1);
-    if (s < 8) return { ok: false, reason: 'nosymbol' };
+    if (!known) { if (!tc || td > 20) return { ok: false, reason: 'nosymbol' };
+      s = Math.max(tc.x1 - tc.x0 + 1, tc.y1 - tc.y0 + 1);
+      if (s < 8) return { ok: false, reason: 'nosymbol' }; }
     const classify = (c, L2) => { const bw = c.x1 - c.x0 + 1, bh = c.y1 - c.y0 + 1;
       if (bw >= 0.6 * s && bh >= 0.6 * s && bw <= 1.45 * s && bh <= 1.45 * s) {
         // a square, not a circle (the A/B/C/D column headers are circled letters)
@@ -34329,12 +34332,19 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
       }
       return line;
     };
-    const seed = grab(t0.x0 + (tc.x0 + tc.x1) / 2, t0.y0 + (tc.y0 + tc.y1) / 2);
+    // share of a square's outline that is really there, side by side (a circled header letter touches its box only mid-side)
+    const straightEdges = g => { const L2 = g.L, c = g.c, hit = (x, y) => L2.m[y * L2.W + x] || L2.m[Math.min(L2.H - 1, y + 1) * L2.W + x] || L2.m[Math.max(0, y - 1) * L2.W + x] || L2.m[y * L2.W + Math.min(L2.W - 1, x + 1)] || L2.m[y * L2.W + Math.max(0, x - 1)];
+      let n = 0, k = 0; for (let x = c.x0; x <= c.x1; x++) { n += 2; k += hit(x, c.y0) + hit(x, c.y1); } for (let y = c.y0; y <= c.y1; y++) { n += 2; k += hit(c.x0, y) + hit(c.x1, y); } return k / n; };
+    // ink right in all four corners of the box (a circle leaves them empty, even when it nearly touches)
+    const tightCorners = g => { const L2 = g.L, c = g.c, e = Math.max(2, Math.round(0.08 * Math.min(c.x1 - c.x0 + 1, c.y1 - c.y0 + 1)));
+      for (const [qx, qy] of [[c.x0, c.y0], [c.x1 - e + 1, c.y0], [c.x0, c.y1 - e + 1], [c.x1 - e + 1, c.y1 - e + 1]]) { let hit = 0; for (let y = qy; y < qy + e; y++) for (let x = qx; x < qx + e; x++) hit |= L2.m[y * L2.W + x]; if (!hit) return false; } return true; };
+    const seed = known ? grab(tapX, tapY, LADDER.concat(PALE)) : grab(t0.x0 + (tc.x0 + tc.x1) / 2, t0.y0 + (tc.y0 + tc.y1) / 2, LADDER.concat(PALE));
     if (!seed || seed.kind !== 'tile') return { ok: false, reason: 'nosymbol' };
+    if (known) { const sz = Math.max(seed.box[2] - seed.box[0] + 1, seed.box[3] - seed.box[1] + 1); if (sz < 0.75 * known.s || sz > 1.3 * known.s || Math.abs(seed.cy - tapY) > 0.8 * known.s || straightEdges(seed) < 0.85 || !tightCorners(seed)) return { ok: false, reason: 'nosymbol' }; }
     s = Math.max(seed.box[2] - seed.box[0] + 1, seed.box[3] - seed.box[1] + 1);
     // 2) walk the column both ways; the step is the row pitch once known
     const objs = [seed];
-    for (const dir of [1, -1]) {
+    for (const dir of known ? [] : [1, -1]) {
       let cur = seed, gap = null, cx = seed.cx;
       while (objs.length < 150) {
         let found = null;
@@ -34345,6 +34355,11 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
           if (objs.some(o => Math.abs(o.cy - g2.cy) < 0.5 * s)) continue;
           found = g2; break;
         }
+        // nothing at the usual thresholds where the next row should be: a near-white square? Look again with the
+        // paper-close thresholds, but only take a square of the same size right at the row pitch
+        if (!found && gap) { const g2 = grab(cx, cur.cy + dir * gap, PALE);
+          if (g2 && g2.kind === 'tile' && straightEdges(g2) > 0.9) { const dy = (g2.cy - cur.cy) * dir, sz = Math.max(g2.box[2] - g2.box[0], g2.box[3] - g2.box[1]) + 1;
+            if (dy > 0.7 * gap && dy < 1.3 * gap && Math.abs(g2.cx - cx) < 0.4 * s && sz > 0.75 * s && sz < 1.3 * s && !objs.some(o => Math.abs(o.cy - g2.cy) < 0.5 * s)) found = g2; } }
         if (!found) break;
         const dy = (found.cy - cur.cy) * dir;
         gap = gap ? 0.8 * gap + 0.2 * Math.min(dy, 1.3 * gap) : dy;
@@ -34355,7 +34370,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     objs.sort((a, b) => a.cy - b.cy);
     // squares share one size: one that came out bigger touches a grey band's edge — look again with the
     // band edge cut off; what still does not fit (a word under the table) is dropped
-    { const size = o => Math.max(o.box[2] - o.box[0], o.box[3] - o.box[1]) + 1, ms = median(objs.filter(o => o.kind === 'tile').map(size));
+    if (!known) { const size = o => Math.max(o.box[2] - o.box[0], o.box[3] - o.box[1]) + 1, ms = median(objs.filter(o => o.kind === 'tile').map(size));
       for (let i = objs.length - 1; i >= 0; i--) { const o = objs[i]; if (o.kind !== 'tile') continue;
         if (size(o) > 1.2 * ms) { const g2 = grab(o.cx, o.cy, [[0.84, 0.11, true], [0.74, 0.16, true]]); if (g2 && g2.kind === 'tile' && size(g2) <= 1.2 * ms && size(g2) >= 0.75 * ms) { objs[i] = g2; continue; } }
         const bw = o.box[2] - o.box[0] + 1, bh = o.box[3] - o.box[1] + 1;
@@ -34363,8 +34378,8 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
       const tl = objs.filter(o => o.kind === 'tile'); if (tl.length) { const y0 = tl[0].cy, y1 = tl[tl.length - 1].cy, pt = median(tl.slice(1).map((o, i) => o.cy - tl[i].cy)) || ms;
         for (let i = objs.length - 1; i >= 0; i--) if (objs[i].kind === 'line' && (objs[i].cy < y0 - 1.5 * pt || objs[i].cy > y1 + 1.5 * pt)) objs.splice(i, 1); } }
     const tiles = objs.filter(o => o.kind === 'tile'), lines = objs.filter(o => o.kind === 'line' && !tiles.some(t => Math.abs(t.cy - o.cy) < 0.6 * s));
-    if (tiles.length < 2) return { ok: false, reason: 'norows' };
-    const pitch = median(objs.slice(1).map((o, i) => o.cy - objs[i].cy));
+    if (tiles.length < (known ? 1 : 2)) return { ok: false, reason: 'norows' };
+    const pitch = known ? known.pitch : median(objs.slice(1).map((o, i) => o.cy - objs[i].cy));
     // 3) one template per square: its inside (outline trimmed), white-balanced — what a chart cell looks like
     const templates = tiles.map((o, idx) => {
       const L2 = o.L, bw = o.box[2] - o.box[0] + 1, bh = o.box[3] - o.box[1] + 1, inX = bw * 0.1, inY = bh * 0.1;
@@ -34889,7 +34904,8 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
       const nRows = pg.rows ? pg.rows.length : 0, nLines = pg.lines ? pg.lines.length : 0;
       const prompts = { symbol: 'Tap one of the symbols (or coloured squares) in the <b>symbol on the chart</b> column.', swatch: '<b>' + nRows + ' symbols found.</b> Now tap a <b>colour swatch</b> — or skip.',
         code: (pg.colour ? '<b>' + nRows + ' colours found</b>' + (nLines ? ' (' + nLines + ' backstitch line' + (nLines > 1 ? 's' : '') + ' left out — backstitch is not read from photos yet)' : '') + '. ' : '') + 'Tap a <b>thread number</b> — or skip.',
-        count: 'Tap a <b>stitch count</b> — or skip.', done: 'Done. Tap a boxed symbol to remove that row; check the readings below.' };
+        count: 'Tap a <b>stitch count</b> — or skip.', done: 'Done. Tap a boxed symbol to remove that row; check the readings below.' + (pg.colour ? ' Missed a colour square? Tap it to add it.' : '') };
+      if (pg.colour && pg.step === 'code') prompts.code += ' Missed a square? Tap it to add it.';
       const tabs = Lg.pages.length > 1 ? '<div class="pls-legtabs">' + Lg.pages.map((p2, i) => '<button type="button" class="' + (i === Lg.cur ? 'on' : '') + '" data-legtab="' + i + '">Key page ' + (i + 1) + (p2.rows ? ' · ' + p2.rows.length : '') + '</button>').join('') + '</div>' : '';
       const skip = (pg.step !== 'symbol' && pg.step !== 'done') ? ' · <a href="#" id="pls-legskip">Skip</a>' : '';
       body = tabs + brandSel + '<p>' + prompts[pg.step] + '</p><div class="pls-legwrap"><canvas id="pls-legcv"></canvas></div>'
@@ -34937,7 +34953,7 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     for (let y = 0; y < im.h; y++) for (let x = 0; x < im.w; x++) { const s2 = (y * im.w + x) * 4, d = (x * W + (W - 1 - y)) * 4; out[d] = src[s2]; out[d + 1] = src[s2 + 1]; out[d + 2] = src[s2 + 2]; out[d + 3] = 255; }
     return { rgba: out, w: W, h: H };
   }
-  function removeLegendRow(pg, i){ ['rows', 'templates', 'swatches', 'codes', 'counts'].forEach(k => { if (pg[k]) pg[k].splice(i, 1); }); render(); }
+  function removeLegendRow(pg, i){ S.statusText = ''; ['rows', 'templates', 'swatches', 'codes', 'counts'].forEach(k => { if (pg[k]) pg[k].splice(i, 1); }); render(); }
   async function legendFile(file){
     if (!file) return;
     S.statusText = ''; if (!S.legend) S.legend = { pages: [], cur: 0, brand: 'lucas' };
@@ -34968,12 +34984,23 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
       g.strokeStyle = 'rgba(200,120,0,.8)'; (pg.countBoxes || []).forEach(b => b && g.strokeRect(b[0] * sc - 2, b[1] * sc - 2, (b[2] - b[0] + 5) * sc, (b[3] - b[1] + 5) * sc));
     }
   }
+  function readCodes(pg, x, y){
+    const n = PLScan.legendNumbers(pg.im.rgba, pg.im.w, pg.im.h, pg.rows, x, digitTemplates(), pg.colour ? columnXs(pg, x, y) : false);
+    pg.codeX = x; pg.codeY = y; pg.codes = pg.colour && S.legend.brand === 'kit' ? PLScan.kitCodes(n, pg.swatches) : n.map(v => v && /^[0-9][0-9.+x]*$/.test(v.text) ? v.text.replace(/\.$/, '').replace(/\.\+|\+\./g, '+') : (v ? v.text.replace(/[?]/g, '') : '')); pg.codeBoxes = n.map(v => v && v.box);
+  }
+  function readCounts(pg, x){
+    const n = PLScan.legendNumbers(pg.im.rgba, pg.im.w, pg.im.h, pg.rows, x, digitTemplates());
+    pg.countX = x; pg.counts = n.map(v => { if (!v) return null; const m = /^(\d+)/.exec(v.text.replace(/[?.]/g, '')); return m ? parseInt(m[1], 10) : null; }); pg.countBoxes = n.map(v => v && v.box);
+  }
   function legendTap(cv, e){
     const pg = S.legend && S.legend.pages[S.legend.cur]; if (!pg || !pg.im) return;
     const r = cv.getBoundingClientRect(); const sc = pg.im.w / cv.width;
     const x = Math.round((e.clientX - r.left) * sc), y = Math.round((e.clientY - r.top) * sc);
     // a tap on a detected symbol box removes that row (any step after the first)
     if (pg.rows && pg.step !== 'symbol') { const hit = pg.templates.findIndex(t => x >= t.box[0] - 6 && x <= t.box[2] + 6 && y >= t.box[1] - 6 && y <= t.box[3] + 6); if (hit >= 0) { removeLegendRow(pg, hit); return; } }
+    // colour key: a tap in the squares' column where no row was found adds that square (one the walk missed)
+    if (pg.rows && pg.colour && pg.step !== 'symbol' && pg.templates.length) { const ex = squareColumnAt(pg, y);
+      if (Math.abs(x - ex.cx) < 0.8 * ex.s) { addLegendSquare(pg, x, y, ex); return; } }
     if (pg.step === 'symbol') {
       // a key printed in colour (each thread a filled square, with or without a symbol — Riolis and similar)
       // is read square by square; a classic key (symbols on white) by its glyphs
@@ -34989,13 +35016,34 @@ window.PATTERNLY_APP = { scheme:'com.lucas.patternly', ios:'https://apps.apple.c
     } else if (pg.step === 'swatch') {
       pg.swatchX = x; pg.swatches = PLScan.legendSwatches(pg.im.rgba, pg.im.w, pg.im.h, pg.rows, x); pg.step = 'code';
     } else if (pg.step === 'code') {
-      const n = PLScan.legendNumbers(pg.im.rgba, pg.im.w, pg.im.h, pg.rows, x, digitTemplates(), pg.colour ? columnXs(pg, x, y) : false);
-      pg.codeX = x; pg.codes = pg.colour && S.legend.brand === 'kit' ? PLScan.kitCodes(n, pg.swatches) : n.map(v => v && /^[0-9][0-9.+x]*$/.test(v.text) ? v.text.replace(/\.$/, '').replace(/\.\+|\+\./g, '+') : (v ? v.text.replace(/[?]/g, '') : '')); pg.codeBoxes = n.map(v => v && v.box); pg.step = 'count';
+      readCodes(pg, x, y); pg.step = 'count';
     } else if (pg.step === 'count') {
-      const n = PLScan.legendNumbers(pg.im.rgba, pg.im.w, pg.im.h, pg.rows, x, digitTemplates());
-      pg.countX = x; pg.counts = n.map(v => { if (!v) return null; const m = /^(\d+)/.exec(v.text.replace(/[?.]/g, '')); return m ? parseInt(m[1], 10) : null; }); pg.countBoxes = n.map(v => v && v.box); pg.step = 'done';
+      readCounts(pg, x); pg.step = 'done';
     }
     render();
+  }
+  // where the squares' column runs at height y (it leans like the photo), and the squares' size
+  function squareColumnAt(pg, y){
+    const T = pg.templates, c = T.map(t => ({ x: (t.box[0] + t.box[2]) / 2, y: (t.box[1] + t.box[3]) / 2 }));
+    const sz = T.map(t => Math.max(t.box[2] - t.box[0], t.box[3] - t.box[1]) + 1).sort((a, b) => a - b), s = sz[sz.length >> 1];
+    const ord = c.map((p, i) => i).sort((i, j) => Math.abs(c[i].y - y) - Math.abs(c[j].y - y)), a = c[ord[0]], b = c[ord[1]] || a;
+    const cx = Math.abs(b.y - a.y) > 1 ? a.x + (b.x - a.x) * (y - a.y) / (b.y - a.y) : a.x;
+    const ys = c.map(p => p.y).sort((p, q) => p - q), gaps = ys.slice(1).map((v, i) => v - ys[i]).sort((p, q) => p - q);
+    return { cx, s, pitch: gaps.length ? gaps[gaps.length >> 1] : 1.75 * s };
+  }
+  // one square the column walk missed (a near-white one, a row after a gap), added where it belongs
+  function addLegendSquare(pg, x, y, ex){
+    let r = null; try { r = PLScan.legendTiles(pg.im.rgba, pg.im.w, pg.im.h, x, y, { s: ex.s, pitch: Math.min(ex.pitch, 2.5 * ex.s) }); } catch (e) { console.warn('[scan] add square', e); }
+    if (!r || !r.ok || Math.abs((r.templates[0].box[0] + r.templates[0].box[2]) / 2 - ex.cx) > 0.6 * ex.s) { S.statusText = 'No colour square found there. Tap right on the square.'; render(); return; }
+    const t = Object.assign(r.templates[0], { url: rgbaToURL({ rgba: r.templates[0].rgba, w: r.templates[0].size, h: r.templates[0].size }) }), cy = (t.box[1] + t.box[3]) / 2;
+    if (pg.templates.some(o => Math.abs((o.box[1] + o.box[3]) / 2 - cy) < 0.5 * ex.s)) { S.statusText = ''; render(); return; }
+    let i = pg.templates.findIndex(o => (o.box[1] + o.box[3]) / 2 > cy); if (i < 0) i = pg.templates.length;
+    pg.templates.splice(i, 0, t); pg.rows.splice(i, 0, t.row); if (pg.swatches) pg.swatches.splice(i, 0, r.swatches[0]);
+    ['codes', 'counts', 'codeBoxes', 'countBoxes'].forEach(k => { if (pg[k]) pg[k].splice(i, 0, k === 'codes' ? '' : null); });
+    // the numbers beside it: read the columns again now the row is there (kit numbers are decoded as a whole column)
+    try { if (pg.codeX != null) readCodes(pg, pg.codeX, pg.codeY != null ? pg.codeY : cy); } catch (e) {}
+    try { if (pg.countX != null) readCounts(pg, pg.countX); } catch (e) {}
+    S.statusText = 'Added a square (' + pg.templates.length + ' colours)'; render();
   }
   // a column tapped on a colour key, followed down the rows: it leans like the squares do
   function columnXs(pg, x, y){

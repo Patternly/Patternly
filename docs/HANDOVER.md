@@ -37,7 +37,7 @@ Two GitHub repos under the **Patternly** organisation are the source of truth; C
 
 ## Code map
 
-Current versions: **editor v641** (website and patternly-app `www/`), **middleware v101**, **Studio v51**, app **1.4** live in both stores (iOS build 3 / Android versionCode 9); app repo `main` = **1.5** (Android versionCode 10, iOS MARKETING_VERSION 1.5), not yet built. Every build bumps its version constant; never re-issue a version with different contents.
+Current versions: **editor v642** (website and patternly-app `www/`), **middleware v101**, **Studio v51**, app **1.4** live in both stores (iOS build 3 / Android versionCode 9); app repo `main` = **1.5** (Android versionCode 10, iOS MARKETING_VERSION 1.5), not yet built. Every build bumps its version constant; never re-issue a version with different contents.
 
 | File | Size | What it is | Version constant |
 | --- | --- | --- | --- |
@@ -186,7 +186,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 **RULE #1 — never break account-linked sync.** Before every push, grep these marker counts in `index.html` and compare with the previous commit: `trkProgressUrl` 4 lines, `trkCloudProjects` 4, `trkUserPatternUrl` 8, `pl_session` 27 occurrences (21 lines). Also: `ensurePageFooters` adds a footer only to `#account-page`, never `#tracker-page`; `/progress` latches code-opened kits to the signed-in customer.
 
-1. One fix per build; bump `PATTERNLY_BUILD` (editor), `MW_VERSION` (middleware) or the Studio `vNN` comment on every delivered change; never re-issue a version with different contents. Next numbers: editor **v642**, middleware **v102**, Studio **v52**.
+1. One fix per build; bump `PATTERNLY_BUILD` (editor), `MW_VERSION` (middleware) or the Studio `vNN` comment on every delivered change; never re-issue a version with different contents. Next numbers: editor **v643**, middleware **v102**, Studio **v52**.
 2. Every editor build: `node --check` on all 17 inline script blocks, then copy `index.html` to `patternly-app/www/index.html` and commit both repos ("www: editor vNNN").
 3. Commit as `-c user.name="Cristian" -c user.email="lucasukinfo@gmail.com"`, message ending with the Claude attribution lines; push to `main` directly (the Claude GitHub App has push access on both repos). The Patternly repo remote redirects ("repository moved") — harmless.
 4. Test before delivering: Playwright headless Chromium (`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`, `--no-sandbox`) against a local `python3 -m http.server` serving a copy of the file; iPhone viewport 390×844 with `isMobile`/`hasTouch`; `hj051.ptly` is the usual test pattern. No WebKit is available — anything iOS-specific needs Cristian's phone.
@@ -201,6 +201,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 | Date | Build | Change |
 | --- | --- | --- |
+| 30 Oct 2026 | Editor v642 | Colour keys (Scan Your Pattern): the column walk in `legendTiles` now finds a near-white square (white with a dot, faint outline): when nothing is found one row-pitch further, it looks again with paper-close thresholds (`PALE`) and takes only a same-size square with straight edges (so the circled A/B/C/D header is not taken). The first tap ignores the dot inside a white square. New: after the key is read, tapping a square in the column that has no box adds just that square (`legendTiles(..., known)` single-square mode, `addLegendSquare`, `squareColumnAt`): it lands in row order, the thread numbers and counts are read again (`readCodes` / `readCounts`), and taps that are not a clean square (headers, text) are refused with a hint. Prompt says "Missed a square? Tap it to add it." Tested with Riolis 2289 key photo, incl. a copy with the white square faded: 29/29 from every tap |
 | 30 Oct 2026 | Editor v641 | Tracker banner after Scan Your Pattern: `trackerShowVerification` now checks `trackerGrid.scanned` first and says "✓ Read from your photos. N colours on a W×H grid" plus how many stitches are marked to check (or "No stitches left to check"), instead of "Exact import … nothing parsed from a picture". `plReviewBanner` refreshes the line, so the count follows the review. Also shown when a saved scan project is reopened |
 | 30 Oct 2026 | Android 1.5 | First Android release built entirely on GitHub: 1.5 (10) to internal testing (run 41032464209), then promoted to Production (`play-promote-v10`) |
 | 29 Oct 2026 | Android CI | patternly-app `android-release.yml` reworked so Android releases need no PC: Run workflow button with inputs, next free versionCode read from Play, `google-services.json` from secret `ANDROID_GOOGLE_SERVICES_JSON` (it is not in git; without it push would silently break), missing-secret check, upload-key SHA-1 in the result, release notes only in listing languages, dry-run test build; runner's own Android SDK (setup-android failed). New `docs/ANDROID_RELEASE_CI.md` with secret setup steps |
@@ -238,7 +239,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 - [ ] Try v636 Scan Your Pattern on the Riolis 2289 kit (live on the website; PDF scans can be added directly). Full-page iOS Preview scan received 29 Oct (`scan-tests/riolis-2289/preview_scan.pdf`): 110×110, 2,406 empty cells, ~15 % of stitches flagged, 6/29 key numbers misread before v637, 2/29 after
 - [x] Scanned PDFs as key / chart pages (v636)
-- [ ] Colour key walk: tapping a coloured square in Riolis 2289 finds 28 of 29 squares (misses the near-white square with a dot, colour 1, at the top); tapping that white square itself is fragile (works on the JPEG, `nosymbol` on the PDF render)
+- [x] (v642: pale-square pass in the walk + tap a missed square to add it) Colour key walk: tapping a coloured square in Riolis 2289 finds 28 of 29 squares (misses the near-white square with a dot, colour 1, at the top); tapping that white square itself is fragile (works on the JPEG, `nosymbol` on the PDF render)
 - [ ] Check the v633 quick photo convert on the phone apps; decide whether confetti clean-up should stay Plus-only in the quick flow
 - [x] v633 merged (PR #4) and copied to `patternly-app/www/` (27 Oct)
 - [ ] Check v632 landing carousels on the phone (feature cards swipe, dots follow; "three steps" carousel unchanged apart from dark dots)
