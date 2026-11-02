@@ -1,3 +1,6 @@
+// Patternly by Luca-S. Copyright (c) 2026 UK Luca-S LTD. All rights reserved.
+// Proprietary software: no part of this code may be copied, modified, reused or
+// redistributed without written permission from UK Luca-S LTD.
 // Patternly — Cloudflare Pages Function v22
 // v2 + /patterns/* : serves the Luca-S kit catalogue and pattern files from R2.
 // v62: partner-brand kits — a partner-kits.json manifest in the bucket is merged
@@ -12,7 +15,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v104";
+const MW_VERSION = "v105";
 
 const enc = new TextEncoder();
 
