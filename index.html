@@ -1,4 +1,10 @@
 <!DOCTYPE html>
+<!--
+  Patternly by Luca-S. Copyright (c) 2026 UK Luca-S LTD. All rights reserved.
+  Proprietary software: no part of this code may be copied, modified, reused or
+  redistributed without written permission from UK Luca-S LTD.
+  Third-party parts keep their own licences (noted where they appear).
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -5466,7 +5472,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v656';
+window.PATTERNLY_BUILD='v657';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -12004,7 +12010,7 @@ document.addEventListener('mouseup', e=>{
 
 // ── Brush footprint preview: while the Brush tool is active, the circle it
 // will cover (its radius, from the Size slider) follows the cursor —
-// maroon in Colour mode, red in Erase mode (Stitchmate-style).
+// maroon in Colour mode, red in Erase mode.
 let _dsHover=null, _dsRafPending=false;
 canvas.addEventListener('mousemove', e=>{
   if(activeTool!=='brush'){ if(_dsHover){ _dsHover=null; render(); } return; }
@@ -19463,7 +19469,7 @@ document.querySelectorAll('.ct-btn[data-tool]').forEach(btn=>{
   });
 })();
 
-// "Open Editor" now leads to the My Patterns page first (like StitchMate)
+// "Open Editor" now leads to the My Patterns page first
 function openApp(){
   document.body.classList.remove('subs-mode','pricing-mode','app-mode','guide-mode','trackerguide-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode','cv-open');
   document.body.classList.add('projects-mode');
