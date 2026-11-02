@@ -37,7 +37,7 @@ Two GitHub repos under the **Patternly** organisation are the source of truth; C
 
 ## Code map
 
-Current versions: **editor v655** (website and patternly-app `www/` incl. `www/vendor/`; v654 = v654 = v650–v652 shopping list, blends, outlines merged on top of v641–v649; patternly-app `www/` copy noted in Recent changes), **middleware v103**, **Studio v51**, app **1.4** live in both stores (iOS build 3 / Android versionCode 9); app repo `main` = **1.5** (Android versionCode 10, iOS MARKETING_VERSION 1.5), not yet built. Every build bumps its version constant; never re-issue a version with different contents.
+Current versions: **editor v655** (website and patternly-app `www/` incl. `www/vendor/`; v654 = v650–v652 shopping list, blends, outlines merged on top of v641–v649; patternly-app `www/` copy noted in Recent changes), **middleware v103**, **Studio v51**, app **1.4** live in both stores (iOS build 3 / Android versionCode 9); app repo `main` = **1.5** (Android versionCode 10, iOS MARKETING_VERSION 1.5), not yet built. Every build bumps its version constant; never re-issue a version with different contents.
 
 | File | Size | What it is | Version constant |
 | --- | --- | --- | --- |
