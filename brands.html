@@ -4030,6 +4030,9 @@ async function convPublish(){
 }
 function adminHeaders(json){ const h={'x-admin-key':SESSION.key}; if(json) h['content-type']='application/json'; return h; }
 const escA=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+/* v52: links typed by the public (partner applications) only become clickable when they are plain http/https,
+   so a javascript: or data: link can never run inside the Studio. "brand.com" is treated as https://brand.com. */
+function safeHttpUrl(v){ let t=String(v||'').trim(); if(!t) return ''; if(!/^[a-z][a-z0-9+.-]*:/i.test(t)) t='https://'+t.replace(/^\/+/, ''); try{ const u=new URL(t); return (u.protocol==='https:'||u.protocol==='http:')?u.href:''; }catch(e){ return ''; } }
 function brandOfSku(sku){
   // v32: vendor-branded house kits (HobbyJobby) are dashless but not Luca-S —
   // when the admin patterns list is loaded, its per-kit brand wins.
@@ -4505,7 +4508,7 @@ async function loadApplications(){
         +'<div style="display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap">'
         +'<b>'+escA(a.brand)+'</b>'
         +'<a href="mailto:'+escA(a.email)+'?subject='+encodeURIComponent('Patternly for Brands — '+a.brand)+'" style="font-size:.85rem">'+escA(a.email)+'</a>'
-        +(a.website?'<a href="'+escA(a.website)+'" target="_blank" rel="noopener" style="font-size:.85rem">'+escA(a.website)+'</a>':'')
+        +(a.website?(safeHttpUrl(a.website)?'<a href="'+escA(safeHttpUrl(a.website))+'" target="_blank" rel="noopener noreferrer" style="font-size:.85rem">'+escA(a.website)+'</a>':'<span style="font-size:.85rem">'+escA(a.website)+'</span>'):'')
         +'<span class="note" style="margin-left:auto">'+(a.ts?fmtWhen(a.ts):'')+'</span></div>'
         +(a.message?'<div style="font-size:.87rem;color:var(--muted);margin-top:.3rem;white-space:pre-wrap">'+escA(a.message)+'</div>':'')
         +'<div style="margin-top:.5rem;display:flex;gap:.45rem">'

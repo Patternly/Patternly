@@ -12,7 +12,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v103";
+const MW_VERSION = "v104";
 
 const enc = new TextEncoder();
 
@@ -1402,7 +1402,15 @@ async function handlePartnerApi(request, url, env) {
     if (String(body.company || "").trim()) return partnerJson(200, { ok:true });
     const brand = String(body.brand || "").trim().slice(0, 80);
     const email = String(body.email || "").trim().slice(0, 120);
-    const website = String(body.website || "").trim().slice(0, 200);
+    // v104: keep the website only as a plain http(s) link ("brand.com" -> https://brand.com),
+    // so nothing like javascript: can be stored and later clicked in the Studio.
+    let website = String(body.website || "").trim().slice(0, 200);
+    if (website) {
+      try {
+        const wu = new URL(/^[a-z][a-z0-9+.-]*:/i.test(website) ? website : "https://" + website.replace(/^\/+/, ""));
+        website = (wu.protocol === "https:" || wu.protocol === "http:") ? wu.href.slice(0, 200) : "";
+      } catch (e) { website = ""; }
+    }
     const message = String(body.message || "").trim().slice(0, 1200);
     if (brand.length < 2) return partnerJson(400, { ok:false, error:"Tell us your brand name." });
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return partnerJson(400, { ok:false, error:"Enter a valid email address." });
@@ -3722,7 +3730,7 @@ async function handleRequest(context) {
   } catch (e) {
     auth = { proxied: false, loggedIn: false, customerId: null, shop: null };
     if (url.pathname.indexOf("/auth/") >= 0) {
-      return new Response(JSON.stringify({ ok: false, step: "pre-routing-exception", msg: String(e && e.message || e), stack: String(e && e.stack || "").split("\n").slice(0, 5) }, null, 2),
+      return new Response(JSON.stringify({ ok: false, step: "pre-routing-exception", msg: String(e && e.message || e) }, null, 2),
         { status: 500, headers: { "content-type": "application/json", "cache-control": "no-store" } });
     }
   }
@@ -3755,7 +3763,8 @@ async function handleRequest(context) {
     // session cookie already exists, so the user can sign in as a DIFFERENT account
     // instead of silently reusing the cached one. Additive: absent = unchanged flow.
     if (url.searchParams.get("switch") === "1") a.searchParams.set("prompt", "login");
-    if (url.searchParams.get("debug") === "1") {
+    // v104: the debug readout is for the owner only (x-admin-key = owner key/session).
+    if (url.searchParams.get("debug") === "1" && (await adminAuth((request.headers.get("x-admin-key") || "").trim(), env)).master) {
       return new Response(JSON.stringify({
         authorizeUrl: a.toString(),
         redirect_uri: customerRedirectUri(env),
@@ -3772,6 +3781,10 @@ async function handleRequest(context) {
   // error (400/401) quickly. A hang/timeout here means the fetch itself is the
   // problem (network/egress), which would surface as a bare 500 in the callback.
   if (url.pathname.endsWith("/auth/tokentest")) {
+    // v104: owner only; it used to be open to anyone.
+    if (!(await adminAuth((request.headers.get("x-admin-key") || "").trim(), env)).master) {
+      return new Response(JSON.stringify({ ok: false, error: "admin key required" }), { status: 401, headers: { "content-type": "application/json", "cache-control": "no-store" } });
+    }
     try {
       const basic = "Basic " + btoa(env.CUSTOMER_CLIENT_ID + ":" + (env.CUSTOMER_CLIENT_SECRET || ""));
       const resp = await fetchWithTimeout(customerAuthBase(env) + "/oauth/token", {
@@ -3901,7 +3914,7 @@ async function handleRequest(context) {
     return new Response(null, { status: 302, headers: { "location": dest, "cache-control": "no-store" } });
     } catch (e) {
       return new Response(
-        JSON.stringify({ ok: false, step: "exception", msg: String(e && e.message || e), stack: String(e && e.stack || "").split("\n").slice(0, 4) }, null, 2),
+        JSON.stringify({ ok: false, step: "exception", msg: String(e && e.message || e) }, null, 2),
         { status: 500, headers: { "content-type": "application/json", "cache-control": "no-store" } }
       );
     }
@@ -4052,6 +4065,21 @@ async function handleRequest(context) {
     let plus = false;
     if (auth.loggedIn && auth.customerId) { try { plus = !!(await plusState(auth, env)).plus; } catch (e) {} }
     let prev = null; try { prev = JSON.parse((await env.ENTITLEMENTS.get(key)) || "null"); } catch (e) {}
+    // v104: anyone can register a device, so cap NEW tokens per client IP (20 an hour)
+    // to stop a script filling storage with fake devices. Through the Shopify proxy the
+    // connecting IP is Shopify's, so there we use the first X-Forwarded-For entry and
+    // skip the cap when it is missing (never throttle every customer at once).
+    if (!prev) {
+      const ip = auth.proxied
+        ? String(request.headers.get("x-forwarded-for") || "").split(",")[0].trim()
+        : String(request.headers.get("cf-connecting-ip") || "").trim();
+      if (ip) {
+        const rk = "rlpush:" + ip;
+        let n = 0; try { n = +((await env.ENTITLEMENTS.get(rk)) || 0) || 0; } catch (e) {}
+        if (n >= 20) return bad("too many new devices, try again later", 429);
+        try { await env.ENTITLEMENTS.put(rk, String(n + 1), { expirationTtl: 3600 }); } catch (e) {}
+      }
+    }
     const tz = /^[A-Za-z_]+(?:\/[A-Za-z0-9_+\-]+){0,2}$/.test(String(b.tz || "")) ? String(b.tz).slice(0, 60) : "";
     const rec = { token, platform, lang, tz, cid: auth.customerId || (prev && prev.cid) || null, plus, app: String(b.app || "").slice(0, 20), ts: (prev && prev.ts) || Date.now(), seen: Date.now() };
     await env.ENTITLEMENTS.put(key, JSON.stringify(rec), { metadata: { lang, plus, cid: rec.cid } });
@@ -4855,7 +4883,22 @@ async function handleRequest(context) {
   // variable here only to point at a different origin on purpose.
   const inject = `<script>window.__LUCAS_AUTH__=${JSON.stringify(auth)};</script>`;
 
-  return new HTMLRewriter()
+  const out = new HTMLRewriter()
     .on("head", { element(el) { el.prepend(inject, { html: true }); } })
     .transform(res);
+  return withPageSecurityHeaders(out, url);
+}
+
+// v104: basic security headers on every HTML page. nosniff + referrer policy for all
+// pages; the Partner Studio additionally refuses to be shown inside another site's
+// frame (clickjacking). The editor is left frameable as before.
+function withPageSecurityHeaders(res, url) {
+  const r = new Response(res.body, res);
+  r.headers.set("X-Content-Type-Options", "nosniff");
+  r.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  if (/\/brands(\.html)?\/?$/i.test(url.pathname)) {
+    r.headers.set("X-Frame-Options", "SAMEORIGIN");
+    r.headers.set("Content-Security-Policy", "frame-ancestors 'self'");
+  }
+  return r;
 }
