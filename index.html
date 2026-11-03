@@ -5472,7 +5472,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v665';
+window.PATTERNLY_BUILD='v669';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -37859,10 +37859,11 @@ body.dark #plsx-top small{color:#b6abc2}
 body.dark #plsx-ring .bg{stroke:#37303f}body.dark #plsx-ring .fg{stroke:#c8566a}
 #plsx-ring text{fill:currentColor;font:700 10px 'DM Sans',system-ui,sans-serif}
 /* the four modes keep their names; the pill sits bottom-left, the colour circle bottom-right */
-body.ptly-appui.trk-fs #trk-fsbar{left:10px;right:auto;transform:none;bottom:calc(max(.7rem,var(--sa-bottom)) + 4px);gap:4px;padding:5px;background:rgba(43,34,38,.92)}
+body.ptly-appui.trk-fs #trk-fsbar{left:max(10px,calc(50% - 139px));right:auto;transform:none;bottom:calc(max(.7rem,var(--sa-bottom)) + 4px);gap:4px;padding:5px;background:rgba(43,34,38,.92)}
 body.ptly-appui.trk-fs #trk-fsbar button{width:auto;min-width:54px;height:52px;padding:0 8px;border-radius:16px;border:0;flex-direction:column;gap:2px;font-size:1.1rem}
 body.ptly-appui.trk-fs #trk-fsbar button span{display:block;font-size:.66rem;font-weight:700;color:inherit}
 body.ptly-appui.fsbar-hidden #trk-fsbar{transform:translateY(180%)}
+/* v668: tools sit toward the centre (Cristian), kept clear of the colour circle on the right */
 #plsx-col{position:fixed;right:12px;bottom:calc(max(.7rem,var(--sa-bottom)) + 4px);z-index:9450;width:62px;height:62px;border-radius:50%;border:3px solid #fff;
   box-shadow:0 0 0 1px rgba(0,0,0,.12),0 8px 22px rgba(43,34,38,.3);align-items:center;justify-content:center;cursor:pointer;padding:0;background:#2b2226;color:#fff;font-family:'DM Sans',system-ui,sans-serif;transition:transform .15s}
 body.dark #plsx-col{border-color:#211a2b}
@@ -39010,6 +39011,421 @@ body.ptly-appui #plfb-fab{bottom:calc(84px + var(--sa-bottom,0px))}
     fabUpdate();
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+})();
+</script>
+<style id="pcl-style">
+/* v666 – app stitching colour sheet as in the approved picture: rows with a colour tile + symbol,
+   name, progress bar and "N left" / "Done ✓"; sort chips and Hide finished. App only. */
+body.ptly-appui.trk-fs.trk-cbopen #trk-colorbar{max-height:min(64vh,560px)}
+body.ptly-appui.trk-fs.trk-cbopen.cb-exp #trk-colorbar{max-height:88vh}
+body.ptly-appui #trk-cb-viewtog{display:none!important}
+body.ptly-appui #trk-cb-head{flex-wrap:wrap;padding:.8rem 14px .6rem;border-bottom:0}
+body.ptly-appui #trk-cb-head .cb-title{font-family:'DM Serif Display',serif;font-weight:400;font-size:1.2rem;margin-top:6px}
+body.ptly-appui #trk-cb-head .cb-title .n{font-family:'DM Sans',system-ui,sans-serif;font-size:.8rem;color:#9a8890;margin-left:6px;font-weight:600}
+#pcl-chips{display:none}
+body.ptly-appui #pcl-chips{display:flex;gap:6px;flex-basis:100%;order:5;margin-top:8px;overflow-x:auto;scrollbar-width:none}
+#pcl-chips button{flex:none;border:1.5px solid #eadde1;background:#fff;color:#5a4a52;border-radius:999px;padding:5px 12px;font:inherit;font-size:.78rem;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#pcl-chips button.on{background:#2b2226;border-color:#2b2226;color:#fff}
+body.ptly-appui #trk-cb-body{padding:4px 10px calc(.8rem + var(--sa-bottom,0px));gap:2px}
+body.ptly-appui .cbrow.pcl{display:flex;align-items:center;gap:12px;padding:8px 8px;border:0;border-radius:12px;background:transparent;width:100%}
+body.ptly-appui .cbrow.pcl.sel{background:#fdedf0}
+body.ptly-appui .cbrow.pcl .tile{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+body.ptly-appui .cbrow.pcl .tile .sycell{width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.88);font-size:14px}
+body.ptly-appui .cbrow.pcl .mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+body.ptly-appui .cbrow.pcl .nm{font-size:.86rem;font-weight:700;color:#2b2226;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.ptly-appui .cbrow.pcl .nm small{font-weight:500;color:#9a8890;margin-left:6px}
+body.ptly-appui .cbrow.pcl .bar{height:4px;border-radius:2px;background:#efe4e8;overflow:hidden}
+body.ptly-appui .cbrow.pcl .bar i{display:block;height:100%;border-radius:2px;background:#8B1A2B}
+body.ptly-appui .cbrow.pcl .lf{flex:none;font-size:.76rem;color:#7a6a72;font-variant-numeric:tabular-nums;min-width:58px;text-align:right}
+body.ptly-appui .cbrow.pcl.done{opacity:1!important}
+body.ptly-appui .cbrow.pcl.done .nm{color:#9a8890;font-weight:600}
+body.ptly-appui .cbrow.pcl.done .bar i{background:#c79aa4}
+body.ptly-appui .cbrow.pcl.done .lf{color:#2E7D32}
+body.ptly-appui.pcl-hide .cbrow.pcl.done{display:none!important}
+body.dark #pcl-chips button{background:#221c30;border-color:#37303f;color:#d9cfe0}
+body.dark #pcl-chips button.on{background:#f1e9f3;border-color:#f1e9f3;color:#1a1524}
+body.dark.ptly-appui .cbrow.pcl.sel{background:#3a2028}
+body.dark.ptly-appui .cbrow.pcl .nm{color:#f1e9f3}
+body.dark.ptly-appui .cbrow.pcl .bar{background:#342b3f}
+body.dark.ptly-appui .cbrow.pcl .bar i{background:#e0697f}
+body.dark.ptly-appui .cbrow.pcl .lf{color:#b3a8bd}
+body.dark.ptly-appui .cbrow.pcl.done .lf{color:#7cc47f}
+</style>
+<script id="pcl-src">
+(function(){
+  var S={
+    en:{"cl2.kit":"Kit order","cl2.most":"Most left","cl2.hide":"Hide finished","cl2.left":"{n} left","cl2.done":"Done"},
+    fr:{"cl2.kit":"Ordre du kit","cl2.most":"Le plus restant","cl2.hide":"Masquer terminées","cl2.left":"{n} restants","cl2.done":"Fini"},
+    de:{"cl2.kit":"Packungsreihenfolge","cl2.most":"Meiste übrig","cl2.hide":"Fertige ausblenden","cl2.left":"{n} übrig","cl2.done":"Fertig"},
+    nl:{"cl2.kit":"Pakketvolgorde","cl2.most":"Meeste over","cl2.hide":"Klaar verbergen","cl2.left":"{n} over","cl2.done":"Klaar"},
+    ru:{"cl2.kit":"Как в наборе","cl2.most":"Больше осталось","cl2.hide":"Скрыть готовые","cl2.left":"осталось {n}","cl2.done":"Готово"},
+    uk:{"cl2.kit":"Як у наборі","cl2.most":"Більше лишилось","cl2.hide":"Сховати готові","cl2.left":"лишилось {n}","cl2.done":"Готово"},
+    es:{"cl2.kit":"Orden del kit","cl2.most":"Más pendientes","cl2.hide":"Ocultar terminados","cl2.left":"faltan {n}","cl2.done":"Hecho"},
+    it:{"cl2.kit":"Ordine del kit","cl2.most":"Più rimasti","cl2.hide":"Nascondi finiti","cl2.left":"{n} rimasti","cl2.done":"Fatto"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; return s; }
+  function app(){ return document.body.classList.contains('ptly-appui'); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  var sort='kit', hide=false;
+  try{ sort=localStorage.getItem('ptly_cl_sort')||'kit'; hide=localStorage.getItem('ptly_cl_hide')==='1'; }catch(e){}
+  function fmt(n){ try{ return Number(n).toLocaleString(window.PL_LANG||'en'); }catch(e){ return String(n); } }
+  function chips(){
+    var head=document.getElementById('trk-cb-head'); if(!head) return;
+    var c=document.getElementById('pcl-chips');
+    if(!c){
+      c=document.createElement('div'); c.id='pcl-chips'; head.appendChild(c);
+      c.addEventListener('click',function(e){
+        var b=e.target.closest('button'); if(!b) return; var a=b.getAttribute('data-a');
+        if(a==='hide'){ hide=!hide; try{ localStorage.setItem('ptly_cl_hide',hide?'1':'0'); }catch(_){} }
+        else { sort=a; try{ localStorage.setItem('ptly_cl_sort',sort); }catch(_){} }
+        apply();
+      });
+    }
+    var h='<button data-a="kit" class="'+(sort==='kit'?'on':'')+'">'+esc(tx('cl2.kit'))+'</button>'
+      +'<button data-a="most" class="'+(sort==='most'?'on':'')+'">'+esc(tx('cl2.most'))+'</button>'
+      +'<button data-a="hide" class="'+(hide?'on':'')+'">'+esc(tx('cl2.hide'))+'</button>';
+    if(c._h!==h){ c._h=h; c.innerHTML=h; }
+    document.body.classList.toggle('pcl-hide',hide);
+  }
+  // Turn the plain list rows into the picture's rows (the click handler on each row is kept).
+  function apply(){
+    if(!app()) return;
+    var body=document.getElementById('trk-cb-body'); if(!body) return;
+    chips();
+    var rows=[].slice.call(body.querySelectorAll(':scope > .cbrow[data-sym]')), n=0;
+    rows.forEach(function(r){
+      if(!r.classList.contains('pcl')){
+        var ct=r.querySelector('.cbct'), m=/(\d+)\s*\/\s*(\d+)/.exec(ct?ct.textContent:''), d=m?+m[1]:0, t=m?+m[2]:0;
+        var sw=r.querySelector('.sw'), sy=r.querySelector('.sycell'), code=r.querySelector('.cbcode'), lab=r.querySelector('.cblabel');
+        var bg=sw?sw.style.background:'#ccc';
+        var left=Math.max(0,t-d), fin=t>0&&left===0, pct=t?Math.round(100*d/t):0;
+        r._pcl={d:d,t:t,left:left};
+        r.innerHTML='<span class="tile" style="background:'+bg+'">'+(sy?sy.outerHTML:'')+'</span>'
+          +'<span class="mid"><span class="nm">'+(code?code.innerHTML:'')+(lab&&lab.textContent?'<small>'+lab.innerHTML+'</small>':'')+'</span><span class="bar"><i style="width:'+pct+'%"></i></span></span>'
+          +'<span class="lf">'+(fin?esc(tx('cl2.done'))+' ✓':esc(tx('cl2.left').replace('{n}',fmt(left))))+'</span>';
+        r.classList.add('pcl'); r.classList.toggle('done',fin);
+      }
+      n++;
+    });
+    if(rows.length){
+      var order=rows.slice();
+      if(sort==='most') order.sort(function(a,b){ return (b._pcl?b._pcl.left:0)-(a._pcl?a._pcl.left:0); });
+      var anchor=rows[0].previousSibling, first=body.firstChild;
+      // Cross-stitch colours are the first block of rows; section headers (backstitch, knots) follow and stay put.
+      var ref=rows[rows.length-1].nextSibling;
+      order.forEach(function(r){ body.insertBefore(r, ref); });
+    }
+    var tt=document.querySelector('#trk-cb-head .cb-title');
+    if(tt){ var nEl=tt.querySelector('.n'); if(!nEl){ nEl=document.createElement('span'); nEl.className='n'; tt.appendChild(nEl); } if(nEl.textContent!==String(n)) nEl.textContent=String(n); }
+  }
+  function init(){
+    if(!app()){
+      if(!init._mo){ init._mo=new MutationObserver(function(){ if(app()){ init._mo.disconnect(); init(); } }); init._mo.observe(document.body,{attributes:true,attributeFilter:['class']}); }
+      return;
+    }
+    var f=window.updateTrackerProgressUI;
+    if(typeof f==='function' && !f._pcl){
+      var w=function(){
+        // The app always shows the list form of the colour sheet.
+        try{ if(typeof trkCbView!=='undefined' && trkCbView!=='list') trkCbView='list'; }catch(e){}
+        var r=f.apply(this,arguments); try{ apply(); }catch(e){} return r;
+      };
+      for(var k in f){ try{ w[k]=f[k]; }catch(e){} }
+      w._pcl=1; window.updateTrackerProgressUI=w;
+    }
+    if(typeof window.plApplyLang==='function' && !window.plApplyLang._pcl){
+      var al=window.plApplyLang; window.plApplyLang=function(){ var r=al.apply(this,arguments); try{ var c=document.getElementById('pcl-chips'); if(c) c._h=null; apply(); }catch(e){} return r; }; window.plApplyLang._pcl=1;
+    }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
+  else setTimeout(init,0);
+})();
+</script>
+<style id="pcd-style">
+/* v667 – app pattern cards as in the approved pictures. Tracker list: picture, name, size line, progress bar,
+   "N% done"; the whole card opens, Rename/Delete move into a ⋯ menu. My designs: padded cards with a rounded
+   picture, "Saved designs · N" row with Select. App only. */
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard{position:relative;align-items:center;gap:0;border:1px solid #eee2e5;border-radius:18px;box-shadow:none;padding:0}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .thumb{width:72px;height:72px;flex:0 0 72px;margin:10px 0 10px 10px;border-radius:12px;object-fit:cover;background:#fff;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .body{padding:10px 44px 10px 12px}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .body h4{font-size:.95rem;margin:0 0 2px}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .body > .meta:first-of-type{margin-bottom:8px;font-size:.74rem}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .trk-pbar{height:5px;border-radius:3px}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .row{display:none!important}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .trk-pbar ~ .meta{display:none!important}
+body.ptly-appui #pj-selbar{left:12px;right:12px;transform:none;max-width:none;gap:10px}
+body.ptly-appui #pj-selbar .pj-selbar-info{flex:1;min-width:0}
+body.ptly-appui #pj-selbar .pj-selbar-del{white-space:nowrap}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .pcd-pct{display:block;font-size:.74rem;color:#8a7a82;margin-top:6px}
+.pcd-pct,.pcd-more{display:none}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .pcd-more{display:grid;place-items:center;position:absolute;top:8px;right:6px;width:34px;height:34px;border:0;border-radius:10px;background:none;color:#8a7a82;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.pcd-more svg{width:18px;height:18px;fill:currentColor}
+#pcd-menu{display:none;position:fixed;z-index:9600;min-width:180px;background:#fff;border:1px solid #eee2e5;border-radius:14px;box-shadow:0 14px 40px rgba(43,34,38,.22);padding:6px}
+#pcd-menu.open{display:block}
+#pcd-menu button{display:block;width:100%;text-align:left;padding:11px 12px;border:0;background:none;border-radius:10px;font:inherit;font-size:.9rem;color:#2b2226;cursor:pointer}
+#pcd-menu button.danger{color:#b23b3b}
+#pcd-scrim{display:none;position:fixed;inset:0;z-index:9599}
+#pcd-scrim.open{display:block}
+body.dark.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard{border-color:#37303f}
+body.dark.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .trk-pbar{background:#342b3f}
+body.dark.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .pcd-pct,body.dark .pcd-more{color:#a99fb2}
+body.dark #pcd-menu{background:#221c30;border-color:#37303f}
+body.dark #pcd-menu button{color:#ece4ef}body.dark #pcd-menu button.danger{color:#f08a8a}
+/* My designs */
+body.ptly-appui #pjd-count,body.ptly-appui #projects-page .pj-tools #pj-select-btn{display:none!important}
+#pcd-saved{display:none}
+body.ptly-appui #pcd-saved{display:flex;align-items:center;justify-content:space-between;margin:0 2px 8px}
+#pcd-saved .lbl{font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9a8890}
+#pcd-saved button{border:0;background:none;font:inherit;font-size:.82rem;font-weight:700;color:#8B1A2B;cursor:pointer;padding:4px 2px}
+#pcd-saved button:disabled{opacity:.4}
+body.ptly-appui #projects-page #pjd-searchbtn{border-radius:50%;width:40px;height:40px}
+body.ptly-appui #pj-grid .pj-card{padding:8px;border:1px solid #eee2e5;border-radius:18px;box-shadow:none;background:#fff}
+body.ptly-appui #pj-grid .pj-thumb{aspect-ratio:4/3;border-radius:12px;overflow:hidden;background:#fff;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+body.ptly-appui #pj-grid .pj-info{padding:8px 4px 2px}
+body.ptly-appui #pj-grid .pj-menu-btn{top:12px;right:12px;width:28px;height:28px}
+body.ptly-appui #pj-grid .pj-check{top:14px;left:14px}
+body.dark #pcd-saved button{color:#f0b3c0}
+body.dark.ptly-appui #pj-grid .pj-card{background:#221c30;border-color:#37303f}
+</style>
+<script id="pcd-src">
+(function(){
+  var S={
+    en:{"cd.pct":"{p}% done","cd.done":"Finished ✓","cd.rename":"Rename","cd.delete":"Delete","cd.saved":"Saved designs","cd.select":"Select","cd.of":"{n} of {c}"},
+    fr:{"cd.pct":"{p} % fait","cd.done":"Terminé ✓","cd.rename":"Renommer","cd.delete":"Supprimer","cd.saved":"Créations enregistrées","cd.select":"Choisir","cd.of":"{n} sur {c}"},
+    de:{"cd.pct":"{p} % fertig","cd.done":"Fertig ✓","cd.rename":"Umbenennen","cd.delete":"Löschen","cd.saved":"Gespeicherte Designs","cd.select":"Auswählen","cd.of":"{n} von {c}"},
+    nl:{"cd.pct":"{p}% klaar","cd.done":"Klaar ✓","cd.rename":"Hernoemen","cd.delete":"Verwijderen","cd.saved":"Opgeslagen ontwerpen","cd.select":"Selecteren","cd.of":"{n} van {c}"},
+    ru:{"cd.pct":"Готово {p}%","cd.done":"Завершено ✓","cd.rename":"Переименовать","cd.delete":"Удалить","cd.saved":"Сохранённые дизайны","cd.select":"Выбрать","cd.of":"{n} из {c}"},
+    uk:{"cd.pct":"Готово {p}%","cd.done":"Завершено ✓","cd.rename":"Перейменувати","cd.delete":"Видалити","cd.saved":"Збережені дизайни","cd.select":"Вибрати","cd.of":"{n} з {c}"},
+    es:{"cd.pct":"{p}% hecho","cd.done":"Terminado ✓","cd.rename":"Renombrar","cd.delete":"Eliminar","cd.saved":"Diseños guardados","cd.select":"Elegir","cd.of":"{n} de {c}"},
+    it:{"cd.pct":"{p}% fatto","cd.done":"Finito ✓","cd.rename":"Rinomina","cd.delete":"Elimina","cd.saved":"Design salvati","cd.select":"Seleziona","cd.of":"{n} di {c}"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; return s; }
+  function app(){ return document.body.classList.contains('ptly-appui'); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  var menu, scrim, menuCard=null;
+  function closeMenu(){ if(menu){ menu.classList.remove('open'); scrim.classList.remove('open'); } menuCard=null; }
+  function openMenu(card, btn){
+    if(!menu){
+      menu=document.createElement('div'); menu.id='pcd-menu'; scrim=document.createElement('div'); scrim.id='pcd-scrim';
+      document.body.appendChild(scrim); document.body.appendChild(menu);
+      scrim.addEventListener('click',closeMenu);
+      menu.addEventListener('click',function(e){
+        var b=e.target.closest('button'); if(!b||!menuCard) return; var c=menuCard, a=b.getAttribute('data-a'); closeMenu();
+        var t=c.querySelector('.row .'+(a==='ren'?'ren':'del')); if(t) t.click();
+      });
+    }
+    var h='';
+    if(card.querySelector('.row .ren')) h+='<button data-a="ren">'+esc(tx('cd.rename'))+'</button>';
+    if(card.querySelector('.row .del')) h+='<button data-a="del" class="danger">'+esc(tx('cd.delete'))+'</button>';
+    if(!h) return;
+    menu.innerHTML=h; menuCard=card;
+    var r=btn.getBoundingClientRect();
+    menu.style.top=Math.min(r.bottom+4, window.innerHeight-140)+'px'; menu.style.right=Math.max(8, window.innerWidth-r.right)+'px';
+    menu.classList.add('open'); scrim.classList.add('open');
+  }
+  function trackerCards(){
+    if(!app()) return;
+    var cards=document.querySelectorAll('#trk-projects .trk-cardgrid > .trk-pcard:not(.new)');
+    for(var i=0;i<cards.length;i++){
+      var c=cards[i], body=c.querySelector('.body'); if(!body) continue;
+      var bar=body.querySelector('.trk-pbar>div'), p=bar?Math.round(parseFloat(bar.style.width)||0):null;
+      var pc=body.querySelector('.pcd-pct');
+      if(bar){
+        if(!pc){ pc=document.createElement('span'); pc.className='pcd-pct'; var pb=body.querySelector('.trk-pbar'); pb.parentNode.insertBefore(pc, pb.nextSibling); }
+        var s=p>=100?tx('cd.done'):tx('cd.pct').replace('{p}',p);
+        if(pc.textContent!==s) pc.textContent=s;
+      }
+      var hasActs=c.querySelector('.row .ren, .row .del');
+      var mb=c.querySelector(':scope > .pcd-more');
+      if(hasActs && !mb){
+        mb=document.createElement('button'); mb.type='button'; mb.className='pcd-more'; mb.setAttribute('aria-label','More');
+        mb.innerHTML='<svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>';
+        mb.addEventListener('click',function(e){ e.stopPropagation(); openMenu(this.parentNode,this); });
+        c.appendChild(mb);
+      }
+    }
+  }
+  var saved;
+  function designs(){
+    if(!app()) return;
+    var grid=document.getElementById('pj-grid'); if(!grid) return;
+    if(!saved){
+      saved=document.createElement('div'); saved.id='pcd-saved';
+      saved.innerHTML='<span class="lbl"></span><button type="button"></button>';
+      var sr=document.getElementById('pjd-search');
+      grid.parentNode.insertBefore(saved, sr||grid);
+      saved.querySelector('button').addEventListener('click',function(){ var b=document.getElementById('pj-select-btn'); if(b && !b.disabled) b.click(); });
+    }
+    var n=0, c=null; try{ n=pjLoadAll().length; c=pjSlotCap(); }catch(e){}
+    var lbl=tx('cd.saved')+' · '+((c&&isFinite(c))?tx('cd.of').replace('{n}',n).replace('{c}',c):n);
+    var l=saved.querySelector('.lbl'); if(l.textContent!==lbl) l.textContent=lbl;
+    var sb=document.getElementById('pj-select-btn'), sl=sb&&sb.querySelector('.pj-sel-label'), b=saved.querySelector('button');
+    var inSel=(typeof pjSelectMode!=='undefined' && pjSelectMode);
+    var bt=inSel&&sl?sl.textContent:tx('cd.select'); if(b.textContent!==bt) b.textContent=bt;
+    b.disabled=!!(sb&&sb.disabled); saved.style.display=n?'':'none';
+  }
+  function init(){
+    if(!app()){
+      if(!init._mo){ init._mo=new MutationObserver(function(){ if(app()){ init._mo.disconnect(); init(); } }); init._mo.observe(document.body,{attributes:true,attributeFilter:['class']}); }
+      return;
+    }
+    var pr=document.getElementById('trk-projects');
+    if(pr) new MutationObserver(function(){ try{ trackerCards(); }catch(e){} }).observe(pr,{childList:true,subtree:true});
+    var g=document.getElementById('pj-grid');
+    if(g) new MutationObserver(function(){ try{ designs(); }catch(e){} }).observe(g,{childList:true});
+    var sb=document.getElementById('pj-select-btn');
+    if(sb) new MutationObserver(function(){ try{ designs(); }catch(e){} }).observe(sb,{childList:true,subtree:true,characterData:true,attributes:true});
+    if(typeof window.plApplyLang==='function' && !window.plApplyLang._pcd){
+      var al=window.plApplyLang; window.plApplyLang=function(){ var r=al.apply(this,arguments); try{ trackerCards(); designs(); }catch(e){} return r; }; window.plApplyLang._pcd=1;
+    }
+    trackerCards(); designs();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
+  else setTimeout(init,0);
+})();
+</script>
+<style id="pst-style">
+/* v669 – app stitching Settings sheet, restructured: Chart (colour / symbols, zoom, pages),
+   Show on chart (switches), Grid style (folds open), More (rows). Same live controls, new layout. App only. */
+body.ptly-appui #trk-fspanel.pst #trk-fspanel-body{padding:4px 14px calc(18px + var(--sa-bottom,0px))!important;background:#faf6f7}
+body.ptly-appui #trk-fspanel.pst #trk-fspanel-title{font-family:'DM Serif Display',serif;font-weight:400;font-size:1.2rem}
+#trk-fspanel .pst-lbl{font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9a8890;margin:16px 4px 7px}
+#trk-fspanel .pst-card{background:#fff;border:1px solid #eee2e5;border-radius:16px;padding:4px 14px}
+#trk-fspanel .pst-row{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;border-bottom:1px solid #f3e9ec;font-size:.9rem;color:#2b2226}
+#trk-fspanel .pst-card>.pst-row:last-child{border-bottom:0}
+#trk-fspanel .pst-seg{display:flex;background:#f3ecef;border-radius:11px;padding:3px;gap:3px}
+#trk-fspanel .pst-seg button{border:0;background:none;border-radius:9px;padding:7px 12px;font:inherit;font-size:.8rem;font-weight:600;color:#6a5a62;cursor:pointer}
+#trk-fspanel .pst-seg button.on{background:#fff;color:#2b2226;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+/* zoom + pages borrowed nodes */
+body.ptly-appui #trk-fspanel.pst #trk-zoomgroup{display:inline-flex!important;align-items:center;gap:2px;background:#f3ecef;border:0!important;border-radius:11px;padding:3px;box-shadow:none!important;height:auto!important}
+body.ptly-appui #trk-fspanel.pst #trk-zoomgroup button{width:34px;height:32px;border:0!important;background:#fff!important;border-radius:9px!important;font-size:1.1rem;color:#2b2226}
+body.ptly-appui #trk-fspanel.pst #trk-zoom-label{min-width:48px;text-align:center;font-size:.82rem;font-weight:700}
+body.ptly-appui #trk-fspanel.pst #trk-fs-pages-wrap{margin:0!important;padding:10px 0!important;border:0!important}
+body.ptly-appui #trk-fspanel.pst #trk-fs-pages-wrap>div:first-child{display:none}
+/* the shared grid popover, laid out as rows */
+body.ptly-appui #trk-fspanel.pst #trk-grid-pop{background:none!important;font-size:.9rem}
+body.ptly-appui #trk-fspanel.pst #trk-grid-pop .tg-row{display:flex;align-items:center;justify-content:space-between;min-height:46px;margin:0;padding:0;border-bottom:1px solid #f3e9ec;font-size:.9rem;color:#2b2226}
+body.ptly-appui #trk-fspanel.pst #trk-grid-pop .tg-row>span:first-child{font-weight:500}
+body.ptly-appui #trk-fspanel.pst #tg-lightup-row{margin:0!important;padding:10px 0!important;border-bottom:1px solid #f3e9ec!important}
+body.ptly-appui #trk-fspanel.pst #tg-lightup-row>span{font-size:.9rem!important;font-weight:500!important}
+body.ptly-appui #trk-fspanel.pst #tg-lightup-row>span>span{font-size:.72rem!important}
+body.ptly-appui #trk-fspanel.pst #tg-done-rows{margin:0!important;padding:4px 0 10px!important}
+body.ptly-appui #trk-fspanel.pst #trk-grid-pop input[type=checkbox]:not(#tg-lightup):not(#tg-widget-pin){-webkit-appearance:none;appearance:none;width:46px;height:28px;border-radius:14px;background:#ddd2d6;position:relative;cursor:pointer;transition:background .2s;flex:none;margin:0}
+body.ptly-appui #trk-fspanel.pst #trk-grid-pop input[type=checkbox]:not(#tg-lightup):not(#tg-widget-pin)::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+body.ptly-appui #trk-fspanel.pst #trk-grid-pop input[type=checkbox]:not(#tg-lightup):not(#tg-widget-pin):checked{background:#8B1A2B}
+body.ptly-appui #trk-fspanel.pst #trk-grid-pop input[type=checkbox]:not(#tg-lightup):not(#tg-widget-pin):checked::after{transform:translateX(18px)}
+body.ptly-appui #trk-fspanel.pst #trk-grid-pop input[type=range]{width:100%;margin:2px 0 10px}
+body.ptly-appui #trk-fspanel.pst #tg-block{margin:0 0 10px}
+body.ptly-appui #trk-fspanel.pst .tg-color-row{margin:0 0 10px}
+#pst-gridhd{display:none}
+body.ptly-appui #trk-fspanel.pst #pst-gridhd{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:48px;border:0;border-top:1px solid #f3e9ec;background:none;font:inherit;font-size:.9rem;color:#2b2226;cursor:pointer;padding:0}
+#pst-gridhd i{font-style:normal;color:#9a8890;transition:transform .2s}
+body.pst-gridopen #pst-gridhd i{transform:rotate(90deg)}
+body.ptly-appui:not(.pst-gridopen) #trk-fspanel.pst #trk-grid-pop .pst-g{display:none!important}
+/* More: the generated action buttons become list rows */
+body.ptly-appui #trk-fspanel.pst .pst-more{margin:0!important;padding:4px 14px!important;border:1px solid #eee2e5!important;border-radius:16px;background:#fff;gap:0!important}
+body.ptly-appui #trk-fspanel.pst .pst-more>button{display:flex!important;align-items:center;justify-content:space-between;min-height:48px;padding:0!important;border:0!important;border-bottom:1px solid #f3e9ec!important;border-radius:0!important;background:none!important;font-weight:500!important;font-size:.9rem!important;text-align:left;color:#2b2226!important}
+body.ptly-appui #trk-fspanel.pst .pst-more>button::after{content:'›';color:#c3b3b9;font-size:1.2rem}
+body.ptly-appui #trk-fspanel.pst .pst-more>button:last-child{border-bottom:0!important}
+body.ptly-appui #trk-fspanel.pst .pst-more>button.pst-danger{color:#b23b3b!important}
+body.dark.ptly-appui #trk-fspanel.pst #trk-fspanel-body{background:#1a1524}
+body.dark #trk-fspanel .pst-card,body.dark.ptly-appui #trk-fspanel.pst .pst-more{background:#221c30;border-color:#37303f!important}
+body.dark #trk-fspanel .pst-row,body.dark.ptly-appui #trk-fspanel.pst #trk-grid-pop .tg-row,body.dark.ptly-appui #trk-fspanel.pst #tg-lightup-row,body.dark.ptly-appui #trk-fspanel.pst #pst-gridhd,body.dark.ptly-appui #trk-fspanel.pst .pst-more>button{color:#ece4ef!important;border-color:#302839!important}
+body.dark #trk-fspanel .pst-seg,body.dark.ptly-appui #trk-fspanel.pst #trk-zoomgroup{background:#2c2438}
+body.dark #trk-fspanel .pst-seg button{color:#b3a8bd}
+body.dark #trk-fspanel .pst-seg button.on,body.dark.ptly-appui #trk-fspanel.pst #trk-zoomgroup button{background:#3a3048!important;color:#f1e9f3}
+body.dark.ptly-appui #trk-fspanel.pst #trk-grid-pop input[type=checkbox]:not(#tg-lightup):not(#tg-widget-pin){background:#3a3048}
+body.dark.ptly-appui #trk-fspanel.pst .pst-more>button.pst-danger{color:#f08a8a!important}
+</style>
+<script id="pst-src">
+(function(){
+  var S={
+    en:{"st.chart":"Chart","st.look":"Look","st.colour":"Colour","st.bw":"Symbols B&W","st.zoom":"Zoom","st.pages":"Pages","st.show":"Show on chart","st.grid":"Grid style","st.more":"More","st.reset":"Reset progress"},
+    fr:{"st.chart":"Grille","st.look":"Affichage","st.colour":"Couleur","st.bw":"Symboles N&B","st.zoom":"Zoom","st.pages":"Pages","st.show":"Afficher","st.grid":"Style du quadrillage","st.more":"Plus","st.reset":"Réinitialiser la progression"},
+    de:{"st.chart":"Vorlage","st.look":"Ansicht","st.colour":"Farbe","st.bw":"Symbole S/W","st.zoom":"Zoom","st.pages":"Seiten","st.show":"Anzeigen","st.grid":"Gitterstil","st.more":"Mehr","st.reset":"Fortschritt zurücksetzen"},
+    nl:{"st.chart":"Patroon","st.look":"Weergave","st.colour":"Kleur","st.bw":"Symbolen Z/W","st.zoom":"Zoom","st.pages":"Pagina's","st.show":"Tonen op patroon","st.grid":"Rasterstijl","st.more":"Meer","st.reset":"Voortgang wissen"},
+    ru:{"st.chart":"Схема","st.look":"Вид","st.colour":"Цвет","st.bw":"Символы Ч/Б","st.zoom":"Масштаб","st.pages":"Страницы","st.show":"Показывать","st.grid":"Стиль сетки","st.more":"Ещё","st.reset":"Сбросить прогресс"},
+    uk:{"st.chart":"Схема","st.look":"Вигляд","st.colour":"Колір","st.bw":"Символи Ч/Б","st.zoom":"Масштаб","st.pages":"Сторінки","st.show":"Показувати","st.grid":"Стиль сітки","st.more":"Ще","st.reset":"Скинути прогрес"},
+    es:{"st.chart":"Patrón","st.look":"Vista","st.colour":"Color","st.bw":"Símbolos B/N","st.zoom":"Zoom","st.pages":"Páginas","st.show":"Mostrar","st.grid":"Estilo de cuadrícula","st.more":"Más","st.reset":"Reiniciar progreso"},
+    it:{"st.chart":"Schema","st.look":"Vista","st.colour":"Colore","st.bw":"Simboli B/N","st.zoom":"Zoom","st.pages":"Pagine","st.show":"Mostra","st.grid":"Stile griglia","st.more":"Altro","st.reset":"Azzera progressi"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; return s; }
+  function app(){ return document.body.classList.contains('ptly-appui'); }
+  function $(id){ return document.getElementById(id); }
+  function el(tag,cls,html){ var e=document.createElement(tag); if(cls) e.className=cls; if(html!=null) e.innerHTML=html; return e; }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function lbl(k){ return el('p','pst-lbl',esc(tx(k))); }
+  function row(k,ctrl){ var r=el('div','pst-row'); r.appendChild(el('span',null,esc(tx(k)))); if(ctrl) r.appendChild(ctrl); return r; }
+  function bwSync(seg){
+    var bw=$('trk-view-bw'), on=!!(bw && bw.classList.contains('active'));
+    var b=seg.querySelectorAll('button'); b[0].classList.toggle('on',!on); b[1].classList.toggle('on',on);
+  }
+  function build(){
+    var panel=$('trk-fspanel'), body=$('trk-fspanel-body'), pop=$('trk-grid-pop'); if(!panel||!body||!pop) return;
+    panel.classList.add('pst');
+    var zg=$('trk-zoomgroup'), pages=$('trk-fs-pages-wrap');
+    var acts=null; [].forEach.call(body.children,function(c){ if(c!==pop && !c.contains(zg||null) && c!==pages && c.querySelector && c.querySelector(':scope > button')) acts=c; });
+    var zwrap=zg?zg.parentNode:null;
+    // Chart: colour / symbols, zoom, pages
+    var chart=el('div','pst-card');
+    if($('trk-view-bw') && $('trk-view-color')){
+      var seg=el('div','pst-seg','<button type="button">'+esc(tx('st.colour'))+'</button><button type="button">'+esc(tx('st.bw'))+'</button>');
+      seg.addEventListener('click',function(e){ var b=e.target.closest('button'); if(!b) return; var i=[].indexOf.call(seg.children,b); var t=$(i?'trk-view-bw':'trk-view-color'); if(t) t.click(); bwSync(seg); });
+      bwSync(seg); chart.appendChild(row('st.look',seg));
+    }
+    if(zg) chart.appendChild(row('st.zoom',zg));
+    if(pages){ var pr=row('st.pages'); pr.style.flexDirection='column'; pr.style.alignItems='stretch'; pr.style.paddingTop='10px'; pr.appendChild(pages); chart.appendChild(pr); }
+    // Show on chart: the shared popover; everything from "Line opacity" on folds into Grid style.
+    var show=el('div','pst-card'); show.appendChild(pop);
+    // pop sits in a detached card here, so look inside it (getElementById would miss it).
+    if(!pop.querySelector('#pst-gridhd')){
+      var op=pop.querySelector('#tg-op-val'), start=op?op.closest('.tg-row'):null;
+      if(start){
+        var hd=el('button',null,''); hd.type='button'; hd.id='pst-gridhd';
+        pop.insertBefore(hd,start);
+        for(var n=start;n;n=n.nextElementSibling) n.classList.add('pst-g');
+        hd.addEventListener('click',function(){ document.body.classList.toggle('pst-gridopen'); });
+      }
+    }
+    var gh=pop.querySelector('#pst-gridhd'); if(gh) gh.innerHTML='<span>'+esc(tx('st.grid'))+'</span><i>›</i>';
+    if(acts && acts.parentNode) acts.parentNode.removeChild(acts);
+    body.innerHTML='';
+    body.appendChild(lbl('st.chart')); body.appendChild(chart);
+    body.appendChild(lbl('st.show')); body.appendChild(show);
+    if(acts){
+      acts.classList.add('pst-more');
+      if($('trk-reset') && !acts.querySelector('.pst-danger')){
+        var rb=el('button','pst-danger',esc(tx('st.reset'))); rb.type='button';
+        rb.addEventListener('click',function(){ try{ trkFsPanel(null); }catch(_){} var r=$('trk-reset'); if(r) r.click(); });
+        acts.appendChild(rb);
+      }
+      body.appendChild(lbl('st.more')); body.appendChild(acts);
+    }
+  }
+  function init(){
+    if(!app()){
+      if(!init._mo){ init._mo=new MutationObserver(function(){ if(app()){ init._mo.disconnect(); init(); } }); init._mo.observe(document.body,{attributes:true,attributeFilter:['class']}); }
+      return;
+    }
+    var f=window.trkFsPanel;
+    if(typeof f==='function' && !f._pst){
+      var w=function(kind){
+        var r=f.apply(this,arguments);
+        try{
+          var p=$('trk-fspanel');
+          if(kind==='settings' && app()) build();
+          else if(p) p.classList.remove('pst');
+        }catch(e){ console.warn('[pst]',e); }
+        return r;
+      };
+      w._pst=1; window.trkFsPanel=w;
+    }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
+  else setTimeout(init,0);
 })();
 </script>
 </body>
