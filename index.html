@@ -5472,7 +5472,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v664';
+window.PATTERNLY_BUILD='v665';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -5550,6 +5550,10 @@ window.addEventListener('DOMContentLoaded',function(){
   it:{"sc.back":"← Indietro","sc.title":"Scansiona il tuo schema","sc.intro":"Fotografa ogni pagina del tuo schema stampato. Tieni il telefono parallelo alla pagina, con buona luce, in modo che i numeri di pagina si leggano dritti.","sc.size":"Dimensioni dello schema","sc.sizehint":"Indicate sulla legenda dei colori (es. «Punti: 160 x 160»). Lascia vuoto e le ricaviamo dalle pagine.","sc.width":"larghezza","sc.height":"altezza","sc.stitches":"punti","sc.pages":"Pagine dello schema","sc.pageshint":"In ordine di lettura: da sinistra a destra, poi la fila di pagine successiva. Ogni pagina viene letta appena arriva.","sc.takephoto":"Scatta foto","sc.pick":"Foto o PDF","sc.nextkey":"Foto della pagina successiva","sc.page":"Pagina {n}","sc.rot":"Ruota","sc.rottip":"Foto scattata di lato? Ruotala","sc.remove":"Rimuovi","sc.nogrid0":"Nessuna griglia trovata — rifai la foto","sc.covered":"Tutti i {w} × {h} punti coperti","sc.partial":"{a} di {b} punti coperti — aggiungi le pagine mancanti","sc.convert":"Converti","sc.convert1":"Converti (1 pagina)","sc.convertn":"Converti ({n} pagine)","sc.nokey":"Nessuna legenda letta finora — senza legenda i simboli vengono raggruppati automaticamente, senza nomi né colori.","sc.w.wide":"più larga di quanto lo schema consenta qui","sc.w.height":"altezza diversa dalle altre pagine di questa fila","sc.w.bold":"le linee spesse non coincidono — pagina fuori ordine o ruotata?","sc.key":"Legenda dei colori","sc.brand":"Marca del filato","sc.kitnums":"Numeri propri del kit","sc.keyintro":"Fotografa la legenda dei colori — la tabella con un simbolo (o quadratino colorato) per ogni filato. Se la legenda continua su un’altra pagina, aggiungi anche quella.","sc.p.symbol":"Tocca uno dei simboli (o quadratini colorati) nella colonna <b>simbolo sullo schema</b>.","sc.p.swatch":"<b>Simboli trovati: {n}.</b> Ora tocca un <b>campione di colore</b> — oppure salta.","sc.p.colours":"<b>Colori trovati: {n}</b>","sc.p.lines":"(linee di punto indietro escluse: {n} — il punto indietro non viene ancora letto dalle foto)","sc.p.code":"Tocca un <b>numero di filato</b> — oppure salta.","sc.p.count":"Tocca un <b>numero di punti</b> — oppure salta.","sc.p.done":"Fatto. Tocca un simbolo riquadrato per rimuovere la riga; controlla i valori qui sotto.","sc.keypage":"Pagina legenda {n}","sc.skip":"Salta","sc.removephoto":"Rimuovi questa foto","sc.turnphoto":"↻ Ruota foto","sc.redo":"Ricomincia questa pagina","sc.keytotal":"<b>Simboli nella legenda: {n}</b> finora.","sc.th.symbol":"Simbolo","sc.th.thread":"N. filato","sc.th.stitches":"Punti","sc.changecol":"Cambia questo colore","sc.colrow":"Colore della riga {n}","sc.notinpal":"Non presente nella palette {b}","sc.removerow":"Rimuovi riga","sc.openpdf":"Apertura del PDF…","sc.pdfkey":"Usata la pagina 1 di {n} del PDF per la legenda","sc.badphoto":"Impossibile leggere quella foto","sc.badphoto2":"Impossibile leggere questa foto","sc.badpdf":"Impossibile aprire quel PDF","sc.tapsym":"Tocca esattamente un simbolo","sc.nocol":"Nessuna colonna di simboli trovata lì — prova un altro simbolo","sc.nogrid":"Nessuna griglia trovata — rifai la foto più piatta e più vicina","sc.finding":"Ricerca dei simboli…","sc.readcol":"Lettura di colori e simboli…","sc.readsym":"Lettura dei simboli…","sc.err":"Qualcosa è andato storto durante la lettura dei simboli","sc.colourn":"Colore {n}","sc.symboln":"Simbolo {n}","sc.scanned":"Schema scansionato","sc.rv.one":"{n} punto da controllare sul tuo schema cartaceo","sc.rv.many":"{n} punti da controllare sul tuo schema cartaceo","sc.rv.review":"Controlla","sc.rv.head":"Punto {i} di {n}","sc.rv.pos":"riga {r}, colonna {c}","sc.rv.close":"Chiudi","sc.rv.nocrop":"foto non conservata","sc.rv.ours":"La nostra lettura","sc.rv.ok":"✓ Corretto","sc.rv.pick":"Oppure scegli il simbolo giusto","sc.rv.none":"nessun punto","sc.rv.all":"Tutto controllato ✓","cam.page":"Scansiona pagina","cam.chart":"Pagina dello schema {n}","cam.busy":"Raddrizzamento della pagina…","cam.hint0":"Appoggia la pagina in piano con buona luce. Viene acquisita da sola quando tutto è verde.","cam.auto":"Auto ✓","cam.autooff":"Auto disattivato","cam.app":"Usa l’app Fotocamera","cam.done":"Fatto","cam.donen":"Fatto ({n})","cam.rev":"Trascina gli angoli su quelli della pagina se non coincidono.","cam.retake":"Rifai","cam.use":"Usa questa scansione","cam.usenext":"Usa · pagina successiva","cam.next":"Ora metti la pagina successiva sotto la fotocamera","cam.nexth":"La scansione riparte quando la pagina cambia. Tocca Fatto quando ci sono tutte le pagine.","cam.edges":"Non si vedono i bordi della pagina","cam.edgesh":"Appoggia la pagina su una superficie più scura perché i bordi risaltino.","cam.look":"Ricerca della pagina…","cam.lookh":"Tieni il telefono sopra l’intera pagina.","cam.back":"Allontanati un po’","cam.backh":"Tutti e quattro gli angoli della pagina devono essere visibili — oppure appoggia la pagina su una superficie più scura.","cam.fit":"Inquadra tutta la pagina","cam.fith":"Allontanati finché tutti e quattro gli angoli sono nell’immagine.","cam.dark":"Troppo buio — aggiungi luce","cam.darkt":"Accendi una lampada o tocca 💡 per la torcia del telefono.","cam.darkh":"Accendi una lampada o avvicinati a una finestra.","cam.glare":"Riflesso sulla pagina","cam.glareh":"Allontanati dalla lampada o inclina leggermente la pagina.","cam.shadow":"Ombra sulla pagina","cam.shadowh":"Tieni l’ombra della mano e del telefono fuori dalla pagina, o sposta la luce.","cam.tilt":"Tieni il telefono dritto sopra la pagina","cam.top":"La parte alta della pagina è più lontana — sposta il telefono verso l’alto della pagina.","cam.bottom":"La parte bassa della pagina è più lontana — sposta il telefono verso il basso della pagina.","cam.left":"Il lato sinistro è più lontano — sposta il telefono a sinistra.","cam.right":"Il lato destro è più lontano — sposta il telefono a destra.","cam.closer":"Avvicinati","cam.closerh":"Fai in modo che la pagina riempia gran parte dell’immagine.","cam.still":"Resta fermo","cam.stillh":"Tieni il telefono fermo per un attimo.","cam.focus":"Messa a fuoco… resta fermo","cam.focush":"Tocca lo schermo per mettere a fuoco se resta sfocato.","cam.scanning":"Resta fermo — scansione in corso","cam.good":"Perfetto — tocca il pulsante","cam.autohint":"Acquisita da sola quando il contorno diventa verde.","cam.manhint":"Tocca il pulsante rotondo per scansionare.","cam.e.denied":"<b>L’accesso alla fotocamera è disattivato</b><span>Consenti la fotocamera per Patternly nelle Impostazioni del telefono, poi riprova. Puoi anche usare l’app Fotocamera.</span>","cam.e.nosup":"<b>La scansione dal vivo non è disponibile qui</b><span>Usa invece l’app Fotocamera — funziona allo stesso modo, senza la guida dal vivo.</span>","cam.e.nocam":"<b>La fotocamera non si è avviata</b><span>Forse un’altra app la sta usando. Riprova o usa l’app Fotocamera.</span>","cam.again":"Riprova","cam.tip":"<b>Consiglio: scansiona invece di caricare una foto</b>«Scatta foto» apre lo scanner: trova la pagina, controlla luce e angolazione e raddrizza la pagina, così più punti vengono letti correttamente.","cam.gotit":"Ho capito","cam.never":"Non mostrare più","qc.home":"Torna alla home","qc.s1":"Foto","qc.s2":"Schema","qc.edtip":"Apri nell’editor completo","qc.continue":"Continua →","qc.what":"Cosa vuoi convertire?","qc.k.photo":"Foto o illustrazione","qc.k.photod":"Foto, dipinti, loghi e disegni stilizzati. I colori vengono abbinati ai filati.","qc.k.pixel":"Pixel art","qc.k.pixeld":"Immagini nitide in cui 1 pixel diventa 1 punto.","qc.k.chart":"Schema stampato","qc.k.chartd":"Una foto di uno schema su carta. Apre Scansiona il tuo schema nel Progresso.","qc.sug":"Consigliato","qc.private":"La tua foto viene elaborata su questo dispositivo e non viene mai caricata.","qc.making":"Cosa vuoi realizzare?","qc.cross":"Punto croce","qc.needle":"Mezzo punto","qc.diamond":"Diamond painting","qc.square":"Diamanti quadrati","qc.round":"Diamanti rotondi","qc.size":"Dimensioni","qc.lock":"Mantieni le proporzioni della foto","qc.custom":"Dimensioni personalizzate: larghezza × altezza in punti.","qc.fab.cross":"Tessuto e filato","qc.fab.needle":"Canovaccio e filato","qc.fab.diamond":"Tela e diamanti","qc.brand":"Marca del filato","qc.strandsl":"Capi","qc.count":"Count del tessuto","qc.fabcol":"Colore del tessuto","qc.colours":"Colori","qc.ccount":"Numero di colori","qc.finetune":"Regola luminosità e contrasto","qc.br":"Luminosità","qc.ct":"Contrasto","qc.sa":"Saturazione","qc.detail":"Dettaglio","qc.level":"Livello","qc.clean":"Pulizia","qc.confleft":"di coriandoli rimasti","qc.show":"Mostra","qc.strength":"Intensità","qc.confhint":"Coriandoli = punti isolati di un colore. La pulizia li fonde con i vicini, così lo schema è più facile da ricamare.","qc.yours":"Il tuo schema","qc.name":"Nome dello schema","qc.pdfopts":"Opzioni PDF","qc.pagesize":"Formato pagina","qc.chart":"Schema","qc.colsym":"Colore + simboli","qc.bw":"Bianco e nero","qc.layout":"Impaginazione","qc.multi":"Più pagine","qc.one":"Una pagina","qc.dl":"Scarica PDF","qc.ed2":"Apri nell’editor","qc.trk":"Ricamalo nel Progresso","qc.edhint":"Vuoi cambiare singoli punti, aggiungere testo o punto indietro? Aprilo nell’editor; le tue impostazioni vengono con te.","qc.palette":"La tua palette","qc.updating":"Aggiornamento…","qc.bgtap":"Tocca un punto qualsiasi della foto per cancellare anche quello.","qc.sens":"Sensibilità","qc.undo":"Annulla","qc.replace":"Sostituisci foto","qc.crop":"Ritaglia e raddrizza","qc.erase":"Cancella sfondo","qc.v.pattern":"Schema","qc.v.finished":"Risultato","qc.v.original":"Originale","qc.straighten":"Raddrizza","qc.reset":"Ripristina","qc.cancel":"Annulla","qc.apply":"Applica","qc.fit":"Adatta","qc.st.balanced":"Naturale","qc.st.pastel":"Pastello tenue","qc.st.detail":"Vivace","qc.st.bw":"Bianco e nero","qc.d0":"Semplice","qc.d0h":"Aree di colore più grandi, meno puntini. Veloce e rilassante da ricamare.","qc.d1":"Bilanciato","qc.d1h":"Leviga i puntini piccoli mantenendo le forme principali.","qc.d2":"Dettagliato","qc.d2h":"Ogni punto segue la foto. Ideale per formati grandi.","qc.ps0":"Piccolo","qc.ps0d":"Regalo o decorazione","qc.ps1":"Medio","qc.ps1d":"Quadretto classico da incorniciare","qc.ps2":"Grande","qc.ps2d":"Quadro da parete dettagliato","qc.ps3":"Extra grande","qc.ps3d":"Pezzo forte","qc.rec":"Consigliato","qc.u.stitches":"punti","qc.u.drills":"diamanti","qc.finished":"{s} finito","qc.hrsst":"{h} ore di ricamo","qc.hrsdo":"{h} ore di lavoro","qc.pix1":"1 pixel = 1 punto","qc.pixown":"La tua pixel art a grandezza originale","qc.typical":"Tipico per questa misura: {a}–{b} colori","qc.max":"max {n}","qc.easy":"Facile da ricamare","qc.ok":"Discreto","qc.work":"Da migliorare","qc.ncol":"{n} colori","qc.drillsn":"{n} diamanti","qc.skein":"{n} matassa","qc.skeins":"{n} matasse","qc.brandcols":"{n} colori {b}","qc.strand":"{n} capo","qc.strands":"{n} capi","qc.e.preview":"Impossibile aggiornare l’anteprima, riprova","qc.e.image":"Impossibile leggere quell’immagine","qc.e.notimg":"Scegli un file immagine","qc.preparing":"Preparazione del PDF…","qc.saved1":"PDF salvato — 1 pagina","qc.savedn":"PDF salvato — {n} pagine","qc.e.export":"Esportazione non riuscita — riprova","qc.sent":"🧵 Schema inviato al Progresso — buon ricamo!","qc.e.send":"⚠ Impossibile inviare al Progresso: {m}","qc.plus":"La pulizia dei coriandoli è uno strumento Plus — apertura di Plus…","sc.p.missed1":"Manca un quadratino colorato? Toccalo per aggiungerlo.","sc.p.missed2":"Manca un quadratino? Toccalo per aggiungerlo.","sc.nosquare":"Nessun quadratino colorato trovato lì. Tocca esattamente il quadratino.","sc.added":"Quadratino aggiunto (colori: {n})","sc.vf.ok":"✓ Letto dalle tue foto.","sc.vf.grid":"{c} colori su una griglia {w}×{h}.","sc.vf.one":"{n} punto su cui lo scanner non era sicuro è segnato — controllalo sul tuo schema cartaceo.","sc.vf.many":"{n} punti su cui lo scanner non era sicuro sono segnati — controllali sul tuo schema cartaceo.","sc.vf.none":"Nessun punto da controllare. Un’occhiata al tuo schema cartaceo è comunque utile."}
 }; for(var l in A){ T[l]=T[l]||{}; for(var k in A[l]) T[l][k]=A[l][k]; } })(window.PL_I18N);
 </script>
+<script>
+/* v659: translations for the help chat / suggestion box (fb.*), merged into PL_I18N like the v648 table. */
+(function(T){ if(!T) return; var A={"en": {"fb.entry": "Help & suggestions", "fb.footer": "Suggest a feature", "fb.title": "Patternly help", "fb.status": "The team reads every message", "fb.hi": "Hi! 👋 I'm here to help. What's your first name?", "fb.back": "Welcome back, {name}! What can I help with today?", "fb.nice": "Nice to meet you, {name}! What can I help with?", "fb.nice0": "No problem! What can I help with?", "fb.namePh": "Your first name", "fb.skip": "Skip", "fb.r.problem": "🐞 Report a problem", "fb.r.idea": "💡 Suggest an idea", "fb.r.question": "❓ Question about the app", "fb.r.account": "👤 Account or Plus", "fb.r.other": "💬 Something else", "fb.a.problem": "Sorry about that. What happened, and what were you doing at the time?", "fb.a.idea": "We'd love to hear it! What would make Patternly better for you?", "fb.a.question": "Ask away and the team will answer. Most how-tos are also in the Guide.", "fb.a.account": "What do you need help with on your account or Plus?", "fb.a.other": "Go ahead, we're listening.", "fb.email": "Can we reply to you by email if needed?", "fb.emailYes": "Yes, email me", "fb.emailNo": "No thanks", "fb.msgPh": "Type your message…", "fb.send": "Send", "fb.sent": "Thanks, {name}! Your message has reached the Patternly team. Anything else?", "fb.sent0": "Thanks! Your message has reached the Patternly team. Anything else?", "fb.more": "Add more", "fb.other": "Something else", "fb.done": "That's all", "fb.bye": "Thanks for helping us make Patternly better. Happy stitching! 🧵", "fb.guide": "Open the Guide", "fb.restart": "New chat", "fb.privacy": "Your name and messages go only to the Patternly team. Never share passwords or card details.", "fb.sending": "Sending…", "fb.short": "Please write a few more words.", "fb.limit": "You've sent 10 messages today. Please try again tomorrow.", "fb.err": "Couldn't send. Check your connection and try again."}, "fr": {"fb.entry": "Aide et suggestions", "fb.footer": "Proposer une idée", "fb.title": "Aide Patternly", "fb.status": "L’équipe lit chaque message", "fb.hi": "Bonjour ! 👋 Je suis là pour vous aider. Quel est votre prénom ?", "fb.back": "Ravi de vous revoir, {name} ! Comment puis-je vous aider aujourd’hui ?", "fb.nice": "Enchanté, {name} ! Comment puis-je vous aider ?", "fb.nice0": "Pas de souci ! Comment puis-je vous aider ?", "fb.namePh": "Votre prénom", "fb.skip": "Passer", "fb.r.problem": "🐞 Signaler un problème", "fb.r.idea": "💡 Proposer une idée", "fb.r.question": "❓ Question sur l’app", "fb.r.account": "👤 Compte ou Plus", "fb.r.other": "💬 Autre chose", "fb.a.problem": "Désolé pour ce souci. Que s’est-il passé, et que faisiez-vous à ce moment-là ?", "fb.a.idea": "Avec plaisir ! Qu’est-ce qui rendrait Patternly plus utile pour vous ?", "fb.a.question": "Posez votre question, l’équipe vous répondra. La plupart des explications sont aussi dans le guide.", "fb.a.account": "De quoi avez-vous besoin pour votre compte ou Plus ?", "fb.a.other": "Allez-y, nous vous écoutons.", "fb.email": "Pouvons-nous vous répondre par e-mail si besoin ?", "fb.emailYes": "Oui, par e-mail", "fb.emailNo": "Non merci", "fb.msgPh": "Écrivez votre message…", "fb.send": "Envoyer", "fb.sent": "Merci, {name} ! Votre message est bien arrivé chez l’équipe Patternly. Autre chose ?", "fb.sent0": "Merci ! Votre message est bien arrivé chez l’équipe Patternly. Autre chose ?", "fb.more": "Ajouter", "fb.other": "Autre sujet", "fb.done": "C’est tout", "fb.bye": "Merci de nous aider à améliorer Patternly. Bonne broderie ! 🧵", "fb.guide": "Ouvrir le guide", "fb.restart": "Nouvelle discussion", "fb.privacy": "Votre prénom et vos messages ne vont qu’à l’équipe Patternly. Ne partagez jamais de mot de passe ni de carte bancaire.", "fb.sending": "Envoi…", "fb.short": "Écrivez encore quelques mots, s’il vous plaît.", "fb.limit": "Vous avez envoyé 10 messages aujourd’hui. Réessayez demain.", "fb.err": "Envoi impossible. Vérifiez votre connexion et réessayez."}, "de": {"fb.entry": "Hilfe & Vorschläge", "fb.footer": "Funktion vorschlagen", "fb.title": "Patternly-Hilfe", "fb.status": "Das Team liest jede Nachricht", "fb.hi": "Hallo! 👋 Ich helfe dir gern. Wie ist dein Vorname?", "fb.back": "Schön, dich wiederzusehen, {name}! Wobei kann ich heute helfen?", "fb.nice": "Schön, dich kennenzulernen, {name}! Wobei kann ich helfen?", "fb.nice0": "Kein Problem! Wobei kann ich helfen?", "fb.namePh": "Dein Vorname", "fb.skip": "Überspringen", "fb.r.problem": "🐞 Problem melden", "fb.r.idea": "💡 Idee vorschlagen", "fb.r.question": "❓ Frage zur App", "fb.r.account": "👤 Konto oder Plus", "fb.r.other": "💬 Etwas anderes", "fb.a.problem": "Das tut uns leid. Was ist passiert, und was hast du gerade gemacht?", "fb.a.idea": "Erzähl gern! Was würde Patternly für dich besser machen?", "fb.a.question": "Frag ruhig, das Team antwortet dir. Die meisten Anleitungen stehen auch in der Anleitung.", "fb.a.account": "Wobei brauchst du Hilfe mit deinem Konto oder Plus?", "fb.a.other": "Schieß los, wir hören zu.", "fb.email": "Dürfen wir dir bei Bedarf per E-Mail antworten?", "fb.emailYes": "Ja, per E-Mail", "fb.emailNo": "Nein danke", "fb.msgPh": "Nachricht schreiben…", "fb.send": "Senden", "fb.sent": "Danke, {name}! Deine Nachricht ist beim Patternly-Team angekommen. Noch etwas?", "fb.sent0": "Danke! Deine Nachricht ist beim Patternly-Team angekommen. Noch etwas?", "fb.more": "Ergänzen", "fb.other": "Anderes Thema", "fb.done": "Das war’s", "fb.bye": "Danke, dass du hilfst, Patternly besser zu machen. Viel Freude beim Sticken! 🧵", "fb.guide": "Anleitung öffnen", "fb.restart": "Neuer Chat", "fb.privacy": "Dein Name und deine Nachrichten gehen nur an das Patternly-Team. Teile nie Passwörter oder Kartendaten.", "fb.sending": "Wird gesendet…", "fb.short": "Bitte schreib noch ein paar Worte mehr.", "fb.limit": "Du hast heute schon 10 Nachrichten gesendet. Bitte versuch es morgen wieder.", "fb.err": "Senden fehlgeschlagen. Prüfe deine Verbindung und versuch es noch einmal."}, "nl": {"fb.entry": "Hulp & suggesties", "fb.footer": "Stel een functie voor", "fb.title": "Patternly-hulp", "fb.status": "Het team leest elk bericht", "fb.hi": "Hoi! 👋 Ik help je graag. Wat is je voornaam?", "fb.back": "Welkom terug, {name}! Waarmee kan ik je vandaag helpen?", "fb.nice": "Leuk je te ontmoeten, {name}! Waarmee kan ik helpen?", "fb.nice0": "Geen probleem! Waarmee kan ik helpen?", "fb.namePh": "Je voornaam", "fb.skip": "Overslaan", "fb.r.problem": "🐞 Probleem melden", "fb.r.idea": "💡 Idee voorstellen", "fb.r.question": "❓ Vraag over de app", "fb.r.account": "👤 Account of Plus", "fb.r.other": "💬 Iets anders", "fb.a.problem": "Vervelend! Wat gebeurde er, en waar was je op dat moment mee bezig?", "fb.a.idea": "Graag! Wat zou Patternly beter maken voor jou?", "fb.a.question": "Vraag maar, het team antwoordt je. De meeste uitleg staat ook in de gids.", "fb.a.account": "Waarmee heb je hulp nodig bij je account of Plus?", "fb.a.other": "Vertel maar, we luisteren.", "fb.email": "Mogen we je zo nodig per e-mail antwoorden?", "fb.emailYes": "Ja, per e-mail", "fb.emailNo": "Nee, bedankt", "fb.msgPh": "Typ je bericht…", "fb.send": "Versturen", "fb.sent": "Bedankt, {name}! Je bericht is aangekomen bij het Patternly-team. Nog iets?", "fb.sent0": "Bedankt! Je bericht is aangekomen bij het Patternly-team. Nog iets?", "fb.more": "Aanvullen", "fb.other": "Iets anders", "fb.done": "Dat was het", "fb.bye": "Bedankt dat je Patternly helpt verbeteren. Veel borduurplezier! 🧵", "fb.guide": "Gids openen", "fb.restart": "Nieuw gesprek", "fb.privacy": "Je naam en berichten gaan alleen naar het Patternly-team. Deel nooit wachtwoorden of kaartgegevens.", "fb.sending": "Versturen…", "fb.short": "Schrijf nog een paar woorden meer.", "fb.limit": "Je hebt vandaag al 10 berichten gestuurd. Probeer het morgen opnieuw.", "fb.err": "Versturen mislukt. Controleer je verbinding en probeer het opnieuw."}, "ru": {"fb.entry": "Помощь и предложения", "fb.footer": "Предложить идею", "fb.title": "Помощь Patternly", "fb.status": "Команда читает каждое сообщение", "fb.hi": "Здравствуйте! 👋 Я помогу. Как вас зовут?", "fb.back": "С возвращением, {name}! Чем могу помочь сегодня?", "fb.nice": "Приятно познакомиться, {name}! Чем могу помочь?", "fb.nice0": "Хорошо! Чем могу помочь?", "fb.namePh": "Ваше имя", "fb.skip": "Пропустить", "fb.r.problem": "🐞 Сообщить о проблеме", "fb.r.idea": "💡 Предложить идею", "fb.r.question": "❓ Вопрос о приложении", "fb.r.account": "👤 Аккаунт или Plus", "fb.r.other": "💬 Другое", "fb.a.problem": "Жаль, что так вышло. Что случилось и что вы в этот момент делали?", "fb.a.idea": "С удовольствием выслушаем! Что сделало бы Patternly удобнее для вас?", "fb.a.question": "Спрашивайте, команда ответит. Большинство инструкций есть и в руководстве.", "fb.a.account": "С чем нужна помощь по аккаунту или Plus?", "fb.a.other": "Пишите, мы слушаем.", "fb.email": "Можно ответить вам по e-mail, если понадобится?", "fb.emailYes": "Да, по e-mail", "fb.emailNo": "Нет, спасибо", "fb.msgPh": "Напишите сообщение…", "fb.send": "Отправить", "fb.sent": "Спасибо, {name}! Ваше сообщение получено командой Patternly. Что-то ещё?", "fb.sent0": "Спасибо! Ваше сообщение получено командой Patternly. Что-то ещё?", "fb.more": "Дополнить", "fb.other": "Другая тема", "fb.done": "Это всё", "fb.bye": "Спасибо, что помогаете улучшать Patternly. Приятной вышивки! 🧵", "fb.guide": "Открыть руководство", "fb.restart": "Новый чат", "fb.privacy": "Ваше имя и сообщения видит только команда Patternly. Никогда не сообщайте пароли и данные карт.", "fb.sending": "Отправка…", "fb.short": "Напишите, пожалуйста, чуть подробнее.", "fb.limit": "Сегодня вы уже отправили 10 сообщений. Попробуйте завтра.", "fb.err": "Не удалось отправить. Проверьте соединение и попробуйте ещё раз."}, "uk": {"fb.entry": "Допомога та пропозиції", "fb.footer": "Запропонувати ідею", "fb.title": "Допомога Patternly", "fb.status": "Команда читає кожне повідомлення", "fb.hi": "Вітаю! 👋 Я допоможу. Як вас звати?", "fb.back": "З поверненням, {name}! Чим можу допомогти сьогодні?", "fb.nice": "Приємно познайомитися, {name}! Чим можу допомогти?", "fb.nice0": "Гаразд! Чим можу допомогти?", "fb.namePh": "Ваше ім’я", "fb.skip": "Пропустити", "fb.r.problem": "🐞 Повідомити про проблему", "fb.r.idea": "💡 Запропонувати ідею", "fb.r.question": "❓ Питання про застосунок", "fb.r.account": "👤 Акаунт або Plus", "fb.r.other": "💬 Інше", "fb.a.problem": "Шкода, що так сталося. Що трапилося і що ви в цей момент робили?", "fb.a.idea": "Залюбки вислухаємо! Що зробило б Patternly зручнішим для вас?", "fb.a.question": "Питайте, команда відповість. Більшість інструкцій є і в посібнику.", "fb.a.account": "З чим потрібна допомога щодо акаунта або Plus?", "fb.a.other": "Пишіть, ми слухаємо.", "fb.email": "Чи можна відповісти вам на e-mail, якщо знадобиться?", "fb.emailYes": "Так, на e-mail", "fb.emailNo": "Ні, дякую", "fb.msgPh": "Напишіть повідомлення…", "fb.send": "Надіслати", "fb.sent": "Дякуємо, {name}! Ваше повідомлення отримала команда Patternly. Щось іще?", "fb.sent0": "Дякуємо! Ваше повідомлення отримала команда Patternly. Щось іще?", "fb.more": "Доповнити", "fb.other": "Інша тема", "fb.done": "Це все", "fb.bye": "Дякуємо, що допомагаєте покращувати Patternly. Приємної вишивки! 🧵", "fb.guide": "Відкрити посібник", "fb.restart": "Новий чат", "fb.privacy": "Ваше ім’я та повідомлення бачить лише команда Patternly. Ніколи не надсилайте паролі чи дані карток.", "fb.sending": "Надсилання…", "fb.short": "Напишіть, будь ласка, трохи детальніше.", "fb.limit": "Сьогодні ви вже надіслали 10 повідомлень. Спробуйте завтра.", "fb.err": "Не вдалося надіслати. Перевірте з’єднання і спробуйте ще раз."}, "es": {"fb.entry": "Ayuda y sugerencias", "fb.footer": "Sugiere una función", "fb.title": "Ayuda de Patternly", "fb.status": "El equipo lee todos los mensajes", "fb.hi": "¡Hola! 👋 Estoy aquí para ayudarte. ¿Cómo te llamas?", "fb.back": "¡Hola de nuevo, {name}! ¿En qué te puedo ayudar hoy?", "fb.nice": "¡Encantados, {name}! ¿En qué te puedo ayudar?", "fb.nice0": "¡Sin problema! ¿En qué te puedo ayudar?", "fb.namePh": "Tu nombre", "fb.skip": "Saltar", "fb.r.problem": "🐞 Informar de un problema", "fb.r.idea": "💡 Sugerir una idea", "fb.r.question": "❓ Pregunta sobre la app", "fb.r.account": "👤 Cuenta o Plus", "fb.r.other": "💬 Otra cosa", "fb.a.problem": "Lo sentimos. ¿Qué pasó y qué estabas haciendo en ese momento?", "fb.a.idea": "¡Nos encantará leerla! ¿Qué haría Patternly mejor para ti?", "fb.a.question": "Pregunta y el equipo te responderá. Casi todas las instrucciones están también en la guía.", "fb.a.account": "¿Con qué necesitas ayuda en tu cuenta o Plus?", "fb.a.other": "Adelante, te escuchamos.", "fb.email": "¿Podemos responderte por correo si hace falta?", "fb.emailYes": "Sí, por correo", "fb.emailNo": "No, gracias", "fb.msgPh": "Escribe tu mensaje…", "fb.send": "Enviar", "fb.sent": "¡Gracias, {name}! Tu mensaje ha llegado al equipo de Patternly. ¿Algo más?", "fb.sent0": "¡Gracias! Tu mensaje ha llegado al equipo de Patternly. ¿Algo más?", "fb.more": "Añadir más", "fb.other": "Otro tema", "fb.done": "Eso es todo", "fb.bye": "Gracias por ayudarnos a mejorar Patternly. ¡Feliz bordado! 🧵", "fb.guide": "Abrir la guía", "fb.restart": "Nuevo chat", "fb.privacy": "Tu nombre y tus mensajes solo llegan al equipo de Patternly. Nunca compartas contraseñas ni datos de tarjeta.", "fb.sending": "Enviando…", "fb.short": "Escribe unas palabras más, por favor.", "fb.limit": "Hoy ya has enviado 10 mensajes. Vuelve a intentarlo mañana.", "fb.err": "No se pudo enviar. Revisa tu conexión e inténtalo de nuevo."}, "it": {"fb.entry": "Aiuto e suggerimenti", "fb.footer": "Suggerisci una funzione", "fb.title": "Aiuto Patternly", "fb.status": "Il team legge ogni messaggio", "fb.hi": "Ciao! 👋 Sono qui per aiutarti. Come ti chiami?", "fb.back": "Bentornato, {name}! Come posso aiutarti oggi?", "fb.nice": "Piacere, {name}! Come posso aiutarti?", "fb.nice0": "Nessun problema! Come posso aiutarti?", "fb.namePh": "Il tuo nome", "fb.skip": "Salta", "fb.r.problem": "🐞 Segnala un problema", "fb.r.idea": "💡 Suggerisci un’idea", "fb.r.question": "❓ Domanda sull’app", "fb.r.account": "👤 Account o Plus", "fb.r.other": "💬 Altro", "fb.a.problem": "Ci dispiace. Cosa è successo e cosa stavi facendo in quel momento?", "fb.a.idea": "Ci farebbe piacere! Cosa renderebbe Patternly migliore per te?", "fb.a.question": "Chiedi pure, il team ti risponderà. Quasi tutte le istruzioni sono anche nella guida.", "fb.a.account": "Di cosa hai bisogno per il tuo account o Plus?", "fb.a.other": "Dicci pure, ti ascoltiamo.", "fb.email": "Possiamo risponderti via e-mail se serve?", "fb.emailYes": "Sì, via e-mail", "fb.emailNo": "No, grazie", "fb.msgPh": "Scrivi il tuo messaggio…", "fb.send": "Invia", "fb.sent": "Grazie, {name}! Il tuo messaggio è arrivato al team di Patternly. Altro?", "fb.sent0": "Grazie! Il tuo messaggio è arrivato al team di Patternly. Altro?", "fb.more": "Aggiungi", "fb.other": "Altro argomento", "fb.done": "È tutto", "fb.bye": "Grazie per aiutarci a migliorare Patternly. Buon ricamo! 🧵", "fb.guide": "Apri la guida", "fb.restart": "Nuova chat", "fb.privacy": "Il tuo nome e i tuoi messaggi arrivano solo al team di Patternly. Non condividere mai password o dati della carta.", "fb.sending": "Invio…", "fb.short": "Scrivi qualche parola in più, per favore.", "fb.limit": "Oggi hai già inviato 10 messaggi. Riprova domani.", "fb.err": "Invio non riuscito. Controlla la connessione e riprova."}}; for(var l in A){ T[l]=T[l]||{}; for(var k in A[l]) T[l][k]=A[l][k]; } })(window.PL_I18N);
+</script>
 <!-- TOP BAR -->
 <!-- ══════════════════════════════════════════════════════════
      LANDING PAGE
@@ -5620,6 +5624,7 @@ window.addEventListener('DOMContentLoaded',function(){
   </div>
   <a href="#" onclick="lpCloseMenu();openPricing();return false" data-i18n="acct.pricing">Pricing</a>
   <a href="#" onclick="lpCloseMenu();openGuide();return false" data-i18n="acct.guide">Guide</a>
+  <a href="#" onclick="lpCloseMenu();plFeedbackOpen('menu');return false" data-i18n="fb.entry">Help &amp; suggestions</a>
   <div id="mm-editor-extras">
     <a href="#" onclick="lpCloseMenu();document.getElementById('clear-btn').click();return false">🗑 Clear canvas</a>
   </div>
@@ -6055,6 +6060,7 @@ document.addEventListener('DOMContentLoaded', function(){
           <a href="#about">About Luca-S</a>
           <a href="#" onclick="openPricing();return false" data-i18n="acct.pricing">Pricing</a>
           <a href="#" onclick="openGuide();return false" data-i18n="acct.guide">Guide</a>
+          <a href="#" onclick="plFeedbackOpen('footer');return false" data-i18n="fb.footer">Suggest a feature</a>
           <a href="#" onclick="openBrandsPage();return false">Patternly for Brands</a>
           <a href="#" onclick="plOpenPrivacy();return false" data-i18n="acct.privacy">Privacy Policy</a>
         </div>
@@ -7057,6 +7063,7 @@ document.addEventListener('DOMContentLoaded', function(){
           <a href="#" onclick="ptlyGoSection('about');return false" data-i18n="foot.about">About Luca-S</a>
           <a href="#" onclick="openPricing();return false" data-i18n="acct.pricing">Pricing</a>
           <a href="#" onclick="openGuide();return false" data-i18n="acct.guide">Guide</a>
+          <a href="#" onclick="plFeedbackOpen('footer');return false" data-i18n="fb.footer">Suggest a feature</a>
           <a href="#" onclick="openBrandsPage();return false">Patternly for Brands</a>
           <a href="#" onclick="plOpenPrivacy();return false" data-i18n="acct.privacy">Privacy Policy</a>
         </div>
@@ -7285,6 +7292,7 @@ document.addEventListener('DOMContentLoaded', function(){
           <a href="#" onclick="ptlyGoSection('about');return false" data-i18n="foot.about">About Luca-S</a>
           <a href="#" onclick="openPricing();return false" data-i18n="acct.pricing">Pricing</a>
           <a href="#" onclick="openGuide();return false" data-i18n="acct.guide">Guide</a>
+          <a href="#" onclick="plFeedbackOpen('footer');return false" data-i18n="fb.footer">Suggest a feature</a>
           <a href="#" onclick="openBrandsPage();return false">Patternly for Brands</a>
           <a href="#" onclick="plOpenPrivacy();return false" data-i18n="acct.privacy">Privacy Policy</a>
         </div>
@@ -7625,6 +7633,7 @@ document.addEventListener('DOMContentLoaded', function(){
       <button class="acct-hub-row" onclick="openPricing()"><span data-i18n="acct.pricing">Pricing</span><i>&rsaquo;</i></button>
       <button class="acct-hub-row" onclick="openGuide()"><span data-i18n="acct.guide">Guide</span><i>&rsaquo;</i></button>
       <button class="acct-hub-row" id="acct-about-row" style="display:none" onclick="plAboutSite()"><span data-i18n="ah.about">About Patternly</span><i>&rsaquo;</i></button>
+      <button class="acct-hub-row" onclick="plFeedbackOpen('account')"><span data-i18n="fb.entry">Help &amp; suggestions</span><i>&rsaquo;</i></button>
     </div>
     <div id="acct-hub-legal" style="display:none">
       <button class="acct-hub-row" onclick="plOpenPrivacy()"><span data-i18n="acct.privacy">Privacy Policy</span><i>&rsaquo;</i></button>
@@ -38801,6 +38810,206 @@ body.dark #pmo .row.danger{color:#f08a8a}body.dark #pmo .row.danger .ic{backgrou
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
   else setTimeout(init,0);
+})();
+</script>
+<!-- v659: help chat ("Help & suggestions"). Chat-style: name → reason → (email ok?) → messages. API: plFeedbackOpen(where). Posts each message to /feedback.
+     Step 2 (AI answers) will reply inside the same log for the "question" reason. -->
+<style id="plfb-style">
+.plfb{--fb-bg:#fff;--fb-line:#efe3e6;--fb-ink:#2b2226;--fb-mute:#7d6b72;--fb-acc:#8B1A2B;--fb-chip:#f7f1f2;--fb-bot:#f4eef0;--fb-ok:#2e7d4f;--fb-err:#b3261e;
+  position:fixed;inset:0;z-index:9600;display:none;align-items:flex-end;justify-content:flex-end;background:rgba(20,12,18,.32);font-family:inherit;padding:1rem}
+body.dark .plfb{--fb-bg:#221a2e;--fb-line:#3a2f47;--fb-ink:#f2ecf4;--fb-mute:#a596ab;--fb-acc:#d66a7d;--fb-chip:#2b2238;--fb-bot:#2d2440;--fb-ok:#7fd6a0;--fb-err:#ff8a80}
+.plfb.on{display:flex}
+.plfb *{box-sizing:border-box}
+.plfb button{font-family:inherit;touch-action:manipulation;cursor:pointer}
+.fb-card{background:var(--fb-bg);color:var(--fb-ink);width:min(400px,100%);height:min(640px,calc(100vh - 2rem));border-radius:20px;display:flex;flex-direction:column;box-shadow:0 18px 60px rgba(0,0,0,.28);overflow:hidden}
+.fb-head{display:flex;align-items:center;gap:.65rem;padding:.8rem .9rem;background:var(--fb-acc);color:#fff}
+body.dark .fb-head{color:#1d1420}
+.fb-av{flex:none;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center}
+.fb-av svg{width:22px;height:22px}
+.fb-hd{flex:1;min-width:0}
+.fb-hd b{display:block;font-size:.98rem;font-weight:800;line-height:1.2}
+.fb-hd span{display:flex;align-items:center;gap:.35rem;font-size:.72rem;opacity:.9}
+.fb-hd span i{width:7px;height:7px;border-radius:50%;background:#7fe3a6;display:inline-block}
+.fb-ib{flex:none;width:34px;height:34px;border-radius:50%;border:none;background:rgba(255,255,255,.16);color:inherit;font-size:.95rem;line-height:1;display:flex;align-items:center;justify-content:center}
+.fb-log{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:.9rem .85rem .4rem;display:flex;flex-direction:column;gap:.45rem}
+.fb-priv{align-self:center;text-align:center;font-size:.68rem;color:var(--fb-mute);max-width:290px;line-height:1.4;margin:0 0 .35rem}
+.fb-m{max-width:84%;padding:.55rem .8rem;border-radius:16px;font-size:.88rem;line-height:1.42;white-space:pre-wrap;word-break:break-word;animation:fbIn .18s ease-out}
+.fb-m.bot{align-self:flex-start;background:var(--fb-bot);border-bottom-left-radius:5px}
+.fb-m.me{align-self:flex-end;background:var(--fb-acc);color:#fff;border-bottom-right-radius:5px}
+body.dark .fb-m.me{color:#1d1420}
+.fb-m.me.fail{opacity:.6}
+.fb-err{align-self:flex-end;font-size:.72rem;color:var(--fb-err);font-weight:600;margin-top:-.2rem}
+.fb-typing{align-self:flex-start;background:var(--fb-bot);border-radius:16px;border-bottom-left-radius:5px;padding:.6rem .8rem;display:flex;gap:4px}
+.fb-typing i{width:6px;height:6px;border-radius:50%;background:var(--fb-mute);animation:fbDot 1s infinite}
+.fb-typing i:nth-child(2){animation-delay:.15s}.fb-typing i:nth-child(3){animation-delay:.3s}
+@keyframes fbDot{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-2px)}}
+@keyframes fbIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.fb-chips{display:flex;flex-wrap:wrap;gap:.4rem;padding:.2rem .85rem .6rem;justify-content:flex-end}
+.fb-chips:empty{display:none}
+.fb-chip{border:1.5px solid var(--fb-acc);background:var(--fb-bg);color:var(--fb-acc);border-radius:999px;font-size:.8rem;font-weight:700;padding:.45rem .8rem;line-height:1.2}
+.fb-chip:active{background:var(--fb-chip)}
+.fb-bar{display:flex;align-items:flex-end;gap:.45rem;padding:.55rem .65rem calc(.6rem + var(--sa-bottom,0px));border-top:1px solid var(--fb-line)}
+.fb-bar.off{display:none}
+.fb-in{flex:1;min-width:0;max-height:120px;resize:none;border:1.5px solid var(--fb-line);border-radius:20px;background:var(--fb-bg);color:var(--fb-ink);font:inherit;font-size:16px;line-height:1.35;padding:.55rem .85rem;outline:none}
+.fb-in:focus{border-color:var(--fb-acc)}
+.fb-in::placeholder{color:var(--fb-mute)}
+.fb-go{flex:none;width:42px;height:42px;border-radius:50%;border:none;background:var(--fb-acc);color:#fff;display:flex;align-items:center;justify-content:center}
+body.dark .fb-go{color:#1d1420}
+.fb-go:disabled{opacity:.45;cursor:default}
+.fb-go svg{width:20px;height:20px}
+.fb-hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+@media (max-width:560px){.plfb{padding:0;background:rgba(20,12,18,.45)}.fb-card{width:100%;height:calc(100% - var(--sa-top,0px) - 2.5rem);border-radius:20px 20px 0 0}}
+/* floating help bubble: home, Account, Guide and info pages only (never Editor, Tracker, Scan, convert) */
+#plfb-fab{position:fixed;right:max(16px,var(--sa-right,0px));bottom:calc(20px + var(--sa-bottom,0px));z-index:7900;width:52px;height:52px;border-radius:50%;border:none;
+  background:#8B1A2B;color:#fff;display:none;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(139,26,43,.35),0 2px 6px rgba(0,0,0,.18);cursor:pointer;
+  touch-action:manipulation;transition:transform .18s ease,opacity .18s ease}
+#plfb-fab.on{display:flex}
+#plfb-fab:active{transform:scale(.94)}
+#plfb-fab svg{width:26px;height:26px}
+body.dark #plfb-fab{background:#d66a7d;color:#1d1420;box-shadow:0 6px 20px rgba(0,0,0,.45)}
+body.ptly-appui #plfb-fab{bottom:calc(84px + var(--sa-bottom,0px))}
+@media print{#plfb-fab{display:none!important}}
+</style>
+<button type="button" id="plfb-fab" data-i18n-title="fb.entry" title="Help &amp; suggestions" aria-label="Help &amp; suggestions" onclick="plFeedbackOpen('bubble')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"/><path d="M8.5 10.5h7M8.5 13.5h4.5"/></svg></button>
+<div class="plfb" id="plfb" role="dialog" aria-modal="true" aria-labelledby="fb-title">
+  <div class="fb-card">
+    <div class="fb-head">
+      <div class="fb-av" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"/><path d="M8.5 10.5h7M8.5 13.5h4.5"/></svg></div>
+      <div class="fb-hd"><b id="fb-title" data-i18n="fb.title">Patternly help</b><span><i></i><em style="font-style:normal" data-i18n="fb.status">The team reads every message</em></span></div>
+      <button class="fb-ib" type="button" id="fb-restart" data-i18n-title="fb.restart" title="New chat" aria-label="New chat">↺</button>
+      <button class="fb-ib" type="button" aria-label="Close" onclick="plFeedbackClose()">✕</button>
+    </div>
+    <div class="fb-log" id="fb-log" aria-live="polite"></div>
+    <div class="fb-chips" id="fb-chips"></div>
+    <div class="fb-bar" id="fb-bar">
+      <textarea class="fb-in" id="fb-in" rows="1" maxlength="2000" placeholder="Type your message…"></textarea>
+      <input class="fb-hp" id="fb-hp" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button class="fb-go" type="button" id="fb-go" data-i18n-title="fb.send" title="Send" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12l16-8-6 16-2.5-6.5z"/><path d="M11.5 13.5L20 4"/></svg></button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var REASONS=['problem','idea','question','account','other'];
+  var S=null, where='', signedIn=false, busy=false;
+  function $(id){ return document.getElementById(id); }
+  function tx(k,v){ var s=k; try{ s=window.plT?plT(k):k; }catch(e){} if(v) for(var n in v) s=s.split('{'+n+'}').join(v[n]); return s; }
+  function platform(){ try{ if(window.Capacitor && Capacitor.getPlatform){ var p=Capacitor.getPlatform(); if(p==='ios'||p==='android') return p; } }catch(e){} return 'web'; }
+  function base(){ return (window.PATTERNLY_API_BASE||'/apps/patternly'); }
+  function qs(){ try{ return (typeof plSessQS==='function')?plSessQS():''; }catch(e){ return ''; } }
+  function getName(){ try{ return (localStorage.getItem('pl_fb_name')||'').slice(0,40); }catch(e){ return ''; } }
+  function setName(n){ try{ if(n) localStorage.setItem('pl_fb_name',n); else localStorage.removeItem('pl_fb_name'); }catch(e){} }
+  function scroll(){ var l=$('fb-log'); l.scrollTop=l.scrollHeight; }
+  function el(cls,text){ var d=document.createElement('div'); d.className=cls; if(text!=null) d.textContent=text; return d; }
+  function me(text){ var d=el('fb-m me',text); $('fb-log').appendChild(d); scroll(); return d; }
+  function bot(text,then){
+    var t=el('fb-typing'); t.innerHTML='<i></i><i></i><i></i>'; $('fb-log').appendChild(t); scroll();
+    setTimeout(function(){ t.remove(); $('fb-log').appendChild(el('fb-m bot',text)); scroll(); if(then) then(); }, 420);
+  }
+  function chips(list){
+    var c=$('fb-chips'); c.innerHTML='';
+    (list||[]).forEach(function(o){ var b=document.createElement('button'); b.type='button'; b.className='fb-chip'; b.textContent=o[0]; b.onclick=function(){ c.innerHTML=''; o[1](); }; c.appendChild(b); });
+    scroll();
+  }
+  function input(on,ph,max){
+    $('fb-bar').classList.toggle('off',!on);
+    if(on){ var i=$('fb-in'); i.placeholder=ph||tx('fb.msgPh'); i.maxLength=max||2000; i.value=''; grow();
+      setTimeout(function(){ try{ if(!(window.matchMedia&&matchMedia('(pointer:coarse)').matches)) i.focus(); }catch(e){} },40); }
+  }
+  function grow(){ var i=$('fb-in'); i.style.height='auto'; i.style.height=Math.min(120,i.scrollHeight)+'px'; $('fb-go').disabled=!i.value.trim(); }
+  function reasonChips(){ chips(REASONS.map(function(r){ return [tx('fb.r.'+r), function(){ pick(r); }]; })); }
+  function askReason(first){
+    var n=S.name;
+    bot(first==='back'?tx('fb.back',{name:n}):(n?tx('fb.nice',{name:n}):tx('fb.nice0')), function(){ S.step='reason'; input(false); reasonChips(); });
+  }
+  function pick(r){
+    S.reason=r; me(tx('fb.r.'+r));
+    if(signedIn && S.contact==null && (r==='problem'||r==='account'||r==='question')){
+      bot(tx('fb.email'),function(){ S.step='email'; chips([[tx('fb.emailYes'),function(){ S.contact=true; me(tx('fb.emailYes')); prompt(); }],[tx('fb.emailNo'),function(){ S.contact=false; me(tx('fb.emailNo')); prompt(); }]]); });
+    } else prompt();
+  }
+  function prompt(){
+    bot(tx('fb.a.'+S.reason),function(){
+      S.step='msg'; input(true);
+      if(S.reason==='question') chips([[tx('fb.guide'),function(){ plFeedbackClose(); try{ openGuide(); }catch(e){} }]]);
+    });
+  }
+  function afterSent(){
+    bot(S.name?tx('fb.sent',{name:S.name}):tx('fb.sent0'),function(){
+      S.step='after'; input(false);
+      chips([[tx('fb.more'),function(){ me(tx('fb.more')); S.step='msg'; input(true); }],
+             [tx('fb.other'),function(){ me(tx('fb.other')); S.step='reason'; bot(tx('fb.nice0'),reasonChips); }],
+             [tx('fb.done'),function(){ me(tx('fb.done')); bot(tx('fb.bye'),function(){ S.step='done'; chips([[tx('fb.restart'),start]]); }); }]]);
+    });
+  }
+  async function submit(){
+    if(busy) return;
+    var v=$('fb-in').value.trim(); if(!v) return;
+    if(S.step==='name'){
+      var n=v.replace(/\s+/g,' ').slice(0,40); S.name=n; setName(n); me(n); input(false); chips([]); askReason(); return;
+    }
+    if(S.step!=='msg') return;
+    if(v.length<5){ bot(tx('fb.short')); return; }
+    busy=true; $('fb-go').disabled=true; var bub=me(v); $('fb-in').value=''; grow(); input(false); chips([]);
+    var lang='en'; try{ lang=(window.plCurrentLang?plCurrentLang():'en'); }catch(e){}
+    var ok=false, lim=false;
+    try{
+      var r=await fetch(base()+'/feedback'+qs(),{method:'POST',credentials:'include',headers:{'content-type':'application/json'},
+        body:JSON.stringify({kind:S.reason,text:v,name:S.name||'',conv:S.conv,lang:lang,platform:platform(),app:(typeof PATTERNLY_BUILD==='string'?PATTERNLY_BUILD:''),where:where,contact:S.contact===true,hp:$('fb-hp').value})});
+      var j=null; try{ j=await r.json(); }catch(e){}
+      ok=!!(j&&j.ok); lim=!!(j&&j.limit);
+      if(j && j.error==='too short'){ busy=false; bub.classList.add('fail'); bot(tx('fb.short'),function(){ input(true); $('fb-in').value=v; grow(); }); return; }
+    }catch(e){}
+    busy=false;
+    if(ok){ afterSent(); return; }
+    bub.classList.add('fail'); var er=el('fb-err',tx(lim?'fb.limit':'fb.err')); $('fb-log').appendChild(er); scroll();
+    if(!lim){ input(true); $('fb-in').value=v; grow(); }
+    else chips([[tx('fb.done'),function(){ plFeedbackClose(); }]]);
+  }
+  function start(){
+    S={step:'', name:getName(), reason:'', contact:null, conv:Date.now().toString(36)+Math.random().toString(36).slice(2,6)};
+    $('fb-log').innerHTML=''; chips([]); input(false);
+    $('fb-log').appendChild(el('fb-priv',tx('fb.privacy')));
+    if(S.name){ askReason('back'); }
+    else bot(tx('fb.hi'),function(){ S.step='name'; input(true,tx('fb.namePh'),40); chips([[tx('fb.skip'),function(){ me(tx('fb.skip')); input(false); askReason(); }]]); });
+  }
+  async function checkSignedIn(){
+    try{ var r=await fetch(base()+'/whoami'+qs(),{credentials:'include',cache:'no-store'}); var j=r.ok?await r.json():null; signedIn=!!(j && j.loggedIn); }catch(e){ signedIn=false; }
+  }
+  window.plFeedbackOpen=function(w){
+    where=String(w||'');
+    $('plfb').classList.add('on');
+    try{ if(typeof lpCloseMenu==='function') lpCloseMenu(); }catch(e){}
+    checkSignedIn();
+    if(!S || S.step==='done') start(); else scroll();
+  };
+  window.plFeedbackClose=function(){ $('plfb').classList.remove('on'); try{ $('fb-in').blur(); }catch(e){} };
+  function init(){
+    $('fb-go').onclick=submit;
+    $('fb-in').addEventListener('input',grow);
+    $('fb-in').addEventListener('keydown',function(e){ if(e.key==='Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); submit(); } });
+    $('fb-restart').onclick=start;
+    $('plfb').addEventListener('click',function(e){ if(e.target===this) plFeedbackClose(); });
+    document.addEventListener('keydown',function(e){ if(e.key==='Escape' && $('plfb').classList.contains('on')) plFeedbackClose(); });
+    // Floating bubble: shown only on the home page and quiet info pages; hidden in every working screen,
+    // while a sheet or menu is open, and while the keyboard is up (a text field has focus).
+    var SHOW_IN=['account-mode','guide-mode','trackerguide-mode','pricing-mode','subs-mode','threads-mode','calc-mode'];
+    var fab=$('plfb-fab');
+    function fabUpdate(){
+      var c=document.body.classList, modes=[].filter.call(c,function(x){ return /-mode$/.test(x) && x!=='pan-mode'; });
+      var page=modes.length===0 || modes.every(function(m){ return SHOW_IN.indexOf(m)>=0; });
+      var a=document.activeElement, typing=!!(a && (a.tagName==='TEXTAREA' || (a.tagName==='INPUT' && !/^(checkbox|radio|button|submit|range|color|file)$/i.test(a.type||'')) || a.isContentEditable));
+      var busy2=c.contains('qc-open') || c.contains('mm-open') || $('plfb').classList.contains('on') || !!document.querySelector('.plshop.on,#plcam.on,#plol.on');
+      fab.classList.toggle('on', page && !busy2 && !typing);
+    }
+    window.plFeedbackFabUpdate=fabUpdate;
+    try{ new MutationObserver(fabUpdate).observe(document.body,{attributes:true,attributeFilter:['class']}); }catch(e){}
+    try{ new MutationObserver(fabUpdate).observe($('plfb'),{attributes:true,attributeFilter:['class']}); }catch(e){}
+    document.addEventListener('focusin',fabUpdate); document.addEventListener('focusout',function(){ setTimeout(fabUpdate,50); });
+    setInterval(fabUpdate,1500);
+    fabUpdate();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
 })();
 </script>
 </body>

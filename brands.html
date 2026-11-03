@@ -4,7 +4,7 @@
   Proprietary software: no part of this code may be copied, modified, reused or
   redistributed without written permission from UK Luca-S LTD.
   Third-party parts keep their own licences (noted where they appear).
-  Studio v53
+  Studio v54
 -->
 <html lang="en">
 <head>
@@ -790,6 +790,19 @@
       <div class="card">
         <h2>Sent</h2>
         <div id="pn-log"><div class="note">Loading…</div></div>
+      </div>
+    </div>
+    <div id="tab-afeedback" style="display:none">
+      <!-- v54: suggestions and problem reports sent from the app and website ("Help & suggestions") -->
+      <div class="card">
+        <h2>Feedback <button class="ghost" id="fb-refresh" style="float:right;padding:.3rem .7rem;font-size:.76rem">Refresh</button></h2>
+        <div class="note" style="margin:0 0 .8rem">Messages from the help chat in the app and website (one row per message; messages from the same chat share a chat tag). Only the first name they typed is kept; an email shows only when a signed-in person said “Yes, email me”. A summary of the last 7 days is saved every Monday for planning new builds.</div>
+        <div class="row" style="gap:.5rem;align-items:center;flex-wrap:wrap">
+          <select id="fb-f-kind"><option value="">All reasons</option><option value="problem">Problems</option><option value="idea">Ideas</option><option value="question">Questions</option><option value="account">Account or Plus</option><option value="other">Something else</option></select>
+          <select id="fb-f-status"><option value="open">New and planned</option><option value="">All</option><option value="new">New</option><option value="planned">Planned</option><option value="done">Done</option><option value="notnow">Not now</option></select>
+          <span class="note" id="fb-sum" style="margin:0"></span>
+        </div>
+        <div id="fb-box" style="margin-top:.8rem"><div class="note">Loading…</div></div>
       </div>
     </div>
   </div>
@@ -3105,7 +3118,7 @@ function convUrl(){
 // ── tabs (v7) ────────────────────────────────────────────────────
 let CUST_LOADED=false;
 function showTab(name){
-  ['overview','patterns','converter','customers','account','aov','abrands','apatterns','acustomers','abranding','ausers','apush'].forEach(t=>{
+  ['overview','patterns','converter','customers','account','aov','abrands','apatterns','acustomers','abranding','ausers','apush','afeedback'].forEach(t=>{
     const el=$('tab-'+t); if(el) el.style.display = (t===name)?'':'none';
   });
   document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
@@ -3126,6 +3139,7 @@ function showTab(name){
   if(name==='acustomers' && !ACUST_LOADED){ ACUST_LOADED=true; loadAdminCustomers(); }
   if(name==='ausers' && !AUSERS_LOADED){ AUSERS_LOADED=true; loadUsers(); }
   if(name==='apush'){ pnBind(); pnLoad(); }
+  if(name==='afeedback'){ fbBind(); fbLoad(); }
 }
 document.querySelectorAll('#tabbar button').forEach(b=>{ b.onclick=()=>showTab(b.dataset.tab); });
 function showPublish(on){
@@ -3223,7 +3237,7 @@ $('ov-refresh').onclick=loadOverview;
 
 // v43: every tab has its own URL (#overview, #users, #notifications …) so a
 // reload lands on the same page. Internal tab ids stay as they are.
-const TAB_SLUGS={aov:'overview',abrands:'brands',apatterns:'patterns',converter:'converter',acustomers:'customers',abranding:'branding',ausers:'users',apush:'notifications',overview:'overview',patterns:'patterns',customers:'customers',account:'account'};
+const TAB_SLUGS={aov:'overview',abrands:'brands',apatterns:'patterns',converter:'converter',acustomers:'customers',abranding:'branding',ausers:'users',apush:'notifications',afeedback:'feedback',overview:'overview',patterns:'patterns',customers:'customers',account:'account'};
 function tabFromHash(){
   const h=(location.hash||'').replace(/^#\/?/,'').toLowerCase(); if(!h) return null;
   const admin=!!(SESSION&&SESSION.admin);
@@ -3233,7 +3247,7 @@ function tabFromHash(){
 window.addEventListener('hashchange',()=>{ if(SESSION){ const t=tabFromHash(); if(t) showTab(t); } });
 const TABS_PARTNER=[['overview','Overview'],['patterns','My Patterns'],['converter','Converter'],['customers','My Customers'],['account','My Account']];
 // v37: third element = scope a team user needs; 'owner' = master key only.
-const TABS_ADMIN=[['aov','Overview',null],['abrands','Brands','brands'],['apatterns','Patterns','patterns'],['converter','Converter','converter'],['acustomers','Customers','customers'],['abranding','Branding','branding'],['ausers','Users','owner'],['apush','Notifications','owner']];
+const TABS_ADMIN=[['aov','Overview',null],['abrands','Brands','brands'],['apatterns','Patterns','patterns'],['converter','Converter','converter'],['acustomers','Customers','customers'],['abranding','Branding','branding'],['ausers','Users','owner'],['apush','Notifications','owner'],['afeedback','Feedback','owner']];
 const ALL_SCOPES=['patterns','converter','customers','brands','branding'];
 function hasScope(s){
   if(!SESSION||!SESSION.admin) return false;
@@ -4085,6 +4099,54 @@ $('aov-refresh').onclick=loadAdminOverview;
 // ===== v41: push notifications (owner only) =====
 let PN_BOUND=false, PN_BUSY=false;
 const pnEsc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+/* v54: Feedback tab (owner only). Text from the public is shown with textContent-safe escaping only. */
+let FB_ITEMS=[], FB_BOUND=false;
+const FB_STATUS={new:'New',planned:'Planned',done:'Done',notnow:'Not now'};
+const FB_PLAT={ios:'iPhone app',android:'Android app',web:'Website'};
+const FB_KIND={problem:'🐞 Problem',idea:'💡 Idea',question:'❓ Question',account:'👤 Account or Plus',other:'💬 Something else'};
+function fbBind(){
+  if(FB_BOUND) return; FB_BOUND=true;
+  $('fb-refresh').onclick=fbLoad; $('fb-f-kind').onchange=fbRender; $('fb-f-status').onchange=fbRender;
+}
+async function fbLoad(){
+  $('fb-box').innerHTML='<div class="note">Loading…</div>';
+  try{
+    const r=await fetch(API+'admin/feedback',{headers:adminHeaders()}); const d=await r.json();
+    if(!d.ok){ $('fb-box').innerHTML='<div class="note">'+pnEsc(d.error||'Could not load')+'</div>'; return; }
+    FB_ITEMS=d.items||[]; fbRender();
+  }catch(e){ $('fb-box').innerHTML='<div class="note">Could not load feedback.</div>'; }
+}
+function fbRender(){
+  const k=$('fb-f-kind').value, s=$('fb-f-status').value;
+  const list=FB_ITEMS.filter(x=>(!k||x.kind===k)&&(!s||(s==='open'?(x.status==='new'||x.status==='planned'):x.status===s)));
+  const nNew=FB_ITEMS.filter(x=>x.status==='new').length;
+  $('fb-sum').textContent=FB_ITEMS.length+' in all · '+nNew+' new';
+  if(!list.length){ $('fb-box').innerHTML='<div class="note">Nothing here yet.</div>'; return; }
+  $('fb-box').innerHTML=list.map(x=>{
+    const d=new Date(x.ts); const when=d.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'})+' '+d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+    const meta=[FB_KIND[x.kind]||x.kind, x.name?('from '+x.name):'', x.conv?('chat '+x.conv.slice(-4)):'', FB_PLAT[x.platform]||x.platform, (x.lang||'').toUpperCase(), x.app, x.where?('via '+x.where):'' ].filter(Boolean).map(pnEsc).join(' · ');
+    const opts=Object.keys(FB_STATUS).map(v=>'<option value="'+v+'"'+(v===x.status?' selected':'')+'>'+FB_STATUS[v]+'</option>').join('');
+    const mail=x.email?'<a href="mailto:'+pnEsc(encodeURIComponent(x.email).replace(/%40/g,'@'))+'" style="color:var(--red);font-weight:700">'+pnEsc(x.email)+'</a>':'';
+    return '<div style="border-top:1px solid var(--border);padding:.75rem 0">'
+      +'<div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;font-size:.74rem;color:var(--muted)"><b style="color:var(--ink)">'+pnEsc(when)+'</b><span>'+meta+'</span>'
+      +'<span style="margin-left:auto;display:inline-flex;gap:.4rem;align-items:center"><select data-fbid="'+pnEsc(x.id)+'" class="fb-st">'+opts+'</select>'
+      +'<button class="ghost fb-del" data-fbid="'+pnEsc(x.id)+'" style="padding:.25rem .6rem;font-size:.74rem">Delete</button></span></div>'
+      +'<div style="white-space:pre-wrap;word-break:break-word;font-size:.9rem;margin:.35rem 0 0;color:var(--ink)">'+pnEsc(x.text)+'</div>'
+      +(mail?'<div class="note" style="margin-top:.3rem">Reply to: '+mail+'</div>':'')
+      +'</div>';
+  }).join('');
+  document.querySelectorAll('#fb-box .fb-st').forEach(sel=>{ sel.onchange=()=>fbUpdate(sel.dataset.fbid,{status:sel.value}); });
+  document.querySelectorAll('#fb-box .fb-del').forEach(b=>{ b.onclick=()=>{ if(b.dataset.armed){ fbUpdate(b.dataset.fbid,{delete:true}); } else { b.dataset.armed='1'; b.textContent='Delete?'; setTimeout(()=>{ delete b.dataset.armed; b.textContent='Delete'; },3000); } }; });
+}
+async function fbUpdate(id,patch){
+  try{
+    const r=await fetch(API+'admin/feedback/update',{method:'POST',headers:adminHeaders(true),body:JSON.stringify(Object.assign({id},patch))}); const d=await r.json();
+    if(!d.ok){ alertMsg(d.error||'Could not save'); return; }
+    if(d.deleted) FB_ITEMS=FB_ITEMS.filter(x=>x.id!==id); else FB_ITEMS=FB_ITEMS.map(x=>x.id===id?d.item:x);
+    fbRender();
+  }catch(e){ alertMsg('Could not save'); }
+}
+function alertMsg(m){ const s=$('fb-sum'); if(s){ s.textContent=m; s.style.color='var(--warn)'; setTimeout(()=>{ s.style.color=''; fbRender(); },2500); } }
 const PN_LANG_NAMES={en:'English',fr:'French',de:'German',nl:'Dutch',ru:'Russian',uk:'Ukrainian',es:'Spanish',it:'Italian'};
 const PN_TR_LANGS=['fr','de','nl','es','it','ru','uk'];
 function pnI18nBuild(){ $('pn-i18n').innerHTML=PN_TR_LANGS.map(l=>'<div class="row" style="margin-top:.5rem;align-items:flex-start"><div style="max-width:120px;padding-top:.6rem;font-size:.8rem;font-weight:700;color:var(--muted)">'+PN_LANG_NAMES[l]+'</div><div style="max-width:300px"><input type="text" data-tl="'+l+'" data-f="title" maxlength="80" placeholder="Title"></div><div><input type="text" data-tl="'+l+'" data-f="body" maxlength="240" placeholder="Message"></div></div>').join(''); }
