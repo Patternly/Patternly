@@ -15,7 +15,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v105";
+const MW_VERSION = "v106";
 
 const enc = new TextEncoder();
 
@@ -1940,6 +1940,59 @@ async function handlePartnerApi(request, url, env) {
     if (!env.PUSH_CRON_KEY || !ck || !timingSafeEqual(ck, env.PUSH_CRON_KEY)) return partnerJson(401, { ok:false, error:"cron key required" });
     if (!env.ENTITLEMENTS) return partnerJson(500, { ok:false, error:"storage not configured" });
     return partnerJson(200, { ok:true, ...(await pushAutoRun(env)) });
+  }
+  // ── v106: feedback inbox (owner only) + weekly summary for the GitHub job ──
+  // GET admin/feedback            -> {items:[...newest first]}   (x-admin-key, owner)
+  // POST admin/feedback/update    -> {id, status} or {id, delete:true}
+  // GET admin/feedback/summary?days=7 with x-cron-key = PUSH_CRON_KEY (or an owner
+  //     key) -> the same items WITHOUT email, for the weekly summary file.
+  if (sub === "admin/feedback" || sub.startsWith("admin/feedback/")) {
+    if (!env.ENTITLEMENTS) return partnerJson(500, { ok:false, error:"storage not configured" });
+    const ck = (request.headers.get("x-cron-key") || "").trim();
+    const cronOk = sub === "admin/feedback/summary" && !!env.PUSH_CRON_KEY && !!ck && timingSafeEqual(ck, env.PUSH_CRON_KEY);
+    if (!cronOk) {
+      if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+      if (!ADM.master && !ADM.owner) return partnerJson(403, { ok:false, error:"Only the owner can see feedback." });
+    }
+    const loadAll = async () => {
+      const names = []; let cursor;
+      for (let page = 0; page < 10; page++) {
+        const listed = await env.ENTITLEMENTS.list({ prefix: "fb:", limit: 1000, cursor });
+        for (const k of listed.keys) names.push(k.name);
+        if (!listed.list_complete) cursor = listed.cursor; else break;
+      }
+      names.sort().reverse();
+      return (await kvJsonMany(env, names.slice(0, 2000))).filter(Boolean);
+    };
+    if ((sub === "admin/feedback" || sub === "admin/feedback/summary") && request.method === "GET") {
+      let items = await loadAll();
+      if (sub === "admin/feedback/summary") {
+        const days = Math.max(1, Math.min(90, +(url.searchParams.get("days") || 7) || 7));
+        const since = Date.now() - days * 86400000;
+        items = items.filter(r => r.ts >= since || r.status === "new").map(r => { const { email, name, ...rest } = r; return { ...rest, contact: !!email }; });
+        return partnerJson(200, { ok:true, days, since, items });
+      }
+      return partnerJson(200, { ok:true, items });
+    }
+    if (sub === "admin/feedback/update" && request.method === "POST") {
+      let b; try { b = await request.json(); } catch (e) { return partnerJson(400, { ok:false, error:"bad json" }); }
+      const id = String((b && b.id) || "");
+      if (!/^\d{13}:[A-Z0-9]{6}$/.test(id)) return partnerJson(400, { ok:false, error:"bad id" });
+      const k = "fb:" + id;
+      let rec = null; try { rec = JSON.parse((await env.ENTITLEMENTS.get(k)) || "null"); } catch (e) {}
+      if (!rec) return partnerJson(404, { ok:false, error:"not found" });
+      if (b.delete === true) {
+        await env.ENTITLEMENTS.delete(k);
+        try { const n = +((await env.ENTITLEMENTS.get("fbcount")) || 0) || 0; await env.ENTITLEMENTS.put("fbcount", String(Math.max(0, n - 1))); } catch (e) {}
+        return partnerJson(200, { ok:true, deleted:true });
+      }
+      const st = String(b.status || "");
+      if (!["new", "planned", "done", "notnow"].includes(st)) return partnerJson(400, { ok:false, error:"bad status" });
+      rec.status = st;
+      await env.ENTITLEMENTS.put(k, JSON.stringify(rec), { metadata: { kind: rec.kind, status: st, ts: rec.ts } });
+      return partnerJson(200, { ok:true, item: rec });
+    }
+    return partnerJson(404, { ok:false, error:"unknown feedback route" });
   }
   // ── v93: push notifications (owner only) ─────────────────────────────────
   if (sub.startsWith("admin/push/")) {
@@ -4088,6 +4141,52 @@ async function handleRequest(context) {
     await env.ENTITLEMENTS.put(key, JSON.stringify(rec), { metadata: { lang, plus, cid: rec.cid } });
     if (rec.cid) { try { await env.ENTITLEMENTS.put("pushcid:" + rec.cid + ":" + await sha256b64(token), key); } catch (e) {} }   // v97: per-customer device index
     return new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
+  }
+
+  // v106: POST /feedback — the in-app help chat ("Help & suggestions"): one record per message,
+  // kind = problem | idea | question | account | other, optional first name and a chat id (conv).
+  // Stored in ENTITLEMENTS under "fb:<ts>:<rand>" (value = full record, metadata =
+  // the few fields the Studio list needs). Privacy: no IP, no name; the account id
+  // only to count the rate limit, and an email ONLY when a signed-in user said
+  // "Yes, email me". Caps: 10 a day per account or IP, 2,000 chars, 5,000 stored.
+  if (url.pathname.endsWith("/feedback") && url.pathname.indexOf("/partner/") < 0) {
+    const h = { "content-type": "application/json", "cache-control": "no-store" };
+    const out = (code, obj) => new Response(JSON.stringify(obj), { status: code, headers: h });
+    if (request.method !== "POST") return out(405, { ok: false, error: "method not allowed" });
+    if (!env.ENTITLEMENTS) return out(200, { ok: false, error: "not available right now" });
+    let b; try { b = await request.json(); } catch (e) { return out(200, { ok: false, error: "bad json" }); }
+    if (b && b.hp) return out(200, { ok: true });                       // honeypot: pretend it worked
+    const kind = ["problem", "idea", "question", "account", "other"].includes(String((b && b.kind) || "")) ? String(b.kind) : "other";
+    const name = String((b && b.name) || "").replace(/[\u0000-\u001F\u007F<>]/g, "").replace(/\s+/g, " ").trim().slice(0, 40);
+    const conv = String((b && b.conv) || "").replace(/[^a-z0-9]/gi, "").slice(0, 20);
+    const text = String((b && b.text) || "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").replace(/\s+\n/g, "\n").trim().slice(0, 2000);
+    if (text.length < 5) return out(200, { ok: false, error: "too short" });
+    const plat = ["ios", "android", "web"].includes(String(b.platform || "")) ? String(b.platform) : "web";
+    const lang = PUSH_LANGS.includes(String(b.lang || "").slice(0, 2)) ? String(b.lang).slice(0, 2) : "en";
+    const app = String(b.app || "").replace(/[^\w.\-]/g, "").slice(0, 20);
+    const where = String(b.where || "").replace(/[^\w\-]/g, "").slice(0, 30);
+    const ip = auth.proxied
+      ? String(request.headers.get("x-forwarded-for") || "").split(",")[0].trim()
+      : String(request.headers.get("cf-connecting-ip") || "").trim();
+    const who = auth.loggedIn && auth.customerId ? "c" + auth.customerId : (ip ? "i" + await sha256b64(ip) : "");
+    const day = new Date().toISOString().slice(0, 10);
+    if (who) {
+      const rk = "rlfb:" + day + ":" + who;
+      let n = 0; try { n = +((await env.ENTITLEMENTS.get(rk)) || 0) || 0; } catch (e) {}
+      if (n >= 10) return out(200, { ok: false, error: "limit", limit: true });
+      try { await env.ENTITLEMENTS.put(rk, String(n + 1), { expirationTtl: 90000 }); } catch (e) {}
+    }
+    let total = 0; try { total = +((await env.ENTITLEMENTS.get("fbcount")) || 0) || 0; } catch (e) {}
+    if (total >= 5000) return out(200, { ok: false, error: "inbox full" });
+    const ts = Date.now();
+    const id = String(ts).padStart(13, "0") + ":" + randAlpha(6);
+    const rec = { id, ts, kind, text, lang, platform: plat, app, where, status: "new" };
+    if (name) rec.name = name;
+    if (conv) rec.conv = conv;
+    if (b.contact === true && auth.loggedIn && auth.email) rec.email = String(auth.email).slice(0, 200);
+    await env.ENTITLEMENTS.put("fb:" + id, JSON.stringify(rec), { metadata: { kind, status: "new", ts } });
+    try { await env.ENTITLEMENTS.put("fbcount", String(total + 1)); } catch (e) {}
+    return out(200, { ok: true });
   }
 
   // v100: GET /streak -> {streak, best, days:[...]} for the signed-in customer
