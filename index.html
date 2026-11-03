@@ -5472,7 +5472,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v660';
+window.PATTERNLY_BUILD='v661';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -38054,6 +38054,173 @@ body.dark #plsx-map{border-color:#211a2b}
     if(typeof window.plApplyLang==='function' && !window.plApplyLang._sx){
       var al=window.plApplyLang; window.plApplyLang=function(){ var r=al.apply(this,arguments); try{ labels(); refresh(); }catch(e){} return r; }; window.plApplyLang._sx=1;
     }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
+  else setTimeout(init,0);
+})();
+</script>
+<!-- ═══ v661: APP TRACKER LIST ═════════════════════════════════════════════
+     In the app (body.ptly-appui) the Tracker tab's own front page (body.pltl-home:
+     tracker-mode, no pattern open, #trk-projects showing) shows the saved
+     patterns first: a compact header with "+ Add pattern" (a sheet with the four
+     existing ways in: kit catalogue, scan, upload, restore backup), filter chips
+     (All / In progress / Finished, read from each card's progress bar), the
+     existing cards as full-width rows (tap anywhere = Open), a slim streak row
+     and the guide as one line at the bottom. The cards, cloud cards and their
+     buttons are the existing ones, untouched. The website keeps its layout. ═══ -->
+<style id="pltl-style">
+#pltl-head,#pltl-foot,#pltl-empty,#pltl-sheet,#pltl-scrim{display:none}
+body.ptly-appui.pltl-home #pltl-head{display:flex}
+body.ptly-appui.pltl-home #pltl-foot{display:block}
+body.ptly-appui.pltl-home.pltl-none #pltl-empty{display:flex}
+body.ptly-appui.pltl-home #tracker-page .calc-title,
+body.ptly-appui.pltl-home #tracker-page .calc-sub,
+body.ptly-appui.pltl-home #trk-newpat,
+body.ptly-appui.pltl-home #trk-guide-banner,
+body.ptly-appui.pltl-home .trk-viewtog,
+body.ptly-appui.pltl-home .trk-slide-arrow{display:none!important}
+#pltl-head{flex-direction:column;gap:12px;max-width:640px;margin:.4rem auto 14px;font-family:'DM Sans',system-ui,sans-serif}
+#pltl-head .r1{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#pltl-head h1{font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:1.75rem;margin:0;color:var(--lp-ink,#1a1520);line-height:1.1}
+#pltl-add{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:999px;background:var(--lp-red,#8B1A2B);color:#fff;font:inherit;font-weight:700;font-size:.9rem;padding:.6rem 1rem;cursor:pointer;flex:none}
+#pltl-add svg{width:16px;height:16px;stroke:currentColor;stroke-width:2.4;fill:none;stroke-linecap:round}
+#pltl-chips{display:flex;gap:6px;flex-wrap:wrap}
+#pltl-chips button{font:inherit;font-size:.8rem;font-weight:700;border:1px solid var(--lp-border,#e8e4f0);background:#fff;color:var(--lp-muted,#5a5268);border-radius:999px;padding:.32rem .8rem;cursor:pointer}
+body.dark #pltl-chips button{background:#221b2d}
+#pltl-chips button[aria-pressed="true"]{background:var(--lp-ink,#1a1520);color:var(--lp-paper,#fdf9f5);border-color:var(--lp-ink,#1a1520)}
+body.dark #pltl-chips button[aria-pressed="true"]{background:#efe9f3;color:#171220;border-color:#efe9f3}
+/* cards as full-width rows */
+body.ptly-appui.pltl-home #trk-projects{max-width:640px;margin:0 auto}
+body.ptly-appui.pltl-home .trk-cardgrid{display:flex!important;flex-direction:column;gap:10px;overflow:visible;padding:0 0 .6rem;margin:0}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard{flex:0 0 auto;display:flex;align-items:center;border-radius:16px;cursor:pointer;width:auto!important}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .thumb{width:84px;height:84px;flex:0 0 84px;margin:8px 0 8px 8px;border-radius:10px;object-fit:cover}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .body{flex:1;min-width:0;padding:10px 12px}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .body h4{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .body > .meta + .trk-pbar + .meta{display:none!important}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .row{margin-top:8px}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard.pltl-off{display:none!important}
+body.ptly-appui.pltl-home .trk-sec-head{max-width:none!important;margin:6px 0 8px!important}
+body.ptly-appui.pltl-home .trk-sec-head h2{font-size:.78rem!important;font-family:'DM Sans',system-ui,sans-serif!important;letter-spacing:.08em;text-transform:uppercase;color:var(--lp-muted,#5a5268)!important}
+body.ptly-appui.pltl-home #trk-uploads-head a{font-size:.7rem!important;text-transform:none;letter-spacing:0}
+body.ptly-appui.pltl-home #trk-streak{max-width:none;margin:0 0 14px;padding:.55rem .8rem;border-radius:14px}
+#pltl-empty{flex-direction:column;align-items:center;gap:8px;text-align:center;padding:26px 18px;margin:0 0 14px;border:1.5px dashed var(--lp-border,#e8e4f0);border-radius:16px;color:var(--lp-muted,#5a5268);font-size:.9rem}
+#pltl-empty b{color:var(--lp-ink,#1a1520);font-size:1rem}
+#pltl-foot{text-align:center;font-size:.85rem;color:var(--lp-muted,#5a5268);margin:12px 0 22px}
+#pltl-foot a{color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none}
+body.dark #pltl-foot a{color:#e0a9b4}
+/* add sheet */
+#pltl-scrim{position:fixed;inset:0;z-index:9500;background:rgba(10,5,15,.4)}
+#pltl-sheet{position:fixed;left:0;right:0;bottom:0;z-index:9501;background:#fff;border-radius:22px 22px 0 0;padding:10px 16px calc(84px + var(--sa-bottom,0px));flex-direction:column;gap:4px;box-shadow:0 -10px 30px rgba(0,0,0,.18);font-family:'DM Sans',system-ui,sans-serif;max-width:640px;margin:0 auto}
+body.dark #pltl-sheet{background:#211a2b;color:#efe9f3}
+body.pltl-sheet #pltl-scrim{display:block}
+body.pltl-sheet #pltl-sheet{display:flex}
+#pltl-sheet .grab{width:38px;height:4px;border-radius:4px;background:var(--lp-border,#e8e4f0);margin:0 auto 8px}
+#pltl-sheet .lbl{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--lp-muted,#5a5268);font-weight:700;margin:0 0 4px}
+#pltl-sheet button.r{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:0;background:none;font:inherit;color:inherit;padding:10px 4px;border-radius:12px;cursor:pointer}
+#pltl-sheet button.r:active{background:var(--lp-red-light,#fdedf0)}
+#pltl-sheet b{display:block;font-size:.95rem}
+#pltl-sheet small{display:block;color:var(--lp-muted,#5a5268);font-size:.8rem}
+#pltl-sheet .ic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none}
+#pltl-sheet .ic svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#pltl-sheet .ic.r{background:#fdedf0;color:#8B1A2B}#pltl-sheet .ic.p{background:#f0ebfc;color:#6b4fb0}#pltl-sheet .ic.g{background:#fef6e4;color:#a86a00}
+body.dark #pltl-sheet .ic.r{background:#3a2028;color:#e0a9b4}body.dark #pltl-sheet .ic.p{background:#2b2338;color:#c4b0f0}body.dark #pltl-sheet .ic.g{background:#31281a;color:#e0a64a}
+#pltl-sheet .beta{font-size:.6rem;font-weight:700;color:#6b4fb0;background:#f0ebfc;border-radius:6px;padding:1px 5px;margin-left:5px;vertical-align:2px}
+</style>
+<script id="pltl-src">
+(function(){
+  var S={
+    en:{"tl.title":"Stitch Tracker","tl.add":"Add pattern","tl.all":"All","tl.prog":"In progress","tl.fin":"Finished","tl.sheet":"Add a pattern to track","tl.kit":"Kit pattern","tl.kitsub":"Luca-S and partner kits, by QR or code","tl.scan":"Scan a paper chart","tl.scansub":"Photos or PDF of a printed chart","tl.up":"Upload a chart file","tl.upsub":"PDF, OXS, .pat or .ptly","tl.bk":"Restore a backup","tl.bksub":"A backup file saved from Patternly","tl.new":"New here?","tl.guide":"Read the guide","tl.empty":"No patterns yet","tl.emptysub":"Tap Add pattern to open a kit, scan a chart or upload one.","tl.nomatch":"Nothing here yet."},
+    fr:{"tl.title":"Suivi de broderie","tl.add":"Ajouter","tl.all":"Tout","tl.prog":"En cours","tl.fin":"Terminés","tl.sheet":"Ajouter une grille à suivre","tl.kit":"Grille d'un kit","tl.kitsub":"Kits Luca-S et partenaires, par QR ou code","tl.scan":"Scanner une grille papier","tl.scansub":"Photos ou PDF d'une grille imprimée","tl.up":"Importer un fichier","tl.upsub":"PDF, OXS, .pat ou .ptly","tl.bk":"Restaurer une sauvegarde","tl.bksub":"Un fichier de sauvegarde Patternly","tl.new":"Nouveau ici ?","tl.guide":"Lire le guide","tl.empty":"Aucune grille pour l'instant","tl.emptysub":"Touchez Ajouter pour ouvrir un kit, scanner ou importer une grille.","tl.nomatch":"Rien ici pour l'instant."},
+    de:{"tl.title":"Stich-Tracker","tl.add":"Hinzufügen","tl.all":"Alle","tl.prog":"In Arbeit","tl.fin":"Fertig","tl.sheet":"Muster zum Verfolgen hinzufügen","tl.kit":"Packungsmuster","tl.kitsub":"Luca-S- und Partnerpackungen, per QR oder Code","tl.scan":"Papiervorlage scannen","tl.scansub":"Fotos oder PDF einer gedruckten Vorlage","tl.up":"Vorlagendatei hochladen","tl.upsub":"PDF, OXS, .pat oder .ptly","tl.bk":"Sicherung wiederherstellen","tl.bksub":"Eine in Patternly gespeicherte Sicherung","tl.new":"Neu hier?","tl.guide":"Anleitung lesen","tl.empty":"Noch keine Muster","tl.emptysub":"Tippe auf Hinzufügen, um eine Packung zu öffnen, eine Vorlage zu scannen oder hochzuladen.","tl.nomatch":"Hier ist noch nichts."},
+    nl:{"tl.title":"Steekvolger","tl.add":"Toevoegen","tl.all":"Alles","tl.prog":"Bezig","tl.fin":"Klaar","tl.sheet":"Patroon toevoegen om te volgen","tl.kit":"Pakketpatroon","tl.kitsub":"Luca-S- en partnerpakketten, via QR of code","tl.scan":"Papieren patroon scannen","tl.scansub":"Foto's of PDF van een geprint patroon","tl.up":"Patroonbestand uploaden","tl.upsub":"PDF, OXS, .pat of .ptly","tl.bk":"Back-up terugzetten","tl.bksub":"Een back-upbestand uit Patternly","tl.new":"Nieuw hier?","tl.guide":"Lees de gids","tl.empty":"Nog geen patronen","tl.emptysub":"Tik op Toevoegen om een pakket te openen, een patroon te scannen of te uploaden.","tl.nomatch":"Hier staat nog niets."},
+    ru:{"tl.title":"Трекер вышивки","tl.add":"Добавить","tl.all":"Все","tl.prog":"В работе","tl.fin":"Готовые","tl.sheet":"Добавить схему","tl.kit":"Схема из набора","tl.kitsub":"Наборы Luca-S и партнёров, по QR или коду","tl.scan":"Сканировать бумажную схему","tl.scansub":"Фото или PDF печатной схемы","tl.up":"Загрузить файл схемы","tl.upsub":"PDF, OXS, .pat или .ptly","tl.bk":"Восстановить из копии","tl.bksub":"Файл резервной копии Patternly","tl.new":"Впервые здесь?","tl.guide":"Прочитать руководство","tl.empty":"Пока нет схем","tl.emptysub":"Нажмите «Добавить», чтобы открыть набор, отсканировать или загрузить схему.","tl.nomatch":"Здесь пока ничего нет."},
+    uk:{"tl.title":"Трекер вишивки","tl.add":"Додати","tl.all":"Усі","tl.prog":"У роботі","tl.fin":"Готові","tl.sheet":"Додати схему","tl.kit":"Схема з набору","tl.kitsub":"Набори Luca-S і партнерів, за QR або кодом","tl.scan":"Сканувати паперову схему","tl.scansub":"Фото або PDF друкованої схеми","tl.up":"Завантажити файл схеми","tl.upsub":"PDF, OXS, .pat або .ptly","tl.bk":"Відновити з копії","tl.bksub":"Файл резервної копії Patternly","tl.new":"Уперше тут?","tl.guide":"Прочитати посібник","tl.empty":"Поки немає схем","tl.emptysub":"Натисніть «Додати», щоб відкрити набір, відсканувати або завантажити схему.","tl.nomatch":"Тут поки нічого немає."},
+    es:{"tl.title":"Seguimiento de puntadas","tl.add":"Añadir","tl.all":"Todos","tl.prog":"En curso","tl.fin":"Terminados","tl.sheet":"Añadir un patrón para seguir","tl.kit":"Patrón de un kit","tl.kitsub":"Kits de Luca-S y marcas socias, por QR o código","tl.scan":"Escanear un patrón en papel","tl.scansub":"Fotos o PDF de un patrón impreso","tl.up":"Subir un archivo","tl.upsub":"PDF, OXS, .pat o .ptly","tl.bk":"Restaurar una copia","tl.bksub":"Un archivo de copia de Patternly","tl.new":"¿Nuevo aquí?","tl.guide":"Lee la guía","tl.empty":"Aún no hay patrones","tl.emptysub":"Toca Añadir para abrir un kit, escanear o subir un patrón.","tl.nomatch":"Aquí aún no hay nada."},
+    it:{"tl.title":"Tracker dei punti","tl.add":"Aggiungi","tl.all":"Tutti","tl.prog":"In corso","tl.fin":"Finiti","tl.sheet":"Aggiungi uno schema da seguire","tl.kit":"Schema di un kit","tl.kitsub":"Kit Luca-S e dei partner, con QR o codice","tl.scan":"Scansiona uno schema cartaceo","tl.scansub":"Foto o PDF di uno schema stampato","tl.up":"Carica un file","tl.upsub":"PDF, OXS, .pat o .ptly","tl.bk":"Ripristina un backup","tl.bksub":"Un file di backup di Patternly","tl.new":"Nuovo qui?","tl.guide":"Leggi la guida","tl.empty":"Ancora nessuno schema","tl.emptysub":"Tocca Aggiungi per aprire un kit, scansionare o caricare uno schema.","tl.nomatch":"Qui non c'è ancora niente."}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; return s; }
+  function app(){ return document.body.classList.contains('ptly-appui'); }
+  var filter='all', head, foot, empty;
+  var IC={
+    kit:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M20 20h.01M17 20v.01"/>',
+    scan:'<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/>',
+    up:'<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
+    bk:'<path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/>'
+  };
+  function row(id,ic,cls,t,s,beta){ return '<button type="button" class="r" data-go="'+id+'"><span class="ic '+cls+'"><svg viewBox="0 0 24 24">'+IC[ic]+'</svg></span><span><b>'+t+(beta?'<span class="beta">BETA</span>':'')+'</b><small>'+s+'</small></span></button>'; }
+  function render(){
+    if(!head) return;
+    head.querySelector('h1').textContent=tx('tl.title');
+    head.querySelector('#pltl-add span').textContent=tx('tl.add');
+    var ch=head.querySelectorAll('#pltl-chips button'); ch[0].textContent=tx('tl.all'); ch[1].textContent=tx('tl.prog'); ch[2].textContent=tx('tl.fin');
+    foot.innerHTML=tx('tl.new')+' <a href="#">'+tx('tl.guide')+'</a>';
+    empty._h=null;
+    var sh=document.getElementById('pltl-sheet');
+    sh.innerHTML='<div class="grab"></div><p class="lbl">'+tx('tl.sheet')+'</p>'
+      +row('lucas','kit','r',tx('tl.kit'),tx('tl.kitsub'))
+      +row('scan','scan','p',tx('tl.scan'),tx('tl.scansub'),1)
+      +row('other','up','r',tx('tl.up'),tx('tl.upsub'))
+      +row('backup','bk','g',tx('tl.bk'),tx('tl.bksub'));
+  }
+  function sheet(on){ document.body.classList.toggle('pltl-sheet',!!on); }
+  function pct(card){ var b=card.querySelector('.trk-pbar>div'); if(!b) return -1; var w=parseFloat(b.style.width); return isNaN(w)?-1:w; }
+  function apply(){
+    var cards=document.querySelectorAll('#trk-projects .trk-cardgrid > .trk-pcard'), shown=0;
+    cards.forEach(function(c){
+      if(c.classList.contains('new')){ c.classList.add('pltl-off'); return; }
+      var p=pct(c), off=false;
+      if(filter==='prog') off=(p>=100); else if(filter==='fin') off=(p<100);
+      c.classList.toggle('pltl-off',off); if(!off) shown++;
+      if(!c._pltl){ c._pltl=1; c.addEventListener('click',function(e){
+        if(!document.body.classList.contains('pltl-home')) return;
+        if(e.target.closest('button,a,input')) return;
+        var o=c.querySelector('button.open'); if(o) o.click(); }); }
+    });
+    var none=!cards.length || !shown, h=!cards.length ? '<b>'+tx('tl.empty')+'</b><span>'+tx('tl.emptysub')+'</span>' : '<span>'+tx('tl.nomatch')+'</span>';
+    if(document.body.classList.contains('pltl-none')!==none) document.body.classList.toggle('pltl-none',none);
+    if(empty._h!==h){ empty._h=h; empty.innerHTML=h; }   // guarded: this node sits inside the observed list
+  }
+  function state(){
+    var b=document.body.classList, ws=document.getElementById('trk-workspace'), pr=document.getElementById('trk-projects');
+    var on=app() && b.contains('tracker-mode') && !b.contains('trk-fs') && ws && ws.style.display==='none' && pr && pr.style.display!=='none';
+    if(b.contains('pltl-home')!==on) b.toggle('pltl-home',on);
+    if(!on) sheet(false); else apply();
+  }
+  function go(kind){
+    sheet(false);
+    if(kind==='backup'){ try{ trkImportPick(); }catch(e){} return; }
+    try{ trkChooseSource(kind); }catch(e){}
+  }
+  function init(){
+    if(!app()) return;
+    var up=document.getElementById('trk-upload'), pr=document.getElementById('trk-projects'); if(!up||!pr) return;
+    head=document.createElement('div'); head.id='pltl-head';
+    head.innerHTML='<div class="r1"><h1></h1><button type="button" id="pltl-add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span></span></button></div>'
+      +'<div id="pltl-chips" role="group"><button type="button" data-f="all" aria-pressed="true"></button><button type="button" data-f="prog" aria-pressed="false"></button><button type="button" data-f="fin" aria-pressed="false"></button></div>';
+    up.insertBefore(head, up.firstChild);
+    empty=document.createElement('div'); empty.id='pltl-empty'; pr.insertBefore(empty, pr.firstChild);
+    var st=document.getElementById('trk-streak'); if(st && st.parentNode===pr) pr.insertBefore(st, pr.firstChild);
+    foot=document.createElement('div'); foot.id='pltl-foot'; pr.appendChild(foot);
+    var sc=document.createElement('div'); sc.id='pltl-scrim'; document.body.appendChild(sc);
+    var sh=document.createElement('div'); sh.id='pltl-sheet'; sh.setAttribute('role','dialog'); document.body.appendChild(sh);
+    render();
+    head.querySelector('#pltl-add').onclick=function(){ sheet(true); };
+    head.querySelectorAll('#pltl-chips button').forEach(function(b){ b.onclick=function(){
+      filter=b.getAttribute('data-f'); head.querySelectorAll('#pltl-chips button').forEach(function(x){ x.setAttribute('aria-pressed', x===b?'true':'false'); }); apply(); }; });
+    foot.addEventListener('click',function(e){ if(e.target.closest('a')){ e.preventDefault(); try{ openTrackerGuide(); }catch(_){} } });
+    sc.onclick=function(){ sheet(false); };
+    sh.addEventListener('click',function(e){ var r=e.target.closest('[data-go]'); if(r) go(r.getAttribute('data-go')); });
+    document.addEventListener('keydown',function(e){ if(e.key==='Escape') sheet(false); });
+    var mo=new MutationObserver(state);
+    mo.observe(document.body,{attributes:true,attributeFilter:['class']});
+    ['trk-workspace','trk-projects'].forEach(function(id){ var el=document.getElementById(id); if(el) mo.observe(el,{attributes:true,attributeFilter:['style']}); });
+    // Cards arrive asynchronously (cloud and account cards): filter them as they land.
+    new MutationObserver(function(){ if(document.body.classList.contains('pltl-home')) apply(); }).observe(pr,{childList:true,subtree:true});
+    if(typeof window.plApplyLang==='function' && !window.plApplyLang._tl){
+      var al=window.plApplyLang; window.plApplyLang=function(){ var r=al.apply(this,arguments); try{ render(); apply(); }catch(e){} return r; }; window.plApplyLang._tl=1;
+    }
+    state();
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
   else setTimeout(init,0);
