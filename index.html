@@ -5472,7 +5472,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v666';
+window.PATTERNLY_BUILD='v667';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -39136,6 +39136,150 @@ body.dark.ptly-appui .cbrow.pcl.done .lf{color:#7cc47f}
     if(typeof window.plApplyLang==='function' && !window.plApplyLang._pcl){
       var al=window.plApplyLang; window.plApplyLang=function(){ var r=al.apply(this,arguments); try{ var c=document.getElementById('pcl-chips'); if(c) c._h=null; apply(); }catch(e){} return r; }; window.plApplyLang._pcl=1;
     }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
+  else setTimeout(init,0);
+})();
+</script>
+<style id="pcd-style">
+/* v667 – app pattern cards as in the approved pictures. Tracker list: picture, name, size line, progress bar,
+   "N% done"; the whole card opens, Rename/Delete move into a ⋯ menu. My designs: padded cards with a rounded
+   picture, "Saved designs · N" row with Select. App only. */
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard{position:relative;align-items:center;gap:0;border:1px solid #eee2e5;border-radius:18px;box-shadow:none;padding:0}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .thumb{width:72px;height:72px;flex:0 0 72px;margin:10px 0 10px 10px;border-radius:12px;object-fit:cover;background:#fff;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .body{padding:10px 44px 10px 12px}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .body h4{font-size:.95rem;margin:0 0 2px}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .body > .meta:first-of-type{margin-bottom:8px;font-size:.74rem}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .trk-pbar{height:5px;border-radius:3px}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .row{display:none!important}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .trk-pbar ~ .meta{display:none!important}
+body.ptly-appui #pj-selbar{left:12px;right:12px;transform:none;max-width:none;gap:10px}
+body.ptly-appui #pj-selbar .pj-selbar-info{flex:1;min-width:0}
+body.ptly-appui #pj-selbar .pj-selbar-del{white-space:nowrap}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .pcd-pct{display:block;font-size:.74rem;color:#8a7a82;margin-top:6px}
+.pcd-pct,.pcd-more{display:none}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .pcd-more{display:grid;place-items:center;position:absolute;top:8px;right:6px;width:34px;height:34px;border:0;border-radius:10px;background:none;color:#8a7a82;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.pcd-more svg{width:18px;height:18px;fill:currentColor}
+#pcd-menu{display:none;position:fixed;z-index:9600;min-width:180px;background:#fff;border:1px solid #eee2e5;border-radius:14px;box-shadow:0 14px 40px rgba(43,34,38,.22);padding:6px}
+#pcd-menu.open{display:block}
+#pcd-menu button{display:block;width:100%;text-align:left;padding:11px 12px;border:0;background:none;border-radius:10px;font:inherit;font-size:.9rem;color:#2b2226;cursor:pointer}
+#pcd-menu button.danger{color:#b23b3b}
+#pcd-scrim{display:none;position:fixed;inset:0;z-index:9599}
+#pcd-scrim.open{display:block}
+body.dark.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard{border-color:#37303f}
+body.dark.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .trk-pbar{background:#342b3f}
+body.dark.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .pcd-pct,body.dark .pcd-more{color:#a99fb2}
+body.dark #pcd-menu{background:#221c30;border-color:#37303f}
+body.dark #pcd-menu button{color:#ece4ef}body.dark #pcd-menu button.danger{color:#f08a8a}
+/* My designs */
+body.ptly-appui #pjd-count,body.ptly-appui #projects-page .pj-tools #pj-select-btn{display:none!important}
+#pcd-saved{display:none}
+body.ptly-appui #pcd-saved{display:flex;align-items:center;justify-content:space-between;margin:0 2px 8px}
+#pcd-saved .lbl{font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9a8890}
+#pcd-saved button{border:0;background:none;font:inherit;font-size:.82rem;font-weight:700;color:#8B1A2B;cursor:pointer;padding:4px 2px}
+#pcd-saved button:disabled{opacity:.4}
+body.ptly-appui #projects-page #pjd-searchbtn{border-radius:50%;width:40px;height:40px}
+body.ptly-appui #pj-grid .pj-card{padding:8px;border:1px solid #eee2e5;border-radius:18px;box-shadow:none;background:#fff}
+body.ptly-appui #pj-grid .pj-thumb{aspect-ratio:4/3;border-radius:12px;overflow:hidden;background:#fff;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+body.ptly-appui #pj-grid .pj-info{padding:8px 4px 2px}
+body.ptly-appui #pj-grid .pj-menu-btn{top:12px;right:12px;width:28px;height:28px}
+body.ptly-appui #pj-grid .pj-check{top:14px;left:14px}
+body.dark #pcd-saved button{color:#f0b3c0}
+body.dark.ptly-appui #pj-grid .pj-card{background:#221c30;border-color:#37303f}
+</style>
+<script id="pcd-src">
+(function(){
+  var S={
+    en:{"cd.pct":"{p}% done","cd.done":"Finished ✓","cd.rename":"Rename","cd.delete":"Delete","cd.saved":"Saved designs","cd.select":"Select","cd.of":"{n} of {c}"},
+    fr:{"cd.pct":"{p} % fait","cd.done":"Terminé ✓","cd.rename":"Renommer","cd.delete":"Supprimer","cd.saved":"Créations enregistrées","cd.select":"Choisir","cd.of":"{n} sur {c}"},
+    de:{"cd.pct":"{p} % fertig","cd.done":"Fertig ✓","cd.rename":"Umbenennen","cd.delete":"Löschen","cd.saved":"Gespeicherte Designs","cd.select":"Auswählen","cd.of":"{n} von {c}"},
+    nl:{"cd.pct":"{p}% klaar","cd.done":"Klaar ✓","cd.rename":"Hernoemen","cd.delete":"Verwijderen","cd.saved":"Opgeslagen ontwerpen","cd.select":"Selecteren","cd.of":"{n} van {c}"},
+    ru:{"cd.pct":"Готово {p}%","cd.done":"Завершено ✓","cd.rename":"Переименовать","cd.delete":"Удалить","cd.saved":"Сохранённые дизайны","cd.select":"Выбрать","cd.of":"{n} из {c}"},
+    uk:{"cd.pct":"Готово {p}%","cd.done":"Завершено ✓","cd.rename":"Перейменувати","cd.delete":"Видалити","cd.saved":"Збережені дизайни","cd.select":"Вибрати","cd.of":"{n} з {c}"},
+    es:{"cd.pct":"{p}% hecho","cd.done":"Terminado ✓","cd.rename":"Renombrar","cd.delete":"Eliminar","cd.saved":"Diseños guardados","cd.select":"Elegir","cd.of":"{n} de {c}"},
+    it:{"cd.pct":"{p}% fatto","cd.done":"Finito ✓","cd.rename":"Rinomina","cd.delete":"Elimina","cd.saved":"Design salvati","cd.select":"Seleziona","cd.of":"{n} di {c}"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; return s; }
+  function app(){ return document.body.classList.contains('ptly-appui'); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  var menu, scrim, menuCard=null;
+  function closeMenu(){ if(menu){ menu.classList.remove('open'); scrim.classList.remove('open'); } menuCard=null; }
+  function openMenu(card, btn){
+    if(!menu){
+      menu=document.createElement('div'); menu.id='pcd-menu'; scrim=document.createElement('div'); scrim.id='pcd-scrim';
+      document.body.appendChild(scrim); document.body.appendChild(menu);
+      scrim.addEventListener('click',closeMenu);
+      menu.addEventListener('click',function(e){
+        var b=e.target.closest('button'); if(!b||!menuCard) return; var c=menuCard, a=b.getAttribute('data-a'); closeMenu();
+        var t=c.querySelector('.row .'+(a==='ren'?'ren':'del')); if(t) t.click();
+      });
+    }
+    var h='';
+    if(card.querySelector('.row .ren')) h+='<button data-a="ren">'+esc(tx('cd.rename'))+'</button>';
+    if(card.querySelector('.row .del')) h+='<button data-a="del" class="danger">'+esc(tx('cd.delete'))+'</button>';
+    if(!h) return;
+    menu.innerHTML=h; menuCard=card;
+    var r=btn.getBoundingClientRect();
+    menu.style.top=Math.min(r.bottom+4, window.innerHeight-140)+'px'; menu.style.right=Math.max(8, window.innerWidth-r.right)+'px';
+    menu.classList.add('open'); scrim.classList.add('open');
+  }
+  function trackerCards(){
+    if(!app()) return;
+    var cards=document.querySelectorAll('#trk-projects .trk-cardgrid > .trk-pcard:not(.new)');
+    for(var i=0;i<cards.length;i++){
+      var c=cards[i], body=c.querySelector('.body'); if(!body) continue;
+      var bar=body.querySelector('.trk-pbar>div'), p=bar?Math.round(parseFloat(bar.style.width)||0):null;
+      var pc=body.querySelector('.pcd-pct');
+      if(bar){
+        if(!pc){ pc=document.createElement('span'); pc.className='pcd-pct'; var pb=body.querySelector('.trk-pbar'); pb.parentNode.insertBefore(pc, pb.nextSibling); }
+        var s=p>=100?tx('cd.done'):tx('cd.pct').replace('{p}',p);
+        if(pc.textContent!==s) pc.textContent=s;
+      }
+      var hasActs=c.querySelector('.row .ren, .row .del');
+      var mb=c.querySelector(':scope > .pcd-more');
+      if(hasActs && !mb){
+        mb=document.createElement('button'); mb.type='button'; mb.className='pcd-more'; mb.setAttribute('aria-label','More');
+        mb.innerHTML='<svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>';
+        mb.addEventListener('click',function(e){ e.stopPropagation(); openMenu(this.parentNode,this); });
+        c.appendChild(mb);
+      }
+    }
+  }
+  var saved;
+  function designs(){
+    if(!app()) return;
+    var grid=document.getElementById('pj-grid'); if(!grid) return;
+    if(!saved){
+      saved=document.createElement('div'); saved.id='pcd-saved';
+      saved.innerHTML='<span class="lbl"></span><button type="button"></button>';
+      var sr=document.getElementById('pjd-search');
+      grid.parentNode.insertBefore(saved, sr||grid);
+      saved.querySelector('button').addEventListener('click',function(){ var b=document.getElementById('pj-select-btn'); if(b && !b.disabled) b.click(); });
+    }
+    var n=0, c=null; try{ n=pjLoadAll().length; c=pjSlotCap(); }catch(e){}
+    var lbl=tx('cd.saved')+' · '+((c&&isFinite(c))?tx('cd.of').replace('{n}',n).replace('{c}',c):n);
+    var l=saved.querySelector('.lbl'); if(l.textContent!==lbl) l.textContent=lbl;
+    var sb=document.getElementById('pj-select-btn'), sl=sb&&sb.querySelector('.pj-sel-label'), b=saved.querySelector('button');
+    var inSel=(typeof pjSelectMode!=='undefined' && pjSelectMode);
+    var bt=inSel&&sl?sl.textContent:tx('cd.select'); if(b.textContent!==bt) b.textContent=bt;
+    b.disabled=!!(sb&&sb.disabled); saved.style.display=n?'':'none';
+  }
+  function init(){
+    if(!app()){
+      if(!init._mo){ init._mo=new MutationObserver(function(){ if(app()){ init._mo.disconnect(); init(); } }); init._mo.observe(document.body,{attributes:true,attributeFilter:['class']}); }
+      return;
+    }
+    var pr=document.getElementById('trk-projects');
+    if(pr) new MutationObserver(function(){ try{ trackerCards(); }catch(e){} }).observe(pr,{childList:true,subtree:true});
+    var g=document.getElementById('pj-grid');
+    if(g) new MutationObserver(function(){ try{ designs(); }catch(e){} }).observe(g,{childList:true});
+    var sb=document.getElementById('pj-select-btn');
+    if(sb) new MutationObserver(function(){ try{ designs(); }catch(e){} }).observe(sb,{childList:true,subtree:true,characterData:true,attributes:true});
+    if(typeof window.plApplyLang==='function' && !window.plApplyLang._pcd){
+      var al=window.plApplyLang; window.plApplyLang=function(){ var r=al.apply(this,arguments); try{ trackerCards(); designs(); }catch(e){} return r; }; window.plApplyLang._pcd=1;
+    }
+    trackerCards(); designs();
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
   else setTimeout(init,0);
