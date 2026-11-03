@@ -5472,7 +5472,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v658';
+window.PATTERNLY_BUILD='v660';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -37813,6 +37813,249 @@ body.dark #pl-apphome .ah-dots i.on{background:#c8566a}
   }
   // ptly-appui is added on DOMContentLoaded by the app-nav script above; run after it.
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(init,0); });
+  else setTimeout(init,0);
+})();
+</script>
+<!-- ═══ v660: APP STITCHING SCREEN ══════════════════════════════════════════
+     In the app (body.ptly-appui) an opened tracker pattern goes straight into
+     full view (body.trk-fs) and full view is restyled as the stitching screen:
+     a slim top bar (back, name, % done, stitches today, ⋯ = Settings sheet), the
+     four mode buttons with their names, a small colour circle (selected colour's
+     swatch + symbol + number; tap = the existing Colours sheet) and a mini map
+     of the whole chart (tap = jump there). Read-only: progress, marking and sync
+     are the existing functions; nothing here writes stitch data. Desktop and
+     the website keep the old layout. ═══ -->
+<style id="plsx-style">
+#plsx-top,#plsx-col,#plsx-map{display:none}
+body.ptly-appui.trk-fs #trk-fsutil,body.ptly-appui.trk-fs #trk-fszoom{display:none!important}
+body.ptly-appui.trk-fs #plsx-top{display:flex}
+body.ptly-appui.trk-fs #trk-canvas-wrap{padding-top:calc(var(--sa-top,0px) + 66px);padding-bottom:calc(var(--sa-bottom,0px) + 80px)}
+body.ptly-appui.trk-fs #plsx-col{display:flex}
+body.ptly-appui.trk-fs #plsx-map.on{display:block}
+body.ptly-appui.trk-fs.trk-cbopen #plsx-col,body.ptly-appui.trk-fs.trk-setopen #plsx-col,
+body.ptly-appui.trk-fs.trk-cbopen #plsx-map,body.ptly-appui.trk-fs.trk-setopen #plsx-map{display:none!important}
+#plsx-top{position:fixed;left:10px;right:10px;top:calc(var(--sa-top,env(safe-area-inset-top,0px)) + 8px);z-index:9460;align-items:center;gap:8px;
+  background:rgba(255,255,255,.94);border:1px solid #e8e4f0;border-radius:16px;padding:6px 8px;box-shadow:0 4px 18px rgba(43,34,38,.14);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  transition:transform .28s ease,opacity .28s ease;font-family:'DM Sans',system-ui,sans-serif;color:#1a1520}
+body.dark #plsx-top{background:rgba(33,26,43,.94);border-color:#37303f;color:#efe9f3}
+#plsx-top button{flex:none;width:38px;height:38px;border-radius:50%;border:1px solid #e8e4f0;background:#fff;color:inherit;display:grid;place-items:center;cursor:pointer;padding:0}
+body.dark #plsx-top button{background:#211a2b;border-color:#37303f}
+#plsx-top svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#plsx-top .t{flex:1;min-width:0;line-height:1.25}
+#plsx-top b{display:block;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#plsx-top small{display:block;font-size:.74rem;font-weight:600;color:#5a5268;font-variant-numeric:tabular-nums}
+body.dark #plsx-top small{color:#b6abc2}
+#plsx-ring{flex:none;width:38px;height:38px}
+#plsx-ring .bg{stroke:#e8e4f0}#plsx-ring .fg{stroke:#8B1A2B}
+body.dark #plsx-ring .bg{stroke:#37303f}body.dark #plsx-ring .fg{stroke:#c8566a}
+#plsx-ring text{fill:currentColor;font:700 10px 'DM Sans',system-ui,sans-serif}
+/* the four modes keep their names; the pill sits bottom-left, the colour circle bottom-right */
+body.ptly-appui.trk-fs #trk-fsbar{left:10px;right:auto;transform:none;bottom:calc(max(.7rem,var(--sa-bottom)) + 4px);gap:4px;padding:5px;background:rgba(43,34,38,.92)}
+body.ptly-appui.trk-fs #trk-fsbar button{width:auto;min-width:54px;height:52px;padding:0 8px;border-radius:16px;border:0;flex-direction:column;gap:2px;font-size:1.1rem}
+body.ptly-appui.trk-fs #trk-fsbar button span{display:block;font-size:.66rem;font-weight:700;color:inherit}
+body.ptly-appui.fsbar-hidden #trk-fsbar{transform:translateY(180%)}
+#plsx-col{position:fixed;right:12px;bottom:calc(max(.7rem,var(--sa-bottom)) + 4px);z-index:9450;width:62px;height:62px;border-radius:50%;border:3px solid #fff;
+  box-shadow:0 0 0 1px rgba(0,0,0,.12),0 8px 22px rgba(43,34,38,.3);align-items:center;justify-content:center;cursor:pointer;padding:0;background:#2b2226;color:#fff;font-family:'DM Sans',system-ui,sans-serif;transition:transform .15s}
+body.dark #plsx-col{border-color:#211a2b}
+#plsx-col:active{transform:scale(.94)}
+#plsx-col .sy{display:grid;place-items:center;width:30px;height:30px;font-size:22px;line-height:1;color:#1a1520}
+#plsx-col img.sy{width:28px;height:28px;object-fit:contain}
+#plsx-col .pal{width:26px;height:26px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#plsx-col .nr{position:absolute;left:50%;transform:translateX(-50%);top:-11px;background:#1a1520;color:#fff;border:2px solid #fff;border-radius:999px;font-size:.68rem;font-weight:800;padding:1px 7px;white-space:nowrap;max-width:92px;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+body.dark #plsx-col .nr{border-color:#211a2b}
+#plsx-map{position:fixed;right:12px;top:calc(var(--sa-top,env(safe-area-inset-top,0px)) + 66px);z-index:9450;border-radius:10px;overflow:hidden;border:2px solid #fff;box-shadow:0 4px 16px rgba(43,34,38,.25);background:#fff;cursor:pointer}
+body.dark #plsx-map{border-color:#211a2b}
+#plsx-map canvas{display:block;image-rendering:pixelated}
+#plsx-map i{position:absolute;border:2px solid #8B1A2B;background:rgba(139,26,43,.14);border-radius:2px;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#plsx-col:active{transform:none}}
+</style>
+<script id="plsx-src">
+(function(){
+  var S={
+    en:{"sx.done":"{p}% done","sx.today":"+{n} today","sx.back":"Back to my patterns","sx.more":"Settings","sx.map":"Whole chart, tap to jump there"},
+    fr:{"sx.done":"{p} % fait","sx.today":"+{n} aujourd'hui","sx.back":"Retour à mes grilles","sx.more":"Réglages","sx.map":"Grille entière, touchez pour y aller"},
+    de:{"sx.done":"{p} % fertig","sx.today":"+{n} heute","sx.back":"Zurück zu meinen Mustern","sx.more":"Einstellungen","sx.map":"Ganze Vorlage, tippen zum Springen"},
+    nl:{"sx.done":"{p}% klaar","sx.today":"+{n} vandaag","sx.back":"Terug naar mijn patronen","sx.more":"Instellingen","sx.map":"Hele patroon, tik om erheen te gaan"},
+    ru:{"sx.done":"Готово {p}%","sx.today":"+{n} сегодня","sx.back":"Назад к моим схемам","sx.more":"Настройки","sx.map":"Вся схема, нажмите, чтобы перейти"},
+    uk:{"sx.done":"Готово {p}%","sx.today":"+{n} сьогодні","sx.back":"Назад до моїх схем","sx.more":"Налаштування","sx.map":"Уся схема, торкніться, щоб перейти"},
+    es:{"sx.done":"{p} % hecho","sx.today":"+{n} hoy","sx.back":"Volver a mis patrones","sx.more":"Ajustes","sx.map":"Patrón completo, toca para ir"},
+    it:{"sx.done":"{p}% fatto","sx.today":"+{n} oggi","sx.back":"Torna ai miei schemi","sx.more":"Impostazioni","sx.map":"Schema intero, tocca per andarci"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k,v){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; if(v) for(var n in v) s=s.split('{'+n+'}').join(v[n]); return s; }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function app(){ return document.body.classList.contains('ptly-appui'); }
+  function fs(){ return document.body.classList.contains('trk-fs'); }
+  var top,col,map,mapCv,mapBox,mapKey='',wake=null,leaving=false;
+
+  function build(){
+    top=document.createElement('div'); top.id='plsx-top';
+    top.innerHTML='<button type="button" id="plsx-back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>'
+      +'<div class="t"><b id="plsx-name"></b><small id="plsx-sub"></small></div>'
+      +'<svg id="plsx-ring" viewBox="0 0 40 40"><circle class="bg" cx="20" cy="20" r="16" fill="none" stroke-width="4"/><circle class="fg" id="plsx-arc" cx="20" cy="20" r="16" fill="none" stroke-width="4" stroke-linecap="round" transform="rotate(-90 20 20)" stroke-dasharray="0 101"/><text id="plsx-pct" x="20" y="23.5" text-anchor="middle">0</text></svg>'
+      +'<button type="button" id="plsx-more"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></button>';
+    document.body.appendChild(top);
+    col=document.createElement('button'); col.type='button'; col.id='plsx-col';
+    document.body.appendChild(col);
+    map=document.createElement('div'); map.id='plsx-map'; map.setAttribute('role','button');
+    mapCv=document.createElement('canvas'); mapBox=document.createElement('i');
+    map.appendChild(mapCv); map.appendChild(mapBox); document.body.appendChild(map);
+    document.getElementById('plsx-back').onclick=back;
+    document.getElementById('plsx-more').onclick=function(){ try{ trkFsPanel(document.getElementById('fsb-settings').classList.contains('active')?null:'settings'); }catch(e){} };
+    col.onclick=function(){ try{ trkToggleColourBar(); }catch(e){} };
+    map.addEventListener('click', jump);
+    labels();
+  }
+  function labels(){
+    try{
+      document.getElementById('plsx-back').setAttribute('aria-label',tx('sx.back'));
+      document.getElementById('plsx-more').setAttribute('aria-label',tx('sx.more'));
+      map.setAttribute('aria-label',tx('sx.map')); map.title=tx('sx.map');
+    }catch(e){}
+  }
+  function back(){
+    leaving=true;
+    try{ trkToggleFullscreen(false); }catch(e){}
+    try{ trkWorkspaceBack(); }catch(e){}
+    setTimeout(function(){ leaving=false; },400);
+  }
+
+  // ── top bar: name, % done, stitches marked today (from the tracker index) ──
+  function entry(){ try{ var id=trackerActiveProjectKey; return (trkIndex()||[]).find(function(p){ return p.id===id; })||null; }catch(e){ return null; } }
+  function today(p){
+    if(!p||!p.sessions) return 0;
+    var t=new Date().toISOString().slice(0,10), base=0, keys=Object.keys(p.sessions).filter(function(k){ return k<t; }).sort();
+    if(keys.length) base=p.sessions[keys[keys.length-1]]|0;
+    if(p.sessions[t]==null) return 0;
+    return Math.max(0,(p.done|0)-base);
+  }
+  function updTop(){
+    if(!top) return;
+    var p=entry(), name=(typeof trackerProjectName!=='undefined'&&trackerProjectName)||(p&&p.name)||'';
+    var done=p?p.done|0:0, total=p?p.total|0:0, pct=total?Math.min(100,Math.floor(done/total*100)):0;
+    document.getElementById('plsx-name').textContent=name;
+    var sub=tx('sx.done',{p:pct}), n=today(p); if(n>0) sub+=' · '+tx('sx.today',{n:n.toLocaleString()});
+    document.getElementById('plsx-sub').textContent=sub;
+    document.getElementById('plsx-pct').textContent=String(pct);
+    document.getElementById('plsx-arc').setAttribute('stroke-dasharray',(pct/100*100.5).toFixed(1)+' 101');
+  }
+
+  // ── colour circle: the selected colour's swatch, symbol and number ──
+  function symHtml(sym){
+    try{
+      var useFont=!!(trackerGrid&&trackerGrid.chartFont==='CrossStitch3'&&trackerChartFontReady);
+      var spr=trackerSprites&&trackerSprites[sym];
+      if(useFont){
+        var g=(trkFinalToRaw&&trkFinalToRaw[sym])||sym;
+        if(trackerGrid.fontMissing&&trackerGrid.fontMissing.has(g)&&spr) return '<img class="sy" alt="" src="'+esc(spr.url)+'">';
+        return '<span class="sy" style="font-family:'+esc(trkChartFontStack)+'">'+esc(g)+'</span>';
+      }
+      if(spr) return '<img class="sy" alt="" src="'+esc(spr.url)+'">';
+      return '<span class="sy">'+esc(sym.length>1?sym[0]:sym)+'</span>';
+    }catch(e){ return ''; }
+  }
+  var PAL='<svg class="pal" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1 0 1.6-.8 1.6-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5c0-4-4-7.2-9-7.2z"/><circle cx="7.5" cy="11.5" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15.5" cy="7.5" r="1"/></svg>';
+  function updCol(){
+    if(!col) return;
+    var sel=null; try{ if(trkSelectedSyms&&trkSelectedSyms.size===1) sel=trkSelectedSyms.values().next().value; }catch(e){}
+    var c=null; try{ c=sel&&trackerColourMap?trackerColourMap[sel]:null; }catch(e){}
+    var T=window.plT||function(k){return k;};
+    if(sel&&c){
+      col.style.background='rgb('+c.r+','+c.g+','+c.b+')';
+      var nr=c.code||c.label||'';
+      col.innerHTML=symHtml(sel)+(nr?'<span class="nr">'+esc(nr)+'</span>':'');
+      var lum=0.3*c.r+0.59*c.g+0.11*c.b, sy=col.querySelector('span.sy'); if(sy) sy.style.color=lum<110?'#fff':'#1a1520';
+      col.setAttribute('aria-label',(T('trk.colours')||'Colours')+': '+(c.label||nr));
+    }else{
+      col.style.background='';
+      var n=0; try{ n=trkSelectedSyms?trkSelectedSyms.size:0; }catch(e){}
+      col.innerHTML=PAL+(n>1?'<span class="nr">'+n+'</span>':'');
+      col.setAttribute('aria-label',T('trk.colours')||'Colours');
+    }
+  }
+
+  // ── mini map ──
+  function drawMap(){
+    try{
+      if(!trackerGrid||!trackerGrid.cells||!trackerColourMap){ map.classList.remove('on'); return; }
+      var cols=trackerGrid.cols|0, rows=trackerGrid.rows|0; if(!cols||!rows){ map.classList.remove('on'); return; }
+      var key=trackerActiveProjectKey+'|'+cols+'x'+rows;
+      if(key!==mapKey){
+        mapKey=key; mapCv.width=cols; mapCv.height=rows;
+        var x=mapCv.getContext('2d'), img=x.createImageData(cols,rows), d=img.data;
+        for(var r=0;r<rows;r++){ var row=trackerGrid.cells[r]||[]; for(var q=0;q<cols;q++){
+          var s=row[q], c=(s&&s!==' ')?trackerColourMap[s]:null, i=(r*cols+q)*4;
+          if(c){ d[i]=c.r; d[i+1]=c.g; d[i+2]=c.b; } else { d[i]=d[i+1]=d[i+2]=250; } d[i+3]=255; } }
+        x.putImageData(img,0,0);
+        var W=66, H=Math.round(W*rows/cols); if(H>96){ H=96; W=Math.round(H*cols/rows); }
+        mapCv.style.width=W+'px'; mapCv.style.height=H+'px';
+      }
+      map.classList.add('on'); box();
+    }catch(e){ map.classList.remove('on'); }
+  }
+  function geo(){
+    var wrap=document.getElementById('trk-canvas-wrap'), sz=document.getElementById('trk-scroll-sizer');
+    if(!wrap||!sz) return null;
+    var cw=sz.scrollWidth||sz.offsetWidth, ch=sz.scrollHeight||sz.offsetHeight;
+    return {wrap:wrap,cw:Math.max(cw,1),ch:Math.max(ch,1),vw:wrap.clientWidth,vh:wrap.clientHeight};
+  }
+  function box(){
+    var g=geo(); if(!g) return;
+    var W=mapCv.offsetWidth, H=mapCv.offsetHeight;
+    if(g.cw<=g.vw+2 && g.ch<=g.vh+2){ mapBox.style.display='none'; map.classList.remove('on'); return; }
+    map.classList.add('on'); mapBox.style.display='';
+    var l=Math.max(0,g.wrap.scrollLeft/g.cw), t=Math.max(0,g.wrap.scrollTop/g.ch), w=Math.min(1,g.vw/g.cw), h=Math.min(1,g.vh/g.ch);
+    mapBox.style.left=(l*W)+'px'; mapBox.style.top=(t*H)+'px'; mapBox.style.width=Math.max(6,w*W)+'px'; mapBox.style.height=Math.max(6,h*H)+'px';
+  }
+  function jump(e){
+    var g=geo(); if(!g) return;
+    var r=mapCv.getBoundingClientRect(), fx=(e.clientX-r.left)/r.width, fy=(e.clientY-r.top)/r.height;
+    g.wrap.scrollTo({left:fx*g.cw-g.vw/2, top:fy*g.ch-g.vh/2, behavior:'smooth'});
+  }
+
+  // ── keep the screen on while stitching (where the system allows it) ──
+  async function wakeOn(){ try{ if(!wake && navigator.wakeLock && document.visibilityState==='visible'){ wake=await navigator.wakeLock.request('screen'); wake.addEventListener('release',function(){ wake=null; }); } }catch(e){ wake=null; } }
+  function wakeOff(){ try{ if(wake) wake.release(); }catch(e){} wake=null; }
+
+  function refresh(){ if(!app()||!fs()) return; updTop(); updCol(); drawMap(); }
+  function init(){
+    if(!app()) return;
+    build();
+    var ws=document.getElementById('trk-workspace');
+    // An opened pattern goes straight into the stitching screen.
+    function maybeEnter(){
+      if(leaving||!ws) return;
+      var open=ws.style.display!=='none' && document.body.classList.contains('tracker-mode');
+      if(open && !fs()){ try{ trkToggleFullscreen(true); }catch(e){} }
+    }
+    if(ws) new MutationObserver(maybeEnter).observe(ws,{attributes:true,attributeFilter:['style']});
+    var was=false;
+    new MutationObserver(function(){
+      var b=document.body.classList;
+      // Leaving the tracker by any route takes the full-view state with it.
+      if(b.contains('trk-fs') && !b.contains('tracker-mode')){ try{ trkToggleFullscreen(false); }catch(e){} }
+      if(!b.contains('trk-fs') && b.contains('tracker-mode')) maybeEnter();
+      var now=fs(); if(now!==was){ was=now; if(now){ refresh(); wakeOn(); } else wakeOff(); }
+    }).observe(document.body,{attributes:true,attributeFilter:['class']});
+    var wrap=document.getElementById('trk-canvas-wrap');
+    if(wrap) wrap.addEventListener('scroll',function(){ if(fs()) requestAnimationFrame(box); },{passive:true});
+    window.addEventListener('resize',function(){ if(fs()) setTimeout(box,60); });
+    document.addEventListener('visibilitychange',function(){ if(fs()&&document.visibilityState==='visible') wakeOn(); });
+    if(typeof window.updateTrackerProgressUI==='function' && !window.updateTrackerProgressUI._sx){
+      var o=window.updateTrackerProgressUI;
+      window.updateTrackerProgressUI=function(){ var r=o.apply(this,arguments); if(fs()) setTimeout(refresh,0); return r; };
+      window.updateTrackerProgressUI._sx=1;
+    }
+    if(typeof window.renderTracker==='function' && !window.renderTracker._sx){
+      var rt=window.renderTracker;
+      window.renderTracker=function(){ var r=rt.apply(this,arguments); if(fs()) requestAnimationFrame(box); return r; };
+      window.renderTracker._sx=1;
+    }
+    if(typeof window.plApplyLang==='function' && !window.plApplyLang._sx){
+      var al=window.plApplyLang; window.plApplyLang=function(){ var r=al.apply(this,arguments); try{ labels(); refresh(); }catch(e){} return r; }; window.plApplyLang._sx=1;
+    }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
   else setTimeout(init,0);
 })();
 </script>
