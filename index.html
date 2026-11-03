@@ -5472,7 +5472,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v667';
+window.PATTERNLY_BUILD='v668';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -37859,10 +37859,11 @@ body.dark #plsx-top small{color:#b6abc2}
 body.dark #plsx-ring .bg{stroke:#37303f}body.dark #plsx-ring .fg{stroke:#c8566a}
 #plsx-ring text{fill:currentColor;font:700 10px 'DM Sans',system-ui,sans-serif}
 /* the four modes keep their names; the pill sits bottom-left, the colour circle bottom-right */
-body.ptly-appui.trk-fs #trk-fsbar{left:10px;right:auto;transform:none;bottom:calc(max(.7rem,var(--sa-bottom)) + 4px);gap:4px;padding:5px;background:rgba(43,34,38,.92)}
+body.ptly-appui.trk-fs #trk-fsbar{left:max(10px,calc(50% - 139px));right:auto;transform:none;bottom:calc(max(.7rem,var(--sa-bottom)) + 4px);gap:4px;padding:5px;background:rgba(43,34,38,.92)}
 body.ptly-appui.trk-fs #trk-fsbar button{width:auto;min-width:54px;height:52px;padding:0 8px;border-radius:16px;border:0;flex-direction:column;gap:2px;font-size:1.1rem}
 body.ptly-appui.trk-fs #trk-fsbar button span{display:block;font-size:.66rem;font-weight:700;color:inherit}
 body.ptly-appui.fsbar-hidden #trk-fsbar{transform:translateY(180%)}
+/* v668: tools sit toward the centre (Cristian), kept clear of the colour circle on the right */
 #plsx-col{position:fixed;right:12px;bottom:calc(max(.7rem,var(--sa-bottom)) + 4px);z-index:9450;width:62px;height:62px;border-radius:50%;border:3px solid #fff;
   box-shadow:0 0 0 1px rgba(0,0,0,.12),0 8px 22px rgba(43,34,38,.3);align-items:center;justify-content:center;cursor:pointer;padding:0;background:#2b2226;color:#fff;font-family:'DM Sans',system-ui,sans-serif;transition:transform .15s}
 body.dark #plsx-col{border-color:#211a2b}
