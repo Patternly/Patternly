@@ -5472,7 +5472,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v663';
+window.PATTERNLY_BUILD='v664';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -38626,6 +38626,178 @@ body.dark #ped-menu hr{border-color:#37303f}
     setInterval(function(){ if(on() && !document.hidden) sync(); },1500);
     window.addEventListener('resize',sync);
     sync();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
+  else setTimeout(init,0);
+})();
+</script>
+<style id="pmo-style">
+/* v664 – app More tab: your card + stitching numbers, then Settings / Tools / Help, account links at the bottom.
+   App only (body.ptly-appui); the website account page is unchanged. */
+#pmo{display:none}
+body.ptly-appui #pmo{display:block;max-width:640px;margin:0 auto}
+body.ptly-appui #account-page .calc-container{padding:calc(var(--sa-top,0px) + 18px) 16px 104px!important;max-width:640px}
+body.ptly-appui #account-page .calc-title,body.ptly-appui #account-page .calc-sub,body.ptly-appui #acct-hub-lang,body.ptly-appui #acct-status,body.ptly-appui #acct-hub-appearance,body.ptly-appui #acct-plus-strip,body.ptly-appui #acct-hub,body.ptly-appui #acct-hub-legal{display:none!important}
+#pmo h1{font-family:'DM Serif Display',serif;font-size:1.75rem;color:#2b2226;margin:0 0 14px;font-weight:400}
+#pmo .card{background:#fff;border:1px solid #eee2e5;border-radius:18px;padding:16px;margin-bottom:18px}
+#pmo .who{display:flex;align-items:center;gap:12px}
+#pmo .av{width:48px;height:48px;border-radius:50%;background:#fdedf0;color:#8B1A2B;display:grid;place-items:center;font-weight:800;font-size:1.15rem;flex:none;text-transform:uppercase}
+#pmo .av svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round}
+#pmo .wt{flex:1;min-width:0}
+#pmo .wt b{display:block;font-size:1rem;color:#2b2226;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pmo .wt small{display:block;font-size:.76rem;color:#8a7a82;margin-top:1px}
+#pmo .badge{font-size:.66rem;font-weight:800;letter-spacing:.06em;color:#fff;background:linear-gradient(135deg,#8B1A2B,#c4475d);border-radius:8px;padding:4px 8px;flex:none}
+#pmo .cta{border:0;border-radius:11px;background:#8B1A2B;color:#fff;font:inherit;font-size:.8rem;font-weight:700;padding:9px 13px;cursor:pointer;flex:none}
+#pmo .cta.ghost{background:#fdedf0;color:#8B1A2B}
+#pmo .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+#pmo .stats div{background:#faf5f6;border-radius:12px;padding:10px 6px;text-align:center}
+#pmo .stats b{display:block;font-size:1.15rem;color:#2b2226;font-variant-numeric:tabular-nums}
+#pmo .stats span{display:block;font-size:.68rem;color:#8a7a82;margin-top:2px}
+#pmo .grp{font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9a8890;margin:0 4px 7px}
+#pmo .list{background:#fff;border:1px solid #eee2e5;border-radius:16px;overflow:hidden;margin-bottom:18px}
+#pmo .row{display:flex!important}
+#pmo .list>.acct-hub-row{display:flex}
+#pmo .list>.acct-hub-row,#pmo .row{align-items:center;gap:12px;width:100%;min-height:52px;padding:8px 14px!important;border:0;border-bottom:1px solid #f3e9ec!important;background:none;font:inherit;font-size:.92rem;color:#2b2226;text-align:left;cursor:pointer;box-sizing:border-box;margin:0!important;border-radius:0!important}
+#pmo .list>:last-child{border-bottom:0!important}
+#pmo .row .ic,#pmo .acct-hub-row .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:none;background:#f6eef1;color:#8B1A2B}
+#pmo .ic svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+#pmo .row .t{flex:1;min-width:0}
+#pmo .row .v{color:#9a8890;font-size:.84rem}
+#pmo .row i{font-style:normal;color:#c3b3b9;font-size:1.2rem}
+#pmo .acct-hub-row>span:not(.ic){flex:1;text-align:left}
+#pmo .acct-hub-row small{display:block;font-size:.72rem;color:#9a8890}
+#pmo #pl-lang-select{font:inherit;font-size:.86rem;border:0!important;background:none!important;color:#8a7a82!important;padding:4px 0!important;max-width:55%;text-align:right;-webkit-appearance:none;appearance:none}
+#pmo .row.danger{color:#b23b3b}#pmo .row.danger .ic{background:#fbecec;color:#b23b3b}
+#pmo #acct-plus-iap{background:#fff;border:1px solid #eee2e5;border-radius:16px;overflow:hidden;margin-bottom:18px}
+#pmo #acct-plus-iap .acct-hub-title{padding:.8rem 14px .4rem}
+body.dark #pmo h1,body.dark #pmo .wt b,body.dark #pmo .stats b{color:#f1e9f3}
+body.dark #pmo .card,body.dark #pmo .list,body.dark #pmo #acct-plus-iap{background:#221c30;border-color:#37303f}
+body.dark #pmo .stats div{background:#2a2338}
+body.dark #pmo .av{background:#3a2028;color:#f0b3c0}
+body.dark #pmo .list>.acct-hub-row,body.dark #pmo .row{color:#ece4ef;border-color:#302839!important}
+body.dark #pmo .row .ic,body.dark #pmo .acct-hub-row .ic{background:#2f2638;color:#f0b3c0}
+body.dark #pmo .cta.ghost{background:#3a2028;color:#f0b3c0}
+body.dark #pmo .row.danger{color:#f08a8a}body.dark #pmo .row.danger .ic{background:#3a2020;color:#f08a8a}
+</style>
+<script id="pmo-src">
+(function(){
+  var S={
+    en:{"mo.title":"More","mo.guest":"Not signed in","mo.guestsub":"Sign in to keep your patterns on every device","mo.signin":"Sign in","mo.acct":"Luca-S account","mo.plus":"PLUS","mo.try":"Try Plus","mo.stitches":"stitches","mo.finished":"finished","mo.streak":"best streak","mo.settings":"Settings","mo.dark":"Dark mode","mo.lang":"Language","mo.notif":"Notifications","mo.tools":"Tools","mo.threads":"Thread colours","mo.calc":"Calculators","mo.conv":"File converter","mo.help":"Help","mo.guide":"Guide","mo.ask":"Help & suggestions","mo.about":"About Patternly","mo.account":"Account","mo.sub":"My subscription","mo.pricing":"Pricing","mo.privacy":"Privacy policy","mo.out":"Sign out"},
+    fr:{"mo.title":"Plus","mo.guest":"Non connecté","mo.guestsub":"Connectez-vous pour retrouver vos grilles sur tous vos appareils","mo.signin":"Se connecter","mo.acct":"Compte Luca-S","mo.plus":"PLUS","mo.try":"Essayer Plus","mo.stitches":"points","mo.finished":"terminées","mo.streak":"meilleure série","mo.settings":"Réglages","mo.dark":"Mode sombre","mo.lang":"Langue","mo.notif":"Notifications","mo.tools":"Outils","mo.threads":"Couleurs de fils","mo.calc":"Calculateurs","mo.conv":"Convertisseur de fichiers","mo.help":"Aide","mo.guide":"Guide","mo.ask":"Aide et suggestions","mo.about":"À propos de Patternly","mo.account":"Compte","mo.sub":"Mon abonnement","mo.pricing":"Tarifs","mo.privacy":"Confidentialité","mo.out":"Se déconnecter"},
+    de:{"mo.title":"Mehr","mo.guest":"Nicht angemeldet","mo.guestsub":"Melde dich an, um deine Muster auf allen Geräten zu haben","mo.signin":"Anmelden","mo.acct":"Luca-S-Konto","mo.plus":"PLUS","mo.try":"Plus testen","mo.stitches":"Stiche","mo.finished":"fertig","mo.streak":"beste Serie","mo.settings":"Einstellungen","mo.dark":"Dunkelmodus","mo.lang":"Sprache","mo.notif":"Mitteilungen","mo.tools":"Werkzeuge","mo.threads":"Garnfarben","mo.calc":"Rechner","mo.conv":"Dateikonverter","mo.help":"Hilfe","mo.guide":"Anleitung","mo.ask":"Hilfe & Vorschläge","mo.about":"Über Patternly","mo.account":"Konto","mo.sub":"Mein Abo","mo.pricing":"Preise","mo.privacy":"Datenschutz","mo.out":"Abmelden"},
+    nl:{"mo.title":"Meer","mo.guest":"Niet ingelogd","mo.guestsub":"Log in om je patronen op elk apparaat te hebben","mo.signin":"Inloggen","mo.acct":"Luca-S-account","mo.plus":"PLUS","mo.try":"Probeer Plus","mo.stitches":"steken","mo.finished":"klaar","mo.streak":"beste reeks","mo.settings":"Instellingen","mo.dark":"Donkere modus","mo.lang":"Taal","mo.notif":"Meldingen","mo.tools":"Gereedschap","mo.threads":"Garenkleuren","mo.calc":"Rekenhulpen","mo.conv":"Bestandsomzetter","mo.help":"Hulp","mo.guide":"Gids","mo.ask":"Hulp en suggesties","mo.about":"Over Patternly","mo.account":"Account","mo.sub":"Mijn abonnement","mo.pricing":"Prijzen","mo.privacy":"Privacybeleid","mo.out":"Uitloggen"},
+    ru:{"mo.title":"Ещё","mo.guest":"Вход не выполнен","mo.guestsub":"Войдите, чтобы схемы были на всех устройствах","mo.signin":"Войти","mo.acct":"Аккаунт Luca-S","mo.plus":"PLUS","mo.try":"Попробовать Plus","mo.stitches":"крестиков","mo.finished":"готово","mo.streak":"лучшая серия","mo.settings":"Настройки","mo.dark":"Тёмная тема","mo.lang":"Язык","mo.notif":"Уведомления","mo.tools":"Инструменты","mo.threads":"Цвета ниток","mo.calc":"Калькуляторы","mo.conv":"Конвертер файлов","mo.help":"Помощь","mo.guide":"Руководство","mo.ask":"Помощь и предложения","mo.about":"О Patternly","mo.account":"Аккаунт","mo.sub":"Моя подписка","mo.pricing":"Цены","mo.privacy":"Конфиденциальность","mo.out":"Выйти"},
+    uk:{"mo.title":"Ще","mo.guest":"Вхід не виконано","mo.guestsub":"Увійдіть, щоб схеми були на всіх пристроях","mo.signin":"Увійти","mo.acct":"Акаунт Luca-S","mo.plus":"PLUS","mo.try":"Спробувати Plus","mo.stitches":"хрестиків","mo.finished":"готово","mo.streak":"найкраща серія","mo.settings":"Налаштування","mo.dark":"Темна тема","mo.lang":"Мова","mo.notif":"Сповіщення","mo.tools":"Інструменти","mo.threads":"Кольори ниток","mo.calc":"Калькулятори","mo.conv":"Конвертер файлів","mo.help":"Допомога","mo.guide":"Посібник","mo.ask":"Допомога та пропозиції","mo.about":"Про Patternly","mo.account":"Акаунт","mo.sub":"Моя підписка","mo.pricing":"Ціни","mo.privacy":"Конфіденційність","mo.out":"Вийти"},
+    es:{"mo.title":"Más","mo.guest":"Sin iniciar sesión","mo.guestsub":"Inicia sesión para tener tus patrones en todos tus dispositivos","mo.signin":"Iniciar sesión","mo.acct":"Cuenta Luca-S","mo.plus":"PLUS","mo.try":"Probar Plus","mo.stitches":"puntadas","mo.finished":"terminados","mo.streak":"mejor racha","mo.settings":"Ajustes","mo.dark":"Modo oscuro","mo.lang":"Idioma","mo.notif":"Notificaciones","mo.tools":"Herramientas","mo.threads":"Colores de hilo","mo.calc":"Calculadoras","mo.conv":"Conversor de archivos","mo.help":"Ayuda","mo.guide":"Guía","mo.ask":"Ayuda y sugerencias","mo.about":"Acerca de Patternly","mo.account":"Cuenta","mo.sub":"Mi suscripción","mo.pricing":"Precios","mo.privacy":"Privacidad","mo.out":"Cerrar sesión"},
+    it:{"mo.title":"Altro","mo.guest":"Accesso non effettuato","mo.guestsub":"Accedi per avere i tuoi schemi su ogni dispositivo","mo.signin":"Accedi","mo.acct":"Account Luca-S","mo.plus":"PLUS","mo.try":"Prova Plus","mo.stitches":"punti","mo.finished":"finiti","mo.streak":"serie migliore","mo.settings":"Impostazioni","mo.dark":"Modalità scura","mo.lang":"Lingua","mo.notif":"Notifiche","mo.tools":"Strumenti","mo.threads":"Colori dei fili","mo.calc":"Calcolatori","mo.conv":"Convertitore di file","mo.help":"Aiuto","mo.guide":"Guida","mo.ask":"Aiuto e suggerimenti","mo.about":"Informazioni su Patternly","mo.account":"Account","mo.sub":"Il mio abbonamento","mo.pricing":"Prezzi","mo.privacy":"Privacy","mo.out":"Esci"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; return s; }
+  function app(){ return document.body.classList.contains('ptly-appui'); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function $(id){ return document.getElementById(id); }
+  var IC={
+    user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    moon:'<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+    globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+    bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
+    thread:'<circle cx="12" cy="12" r="8"/><path d="M8 9c3 1 5 1 8 0M8 15c3-1 5-1 8 0"/>',
+    calc:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01"/>',
+    conv:'<path d="M4 7h13l-3-3M20 17H7l3 3"/>',
+    book:'<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/>',
+    chat:'<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',
+    info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+    star:'<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
+    tag:'<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="8" cy="8" r="1.4"/>',
+    lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+    out:'<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"/>'
+  };
+  function ic(n){ return '<span class="ic"><svg viewBox="0 0 24 24">'+IC[n]+'</svg></span>'; }
+  function row(go,icn,k,cls){ return '<button type="button" class="row'+(cls?' '+cls:'')+'" data-go="'+go+'">'+ic(icn)+'<span class="t">'+esc(tx(k))+'</span><i>&rsaquo;</i></button>'; }
+  var box, built=false;
+  function stats(){
+    var st=0, fin=0, best=0;
+    try{ (trkIndex()||[]).forEach(function(p){ var d=+p.done||0, t=+p.total||0; st+=d; if(t>0 && d>=t) fin++; }); }catch(e){}
+    try{ best=plStreakCalc(plStreakDays()).best||0; }catch(e){}
+    return {st:st,fin:fin,best:best};
+  }
+  function fmt(n){ try{ return Number(n).toLocaleString((window.PL_LANG||document.documentElement.lang||'en')); }catch(e){ return String(n); } }
+  function go(w){
+    try{
+      if(w==='signin') acctOpenLogin();
+      else if(w==='try') openPricing();
+      else if(w==='threads') openThreads();
+      else if(w==='calc') openCalculators();
+      else if(w==='conv') openFileConverter();
+      else if(w==='guide') openGuide();
+      else if(w==='ask') plFeedbackOpen('more');
+      else if(w==='about') plAboutSite();
+      else if(w==='sub') openSubscriptionPage();
+      else if(w==='pricing') openPricing();
+      else if(w==='privacy') plOpenPrivacy();
+      else if(w==='out') acctSignOutConfirm();
+      else if(w==='lang'){ var s=$('pl-lang-select'); if(s){ try{ s.showPicker(); }catch(_){ s.focus(); s.click(); } } }
+    }catch(e){ console.warn('[pmo]',e); }
+  }
+  function build(){
+    if(built) return;
+    var c=document.querySelector('#account-page .calc-container'); if(!c) return;
+    built=true;
+    box=document.createElement('div'); box.id='pmo';
+    c.insertBefore(box, c.firstChild);
+    box.addEventListener('click',function(e){
+      if(e.target.closest('select,.theme-switch')) return;
+      var b=e.target.closest('[data-go]'); if(b) go(b.getAttribute('data-go'));
+    });
+  }
+  function render(){
+    if(!built || !app()) return;
+    var a={}; try{ a=lucasAuth()||{}; }catch(e){}
+    var s=stats(), em=a.email?String(a.email):'';
+    // Keep the moved live controls (language, dark mode, notifications, in-app Plus) before rebuilding.
+    var lang=$('pl-lang-select'), dark=$('acct-dark-row'), push=$('acct-push-row'), iap=$('acct-plus-iap'), keep=document.createDocumentFragment();
+    [lang,dark,push,iap].forEach(function(n){ if(n) keep.appendChild(n); });
+    var who='<div class="who">'
+      +(a.loggedIn?'<span class="av">'+esc((em||'?').charAt(0))+'</span>':'<span class="av"><svg viewBox="0 0 24 24">'+IC.user+'</svg></span>')
+      +'<div class="wt"><b>'+esc(a.loggedIn?(em||tx('mo.acct')):tx('mo.guest'))+'</b><small>'+esc(a.loggedIn?tx('mo.acct'):tx('mo.guestsub'))+'</small></div>'
+      +(a.loggedIn?(a.plus?'<span class="badge">'+esc(tx('mo.plus'))+'</span>':'<button type="button" class="cta ghost" data-go="try">'+esc(tx('mo.try'))+'</button>')
+                  :'<button type="button" class="cta" data-go="signin">'+esc(tx('mo.signin'))+'</button>')
+      +'</div>';
+    var st='<div class="stats"><div><b>'+fmt(s.st)+'</b><span>'+esc(tx('mo.stitches'))+'</span></div><div><b>'+fmt(s.fin)+'</b><span>'+esc(tx('mo.finished'))+'</span></div><div><b>'+fmt(s.best)+'</b><span>'+esc(tx('mo.streak'))+'</span></div></div>';
+    var hasAsk=(typeof window.plFeedbackOpen==='function');
+    box.innerHTML='<h1>'+esc(tx('mo.title'))+'</h1>'
+      +'<div class="card">'+who+st+'</div>'
+      +'<div id="pmo-iap"></div>'
+      +'<p class="grp">'+esc(tx('mo.settings'))+'</p><div class="list" id="pmo-set">'
+      +  '<div class="row" data-go="lang">'+ic('globe')+'<span class="t">'+esc(tx('mo.lang'))+'</span><span id="pmo-lang"></span></div>'
+      +'</div>'
+      +'<p class="grp">'+esc(tx('mo.tools'))+'</p><div class="list">'+row('threads','thread','mo.threads')+row('calc','calc','mo.calc')+row('conv','conv','mo.conv')+'</div>'
+      +'<p class="grp">'+esc(tx('mo.help'))+'</p><div class="list">'+row('guide','book','mo.guide')+(hasAsk?row('ask','chat','mo.ask'):'')+row('about','info','mo.about')+'</div>'
+      +'<p class="grp">'+esc(tx('mo.account'))+'</p><div class="list">'+row('sub','star','mo.sub')+row('pricing','tag','mo.pricing')+row('privacy','lock','mo.privacy')+(a.loggedIn?row('out','out','mo.out','danger'):'')+'</div>';
+    var set=$('pmo-set');
+    if(lang) $('pmo-lang').appendChild(lang);
+    if(dark){ set.insertBefore(dark, set.firstChild); deco(dark,'moon','mo.dark'); }
+    if(push){ set.appendChild(push); deco(push,'bell','mo.notif'); }
+    if(iap) $('pmo-iap').appendChild(iap);
+  }
+  // Give a moved row the icon and translated label of the new list (its own switch keeps working).
+  function deco(r,icn,k){
+    if(!r.querySelector(':scope > .ic')) r.insertAdjacentHTML('afterbegin', ic(icn));
+    var lab=r.querySelector('[data-i18n="acct.darkmode"],[data-i18n="acct.notifications"]'); if(lab) lab.textContent=tx(k);
+  }
+  function init(){
+    if(!app()){
+      if(!init._mo){ init._mo=new MutationObserver(function(){ if(app()){ init._mo.disconnect(); init(); } }); init._mo.observe(document.body,{attributes:true,attributeFilter:['class']}); }
+      return;
+    }
+    build();
+    if(typeof window.acctRenderPage==='function' && !window.acctRenderPage._pmo){
+      var rp=window.acctRenderPage; window.acctRenderPage=function(){ var r=rp.apply(this,arguments); try{ render(); }catch(e){} return r; }; window.acctRenderPage._pmo=1;
+    }
+    if(typeof window.plApplyLang==='function' && !window.plApplyLang._pmo){
+      var al=window.plApplyLang; window.plApplyLang=function(){ var r=al.apply(this,arguments); try{ render(); }catch(e){} return r; }; window.plApplyLang._pmo=1;
+    }
+    render();
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
   else setTimeout(init,0);
