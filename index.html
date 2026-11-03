@@ -5472,7 +5472,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v658';
+window.PATTERNLY_BUILD='v664';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -37813,6 +37813,993 @@ body.dark #pl-apphome .ah-dots i.on{background:#c8566a}
   }
   // ptly-appui is added on DOMContentLoaded by the app-nav script above; run after it.
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(init,0); });
+  else setTimeout(init,0);
+})();
+</script>
+<!-- ═══ v660: APP STITCHING SCREEN ══════════════════════════════════════════
+     In the app (body.ptly-appui) an opened tracker pattern goes straight into
+     full view (body.trk-fs) and full view is restyled as the stitching screen:
+     a slim top bar (back, name, % done, stitches today, ⋯ = Settings sheet), the
+     four mode buttons with their names, a small colour circle (selected colour's
+     swatch + symbol + number; tap = the existing Colours sheet) and a mini map
+     of the whole chart (tap = jump there). Read-only: progress, marking and sync
+     are the existing functions; nothing here writes stitch data. Desktop and
+     the website keep the old layout. ═══ -->
+<style id="plsx-style">
+#plsx-top,#plsx-col,#plsx-map{display:none}
+body.ptly-appui.trk-fs #trk-fsutil,body.ptly-appui.trk-fs #trk-fszoom{display:none!important}
+body.ptly-appui.trk-fs #plsx-top{display:flex}
+body.ptly-appui.trk-fs #trk-canvas-wrap{padding-top:calc(var(--sa-top,0px) + 66px);padding-bottom:calc(var(--sa-bottom,0px) + 80px)}
+body.ptly-appui.trk-fs #plsx-col{display:flex}
+body.ptly-appui.trk-fs #plsx-map.on{display:block}
+body.ptly-appui.trk-fs.trk-cbopen #plsx-col,body.ptly-appui.trk-fs.trk-setopen #plsx-col,
+body.ptly-appui.trk-fs.trk-cbopen #plsx-map,body.ptly-appui.trk-fs.trk-setopen #plsx-map{display:none!important}
+#plsx-top{position:fixed;left:10px;right:10px;top:calc(var(--sa-top,env(safe-area-inset-top,0px)) + 8px);z-index:9460;align-items:center;gap:8px;
+  background:rgba(255,255,255,.94);border:1px solid #e8e4f0;border-radius:16px;padding:6px 8px;box-shadow:0 4px 18px rgba(43,34,38,.14);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  transition:transform .28s ease,opacity .28s ease;font-family:'DM Sans',system-ui,sans-serif;color:#1a1520}
+body.dark #plsx-top{background:rgba(33,26,43,.94);border-color:#37303f;color:#efe9f3}
+#plsx-top button{flex:none;width:38px;height:38px;border-radius:50%;border:1px solid #e8e4f0;background:#fff;color:inherit;display:grid;place-items:center;cursor:pointer;padding:0}
+body.dark #plsx-top button{background:#211a2b;border-color:#37303f}
+#plsx-top svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#plsx-top .t{flex:1;min-width:0;line-height:1.25}
+#plsx-top b{display:block;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#plsx-top small{display:block;font-size:.74rem;font-weight:600;color:#5a5268;font-variant-numeric:tabular-nums}
+body.dark #plsx-top small{color:#b6abc2}
+#plsx-ring{flex:none;width:38px;height:38px}
+#plsx-ring .bg{stroke:#e8e4f0}#plsx-ring .fg{stroke:#8B1A2B}
+body.dark #plsx-ring .bg{stroke:#37303f}body.dark #plsx-ring .fg{stroke:#c8566a}
+#plsx-ring text{fill:currentColor;font:700 10px 'DM Sans',system-ui,sans-serif}
+/* the four modes keep their names; the pill sits bottom-left, the colour circle bottom-right */
+body.ptly-appui.trk-fs #trk-fsbar{left:10px;right:auto;transform:none;bottom:calc(max(.7rem,var(--sa-bottom)) + 4px);gap:4px;padding:5px;background:rgba(43,34,38,.92)}
+body.ptly-appui.trk-fs #trk-fsbar button{width:auto;min-width:54px;height:52px;padding:0 8px;border-radius:16px;border:0;flex-direction:column;gap:2px;font-size:1.1rem}
+body.ptly-appui.trk-fs #trk-fsbar button span{display:block;font-size:.66rem;font-weight:700;color:inherit}
+body.ptly-appui.fsbar-hidden #trk-fsbar{transform:translateY(180%)}
+#plsx-col{position:fixed;right:12px;bottom:calc(max(.7rem,var(--sa-bottom)) + 4px);z-index:9450;width:62px;height:62px;border-radius:50%;border:3px solid #fff;
+  box-shadow:0 0 0 1px rgba(0,0,0,.12),0 8px 22px rgba(43,34,38,.3);align-items:center;justify-content:center;cursor:pointer;padding:0;background:#2b2226;color:#fff;font-family:'DM Sans',system-ui,sans-serif;transition:transform .15s}
+body.dark #plsx-col{border-color:#211a2b}
+#plsx-col:active{transform:scale(.94)}
+#plsx-col .sy{display:grid;place-items:center;width:30px;height:30px;font-size:22px;line-height:1;color:#1a1520}
+#plsx-col img.sy{width:28px;height:28px;object-fit:contain}
+#plsx-col .pal{width:26px;height:26px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#plsx-col .nr{position:absolute;left:50%;transform:translateX(-50%);top:-11px;background:#1a1520;color:#fff;border:2px solid #fff;border-radius:999px;font-size:.68rem;font-weight:800;padding:1px 7px;white-space:nowrap;max-width:92px;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+body.dark #plsx-col .nr{border-color:#211a2b}
+#plsx-map{position:fixed;right:12px;top:calc(var(--sa-top,env(safe-area-inset-top,0px)) + 66px);z-index:9450;border-radius:10px;overflow:hidden;border:2px solid #fff;box-shadow:0 4px 16px rgba(43,34,38,.25);background:#fff;cursor:pointer}
+body.dark #plsx-map{border-color:#211a2b}
+#plsx-map canvas{display:block;image-rendering:pixelated}
+#plsx-map i{position:absolute;border:2px solid #8B1A2B;background:rgba(139,26,43,.14);border-radius:2px;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#plsx-col:active{transform:none}}
+</style>
+<script id="plsx-src">
+(function(){
+  var S={
+    en:{"sx.done":"{p}% done","sx.today":"+{n} today","sx.back":"Back to my patterns","sx.more":"Settings","sx.map":"Whole chart, tap to jump there"},
+    fr:{"sx.done":"{p} % fait","sx.today":"+{n} aujourd'hui","sx.back":"Retour à mes grilles","sx.more":"Réglages","sx.map":"Grille entière, touchez pour y aller"},
+    de:{"sx.done":"{p} % fertig","sx.today":"+{n} heute","sx.back":"Zurück zu meinen Mustern","sx.more":"Einstellungen","sx.map":"Ganze Vorlage, tippen zum Springen"},
+    nl:{"sx.done":"{p}% klaar","sx.today":"+{n} vandaag","sx.back":"Terug naar mijn patronen","sx.more":"Instellingen","sx.map":"Hele patroon, tik om erheen te gaan"},
+    ru:{"sx.done":"Готово {p}%","sx.today":"+{n} сегодня","sx.back":"Назад к моим схемам","sx.more":"Настройки","sx.map":"Вся схема, нажмите, чтобы перейти"},
+    uk:{"sx.done":"Готово {p}%","sx.today":"+{n} сьогодні","sx.back":"Назад до моїх схем","sx.more":"Налаштування","sx.map":"Уся схема, торкніться, щоб перейти"},
+    es:{"sx.done":"{p} % hecho","sx.today":"+{n} hoy","sx.back":"Volver a mis patrones","sx.more":"Ajustes","sx.map":"Patrón completo, toca para ir"},
+    it:{"sx.done":"{p}% fatto","sx.today":"+{n} oggi","sx.back":"Torna ai miei schemi","sx.more":"Impostazioni","sx.map":"Schema intero, tocca per andarci"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k,v){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; if(v) for(var n in v) s=s.split('{'+n+'}').join(v[n]); return s; }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function app(){ return document.body.classList.contains('ptly-appui'); }
+  function fs(){ return document.body.classList.contains('trk-fs'); }
+  var top,col,map,mapCv,mapBox,mapKey='',wake=null,leaving=false;
+
+  function build(){
+    top=document.createElement('div'); top.id='plsx-top';
+    top.innerHTML='<button type="button" id="plsx-back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>'
+      +'<div class="t"><b id="plsx-name"></b><small id="plsx-sub"></small></div>'
+      +'<svg id="plsx-ring" viewBox="0 0 40 40"><circle class="bg" cx="20" cy="20" r="16" fill="none" stroke-width="4"/><circle class="fg" id="plsx-arc" cx="20" cy="20" r="16" fill="none" stroke-width="4" stroke-linecap="round" transform="rotate(-90 20 20)" stroke-dasharray="0 101"/><text id="plsx-pct" x="20" y="23.5" text-anchor="middle">0</text></svg>'
+      +'<button type="button" id="plsx-more"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></button>';
+    document.body.appendChild(top);
+    col=document.createElement('button'); col.type='button'; col.id='plsx-col';
+    document.body.appendChild(col);
+    map=document.createElement('div'); map.id='plsx-map'; map.setAttribute('role','button');
+    mapCv=document.createElement('canvas'); mapBox=document.createElement('i');
+    map.appendChild(mapCv); map.appendChild(mapBox); document.body.appendChild(map);
+    document.getElementById('plsx-back').onclick=back;
+    document.getElementById('plsx-more').onclick=function(){ try{ trkFsPanel(document.getElementById('fsb-settings').classList.contains('active')?null:'settings'); }catch(e){} };
+    col.onclick=function(){ try{ trkToggleColourBar(); }catch(e){} };
+    map.addEventListener('click', jump);
+    labels();
+  }
+  function labels(){
+    try{
+      document.getElementById('plsx-back').setAttribute('aria-label',tx('sx.back'));
+      document.getElementById('plsx-more').setAttribute('aria-label',tx('sx.more'));
+      map.setAttribute('aria-label',tx('sx.map')); map.title=tx('sx.map');
+    }catch(e){}
+  }
+  function back(){
+    leaving=true;
+    try{ trkToggleFullscreen(false); }catch(e){}
+    try{ trkWorkspaceBack(); }catch(e){}
+    setTimeout(function(){ leaving=false; },400);
+  }
+
+  // ── top bar: name, % done, stitches marked today (from the tracker index) ──
+  function entry(){ try{ var id=trackerActiveProjectKey; return (trkIndex()||[]).find(function(p){ return p.id===id; })||null; }catch(e){ return null; } }
+  function today(p){
+    if(!p||!p.sessions) return 0;
+    var t=new Date().toISOString().slice(0,10), base=0, keys=Object.keys(p.sessions).filter(function(k){ return k<t; }).sort();
+    if(keys.length) base=p.sessions[keys[keys.length-1]]|0;
+    if(p.sessions[t]==null) return 0;
+    return Math.max(0,(p.done|0)-base);
+  }
+  function updTop(){
+    if(!top) return;
+    var p=entry(), name=(typeof trackerProjectName!=='undefined'&&trackerProjectName)||(p&&p.name)||'';
+    var done=p?p.done|0:0, total=p?p.total|0:0, pct=total?Math.min(100,Math.floor(done/total*100)):0;
+    document.getElementById('plsx-name').textContent=name;
+    var sub=tx('sx.done',{p:pct}), n=today(p); if(n>0) sub+=' · '+tx('sx.today',{n:n.toLocaleString()});
+    document.getElementById('plsx-sub').textContent=sub;
+    document.getElementById('plsx-pct').textContent=String(pct);
+    document.getElementById('plsx-arc').setAttribute('stroke-dasharray',(pct/100*100.5).toFixed(1)+' 101');
+  }
+
+  // ── colour circle: the selected colour's swatch, symbol and number ──
+  function symHtml(sym){
+    try{
+      var useFont=!!(trackerGrid&&trackerGrid.chartFont==='CrossStitch3'&&trackerChartFontReady);
+      var spr=trackerSprites&&trackerSprites[sym];
+      if(useFont){
+        var g=(trkFinalToRaw&&trkFinalToRaw[sym])||sym;
+        if(trackerGrid.fontMissing&&trackerGrid.fontMissing.has(g)&&spr) return '<img class="sy" alt="" src="'+esc(spr.url)+'">';
+        return '<span class="sy" style="font-family:'+esc(trkChartFontStack)+'">'+esc(g)+'</span>';
+      }
+      if(spr) return '<img class="sy" alt="" src="'+esc(spr.url)+'">';
+      return '<span class="sy">'+esc(sym.length>1?sym[0]:sym)+'</span>';
+    }catch(e){ return ''; }
+  }
+  var PAL='<svg class="pal" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1 0 1.6-.8 1.6-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5c0-4-4-7.2-9-7.2z"/><circle cx="7.5" cy="11.5" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15.5" cy="7.5" r="1"/></svg>';
+  function updCol(){
+    if(!col) return;
+    var sel=null; try{ if(trkSelectedSyms&&trkSelectedSyms.size===1) sel=trkSelectedSyms.values().next().value; }catch(e){}
+    var c=null; try{ c=sel&&trackerColourMap?trackerColourMap[sel]:null; }catch(e){}
+    var T=window.plT||function(k){return k;};
+    if(sel&&c){
+      col.style.background='rgb('+c.r+','+c.g+','+c.b+')';
+      var nr=c.code||c.label||'';
+      col.innerHTML=symHtml(sel)+(nr?'<span class="nr">'+esc(nr)+'</span>':'');
+      var lum=0.3*c.r+0.59*c.g+0.11*c.b, sy=col.querySelector('span.sy'); if(sy) sy.style.color=lum<110?'#fff':'#1a1520';
+      col.setAttribute('aria-label',(T('trk.colours')||'Colours')+': '+(c.label||nr));
+    }else{
+      col.style.background='';
+      var n=0; try{ n=trkSelectedSyms?trkSelectedSyms.size:0; }catch(e){}
+      col.innerHTML=PAL+(n>1?'<span class="nr">'+n+'</span>':'');
+      col.setAttribute('aria-label',T('trk.colours')||'Colours');
+    }
+  }
+
+  // ── mini map ──
+  function drawMap(){
+    try{
+      if(!trackerGrid||!trackerGrid.cells||!trackerColourMap){ map.classList.remove('on'); return; }
+      var cols=trackerGrid.cols|0, rows=trackerGrid.rows|0; if(!cols||!rows){ map.classList.remove('on'); return; }
+      var key=trackerActiveProjectKey+'|'+cols+'x'+rows;
+      if(key!==mapKey){
+        mapKey=key; mapCv.width=cols; mapCv.height=rows;
+        var x=mapCv.getContext('2d'), img=x.createImageData(cols,rows), d=img.data;
+        for(var r=0;r<rows;r++){ var row=trackerGrid.cells[r]||[]; for(var q=0;q<cols;q++){
+          var s=row[q], c=(s&&s!==' ')?trackerColourMap[s]:null, i=(r*cols+q)*4;
+          if(c){ d[i]=c.r; d[i+1]=c.g; d[i+2]=c.b; } else { d[i]=d[i+1]=d[i+2]=250; } d[i+3]=255; } }
+        x.putImageData(img,0,0);
+        var W=66, H=Math.round(W*rows/cols); if(H>96){ H=96; W=Math.round(H*cols/rows); }
+        mapCv.style.width=W+'px'; mapCv.style.height=H+'px';
+      }
+      map.classList.add('on'); box();
+    }catch(e){ map.classList.remove('on'); }
+  }
+  function geo(){
+    var wrap=document.getElementById('trk-canvas-wrap'), sz=document.getElementById('trk-scroll-sizer');
+    if(!wrap||!sz) return null;
+    var cw=sz.scrollWidth||sz.offsetWidth, ch=sz.scrollHeight||sz.offsetHeight;
+    return {wrap:wrap,cw:Math.max(cw,1),ch:Math.max(ch,1),vw:wrap.clientWidth,vh:wrap.clientHeight};
+  }
+  function box(){
+    var g=geo(); if(!g) return;
+    var W=mapCv.offsetWidth, H=mapCv.offsetHeight;
+    if(g.cw<=g.vw+2 && g.ch<=g.vh+2){ mapBox.style.display='none'; map.classList.remove('on'); return; }
+    map.classList.add('on'); mapBox.style.display='';
+    var l=Math.max(0,g.wrap.scrollLeft/g.cw), t=Math.max(0,g.wrap.scrollTop/g.ch), w=Math.min(1,g.vw/g.cw), h=Math.min(1,g.vh/g.ch);
+    mapBox.style.left=(l*W)+'px'; mapBox.style.top=(t*H)+'px'; mapBox.style.width=Math.max(6,w*W)+'px'; mapBox.style.height=Math.max(6,h*H)+'px';
+  }
+  function jump(e){
+    var g=geo(); if(!g) return;
+    var r=mapCv.getBoundingClientRect(), fx=(e.clientX-r.left)/r.width, fy=(e.clientY-r.top)/r.height;
+    g.wrap.scrollTo({left:fx*g.cw-g.vw/2, top:fy*g.ch-g.vh/2, behavior:'smooth'});
+  }
+
+  // ── keep the screen on while stitching (where the system allows it) ──
+  async function wakeOn(){ try{ if(!wake && navigator.wakeLock && document.visibilityState==='visible'){ wake=await navigator.wakeLock.request('screen'); wake.addEventListener('release',function(){ wake=null; }); } }catch(e){ wake=null; } }
+  function wakeOff(){ try{ if(wake) wake.release(); }catch(e){} wake=null; }
+
+  function refresh(){ if(!app()||!fs()) return; updTop(); updCol(); drawMap(); }
+  function init(){
+    if(!app()) return;
+    build();
+    var ws=document.getElementById('trk-workspace');
+    // An opened pattern goes straight into the stitching screen.
+    function maybeEnter(){
+      if(leaving||!ws) return;
+      var open=ws.style.display!=='none' && document.body.classList.contains('tracker-mode');
+      if(open && !fs()){ try{ trkToggleFullscreen(true); }catch(e){} }
+    }
+    if(ws) new MutationObserver(maybeEnter).observe(ws,{attributes:true,attributeFilter:['style']});
+    var was=false;
+    new MutationObserver(function(){
+      var b=document.body.classList;
+      // Leaving the tracker by any route takes the full-view state with it.
+      if(b.contains('trk-fs') && !b.contains('tracker-mode')){ try{ trkToggleFullscreen(false); }catch(e){} }
+      if(!b.contains('trk-fs') && b.contains('tracker-mode')) maybeEnter();
+      var now=fs(); if(now!==was){ was=now; if(now){ refresh(); wakeOn(); } else wakeOff(); }
+    }).observe(document.body,{attributes:true,attributeFilter:['class']});
+    var wrap=document.getElementById('trk-canvas-wrap');
+    if(wrap) wrap.addEventListener('scroll',function(){ if(fs()) requestAnimationFrame(box); },{passive:true});
+    window.addEventListener('resize',function(){ if(fs()) setTimeout(box,60); });
+    document.addEventListener('visibilitychange',function(){ if(fs()&&document.visibilityState==='visible') wakeOn(); });
+    if(typeof window.updateTrackerProgressUI==='function' && !window.updateTrackerProgressUI._sx){
+      var o=window.updateTrackerProgressUI;
+      window.updateTrackerProgressUI=function(){ var r=o.apply(this,arguments); if(fs()) setTimeout(refresh,0); return r; };
+      window.updateTrackerProgressUI._sx=1;
+    }
+    if(typeof window.renderTracker==='function' && !window.renderTracker._sx){
+      var rt=window.renderTracker;
+      window.renderTracker=function(){ var r=rt.apply(this,arguments); if(fs()) requestAnimationFrame(box); return r; };
+      window.renderTracker._sx=1;
+    }
+    if(typeof window.plApplyLang==='function' && !window.plApplyLang._sx){
+      var al=window.plApplyLang; window.plApplyLang=function(){ var r=al.apply(this,arguments); try{ labels(); refresh(); }catch(e){} return r; }; window.plApplyLang._sx=1;
+    }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
+  else setTimeout(init,0);
+})();
+</script>
+<!-- ═══ v661: APP TRACKER LIST ═════════════════════════════════════════════
+     In the app (body.ptly-appui) the Tracker tab's own front page (body.pltl-home:
+     tracker-mode, no pattern open, #trk-projects showing) shows the saved
+     patterns first: a compact header with "+ Add pattern" (a sheet with the four
+     existing ways in: kit catalogue, scan, upload, restore backup), filter chips
+     (All / In progress / Finished, read from each card's progress bar), the
+     existing cards as full-width rows (tap anywhere = Open), a slim streak row
+     and the guide as one line at the bottom. The cards, cloud cards and their
+     buttons are the existing ones, untouched. The website keeps its layout. ═══ -->
+<style id="pltl-style">
+#pltl-head,#pltl-foot,#pltl-empty,#pltl-sheet,#pltl-scrim{display:none}
+body.ptly-appui.pltl-home #pltl-head{display:flex}
+body.ptly-appui.pltl-home #pltl-foot{display:block}
+body.ptly-appui.pltl-home.pltl-none #pltl-empty{display:flex}
+body.ptly-appui.pltl-home #tracker-page .calc-title,
+body.ptly-appui.pltl-home #tracker-page .calc-sub,
+body.ptly-appui.pltl-home #trk-newpat,
+body.ptly-appui.pltl-home #trk-guide-banner,
+body.ptly-appui.pltl-home .trk-viewtog,
+body.ptly-appui.pltl-home .trk-slide-arrow{display:none!important}
+#pltl-head{flex-direction:column;gap:12px;max-width:640px;margin:.4rem auto 14px;font-family:'DM Sans',system-ui,sans-serif}
+#pltl-head .r1{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#pltl-head h1{font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:1.75rem;margin:0;color:var(--lp-ink,#1a1520);line-height:1.1}
+#pltl-add{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:999px;background:var(--lp-red,#8B1A2B);color:#fff;font:inherit;font-weight:700;font-size:.9rem;padding:.6rem 1rem;cursor:pointer;flex:none}
+#pltl-add svg{width:16px;height:16px;stroke:currentColor;stroke-width:2.4;fill:none;stroke-linecap:round}
+#pltl-chips{display:flex;gap:6px;flex-wrap:wrap}
+#pltl-chips button{font:inherit;font-size:.8rem;font-weight:700;border:1px solid var(--lp-border,#e8e4f0);background:#fff;color:var(--lp-muted,#5a5268);border-radius:999px;padding:.32rem .8rem;cursor:pointer}
+body.dark #pltl-chips button{background:#221b2d}
+#pltl-chips button[aria-pressed="true"]{background:var(--lp-ink,#1a1520);color:var(--lp-paper,#fdf9f5);border-color:var(--lp-ink,#1a1520)}
+body.dark #pltl-chips button[aria-pressed="true"]{background:#efe9f3;color:#171220;border-color:#efe9f3}
+/* cards as full-width rows */
+body.ptly-appui.pltl-home #trk-projects{max-width:640px;margin:0 auto}
+body.ptly-appui.pltl-home .trk-cardgrid{display:flex!important;flex-direction:column;gap:10px;overflow:visible;padding:0 0 .6rem;margin:0}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard{flex:0 0 auto;display:flex;align-items:center;border-radius:16px;cursor:pointer;width:auto!important}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .thumb{width:84px;height:84px;flex:0 0 84px;margin:8px 0 8px 8px;border-radius:10px;object-fit:cover}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .body{flex:1;min-width:0;padding:10px 12px}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .body h4{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .body > .meta + .trk-pbar + .meta{display:none!important}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .row{margin-top:8px}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard.pltl-off{display:none!important}
+body.ptly-appui.pltl-home .trk-sec-head{max-width:none!important;margin:6px 0 8px!important}
+body.ptly-appui.pltl-home .trk-sec-head h2{font-size:.78rem!important;font-family:'DM Sans',system-ui,sans-serif!important;letter-spacing:.08em;text-transform:uppercase;color:var(--lp-muted,#5a5268)!important}
+body.ptly-appui.pltl-home #trk-uploads-head a{font-size:.7rem!important;text-transform:none;letter-spacing:0}
+body.ptly-appui.pltl-home #trk-streak{max-width:none;margin:0 0 14px;padding:.55rem .8rem;border-radius:14px}
+#pltl-empty{flex-direction:column;align-items:center;gap:8px;text-align:center;padding:26px 18px;margin:0 0 14px;border:1.5px dashed var(--lp-border,#e8e4f0);border-radius:16px;color:var(--lp-muted,#5a5268);font-size:.9rem}
+#pltl-empty b{color:var(--lp-ink,#1a1520);font-size:1rem}
+#pltl-foot{text-align:center;font-size:.85rem;color:var(--lp-muted,#5a5268);margin:12px 0 22px}
+#pltl-foot a{color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none}
+body.dark #pltl-foot a{color:#e0a9b4}
+/* add sheet */
+#pltl-scrim{position:fixed;inset:0;z-index:9500;background:rgba(10,5,15,.4)}
+#pltl-sheet{position:fixed;left:0;right:0;bottom:0;z-index:9501;background:#fff;border-radius:22px 22px 0 0;padding:10px 16px calc(84px + var(--sa-bottom,0px));flex-direction:column;gap:4px;box-shadow:0 -10px 30px rgba(0,0,0,.18);font-family:'DM Sans',system-ui,sans-serif;max-width:640px;margin:0 auto}
+body.dark #pltl-sheet{background:#211a2b;color:#efe9f3}
+body.pltl-sheet #pltl-scrim{display:block}
+body.pltl-sheet #pltl-sheet{display:flex}
+#pltl-sheet .grab{width:38px;height:4px;border-radius:4px;background:var(--lp-border,#e8e4f0);margin:0 auto 8px}
+#pltl-sheet .lbl{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--lp-muted,#5a5268);font-weight:700;margin:0 0 4px}
+#pltl-sheet button.r{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:0;background:none;font:inherit;color:inherit;padding:10px 4px;border-radius:12px;cursor:pointer}
+#pltl-sheet button.r:active{background:var(--lp-red-light,#fdedf0)}
+#pltl-sheet b{display:block;font-size:.95rem}
+#pltl-sheet small{display:block;color:var(--lp-muted,#5a5268);font-size:.8rem}
+#pltl-sheet .ic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none}
+#pltl-sheet .ic svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#pltl-sheet .ic.r{background:#fdedf0;color:#8B1A2B}#pltl-sheet .ic.p{background:#f0ebfc;color:#6b4fb0}#pltl-sheet .ic.g{background:#fef6e4;color:#a86a00}
+body.dark #pltl-sheet .ic.r{background:#3a2028;color:#e0a9b4}body.dark #pltl-sheet .ic.p{background:#2b2338;color:#c4b0f0}body.dark #pltl-sheet .ic.g{background:#31281a;color:#e0a64a}
+#pltl-sheet .beta{font-size:.6rem;font-weight:700;color:#6b4fb0;background:#f0ebfc;border-radius:6px;padding:1px 5px;margin-left:5px;vertical-align:2px}
+</style>
+<script id="pltl-src">
+(function(){
+  var S={
+    en:{"tl.title":"Stitch Tracker","tl.add":"Add pattern","tl.all":"All","tl.prog":"In progress","tl.fin":"Finished","tl.sheet":"Add a pattern to track","tl.kit":"Kit pattern","tl.kitsub":"Luca-S and partner kits, by QR or code","tl.scan":"Scan a paper chart","tl.scansub":"Photos or PDF of a printed chart","tl.up":"Upload a chart file","tl.upsub":"PDF, OXS, .pat or .ptly","tl.bk":"Restore a backup","tl.bksub":"A backup file saved from Patternly","tl.new":"New here?","tl.guide":"Read the guide","tl.empty":"No patterns yet","tl.emptysub":"Tap Add pattern to open a kit, scan a chart or upload one.","tl.nomatch":"Nothing here yet."},
+    fr:{"tl.title":"Suivi de broderie","tl.add":"Ajouter","tl.all":"Tout","tl.prog":"En cours","tl.fin":"Terminés","tl.sheet":"Ajouter une grille à suivre","tl.kit":"Grille d'un kit","tl.kitsub":"Kits Luca-S et partenaires, par QR ou code","tl.scan":"Scanner une grille papier","tl.scansub":"Photos ou PDF d'une grille imprimée","tl.up":"Importer un fichier","tl.upsub":"PDF, OXS, .pat ou .ptly","tl.bk":"Restaurer une sauvegarde","tl.bksub":"Un fichier de sauvegarde Patternly","tl.new":"Nouveau ici ?","tl.guide":"Lire le guide","tl.empty":"Aucune grille pour l'instant","tl.emptysub":"Touchez Ajouter pour ouvrir un kit, scanner ou importer une grille.","tl.nomatch":"Rien ici pour l'instant."},
+    de:{"tl.title":"Stich-Tracker","tl.add":"Hinzufügen","tl.all":"Alle","tl.prog":"In Arbeit","tl.fin":"Fertig","tl.sheet":"Muster zum Verfolgen hinzufügen","tl.kit":"Packungsmuster","tl.kitsub":"Luca-S- und Partnerpackungen, per QR oder Code","tl.scan":"Papiervorlage scannen","tl.scansub":"Fotos oder PDF einer gedruckten Vorlage","tl.up":"Vorlagendatei hochladen","tl.upsub":"PDF, OXS, .pat oder .ptly","tl.bk":"Sicherung wiederherstellen","tl.bksub":"Eine in Patternly gespeicherte Sicherung","tl.new":"Neu hier?","tl.guide":"Anleitung lesen","tl.empty":"Noch keine Muster","tl.emptysub":"Tippe auf Hinzufügen, um eine Packung zu öffnen, eine Vorlage zu scannen oder hochzuladen.","tl.nomatch":"Hier ist noch nichts."},
+    nl:{"tl.title":"Steekvolger","tl.add":"Toevoegen","tl.all":"Alles","tl.prog":"Bezig","tl.fin":"Klaar","tl.sheet":"Patroon toevoegen om te volgen","tl.kit":"Pakketpatroon","tl.kitsub":"Luca-S- en partnerpakketten, via QR of code","tl.scan":"Papieren patroon scannen","tl.scansub":"Foto's of PDF van een geprint patroon","tl.up":"Patroonbestand uploaden","tl.upsub":"PDF, OXS, .pat of .ptly","tl.bk":"Back-up terugzetten","tl.bksub":"Een back-upbestand uit Patternly","tl.new":"Nieuw hier?","tl.guide":"Lees de gids","tl.empty":"Nog geen patronen","tl.emptysub":"Tik op Toevoegen om een pakket te openen, een patroon te scannen of te uploaden.","tl.nomatch":"Hier staat nog niets."},
+    ru:{"tl.title":"Трекер вышивки","tl.add":"Добавить","tl.all":"Все","tl.prog":"В работе","tl.fin":"Готовые","tl.sheet":"Добавить схему","tl.kit":"Схема из набора","tl.kitsub":"Наборы Luca-S и партнёров, по QR или коду","tl.scan":"Сканировать бумажную схему","tl.scansub":"Фото или PDF печатной схемы","tl.up":"Загрузить файл схемы","tl.upsub":"PDF, OXS, .pat или .ptly","tl.bk":"Восстановить из копии","tl.bksub":"Файл резервной копии Patternly","tl.new":"Впервые здесь?","tl.guide":"Прочитать руководство","tl.empty":"Пока нет схем","tl.emptysub":"Нажмите «Добавить», чтобы открыть набор, отсканировать или загрузить схему.","tl.nomatch":"Здесь пока ничего нет."},
+    uk:{"tl.title":"Трекер вишивки","tl.add":"Додати","tl.all":"Усі","tl.prog":"У роботі","tl.fin":"Готові","tl.sheet":"Додати схему","tl.kit":"Схема з набору","tl.kitsub":"Набори Luca-S і партнерів, за QR або кодом","tl.scan":"Сканувати паперову схему","tl.scansub":"Фото або PDF друкованої схеми","tl.up":"Завантажити файл схеми","tl.upsub":"PDF, OXS, .pat або .ptly","tl.bk":"Відновити з копії","tl.bksub":"Файл резервної копії Patternly","tl.new":"Уперше тут?","tl.guide":"Прочитати посібник","tl.empty":"Поки немає схем","tl.emptysub":"Натисніть «Додати», щоб відкрити набір, відсканувати або завантажити схему.","tl.nomatch":"Тут поки нічого немає."},
+    es:{"tl.title":"Seguimiento de puntadas","tl.add":"Añadir","tl.all":"Todos","tl.prog":"En curso","tl.fin":"Terminados","tl.sheet":"Añadir un patrón para seguir","tl.kit":"Patrón de un kit","tl.kitsub":"Kits de Luca-S y marcas socias, por QR o código","tl.scan":"Escanear un patrón en papel","tl.scansub":"Fotos o PDF de un patrón impreso","tl.up":"Subir un archivo","tl.upsub":"PDF, OXS, .pat o .ptly","tl.bk":"Restaurar una copia","tl.bksub":"Un archivo de copia de Patternly","tl.new":"¿Nuevo aquí?","tl.guide":"Lee la guía","tl.empty":"Aún no hay patrones","tl.emptysub":"Toca Añadir para abrir un kit, escanear o subir un patrón.","tl.nomatch":"Aquí aún no hay nada."},
+    it:{"tl.title":"Tracker dei punti","tl.add":"Aggiungi","tl.all":"Tutti","tl.prog":"In corso","tl.fin":"Finiti","tl.sheet":"Aggiungi uno schema da seguire","tl.kit":"Schema di un kit","tl.kitsub":"Kit Luca-S e dei partner, con QR o codice","tl.scan":"Scansiona uno schema cartaceo","tl.scansub":"Foto o PDF di uno schema stampato","tl.up":"Carica un file","tl.upsub":"PDF, OXS, .pat o .ptly","tl.bk":"Ripristina un backup","tl.bksub":"Un file di backup di Patternly","tl.new":"Nuovo qui?","tl.guide":"Leggi la guida","tl.empty":"Ancora nessuno schema","tl.emptysub":"Tocca Aggiungi per aprire un kit, scansionare o caricare uno schema.","tl.nomatch":"Qui non c'è ancora niente."}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; return s; }
+  function app(){ return document.body.classList.contains('ptly-appui'); }
+  var filter='all', head, foot, empty;
+  var IC={
+    kit:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M20 20h.01M17 20v.01"/>',
+    scan:'<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/>',
+    up:'<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
+    bk:'<path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/>'
+  };
+  function row(id,ic,cls,t,s,beta){ return '<button type="button" class="r" data-go="'+id+'"><span class="ic '+cls+'"><svg viewBox="0 0 24 24">'+IC[ic]+'</svg></span><span><b>'+t+(beta?'<span class="beta">BETA</span>':'')+'</b><small>'+s+'</small></span></button>'; }
+  function render(){
+    if(!head) return;
+    head.querySelector('h1').textContent=tx('tl.title');
+    head.querySelector('#pltl-add span').textContent=tx('tl.add');
+    var ch=head.querySelectorAll('#pltl-chips button'); ch[0].textContent=tx('tl.all'); ch[1].textContent=tx('tl.prog'); ch[2].textContent=tx('tl.fin');
+    foot.innerHTML=tx('tl.new')+' <a href="#">'+tx('tl.guide')+'</a>';
+    empty._h=null;
+    var sh=document.getElementById('pltl-sheet');
+    sh.innerHTML='<div class="grab"></div><p class="lbl">'+tx('tl.sheet')+'</p>'
+      +row('lucas','kit','r',tx('tl.kit'),tx('tl.kitsub'))
+      +row('scan','scan','p',tx('tl.scan'),tx('tl.scansub'),1)
+      +row('other','up','r',tx('tl.up'),tx('tl.upsub'))
+      +row('backup','bk','g',tx('tl.bk'),tx('tl.bksub'));
+  }
+  function sheet(on){ document.body.classList.toggle('pltl-sheet',!!on); }
+  function pct(card){ var b=card.querySelector('.trk-pbar>div'); if(!b) return -1; var w=parseFloat(b.style.width); return isNaN(w)?-1:w; }
+  function apply(){
+    var cards=document.querySelectorAll('#trk-projects .trk-cardgrid > .trk-pcard'), shown=0;
+    cards.forEach(function(c){
+      if(c.classList.contains('new')){ c.classList.add('pltl-off'); return; }
+      var p=pct(c), off=false;
+      if(filter==='prog') off=(p>=100); else if(filter==='fin') off=(p<100);
+      c.classList.toggle('pltl-off',off); if(!off) shown++;
+      if(!c._pltl){ c._pltl=1; c.addEventListener('click',function(e){
+        if(!document.body.classList.contains('pltl-home')) return;
+        if(e.target.closest('button,a,input')) return;
+        var o=c.querySelector('button.open'); if(o) o.click(); }); }
+    });
+    var none=!cards.length || !shown, h=!cards.length ? '<b>'+tx('tl.empty')+'</b><span>'+tx('tl.emptysub')+'</span>' : '<span>'+tx('tl.nomatch')+'</span>';
+    if(document.body.classList.contains('pltl-none')!==none) document.body.classList.toggle('pltl-none',none);
+    if(empty._h!==h){ empty._h=h; empty.innerHTML=h; }   // guarded: this node sits inside the observed list
+  }
+  function state(){
+    var b=document.body.classList, ws=document.getElementById('trk-workspace'), pr=document.getElementById('trk-projects');
+    var on=app() && b.contains('tracker-mode') && !b.contains('trk-fs') && ws && ws.style.display==='none' && pr && pr.style.display!=='none';
+    if(b.contains('pltl-home')!==on) b.toggle('pltl-home',on);
+    if(!on) sheet(false); else apply();
+  }
+  function go(kind){
+    sheet(false);
+    if(kind==='backup'){ try{ trkImportPick(); }catch(e){} return; }
+    try{ trkChooseSource(kind); }catch(e){}
+  }
+  function init(){
+    if(!app()) return;
+    var up=document.getElementById('trk-upload'), pr=document.getElementById('trk-projects'); if(!up||!pr) return;
+    head=document.createElement('div'); head.id='pltl-head';
+    head.innerHTML='<div class="r1"><h1></h1><button type="button" id="pltl-add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span></span></button></div>'
+      +'<div id="pltl-chips" role="group"><button type="button" data-f="all" aria-pressed="true"></button><button type="button" data-f="prog" aria-pressed="false"></button><button type="button" data-f="fin" aria-pressed="false"></button></div>';
+    up.insertBefore(head, up.firstChild);
+    empty=document.createElement('div'); empty.id='pltl-empty'; pr.insertBefore(empty, pr.firstChild);
+    var st=document.getElementById('trk-streak'); if(st && st.parentNode===pr) pr.insertBefore(st, pr.firstChild);
+    foot=document.createElement('div'); foot.id='pltl-foot'; pr.appendChild(foot);
+    var sc=document.createElement('div'); sc.id='pltl-scrim'; document.body.appendChild(sc);
+    var sh=document.createElement('div'); sh.id='pltl-sheet'; sh.setAttribute('role','dialog'); document.body.appendChild(sh);
+    render();
+    head.querySelector('#pltl-add').onclick=function(){ sheet(true); };
+    head.querySelectorAll('#pltl-chips button').forEach(function(b){ b.onclick=function(){
+      filter=b.getAttribute('data-f'); head.querySelectorAll('#pltl-chips button').forEach(function(x){ x.setAttribute('aria-pressed', x===b?'true':'false'); }); apply(); }; });
+    foot.addEventListener('click',function(e){ if(e.target.closest('a')){ e.preventDefault(); try{ openTrackerGuide(); }catch(_){} } });
+    sc.onclick=function(){ sheet(false); };
+    sh.addEventListener('click',function(e){ var r=e.target.closest('[data-go]'); if(r) go(r.getAttribute('data-go')); });
+    document.addEventListener('keydown',function(e){ if(e.key==='Escape') sheet(false); });
+    var mo=new MutationObserver(state);
+    mo.observe(document.body,{attributes:true,attributeFilter:['class']});
+    ['trk-workspace','trk-projects'].forEach(function(id){ var el=document.getElementById(id); if(el) mo.observe(el,{attributes:true,attributeFilter:['style']}); });
+    // Cards arrive asynchronously (cloud and account cards): filter them as they land.
+    new MutationObserver(function(){ if(document.body.classList.contains('pltl-home')) apply(); }).observe(pr,{childList:true,subtree:true});
+    if(typeof window.plApplyLang==='function' && !window.plApplyLang._tl){
+      var al=window.plApplyLang; window.plApplyLang=function(){ var r=al.apply(this,arguments); try{ render(); apply(); }catch(e){} return r; }; window.plApplyLang._tl=1;
+    }
+    state();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
+  else setTimeout(init,0);
+})();
+</script>
+<style id="pjd-style">
+/* v662 – app Editor tab "My designs": designs first, New design in one row. App only (body.ptly-appui). */
+body.ptly-appui #projects-page .pj-make,body.ptly-appui #projects-page .pj-sub,body.ptly-appui #projects-page .pj-viewtoggle,body.ptly-appui #pj-grid .pj-new,body.ptly-appui #pj-grid .pj-empty-hint{display:none!important}
+body.ptly-appui #projects-page .pj-container{padding:calc(var(--sa-top,0px) + 18px) 16px 104px;max-width:640px}
+body.ptly-appui #projects-page .pj-head{flex-wrap:nowrap;align-items:center;margin-bottom:14px}
+body.ptly-appui #projects-page .pj-title{font-size:1.75rem;margin:0}
+body.ptly-appui #projects-page .pj-tools{display:flex;gap:8px;align-items:center}
+#pjd-count{display:block;font-size:.78rem;color:var(--lp-muted,#7a6a72);margin-top:2px}
+#pjd-searchbtn,body.ptly-appui #pj-select-btn{height:38px;min-width:38px;border-radius:12px;border:1.5px solid #eadde1;background:#fff;color:#5a4a52;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 10px;font:inherit;font-size:.85rem;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#pjd-searchbtn{padding:0;width:38px}
+#pjd-searchbtn svg,body.ptly-appui #pj-select-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+#pjd-searchbtn.on{border-color:#8B1A2B;color:#8B1A2B}
+#pjd-search{display:none;margin:0 0 12px;position:relative}
+#pjd-search.on{display:block}
+#pjd-search input{width:100%;box-sizing:border-box;height:42px;border-radius:12px;border:1.5px solid #eadde1;background:#fff;padding:0 38px 0 14px;font:inherit;font-size:16px;color:#2b2226;outline:none}
+#pjd-search input:focus{border-color:#8B1A2B}
+#pjd-search input::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+#pjd-search button{position:absolute;right:6px;top:6px;width:30px;height:30px;border:0;border-radius:9px;background:none;color:#9a8a90;font-size:1rem;cursor:pointer}
+#pjd-new{margin:0 0 18px}
+#pjd-new .lbl{font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9a8890;margin:0 0 8px}
+#pjd-new .row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+#pjd-new button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 4px 10px;border-radius:14px;border:1px solid #eee2e5;background:#fff;font:inherit;font-size:.74rem;font-weight:600;color:#2b2226;cursor:pointer;-webkit-tap-highlight-color:transparent;line-height:1.15;text-align:center}
+#pjd-new button:active{transform:scale(.97)}
+#pjd-new .ic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center}
+#pjd-new .ic svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#pjd-new .ic.r{background:#fdedf0;color:#8B1A2B}#pjd-new .ic.p{background:#f0ebfc;color:#6b4fb0}#pjd-new .ic.g{background:#fef6e4;color:#a86a00}#pjd-new .ic.b{background:#e8f3fb;color:#2a6f9e}
+body.ptly-appui #pj-grid,body.ptly-appui #pj-grid.list{display:grid!important;grid-template-columns:1fr 1fr;gap:12px}
+body.ptly-appui #pj-grid .pj-card{flex-direction:column;align-items:stretch;border-radius:16px;cursor:pointer}
+body.ptly-appui #pj-grid .pj-card:hover{transform:none}
+body.ptly-appui #pj-grid .pj-thumb{width:auto;min-width:0;height:auto;aspect-ratio:1/1;order:0}
+body.ptly-appui #pj-grid .pj-info{order:0;padding:.6rem .75rem .7rem}
+body.ptly-appui #pj-grid .pj-name{font-size:.9rem}
+body.ptly-appui #pj-grid .pj-meta{font-size:.72rem}
+body.ptly-appui #pj-grid .pj-menu-btn{position:absolute;top:6px;right:6px;margin:0;order:0;background:rgba(255,255,255,.9);box-shadow:0 1px 5px rgba(0,0,0,.14);color:#4a3f45}
+body.ptly-appui #pj-grid .pj-check{top:8px;transform:none}
+#pjd-empty{display:none;text-align:center;padding:28px 18px;border:1.5px dashed #e3d3d8;border-radius:16px;color:var(--lp-muted,#7a6a72);font-size:.88rem;line-height:1.45}
+#pjd-empty b{display:block;color:#2b2226;font-size:1rem;margin-bottom:4px}
+body.dark #pjd-searchbtn,body.dark.ptly-appui #pj-select-btn,body.dark #pjd-search input{background:#221c30;border-color:#37303f;color:#e6dde9}
+body.dark #pjd-searchbtn.on{border-color:#e0a9b4;color:#e0a9b4}
+body.dark #pjd-new button{background:#221c30;border-color:#37303f;color:#ece4ef}
+body.dark #pjd-new .ic.r{background:#3a2028;color:#e0a9b4}body.dark #pjd-new .ic.p{background:#2b2338;color:#c4b0f0}body.dark #pjd-new .ic.g{background:#31281a;color:#e0a64a}body.dark #pjd-new .ic.b{background:#1d2a36;color:#8fc3e6}
+body.dark #pjd-empty{border-color:#37303f;color:#a99fb2}body.dark #pjd-empty b{color:#ece4ef}
+body.dark.ptly-appui #pj-grid .pj-menu-btn{background:rgba(34,28,48,.9);color:#e6dde9}
+</style>
+<script id="pjd-src">
+(function(){
+  var S={
+    en:{"pd.title":"My designs","pd.new":"New design","pd.photo":"From photo","pd.blank":"Blank","pd.file":"Open file","pd.qr":"QR code","pd.mine":"Saved designs","pd.count":"{n} of {c} saved","pd.search":"Search designs","pd.select":"Select","pd.empty":"No designs yet","pd.emptysub":"Pick one of the options above to start your first design.","pd.nomatch":"No design matches that name."},
+    fr:{"pd.title":"Mes créations","pd.new":"Nouvelle création","pd.photo":"Depuis une photo","pd.blank":"Vierge","pd.file":"Ouvrir un fichier","pd.qr":"Code QR","pd.mine":"Créations enregistrées","pd.count":"{n} sur {c} enregistrées","pd.search":"Rechercher","pd.select":"Choisir","pd.empty":"Aucune création pour l'instant","pd.emptysub":"Choisissez une option ci-dessus pour commencer.","pd.nomatch":"Aucune création ne porte ce nom."},
+    de:{"pd.title":"Meine Designs","pd.new":"Neues Design","pd.photo":"Aus Foto","pd.blank":"Leer","pd.file":"Datei öffnen","pd.qr":"QR-Code","pd.mine":"Gespeicherte Designs","pd.count":"{n} von {c} gespeichert","pd.search":"Designs suchen","pd.select":"Auswählen","pd.empty":"Noch keine Designs","pd.emptysub":"Wähle oben eine Option, um dein erstes Design zu beginnen.","pd.nomatch":"Kein Design mit diesem Namen."},
+    nl:{"pd.title":"Mijn ontwerpen","pd.new":"Nieuw ontwerp","pd.photo":"Van foto","pd.blank":"Leeg","pd.file":"Bestand openen","pd.qr":"QR-code","pd.mine":"Opgeslagen ontwerpen","pd.count":"{n} van {c} opgeslagen","pd.search":"Ontwerpen zoeken","pd.select":"Selecteren","pd.empty":"Nog geen ontwerpen","pd.emptysub":"Kies hierboven een optie om je eerste ontwerp te starten.","pd.nomatch":"Geen ontwerp met die naam."},
+    ru:{"pd.title":"Мои дизайны","pd.new":"Новый дизайн","pd.photo":"Из фото","pd.blank":"Пустой","pd.file":"Открыть файл","pd.qr":"QR-код","pd.mine":"Сохранённые дизайны","pd.count":"Сохранено {n} из {c}","pd.search":"Поиск","pd.select":"Выбрать","pd.empty":"Пока нет дизайнов","pd.emptysub":"Выберите вариант выше, чтобы начать первый дизайн.","pd.nomatch":"Нет дизайна с таким названием."},
+    uk:{"pd.title":"Мої дизайни","pd.new":"Новий дизайн","pd.photo":"З фото","pd.blank":"Порожній","pd.file":"Відкрити файл","pd.qr":"QR-код","pd.mine":"Збережені дизайни","pd.count":"Збережено {n} з {c}","pd.search":"Пошук","pd.select":"Вибрати","pd.empty":"Поки немає дизайнів","pd.emptysub":"Оберіть варіант вище, щоб почати перший дизайн.","pd.nomatch":"Немає дизайну з такою назвою."},
+    es:{"pd.title":"Mis diseños","pd.new":"Nuevo diseño","pd.photo":"Desde foto","pd.blank":"En blanco","pd.file":"Abrir archivo","pd.qr":"Código QR","pd.mine":"Diseños guardados","pd.count":"{n} de {c} guardados","pd.search":"Buscar diseños","pd.select":"Elegir","pd.empty":"Aún no hay diseños","pd.emptysub":"Elige una opción de arriba para empezar tu primer diseño.","pd.nomatch":"Ningún diseño con ese nombre."},
+    it:{"pd.title":"I miei design","pd.new":"Nuovo design","pd.photo":"Da foto","pd.blank":"Vuoto","pd.file":"Apri file","pd.qr":"Codice QR","pd.mine":"Design salvati","pd.count":"{n} di {c} salvati","pd.search":"Cerca design","pd.select":"Seleziona","pd.empty":"Ancora nessun design","pd.emptysub":"Scegli un'opzione qui sopra per iniziare il primo design.","pd.nomatch":"Nessun design con quel nome."}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; return s; }
+  function app(){ return document.body.classList.contains('ptly-appui'); }
+  var IC={
+    photo:'<rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M21 17l-5-5-9 8"/>',
+    blank:'<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 9v6M9 12h6"/>',
+    file:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+    qr:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M20 20h.01M17 20v.01"/>'
+  };
+  var q='', built=false, nw, sr, inp, sbtn, empty, cnt;
+  function tile(go,ic,cls,k){ return '<button type="button" data-go="'+go+'"><span class="ic '+cls+'"><svg viewBox="0 0 24 24">'+IC[ic]+'</svg></span><span data-k="'+k+'">'+tx(k)+'</span></button>'; }
+  function go(w){
+    try{
+      if(w==='photo') startWithPhoto();
+      else if(w==='blank') pjOptScratch();
+      else if(w==='file') pjOptImport();
+      else if(w==='qr') pjOptQr();
+    }catch(e){ console.warn('[pjd]',e); }
+  }
+  function build(){
+    if(built) return;
+    var head=document.querySelector('#projects-page .pj-head'), grid=document.getElementById('pj-grid');
+    if(!head||!grid) return;
+    built=true;
+    var tools=head.querySelector('.pj-tools');
+    sbtn=document.createElement('button'); sbtn.type='button'; sbtn.id='pjd-searchbtn';
+    sbtn.innerHTML='<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>';
+    if(tools) tools.insertBefore(sbtn, tools.firstChild);
+    cnt=document.createElement('span'); cnt.id='pjd-count';
+    var ht=head.querySelector('.pj-head-text'); if(ht) ht.appendChild(cnt);
+    sr=document.createElement('div'); sr.id='pjd-search';
+    sr.innerHTML='<input type="search" autocomplete="off" enterkeyhint="search"><button type="button" aria-label="Clear">✕</button>';
+    inp=sr.querySelector('input');
+    nw=document.createElement('div'); nw.id='pjd-new';
+    empty=document.createElement('div'); empty.id='pjd-empty';
+    grid.parentNode.insertBefore(nw, grid);
+    grid.parentNode.insertBefore(sr, grid);
+    grid.parentNode.insertBefore(empty, grid.nextSibling);
+    sbtn.addEventListener('click',function(){
+      var on=!sr.classList.contains('on'); sr.classList.toggle('on',on); sbtn.classList.toggle('on',on);
+      if(on) setTimeout(function(){ try{ inp.focus(); }catch(e){} },30); else { q=''; inp.value=''; filter(); }
+    });
+    inp.addEventListener('input',function(){ q=inp.value.trim().toLowerCase(); filter(); });
+    sr.querySelector('button').addEventListener('click',function(){ q=''; inp.value=''; filter(); inp.focus(); });
+    nw.addEventListener('click',function(e){ var b=e.target.closest('[data-go]'); if(b) go(b.getAttribute('data-go')); });
+    // Tap anywhere on a card opens it (the ⋯ button and select mode keep their own handlers).
+    grid.addEventListener('click',function(e){
+      if(!app()) return;
+      var c=e.target.closest('.pj-card'); if(!c||!c.dataset.id) return;
+      if(e.target.closest('.pj-menu-btn,.pj-thumb,.pj-info')) return;
+      if(typeof pjSelectMode!=='undefined' && pjSelectMode) return;
+      try{ pjOpenProject(c.dataset.id); }catch(_){}
+    });
+    // Cards are re-rendered and cloud cards arrive later: re-apply the filter when children change.
+    new MutationObserver(function(){ filter(); }).observe(grid,{childList:true});
+    render();
+  }
+  function render(){
+    if(!built) return;
+    nw.innerHTML='<p class="lbl">'+tx('pd.new')+'</p><div class="row">'
+      +tile('photo','photo','r','pd.photo')+tile('blank','blank','p','pd.blank')+tile('file','file','g','pd.file')+tile('qr','qr','b','pd.qr')+'</div>';
+    inp.placeholder=tx('pd.search'); sbtn.title=tx('pd.search'); sbtn.setAttribute('aria-label',tx('pd.search'));
+    if(app()){ var t=document.querySelector('#projects-page .pj-title'); if(t) t.textContent=tx('pd.title'); }
+    filter();
+  }
+  function filter(){
+    if(!built || !app()) return;
+    var cards=document.querySelectorAll('#pj-grid .pj-card'), shown=0;
+    for(var i=0;i<cards.length;i++){
+      var n=cards[i].querySelector('.pj-name'), nm=(n?n.textContent:'').toLowerCase();
+      var ok=!q || nm.indexOf(q)>=0; cards[i].style.display=ok?'':'none'; if(ok) shown++;
+    }
+    var html='';
+    if(!cards.length) html='<b>'+tx('pd.empty')+'</b>'+tx('pd.emptysub');
+    else if(!shown) html=tx('pd.nomatch');
+    if(empty._h!==html){ empty._h=html; empty.innerHTML=html; }
+    empty.style.display=html?'block':'none';
+    try{
+      var c=(typeof pjSlotCap==='function')?pjSlotCap():null, n2=(typeof pjLoadAll==='function')?pjLoadAll().length:cards.length;
+      var s=(c && isFinite(c))?tx('pd.count').replace('{n}',n2).replace('{c}',c):'';
+      if(cnt.textContent!==s) cnt.textContent=s;
+    }catch(e){}
+    var sl=document.querySelector('#pj-select-btn .pj-sel-label');
+    if(sl && sl.textContent!==tx('pd.select') && !(typeof pjSelectMode!=='undefined' && pjSelectMode)) sl.textContent=tx('pd.select');
+  }
+  function init(){
+    if(!app()){
+      // The app flag can arrive a moment after load: wait for it, never build on the website.
+      if(!init._mo){ init._mo=new MutationObserver(function(){ if(app()){ init._mo.disconnect(); init(); } }); init._mo.observe(document.body,{attributes:true,attributeFilter:['class']}); }
+      return;
+    }
+    build();
+    if(typeof window.renderProjectsPage==='function' && !window.renderProjectsPage._pjd){
+      var rp=window.renderProjectsPage; window.renderProjectsPage=function(){ var r=rp.apply(this,arguments); try{ if(document.body.classList.contains('ptly-appui')){ var t=document.querySelector('#projects-page .pj-title'); if(t) t.textContent=tx('pd.title'); filter(); } }catch(e){} return r; }; window.renderProjectsPage._pjd=1;
+    }
+    if(typeof window.plApplyLang==='function' && !window.plApplyLang._pjd){
+      var al=window.plApplyLang; window.plApplyLang=function(){ var r=al.apply(this,arguments); try{ render(); }catch(e){} return r; }; window.plApplyLang._pjd=1;
+    }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
+  else setTimeout(init,0);
+})();
+</script>
+<style id="ped-style">
+/* v663 – app editor (phone/tablet up to 820px): slim top bar, labelled tool dock, recent colours,
+   Palette / Library / Layers / Check as one bottom sheet. App only (body.ptly-appui); desktop and website unchanged. */
+#ped-top,#ped-dock,#ped-recent,#ped-menu,#ped-scrim{display:none}
+@media (max-width:820px){
+  body.ptly-appui.app-mode #topbar{position:absolute!important;top:0;left:0;right:0;height:0!important;min-height:0;padding:0!important;border:0!important;visibility:hidden;overflow:visible;z-index:700}
+  body.ptly-appui.app-mode #edit-history-panel.open{visibility:visible;position:fixed!important;top:calc(var(--sa-top,0px) + 62px)!important;left:12px!important;right:12px!important;width:auto!important;max-height:55vh}
+  body.ptly-appui.app-mode #ifsize-pop.open{visibility:visible;position:fixed!important;top:calc(var(--sa-top,0px) + 62px)!important;right:12px!important;left:auto!important}
+  body.ptly-appui.app-mode #quick-bar,body.ptly-appui.app-mode #qb-left-btn,body.ptly-appui.app-mode #qb-right-btn,body.ptly-appui.app-mode #qb-picker{display:none!important}
+  body.ptly-appui.app-mode #canvas-area{padding-top:calc(var(--sa-top,0px) + 62px)!important;padding-bottom:calc(var(--sa-bottom,0px) + 132px)!important}
+  body.ptly-appui.app-mode #zoom-controls{top:calc(var(--sa-top,0px) + 66px)!important}
+  body.ptly-appui.app-mode #shape-commit-bar,body.ptly-appui.app-mode #text-commit-bar{bottom:calc(var(--sa-bottom,0px) + 140px)!important}
+  body.ptly-appui.app-mode #ped-top{display:flex}
+  body.ptly-appui.app-mode #ped-dock{display:grid}
+  body.ptly-appui.app-mode #ped-recent.has{display:flex}
+  body.ptly-appui.app-mode #ped-menu.open,body.ptly-appui.app-mode #ped-scrim.open{display:block}
+  /* One bottom sheet with tabs instead of the side panel */
+  body.ptly-appui.app-mode #right-panel{top:auto!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;max-width:none!important;height:min(78vh,680px)!important;border-radius:20px 20px 0 0;border-left:0!important;transform:translateY(105%)!important;padding-top:14px!important;padding-bottom:var(--sa-bottom,0px);box-shadow:0 -10px 34px rgba(0,0,0,.28)!important}
+  body.ptly-appui.app-mode #right-panel.mobile-open{transform:translateY(0)!important}
+  body.ptly-appui.app-mode #right-panel::before{content:'';position:absolute;top:6px;left:50%;width:40px;height:4px;margin-left:-20px;border-radius:2px;background:#d9cbd0}
+}
+#ped-top{position:fixed;top:0;left:0;right:0;z-index:605;align-items:center;gap:6px;padding:calc(var(--sa-top,0px) + 8px) 10px 8px;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid #f0e4e8}
+#ped-top button{height:38px;min-width:38px;border-radius:11px;border:0;background:none;color:#4a3a42;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font:inherit;-webkit-tap-highlight-color:transparent;flex:none}
+#ped-top button:active{background:#f6e9ed}
+#ped-top svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+#ped-top .nm{flex:1;min-width:0;line-height:1.15;padding:0 2px}
+#ped-top .nm b{display:block;font-size:.95rem;color:#2b2226;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#ped-top .nm small{display:block;font-size:.72rem;color:#8a7a82;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#ped-top .nm small .ok{color:#2E7D32}
+#ped-top #ped-export{background:#8B1A2B;color:#fff;padding:0 13px;font-size:.84rem;font-weight:700;gap:6px}
+#ped-top #ped-export svg{width:17px;height:17px}
+#ped-dock{position:fixed;left:0;right:0;bottom:0;z-index:605;grid-template-columns:repeat(6,1fr);padding:6px 6px calc(var(--sa-bottom,0px) + 6px);background:rgba(255,255,255,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid #f0e4e8}
+#ped-dock button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0 4px;border:0;background:none;border-radius:12px;color:#7a6a72;font:inherit;font-size:.66rem;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;min-width:0}
+#ped-dock button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#ped-dock svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#ped-dock button.on{color:#8B1A2B;background:#fdedf0}
+#ped-dock .sw{width:25px;height:25px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1.5px #d9cbd0;display:grid;place-items:center;font-size:.5rem;font-weight:800;color:#fff;text-shadow:0 0 2px rgba(0,0,0,.6);background:conic-gradient(#e85d75,#f2b84b,#7cc47f,#5aa9e6,#a77be0,#e85d75)}
+#ped-recent{position:fixed;left:0;right:0;bottom:calc(var(--sa-bottom,0px) + 62px);z-index:604;align-items:center;gap:8px;padding:6px 12px;overflow-x:auto;scrollbar-width:none}
+#ped-recent::-webkit-scrollbar{display:none}
+#ped-recent .lbl{font-size:.64rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a7a82;background:rgba(255,255,255,.92);border-radius:8px;padding:3px 7px;flex:none}
+#ped-recent button{flex:none;width:34px;height:34px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.22);cursor:pointer;padding:0;font-size:.52rem;font-weight:800;color:#fff;text-shadow:0 0 2px rgba(0,0,0,.65);font-family:inherit}
+#ped-recent button.on{box-shadow:0 0 0 2.5px #8B1A2B,0 1px 6px rgba(0,0,0,.22)}
+#ped-scrim{position:fixed;inset:0;z-index:655;background:transparent}
+#ped-menu{position:fixed;top:calc(var(--sa-top,0px) + 56px);right:10px;z-index:660;min-width:220px;background:#fff;border:1px solid #eee2e5;border-radius:14px;box-shadow:0 14px 40px rgba(43,34,38,.22);padding:6px}
+#ped-menu button{display:flex;align-items:center;gap:11px;width:100%;padding:11px 12px;border:0;background:none;border-radius:10px;font:inherit;font-size:.9rem;color:#2b2226;text-align:left;cursor:pointer}
+#ped-menu button:active{background:#f6e9ed}
+#ped-menu svg{width:19px;height:19px;stroke:#8a7a82;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+#ped-menu hr{border:0;border-top:1px solid #f0e4e8;margin:4px 6px}
+#ped-menu .danger{color:#b23b3b}#ped-menu .danger svg{stroke:#b23b3b}
+body.dark #ped-top,body.dark #ped-dock{background:rgba(26,21,36,.96);border-color:#342b3f}
+body.dark #ped-top button{color:#e6dde9}body.dark #ped-top button:active{background:#2c2438}
+body.dark #ped-top .nm b{color:#f1e9f3}body.dark #ped-top .nm small{color:#a99fb2}body.dark #ped-top .nm small .ok{color:#7cc47f}
+body.dark #ped-top #ped-export{background:#a8243a;color:#fff}
+body.dark #ped-dock button{color:#a99fb2}body.dark #ped-dock button.on{color:#f0b3c0;background:#3a2028}
+body.dark #ped-dock .sw{border-color:#1a1524;box-shadow:0 0 0 1.5px #4a3f55}
+body.dark #ped-recent .lbl{background:rgba(26,21,36,.9);color:#a99fb2}
+body.dark #ped-recent button{border-color:#1a1524}
+body.dark #ped-recent button.on{box-shadow:0 0 0 2.5px #f0b3c0,0 1px 6px rgba(0,0,0,.4)}
+body.dark #ped-menu{background:#221c30;border-color:#37303f}
+body.dark #ped-menu button{color:#ece4ef}body.dark #ped-menu button:active{background:#2c2438}
+body.dark #ped-menu hr{border-color:#37303f}
+</style>
+<script id="ped-src">
+(function(){
+  var S={
+    en:{"pe.back":"Back to My designs","pe.undo":"Undo","pe.redo":"Redo","pe.export":"Export","pe.more":"More","pe.saved":"Saved","pe.saving":"Saving…","pe.unsaved":"Not saved yet","pe.move":"Move","pe.draw":"Draw","pe.erase":"Erase","pe.select":"Select","pe.tools":"Tools","pe.colours":"Colours","pe.recent":"Recent","pe.history":"Edit history","pe.size":"Text size","pe.layers":"Layers","pe.library":"Thread library","pe.check":"Check pattern","pe.settings":"Pattern settings","pe.save":"Save now","pe.clear":"Clear pattern"},
+    fr:{"pe.back":"Retour à Mes créations","pe.undo":"Annuler","pe.redo":"Rétablir","pe.export":"Exporter","pe.more":"Plus","pe.saved":"Enregistré","pe.saving":"Enregistrement…","pe.unsaved":"Pas encore enregistré","pe.move":"Déplacer","pe.draw":"Dessiner","pe.erase":"Gommer","pe.select":"Sélection","pe.tools":"Outils","pe.colours":"Couleurs","pe.recent":"Récentes","pe.history":"Historique","pe.size":"Taille du texte","pe.layers":"Calques","pe.library":"Bibliothèque de fils","pe.check":"Vérifier la grille","pe.settings":"Réglages de la grille","pe.save":"Enregistrer","pe.clear":"Effacer la grille"},
+    de:{"pe.back":"Zurück zu Meine Designs","pe.undo":"Rückgängig","pe.redo":"Wiederholen","pe.export":"Export","pe.more":"Mehr","pe.saved":"Gespeichert","pe.saving":"Speichert…","pe.unsaved":"Noch nicht gespeichert","pe.move":"Bewegen","pe.draw":"Zeichnen","pe.erase":"Radieren","pe.select":"Auswahl","pe.tools":"Werkzeuge","pe.colours":"Farben","pe.recent":"Zuletzt","pe.history":"Verlauf","pe.size":"Textgröße","pe.layers":"Ebenen","pe.library":"Garnbibliothek","pe.check":"Muster prüfen","pe.settings":"Mustereinstellungen","pe.save":"Jetzt speichern","pe.clear":"Muster leeren"},
+    nl:{"pe.back":"Terug naar Mijn ontwerpen","pe.undo":"Ongedaan maken","pe.redo":"Opnieuw","pe.export":"Exporteren","pe.more":"Meer","pe.saved":"Opgeslagen","pe.saving":"Opslaan…","pe.unsaved":"Nog niet opgeslagen","pe.move":"Verplaatsen","pe.draw":"Tekenen","pe.erase":"Gummen","pe.select":"Selectie","pe.tools":"Gereedschap","pe.colours":"Kleuren","pe.recent":"Recent","pe.history":"Geschiedenis","pe.size":"Tekstgrootte","pe.layers":"Lagen","pe.library":"Garenbibliotheek","pe.check":"Patroon controleren","pe.settings":"Patrooninstellingen","pe.save":"Nu opslaan","pe.clear":"Patroon wissen"},
+    ru:{"pe.back":"Назад к Моим дизайнам","pe.undo":"Отменить","pe.redo":"Повторить","pe.export":"Экспорт","pe.more":"Ещё","pe.saved":"Сохранено","pe.saving":"Сохранение…","pe.unsaved":"Ещё не сохранено","pe.move":"Двигать","pe.draw":"Рисовать","pe.erase":"Стереть","pe.select":"Выделить","pe.tools":"Инструменты","pe.colours":"Цвета","pe.recent":"Недавние","pe.history":"История","pe.size":"Размер текста","pe.layers":"Слои","pe.library":"Библиотека ниток","pe.check":"Проверить схему","pe.settings":"Настройки схемы","pe.save":"Сохранить","pe.clear":"Очистить схему"},
+    uk:{"pe.back":"Назад до Моїх дизайнів","pe.undo":"Скасувати","pe.redo":"Повторити","pe.export":"Експорт","pe.more":"Ще","pe.saved":"Збережено","pe.saving":"Збереження…","pe.unsaved":"Ще не збережено","pe.move":"Рухати","pe.draw":"Малювати","pe.erase":"Стерти","pe.select":"Виділити","pe.tools":"Інструменти","pe.colours":"Кольори","pe.recent":"Недавні","pe.history":"Історія","pe.size":"Розмір тексту","pe.layers":"Шари","pe.library":"Бібліотека ниток","pe.check":"Перевірити схему","pe.settings":"Налаштування схеми","pe.save":"Зберегти","pe.clear":"Очистити схему"},
+    es:{"pe.back":"Volver a Mis diseños","pe.undo":"Deshacer","pe.redo":"Rehacer","pe.export":"Exportar","pe.more":"Más","pe.saved":"Guardado","pe.saving":"Guardando…","pe.unsaved":"Aún sin guardar","pe.move":"Mover","pe.draw":"Dibujar","pe.erase":"Borrar","pe.select":"Seleccionar","pe.tools":"Herramientas","pe.colours":"Colores","pe.recent":"Recientes","pe.history":"Historial","pe.size":"Tamaño del texto","pe.layers":"Capas","pe.library":"Biblioteca de hilos","pe.check":"Revisar patrón","pe.settings":"Ajustes del patrón","pe.save":"Guardar ahora","pe.clear":"Vaciar patrón"},
+    it:{"pe.back":"Torna a I miei design","pe.undo":"Annulla","pe.redo":"Ripeti","pe.export":"Esporta","pe.more":"Altro","pe.saved":"Salvato","pe.saving":"Salvataggio…","pe.unsaved":"Non ancora salvato","pe.move":"Sposta","pe.draw":"Disegna","pe.erase":"Gomma","pe.select":"Seleziona","pe.tools":"Strumenti","pe.colours":"Colori","pe.recent":"Recenti","pe.history":"Cronologia","pe.size":"Dimensione testo","pe.layers":"Livelli","pe.library":"Libreria fili","pe.check":"Controlla schema","pe.settings":"Impostazioni schema","pe.save":"Salva ora","pe.clear":"Svuota schema"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; return s; }
+  function app(){ return document.body.classList.contains('ptly-appui'); }
+  function on(){ return app() && document.body.classList.contains('app-mode') && window.innerWidth<=820; }
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function $(id){ return document.getElementById(id); }
+  function svg(p){ return '<svg viewBox="0 0 24 24">'+p+'</svg>'; }
+  var IC={
+    back:'<path d="M15 18l-6-6 6-6"/>',
+    undo:'<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+    redo:'<path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
+    exp:'<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M5 20h14"/>',
+    more:'<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
+    pan:'<path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8a8 8 0 0 0 16 0v-2a2 2 0 0 0-4 0"/>',
+    draw:'<path d="M4 20l1-4L16 5a2 2 0 0 1 3 3L8 19z"/><path d="M14 7l3 3"/>',
+    erase:'<path d="M20 20H9L4 15a2 2 0 0 1 0-3l8-8a2 2 0 0 1 3 0l5 5a2 2 0 0 1 0 3l-7 7"/><path d="M8 11l6 6"/>',
+    select:'<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/>',
+    tools:'<rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/>',
+    hist:'<path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/>',
+    size:'<path d="M4 18 9 6l5 12M5.8 14h6.4M15 18l3-7 3 7M15.9 16h4.2"/>',
+    layers:'<path d="M12 3 2 8l10 5 10-5z"/><path d="M2 13l10 5 10-5"/>',
+    lib:'<path d="M5 4h4v16H5zM10 4h4v16h-4z"/><path d="M15.5 5l3.8-1 2.7 15.5-3.8.8z"/>',
+    check:'<path d="M20 6 9 17l-5-5"/>',
+    set:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+    save:'<path d="M6 3h12v18l-6-4.5L6 21z"/>',
+    clear:'<path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/>'
+  };
+  var top, dock, rec, menu, scrim, built=false, recent=[], RKEY='ptly_recent_cols';
+  try{ var r0=JSON.parse(localStorage.getItem(RKEY)||'[]'); if(Array.isArray(r0)) recent=r0.slice(0,6); }catch(e){}
+
+  function later(fn){ setTimeout(function(){ try{ fn(); }catch(e){ console.warn('[ped]',e); } },0); }
+  function click(id){ var b=$(id); if(b) b.click(); }
+  function sheet(tab){
+    var rp=$('right-panel'); if(!rp) return;
+    if(!rp.classList.contains('mobile-open')) toggleRightPanelMobile();
+    var t=rp.querySelector('.rp-tab[data-rp-tab="'+tab+'"]'); if(t) t.click();
+  }
+  function tool(t){
+    var cur=(typeof activeTool!=='undefined')?activeTool:null;
+    if(t==='more'){
+      closeEditorPanels('tools-drawer');
+      var tl=$('td-tool-list'), dt=$('tools-drawer-title'), d=$('tools-drawer');
+      if(tl) tl.style.display=''; if(dt) dt.textContent=(window.plT?plT('ed.tools'):'Tools');
+      if(d) d.classList.toggle('open');
+      return;
+    }
+    // First tap picks the tool; tapping the active tool again opens its options.
+    if(cur===t) setActiveTool(t); else setActiveTool(t,{noDrawer:true});
+    sync();
+  }
+  function menuOpen(v){ menu.classList.toggle('open',v); scrim.classList.toggle('open',v); }
+  function act(a){
+    menuOpen(false);
+    later(function(){
+      if(a==='hist') click('history-btn');
+      else if(a==='size'){ var p=$('ifsize-pop'); if(p) p.classList.add('open'); }
+      else if(a==='layers') sheet('layers');
+      else if(a==='lib') sheet('library');
+      else if(a==='check') sheet('check');
+      else if(a==='set') railAction('sidebar');
+      else if(a==='save') pjExplicitSave();
+      else if(a==='clear') click('clear-btn');
+    });
+  }
+  function build(){
+    if(built) return; built=true;
+    top=document.createElement('div'); top.id='ped-top';
+    dock=document.createElement('div'); dock.id='ped-dock';
+    rec=document.createElement('div'); rec.id='ped-recent';
+    menu=document.createElement('div'); menu.id='ped-menu';
+    scrim=document.createElement('div'); scrim.id='ped-scrim';
+    [top,rec,dock,scrim,menu].forEach(function(e){ document.body.appendChild(e); });
+    top.addEventListener('click',function(e){
+      var b=e.target.closest('button'); if(!b) return; var a=b.getAttribute('data-a');
+      if(a==='back') goProjects();
+      else if(a==='undo') click('undo-btn');
+      else if(a==='redo') click('redo-btn');
+      else if(a==='export') click('download-btn');
+      else if(a==='more'){ e.stopPropagation(); menuOpen(!menu.classList.contains('open')); }
+    });
+    dock.addEventListener('click',function(e){
+      var b=e.target.closest('button'); if(!b) return; var a=b.getAttribute('data-a');
+      if(a==='colours') later(function(){ sheet('palette'); });
+      else tool(a);
+    });
+    rec.addEventListener('click',function(e){ var b=e.target.closest('button[data-ci]'); if(b){ try{ setActiveColor(+b.getAttribute('data-ci')); }catch(_){} } });
+    menu.addEventListener('click',function(e){ e.stopPropagation(); var b=e.target.closest('button'); if(b) act(b.getAttribute('data-a')); });
+    scrim.addEventListener('click',function(){ menuOpen(false); });
+    render();
+  }
+  function render(){
+    if(!built) return;
+    top.innerHTML='<button data-a="back" aria-label="'+esc(tx('pe.back'))+'">'+svg(IC.back)+'</button>'
+      +'<div class="nm"><b id="ped-name"></b><small id="ped-sub"></small></div>'
+      +'<button data-a="undo" aria-label="'+esc(tx('pe.undo'))+'" title="'+esc(tx('pe.undo'))+'">'+svg(IC.undo)+'</button>'
+      +'<button data-a="redo" aria-label="'+esc(tx('pe.redo'))+'" title="'+esc(tx('pe.redo'))+'">'+svg(IC.redo)+'</button>'
+      +'<button data-a="export" id="ped-export">'+svg(IC.exp)+esc(tx('pe.export'))+'</button>'
+      +'<button data-a="more" aria-label="'+esc(tx('pe.more'))+'">'+svg(IC.more)+'</button>';
+    function db(a,ic,k){ return '<button data-a="'+a+'">'+svg(IC[ic])+'<span>'+esc(tx(k))+'</span></button>'; }
+    dock.innerHTML=db('pan','pan','pe.move')+db('draw','draw','pe.draw')+db('erase','erase','pe.erase')+db('select','select','pe.select')+db('more','tools','pe.tools')
+      +'<button data-a="colours"><span class="sw" id="ped-sw"></span><span>'+esc(tx('pe.colours'))+'</span></button>';
+    function mi(a,ic,k,cls){ return '<button data-a="'+a+'"'+(cls?' class="'+cls+'"':'')+'>'+svg(IC[ic])+esc(tx(k))+'</button>'; }
+    menu.innerHTML=mi('hist','hist','pe.history')+mi('size','size','pe.size')+mi('layers','layers','pe.layers')+mi('lib','lib','pe.library')+mi('check','check','pe.check')+mi('set','set','pe.settings')
+      +'<hr>'+mi('save','save','pe.save')+mi('clear','clear','pe.clear','danger');
+    sync();
+  }
+  function palette(){ try{ return getSortedPaletteItems(); }catch(e){ return []; } }
+  function sync(){
+    if(!built || !on()) return;
+    try{
+      var n=$('pattern-name'), nm=(n&&n.value)||'My Pattern';
+      var nb=$('ped-name'); if(nb && nb.textContent!==nm) nb.textContent=nm;
+      var rows=(typeof grid!=='undefined'&&grid)?grid.length:0, cols=rows&&grid[0]?grid[0].length:0;
+      var ss=$('save-state'), st=ss?ss.textContent.trim():'', html;
+      if(/saving/i.test(st)) html=esc(tx('pe.saving'));
+      else if(/not saved/i.test(st)) html=esc(st);
+      else { var dirty=false; try{ dirty=(typeof pjIsDirty==='function')&&pjIsDirty(); }catch(e){} html=dirty?esc(tx('pe.unsaved')):'<span class="ok">'+esc(tx('pe.saved'))+' ✓</span>'; }
+      var sub=(cols&&rows?cols+'×'+rows+' · ':'')+html, sb=$('ped-sub');
+      if(sb && sb._h!==sub){ sb._h=sub; sb.innerHTML=sub; }
+      var t=(typeof activeTool!=='undefined')?activeTool:'';
+      var main={pan:1,draw:1,erase:1,select:1};
+      dock.querySelectorAll('button[data-a]').forEach(function(b){ var a=b.getAttribute('data-a'); b.classList.toggle('on', a===t || (a==='more' && t && !main[t])); });
+      var sw=$('ped-sw'), ci=(typeof activeColorIdx!=='undefined')?activeColorIdx:null, pal=palette();
+      if(sw){
+        if(ci!=null && pal.indexOf(ci)>=0){ sw.style.background=colourHex(ci); sw.textContent=colourShortCode(ci); sw.title=colourLabel(ci); }
+        else { sw.style.background=''; sw.textContent=''; sw.title=''; }
+      }
+      var rs=recent.filter(function(c){ return pal.indexOf(c)>=0; }).slice(0,6), h='';
+      if(rs.length>1){
+        h='<span class="lbl">'+esc(tx('pe.recent'))+'</span>';
+        rs.forEach(function(c){ h+='<button data-ci="'+c+'" class="'+(c===ci?'on':'')+'" style="background:'+colourHex(c)+'" title="'+esc(colourLabel(c))+'">'+esc(colourShortCode(c))+'</button>'; });
+      }
+      if(rec._h!==h){ rec._h=h; rec.innerHTML=h; }
+      rec.classList.toggle('has', !!h);
+    }catch(e){}
+  }
+  function noteColour(){
+    try{
+      var ci=(typeof activeColorIdx!=='undefined')?activeColorIdx:null;
+      if(ci==null || (typeof activeColor!=='undefined' && activeColor===null)) return;
+      if(recent[0]===ci) return;
+      recent=[ci].concat(recent.filter(function(c){ return c!==ci; })).slice(0,8);
+      try{ localStorage.setItem(RKEY, JSON.stringify(recent)); }catch(e){}
+    }catch(e){}
+  }
+  function wrap(name, after){
+    var f=window[name]; if(typeof f!=='function' || f._ped) return;
+    var w=function(){ var r=f.apply(this,arguments); try{ after.apply(null,arguments); }catch(e){} return r; };
+    w._ped=1; window[name]=w;
+  }
+  function init(){
+    if(!app()){
+      if(!init._mo){ init._mo=new MutationObserver(function(){ if(app()){ init._mo.disconnect(); init(); } }); init._mo.observe(document.body,{attributes:true,attributeFilter:['class']}); }
+      return;
+    }
+    build();
+    wrap('setActiveTool', function(){ sync(); });
+    wrap('buildWorkingPalette', function(){ noteColour(); sync(); });
+    if(typeof window.plApplyLang==='function' && !window.plApplyLang._ped){
+      var al=window.plApplyLang; window.plApplyLang=function(){ var r=al.apply(this,arguments); try{ render(); }catch(e){} return r; }; window.plApplyLang._ped=1;
+    }
+    var ss=$('save-state'); if(ss) new MutationObserver(sync).observe(ss,{childList:true,characterData:true,subtree:true});
+    new MutationObserver(function(){ if(!document.body.classList.contains('app-mode')) menuOpen(false); sync(); }).observe(document.body,{attributes:true,attributeFilter:['class']});
+    // Name, size and the "saved" state change in many places: a light poll keeps the bar honest.
+    setInterval(function(){ if(on() && !document.hidden) sync(); },1500);
+    window.addEventListener('resize',sync);
+    sync();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
+  else setTimeout(init,0);
+})();
+</script>
+<style id="pmo-style">
+/* v664 – app More tab: your card + stitching numbers, then Settings / Tools / Help, account links at the bottom.
+   App only (body.ptly-appui); the website account page is unchanged. */
+#pmo{display:none}
+body.ptly-appui #pmo{display:block;max-width:640px;margin:0 auto}
+body.ptly-appui #account-page .calc-container{padding:calc(var(--sa-top,0px) + 18px) 16px 104px!important;max-width:640px}
+body.ptly-appui #account-page .calc-title,body.ptly-appui #account-page .calc-sub,body.ptly-appui #acct-hub-lang,body.ptly-appui #acct-status,body.ptly-appui #acct-hub-appearance,body.ptly-appui #acct-plus-strip,body.ptly-appui #acct-hub,body.ptly-appui #acct-hub-legal{display:none!important}
+#pmo h1{font-family:'DM Serif Display',serif;font-size:1.75rem;color:#2b2226;margin:0 0 14px;font-weight:400}
+#pmo .card{background:#fff;border:1px solid #eee2e5;border-radius:18px;padding:16px;margin-bottom:18px}
+#pmo .who{display:flex;align-items:center;gap:12px}
+#pmo .av{width:48px;height:48px;border-radius:50%;background:#fdedf0;color:#8B1A2B;display:grid;place-items:center;font-weight:800;font-size:1.15rem;flex:none;text-transform:uppercase}
+#pmo .av svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round}
+#pmo .wt{flex:1;min-width:0}
+#pmo .wt b{display:block;font-size:1rem;color:#2b2226;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pmo .wt small{display:block;font-size:.76rem;color:#8a7a82;margin-top:1px}
+#pmo .badge{font-size:.66rem;font-weight:800;letter-spacing:.06em;color:#fff;background:linear-gradient(135deg,#8B1A2B,#c4475d);border-radius:8px;padding:4px 8px;flex:none}
+#pmo .cta{border:0;border-radius:11px;background:#8B1A2B;color:#fff;font:inherit;font-size:.8rem;font-weight:700;padding:9px 13px;cursor:pointer;flex:none}
+#pmo .cta.ghost{background:#fdedf0;color:#8B1A2B}
+#pmo .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+#pmo .stats div{background:#faf5f6;border-radius:12px;padding:10px 6px;text-align:center}
+#pmo .stats b{display:block;font-size:1.15rem;color:#2b2226;font-variant-numeric:tabular-nums}
+#pmo .stats span{display:block;font-size:.68rem;color:#8a7a82;margin-top:2px}
+#pmo .grp{font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9a8890;margin:0 4px 7px}
+#pmo .list{background:#fff;border:1px solid #eee2e5;border-radius:16px;overflow:hidden;margin-bottom:18px}
+#pmo .row{display:flex!important}
+#pmo .list>.acct-hub-row{display:flex}
+#pmo .list>.acct-hub-row,#pmo .row{align-items:center;gap:12px;width:100%;min-height:52px;padding:8px 14px!important;border:0;border-bottom:1px solid #f3e9ec!important;background:none;font:inherit;font-size:.92rem;color:#2b2226;text-align:left;cursor:pointer;box-sizing:border-box;margin:0!important;border-radius:0!important}
+#pmo .list>:last-child{border-bottom:0!important}
+#pmo .row .ic,#pmo .acct-hub-row .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:none;background:#f6eef1;color:#8B1A2B}
+#pmo .ic svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+#pmo .row .t{flex:1;min-width:0}
+#pmo .row .v{color:#9a8890;font-size:.84rem}
+#pmo .row i{font-style:normal;color:#c3b3b9;font-size:1.2rem}
+#pmo .acct-hub-row>span:not(.ic){flex:1;text-align:left}
+#pmo .acct-hub-row small{display:block;font-size:.72rem;color:#9a8890}
+#pmo #pl-lang-select{font:inherit;font-size:.86rem;border:0!important;background:none!important;color:#8a7a82!important;padding:4px 0!important;max-width:55%;text-align:right;-webkit-appearance:none;appearance:none}
+#pmo .row.danger{color:#b23b3b}#pmo .row.danger .ic{background:#fbecec;color:#b23b3b}
+#pmo #acct-plus-iap{background:#fff;border:1px solid #eee2e5;border-radius:16px;overflow:hidden;margin-bottom:18px}
+#pmo #acct-plus-iap .acct-hub-title{padding:.8rem 14px .4rem}
+body.dark #pmo h1,body.dark #pmo .wt b,body.dark #pmo .stats b{color:#f1e9f3}
+body.dark #pmo .card,body.dark #pmo .list,body.dark #pmo #acct-plus-iap{background:#221c30;border-color:#37303f}
+body.dark #pmo .stats div{background:#2a2338}
+body.dark #pmo .av{background:#3a2028;color:#f0b3c0}
+body.dark #pmo .list>.acct-hub-row,body.dark #pmo .row{color:#ece4ef;border-color:#302839!important}
+body.dark #pmo .row .ic,body.dark #pmo .acct-hub-row .ic{background:#2f2638;color:#f0b3c0}
+body.dark #pmo .cta.ghost{background:#3a2028;color:#f0b3c0}
+body.dark #pmo .row.danger{color:#f08a8a}body.dark #pmo .row.danger .ic{background:#3a2020;color:#f08a8a}
+</style>
+<script id="pmo-src">
+(function(){
+  var S={
+    en:{"mo.title":"More","mo.guest":"Not signed in","mo.guestsub":"Sign in to keep your patterns on every device","mo.signin":"Sign in","mo.acct":"Luca-S account","mo.plus":"PLUS","mo.try":"Try Plus","mo.stitches":"stitches","mo.finished":"finished","mo.streak":"best streak","mo.settings":"Settings","mo.dark":"Dark mode","mo.lang":"Language","mo.notif":"Notifications","mo.tools":"Tools","mo.threads":"Thread colours","mo.calc":"Calculators","mo.conv":"File converter","mo.help":"Help","mo.guide":"Guide","mo.ask":"Help & suggestions","mo.about":"About Patternly","mo.account":"Account","mo.sub":"My subscription","mo.pricing":"Pricing","mo.privacy":"Privacy policy","mo.out":"Sign out"},
+    fr:{"mo.title":"Plus","mo.guest":"Non connecté","mo.guestsub":"Connectez-vous pour retrouver vos grilles sur tous vos appareils","mo.signin":"Se connecter","mo.acct":"Compte Luca-S","mo.plus":"PLUS","mo.try":"Essayer Plus","mo.stitches":"points","mo.finished":"terminées","mo.streak":"meilleure série","mo.settings":"Réglages","mo.dark":"Mode sombre","mo.lang":"Langue","mo.notif":"Notifications","mo.tools":"Outils","mo.threads":"Couleurs de fils","mo.calc":"Calculateurs","mo.conv":"Convertisseur de fichiers","mo.help":"Aide","mo.guide":"Guide","mo.ask":"Aide et suggestions","mo.about":"À propos de Patternly","mo.account":"Compte","mo.sub":"Mon abonnement","mo.pricing":"Tarifs","mo.privacy":"Confidentialité","mo.out":"Se déconnecter"},
+    de:{"mo.title":"Mehr","mo.guest":"Nicht angemeldet","mo.guestsub":"Melde dich an, um deine Muster auf allen Geräten zu haben","mo.signin":"Anmelden","mo.acct":"Luca-S-Konto","mo.plus":"PLUS","mo.try":"Plus testen","mo.stitches":"Stiche","mo.finished":"fertig","mo.streak":"beste Serie","mo.settings":"Einstellungen","mo.dark":"Dunkelmodus","mo.lang":"Sprache","mo.notif":"Mitteilungen","mo.tools":"Werkzeuge","mo.threads":"Garnfarben","mo.calc":"Rechner","mo.conv":"Dateikonverter","mo.help":"Hilfe","mo.guide":"Anleitung","mo.ask":"Hilfe & Vorschläge","mo.about":"Über Patternly","mo.account":"Konto","mo.sub":"Mein Abo","mo.pricing":"Preise","mo.privacy":"Datenschutz","mo.out":"Abmelden"},
+    nl:{"mo.title":"Meer","mo.guest":"Niet ingelogd","mo.guestsub":"Log in om je patronen op elk apparaat te hebben","mo.signin":"Inloggen","mo.acct":"Luca-S-account","mo.plus":"PLUS","mo.try":"Probeer Plus","mo.stitches":"steken","mo.finished":"klaar","mo.streak":"beste reeks","mo.settings":"Instellingen","mo.dark":"Donkere modus","mo.lang":"Taal","mo.notif":"Meldingen","mo.tools":"Gereedschap","mo.threads":"Garenkleuren","mo.calc":"Rekenhulpen","mo.conv":"Bestandsomzetter","mo.help":"Hulp","mo.guide":"Gids","mo.ask":"Hulp en suggesties","mo.about":"Over Patternly","mo.account":"Account","mo.sub":"Mijn abonnement","mo.pricing":"Prijzen","mo.privacy":"Privacybeleid","mo.out":"Uitloggen"},
+    ru:{"mo.title":"Ещё","mo.guest":"Вход не выполнен","mo.guestsub":"Войдите, чтобы схемы были на всех устройствах","mo.signin":"Войти","mo.acct":"Аккаунт Luca-S","mo.plus":"PLUS","mo.try":"Попробовать Plus","mo.stitches":"крестиков","mo.finished":"готово","mo.streak":"лучшая серия","mo.settings":"Настройки","mo.dark":"Тёмная тема","mo.lang":"Язык","mo.notif":"Уведомления","mo.tools":"Инструменты","mo.threads":"Цвета ниток","mo.calc":"Калькуляторы","mo.conv":"Конвертер файлов","mo.help":"Помощь","mo.guide":"Руководство","mo.ask":"Помощь и предложения","mo.about":"О Patternly","mo.account":"Аккаунт","mo.sub":"Моя подписка","mo.pricing":"Цены","mo.privacy":"Конфиденциальность","mo.out":"Выйти"},
+    uk:{"mo.title":"Ще","mo.guest":"Вхід не виконано","mo.guestsub":"Увійдіть, щоб схеми були на всіх пристроях","mo.signin":"Увійти","mo.acct":"Акаунт Luca-S","mo.plus":"PLUS","mo.try":"Спробувати Plus","mo.stitches":"хрестиків","mo.finished":"готово","mo.streak":"найкраща серія","mo.settings":"Налаштування","mo.dark":"Темна тема","mo.lang":"Мова","mo.notif":"Сповіщення","mo.tools":"Інструменти","mo.threads":"Кольори ниток","mo.calc":"Калькулятори","mo.conv":"Конвертер файлів","mo.help":"Допомога","mo.guide":"Посібник","mo.ask":"Допомога та пропозиції","mo.about":"Про Patternly","mo.account":"Акаунт","mo.sub":"Моя підписка","mo.pricing":"Ціни","mo.privacy":"Конфіденційність","mo.out":"Вийти"},
+    es:{"mo.title":"Más","mo.guest":"Sin iniciar sesión","mo.guestsub":"Inicia sesión para tener tus patrones en todos tus dispositivos","mo.signin":"Iniciar sesión","mo.acct":"Cuenta Luca-S","mo.plus":"PLUS","mo.try":"Probar Plus","mo.stitches":"puntadas","mo.finished":"terminados","mo.streak":"mejor racha","mo.settings":"Ajustes","mo.dark":"Modo oscuro","mo.lang":"Idioma","mo.notif":"Notificaciones","mo.tools":"Herramientas","mo.threads":"Colores de hilo","mo.calc":"Calculadoras","mo.conv":"Conversor de archivos","mo.help":"Ayuda","mo.guide":"Guía","mo.ask":"Ayuda y sugerencias","mo.about":"Acerca de Patternly","mo.account":"Cuenta","mo.sub":"Mi suscripción","mo.pricing":"Precios","mo.privacy":"Privacidad","mo.out":"Cerrar sesión"},
+    it:{"mo.title":"Altro","mo.guest":"Accesso non effettuato","mo.guestsub":"Accedi per avere i tuoi schemi su ogni dispositivo","mo.signin":"Accedi","mo.acct":"Account Luca-S","mo.plus":"PLUS","mo.try":"Prova Plus","mo.stitches":"punti","mo.finished":"finiti","mo.streak":"serie migliore","mo.settings":"Impostazioni","mo.dark":"Modalità scura","mo.lang":"Lingua","mo.notif":"Notifiche","mo.tools":"Strumenti","mo.threads":"Colori dei fili","mo.calc":"Calcolatori","mo.conv":"Convertitore di file","mo.help":"Aiuto","mo.guide":"Guida","mo.ask":"Aiuto e suggerimenti","mo.about":"Informazioni su Patternly","mo.account":"Account","mo.sub":"Il mio abbonamento","mo.pricing":"Prezzi","mo.privacy":"Privacy","mo.out":"Esci"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; return s; }
+  function app(){ return document.body.classList.contains('ptly-appui'); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function $(id){ return document.getElementById(id); }
+  var IC={
+    user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    moon:'<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+    globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+    bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
+    thread:'<circle cx="12" cy="12" r="8"/><path d="M8 9c3 1 5 1 8 0M8 15c3-1 5-1 8 0"/>',
+    calc:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01"/>',
+    conv:'<path d="M4 7h13l-3-3M20 17H7l3 3"/>',
+    book:'<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/>',
+    chat:'<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',
+    info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+    star:'<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
+    tag:'<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="8" cy="8" r="1.4"/>',
+    lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+    out:'<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"/>'
+  };
+  function ic(n){ return '<span class="ic"><svg viewBox="0 0 24 24">'+IC[n]+'</svg></span>'; }
+  function row(go,icn,k,cls){ return '<button type="button" class="row'+(cls?' '+cls:'')+'" data-go="'+go+'">'+ic(icn)+'<span class="t">'+esc(tx(k))+'</span><i>&rsaquo;</i></button>'; }
+  var box, built=false;
+  function stats(){
+    var st=0, fin=0, best=0;
+    try{ (trkIndex()||[]).forEach(function(p){ var d=+p.done||0, t=+p.total||0; st+=d; if(t>0 && d>=t) fin++; }); }catch(e){}
+    try{ best=plStreakCalc(plStreakDays()).best||0; }catch(e){}
+    return {st:st,fin:fin,best:best};
+  }
+  function fmt(n){ try{ return Number(n).toLocaleString((window.PL_LANG||document.documentElement.lang||'en')); }catch(e){ return String(n); } }
+  function go(w){
+    try{
+      if(w==='signin') acctOpenLogin();
+      else if(w==='try') openPricing();
+      else if(w==='threads') openThreads();
+      else if(w==='calc') openCalculators();
+      else if(w==='conv') openFileConverter();
+      else if(w==='guide') openGuide();
+      else if(w==='ask') plFeedbackOpen('more');
+      else if(w==='about') plAboutSite();
+      else if(w==='sub') openSubscriptionPage();
+      else if(w==='pricing') openPricing();
+      else if(w==='privacy') plOpenPrivacy();
+      else if(w==='out') acctSignOutConfirm();
+      else if(w==='lang'){ var s=$('pl-lang-select'); if(s){ try{ s.showPicker(); }catch(_){ s.focus(); s.click(); } } }
+    }catch(e){ console.warn('[pmo]',e); }
+  }
+  function build(){
+    if(built) return;
+    var c=document.querySelector('#account-page .calc-container'); if(!c) return;
+    built=true;
+    box=document.createElement('div'); box.id='pmo';
+    c.insertBefore(box, c.firstChild);
+    box.addEventListener('click',function(e){
+      if(e.target.closest('select,.theme-switch')) return;
+      var b=e.target.closest('[data-go]'); if(b) go(b.getAttribute('data-go'));
+    });
+  }
+  function render(){
+    if(!built || !app()) return;
+    var a={}; try{ a=lucasAuth()||{}; }catch(e){}
+    var s=stats(), em=a.email?String(a.email):'';
+    // Keep the moved live controls (language, dark mode, notifications, in-app Plus) before rebuilding.
+    var lang=$('pl-lang-select'), dark=$('acct-dark-row'), push=$('acct-push-row'), iap=$('acct-plus-iap'), keep=document.createDocumentFragment();
+    [lang,dark,push,iap].forEach(function(n){ if(n) keep.appendChild(n); });
+    var who='<div class="who">'
+      +(a.loggedIn?'<span class="av">'+esc((em||'?').charAt(0))+'</span>':'<span class="av"><svg viewBox="0 0 24 24">'+IC.user+'</svg></span>')
+      +'<div class="wt"><b>'+esc(a.loggedIn?(em||tx('mo.acct')):tx('mo.guest'))+'</b><small>'+esc(a.loggedIn?tx('mo.acct'):tx('mo.guestsub'))+'</small></div>'
+      +(a.loggedIn?(a.plus?'<span class="badge">'+esc(tx('mo.plus'))+'</span>':'<button type="button" class="cta ghost" data-go="try">'+esc(tx('mo.try'))+'</button>')
+                  :'<button type="button" class="cta" data-go="signin">'+esc(tx('mo.signin'))+'</button>')
+      +'</div>';
+    var st='<div class="stats"><div><b>'+fmt(s.st)+'</b><span>'+esc(tx('mo.stitches'))+'</span></div><div><b>'+fmt(s.fin)+'</b><span>'+esc(tx('mo.finished'))+'</span></div><div><b>'+fmt(s.best)+'</b><span>'+esc(tx('mo.streak'))+'</span></div></div>';
+    var hasAsk=(typeof window.plFeedbackOpen==='function');
+    box.innerHTML='<h1>'+esc(tx('mo.title'))+'</h1>'
+      +'<div class="card">'+who+st+'</div>'
+      +'<div id="pmo-iap"></div>'
+      +'<p class="grp">'+esc(tx('mo.settings'))+'</p><div class="list" id="pmo-set">'
+      +  '<div class="row" data-go="lang">'+ic('globe')+'<span class="t">'+esc(tx('mo.lang'))+'</span><span id="pmo-lang"></span></div>'
+      +'</div>'
+      +'<p class="grp">'+esc(tx('mo.tools'))+'</p><div class="list">'+row('threads','thread','mo.threads')+row('calc','calc','mo.calc')+row('conv','conv','mo.conv')+'</div>'
+      +'<p class="grp">'+esc(tx('mo.help'))+'</p><div class="list">'+row('guide','book','mo.guide')+(hasAsk?row('ask','chat','mo.ask'):'')+row('about','info','mo.about')+'</div>'
+      +'<p class="grp">'+esc(tx('mo.account'))+'</p><div class="list">'+row('sub','star','mo.sub')+row('pricing','tag','mo.pricing')+row('privacy','lock','mo.privacy')+(a.loggedIn?row('out','out','mo.out','danger'):'')+'</div>';
+    var set=$('pmo-set');
+    if(lang) $('pmo-lang').appendChild(lang);
+    if(dark){ set.insertBefore(dark, set.firstChild); deco(dark,'moon','mo.dark'); }
+    if(push){ set.appendChild(push); deco(push,'bell','mo.notif'); }
+    if(iap) $('pmo-iap').appendChild(iap);
+  }
+  // Give a moved row the icon and translated label of the new list (its own switch keeps working).
+  function deco(r,icn,k){
+    if(!r.querySelector(':scope > .ic')) r.insertAdjacentHTML('afterbegin', ic(icn));
+    var lab=r.querySelector('[data-i18n="acct.darkmode"],[data-i18n="acct.notifications"]'); if(lab) lab.textContent=tx(k);
+  }
+  function init(){
+    if(!app()){
+      if(!init._mo){ init._mo=new MutationObserver(function(){ if(app()){ init._mo.disconnect(); init(); } }); init._mo.observe(document.body,{attributes:true,attributeFilter:['class']}); }
+      return;
+    }
+    build();
+    if(typeof window.acctRenderPage==='function' && !window.acctRenderPage._pmo){
+      var rp=window.acctRenderPage; window.acctRenderPage=function(){ var r=rp.apply(this,arguments); try{ render(); }catch(e){} return r; }; window.acctRenderPage._pmo=1;
+    }
+    if(typeof window.plApplyLang==='function' && !window.plApplyLang._pmo){
+      var al=window.plApplyLang; window.plApplyLang=function(){ var r=al.apply(this,arguments); try{ render(); }catch(e){} return r; }; window.plApplyLang._pmo=1;
+    }
+    render();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
   else setTimeout(init,0);
 })();
 </script>
