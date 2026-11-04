@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v707';
+window.PATTERNLY_BUILD='v708';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -26638,6 +26638,7 @@ trkCanvas.addEventListener('pointerdown', e=>{
   }
   const cell=trkCellAt(e); if(!cell) return;
   if(trkPickArm){ e.preventDefault(); trkPickAt(cell); return; }
+  if(typeof window.plParkTapAt==='function' && window.plParkTapAt(cell,e)){ e.preventDefault(); return; }   // v708: parking mode takes the tap
   if(trkMode==='mark' || trkMode==='erase'){
     trkCanvas.setPointerCapture(e.pointerId);
     trkStrokeBegin();
@@ -40892,6 +40893,255 @@ body.dark #ppc-card .ppc-key i.l1{background:#4a2633}body.dark #ppc-card .ppc-ke
   }
   function init(){ addButton(); }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+})();
+</script>
+<style id="ppk-style">
+/* v708: "Next stitch" + parking marks pill over the tracker chart */
+#ppk-pill{position:absolute;z-index:30;display:none;color:#fff;align-items:center;gap:6px;padding:5px;border-radius:999px;background:rgba(43,34,38,.92);box-shadow:0 8px 24px rgba(43,34,38,.3);transform:translateX(-50%);white-space:nowrap;-webkit-user-select:none;user-select:none}
+#ppk-pill.on{display:flex}
+#ppk-pill button{font:inherit;font-size:.82rem;font-weight:700;border:0;border-radius:999px;padding:.5rem .95rem;cursor:pointer;color:#fff;background:transparent;display:inline-flex;align-items:center;gap:.35rem;min-height:38px}
+#ppk-pill button.ppk-next{background:#8B1A2B}
+#ppk-pill button.ppk-next:disabled{background:#2E7D32;opacity:1;cursor:default}
+#ppk-pill button.ppk-park[aria-pressed="true"]{background:#fff;color:#8B1A2B}
+#ppk-pill .ppk-sw{width:14px;height:14px;border-radius:4px;box-shadow:0 0 0 1.5px rgba(255,255,255,.85);flex:0 0 auto}
+#ppk-pill small{font-size:.7rem;font-weight:600;opacity:.75;padding:0 .3rem 0 .1rem}
+#ppk-pill svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.ppk-ring{position:absolute;z-index:29;pointer-events:none;border-radius:6px;box-shadow:0 0 0 3px #fff,0 0 0 6px #8B1A2B;animation:ppkPulse .5s ease-in-out 4 alternate;transition:opacity .4s}
+@keyframes ppkPulse{from{transform:scale(1)}to{transform:scale(1.35)}}
+body.dark #ppk-pill{background:rgba(31,26,43,.95);box-shadow:0 8px 24px rgba(0,0,0,.5)}
+body.dark .ppk-ring{box-shadow:0 0 0 3px #1f1a2b,0 0 0 6px #f0b3c0}
+@media (prefers-reduced-motion:reduce){.ppk-ring{animation:none}}
+</style>
+<script id="ppk-src">
+/* v708: work one colour at a time.
+   When a colour is in focus (tap it in the list, or press-and-hold a stitch),
+   a small pill over the chart offers "Next stitch" (jumps to the nearest
+   stitch of that colour that is not marked yet and rings it) and "Park"
+   (tap stitches to leave a parking mark where a thread is waiting; tap again
+   to remove). Parking marks are drawn in the thread's colour, kept per
+   pattern on this device (localStorage patternly_trk_park), and never touch
+   progress or sync. */
+(function(){
+  var S={
+    en:{"pk.next":"Next stitch","pk.left":"{n} left","pk.done":"All stitched","pk.park":"Park","pk.parktip":"Tap a stitch to park your thread there. Tap it again to remove the mark.","pk.parked":"Parking mark added","pk.unparked":"Parking mark removed"},
+    fr:{"pk.next":"Point suivant","pk.left":"{n} restants","pk.done":"Tout est brodé","pk.park":"Garer","pk.parktip":"Touchez un point pour y garer votre fil. Touchez-le à nouveau pour retirer la marque.","pk.parked":"Marque de fil garé ajoutée","pk.unparked":"Marque retirée"},
+    de:{"pk.next":"Nächster Stich","pk.left":"noch {n}","pk.done":"Alles gestickt","pk.park":"Parken","pk.parktip":"Tippen Sie auf einen Stich, um Ihren Faden dort zu parken. Erneut tippen entfernt die Markierung.","pk.parked":"Parkmarke gesetzt","pk.unparked":"Parkmarke entfernt"},
+    nl:{"pk.next":"Volgende steek","pk.left":"nog {n}","pk.done":"Alles geborduurd","pk.park":"Parkeren","pk.parktip":"Tik op een steek om je draad daar te parkeren. Tik nogmaals om de markering te verwijderen.","pk.parked":"Parkeermarkering geplaatst","pk.unparked":"Parkeermarkering verwijderd"},
+    ru:{"pk.next":"Следующий крестик","pk.left":"осталось {n}","pk.done":"Всё вышито","pk.park":"Парковка","pk.parktip":"Нажмите на крестик, чтобы оставить там нитку. Нажмите ещё раз, чтобы убрать метку.","pk.parked":"Метка парковки поставлена","pk.unparked":"Метка парковки убрана"},
+    uk:{"pk.next":"Наступний хрестик","pk.left":"залишилось {n}","pk.done":"Усе вишито","pk.park":"Паркування","pk.parktip":"Натисніть на хрестик, щоб залишити там нитку. Натисніть ще раз, щоб прибрати мітку.","pk.parked":"Мітку паркування додано","pk.unparked":"Мітку паркування прибрано"},
+    es:{"pk.next":"Siguiente puntada","pk.left":"quedan {n}","pk.done":"Todo bordado","pk.park":"Aparcar","pk.parktip":"Toca una puntada para aparcar ahí tu hilo. Tócala otra vez para quitar la marca.","pk.parked":"Marca de hilo aparcado añadida","pk.unparked":"Marca quitada"},
+    it:{"pk.next":"Punto successivo","pk.left":"ne mancano {n}","pk.done":"Tutto ricamato","pk.park":"Parcheggia","pk.parktip":"Tocca un punto per parcheggiare lì il filo. Toccalo di nuovo per togliere il segno.","pk.parked":"Segno di parcheggio aggiunto","pk.unparked":"Segno di parcheggio tolto"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k,v){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; if(v) for(var n in v) s=s.split('{'+n+'}').join(String(v[n])); return s; }
+  function loc(){ return window.PL_LANG||document.documentElement.lang||'en'; }
+  function num(n){ try{ return Number(n||0).toLocaleString(loc()); }catch(e){ return String(n||0); } }
+  function $(id){ return document.getElementById(id); }
+  function ready(){ try{ return !!(trackerGrid && trackerStitched); }catch(e){ return false; } }
+  function sel(){ try{ return trkSelectedSyms; }catch(e){ return null; } }
+  function pid(){ try{ return trackerActiveProjectKey||''; }catch(e){ return ''; } }
+  function say(m){ try{ if(typeof toast==='function') toast(m); }catch(e){} }
+
+  // ── parking marks (per pattern, this device) ─────────────────────────
+  var PK='patternly_trk_park';
+  function parkAll(){ try{ return JSON.parse(localStorage.getItem(PK)||'{}')||{}; }catch(e){ return {}; } }
+  function parks(){ var a=parkAll()[pid()]; return Array.isArray(a)?a:[]; }
+  function parksSave(list){
+    try{ var all=parkAll(); if(list.length) all[pid()]=list; else delete all[pid()]; localStorage.setItem(PK,JSON.stringify(all)); }catch(e){}
+  }
+  var armed=false;
+  function setArmed(on){
+    armed=!!on;
+    var b=document.querySelector('#ppk-pill .ppk-park'); if(b) b.setAttribute('aria-pressed',armed?'true':'false');
+    if(armed) say(tx('pk.parktip'));
+    place();
+  }
+  // Called by the tracker's pointerdown before any marking. Returns true when
+  // parking mode owns the press. A press that does not move (a tap) toggles
+  // the mark on release; a drag stays a pan.
+  window.plParkTapAt=function(cell,e){
+    if(!armed||!cell) return false;
+    var x0=e?e.clientX:0, y0=e?e.clientY:0, t0=Date.now();
+    function up(ev){
+      window.removeEventListener('pointerup',up,true); window.removeEventListener('pointercancel',up,true);
+      if(ev.type!=='pointerup'||Date.now()-t0>700||Math.hypot(ev.clientX-x0,ev.clientY-y0)>8) return;
+      toggle(cell);
+    }
+    window.addEventListener('pointerup',up,true); window.addEventListener('pointercancel',up,true);
+    return true;
+  };
+  function toggle(cell){
+    var sym; try{ sym=trackerGrid.cells[cell.r][cell.c]; }catch(e){ return; }
+    var list=parks(), i=list.findIndex(function(p){ return p[0]===cell.r && p[1]===cell.c; });
+    if(i>=0){ list.splice(i,1); say(tx('pk.unparked')); }
+    else { if(sym===' ') return; list.push([cell.r,cell.c]); say(tx('pk.parked')); }
+    parksSave(list); renderTracker();
+  }
+
+  // ── geometry helpers (same maths as renderTracker / trkCellAt) ─────────
+  function cellClient(r,c){
+    var cv=$('trk-canvas'); if(!cv||!trkView) return null;
+    var rect=cv.getBoundingClientRect(), vp=trkViewport(), g=trkView.gut||0, k=trkView.cell;
+    return {x:rect.left+g-trkView.sx+(c-vp.c0)*k, y:rect.top+g-trkView.sy+(r-vp.r0)*k, k:k, vp:vp};
+  }
+  function overlayPos(el, x, y){
+    // position an absolute element at client point x,y inside its offset parent
+    var op=el.offsetParent||document.body;
+    if((op===document.body||op===document.documentElement) && getComputedStyle(op).position==='static'){
+      // no positioned ancestor: absolute = page coordinates
+      el.style.left=(x+window.scrollX)+'px'; el.style.top=(y+window.scrollY)+'px'; return;
+    }
+    var pr=op.getBoundingClientRect();
+    el.style.left=(x-pr.left+op.scrollLeft-(op.clientLeft||0))+'px'; el.style.top=(y-pr.top+op.scrollTop-(op.clientTop||0))+'px';
+  }
+
+  // ── draw parking marks after every chart render ───────────────────────
+  function drawParks(){
+    var list=parks(); if(!list.length||!trkView) return;
+    var cv=$('trk-canvas'), ctx=cv&&cv.getContext('2d'); if(!ctx) return;
+    var vp=trkViewport(), v=trkView, k=v.cell, g=v.gut||0;
+    ctx.save(); ctx.setTransform(v.dpr,0,0,v.dpr,0,0); ctx.translate(g-v.sx,g-v.sy);
+    list.forEach(function(p){
+      var r=p[0], c=p[1]; if(r<vp.r0||r>=vp.r0+vp.nr||c<vp.c0||c>=vp.c0+vp.nc) return;
+      var x=(c-vp.c0)*k, y=(r-vp.r0)*k;
+      if(x+k<v.sx-g-k||x>v.sx-g+v.viewW+k||y+k<v.sy-g-k||y>v.sy-g+v.viewH+k) return;
+      var col=null; try{ col=trackerColourMap[trackerGrid.cells[r][c]]; }catch(e){}
+      var rad=Math.max(3,k*0.3), cx=x+k-rad*0.9, cy=y+rad*0.9;
+      if(k<8){ cx=x+k/2; cy=y+k/2; rad=Math.max(3.5,k*0.9); }
+      ctx.beginPath(); ctx.arc(cx,cy,rad+2,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
+      ctx.beginPath(); ctx.arc(cx,cy,rad+2,0,Math.PI*2); ctx.lineWidth=1.2; ctx.strokeStyle='#2b2226'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx,cy,rad,0,Math.PI*2); ctx.fillStyle=col?'rgb('+col.r+','+col.g+','+col.b+')':'#ff3df0'; ctx.fill();
+      if(k>=8){ ctx.lineWidth=Math.max(1.5,k*0.08); ctx.strokeStyle='#2b2226'; ctx.strokeRect(x+1,y+1,k-2,k-2); }
+    });
+    ctx.restore();
+  }
+
+  // ── "Next stitch" ─────────────────────────────────────────────────────
+  var visited=new Set(), selKey='';
+  function remaining(){
+    var s=sel(); if(!s||!s.size||!ready()) return 0;
+    var n=0, G=trackerGrid, D=trackerStitched;
+    for(var r=0;r<G.rows;r++){ var row=G.cells[r], dr=D[r]; for(var c=0;c<G.cols;c++){ var ch=row[c]; if(ch!==' ' && !dr[c] && s.has(ch)) n++; } }
+    return n;
+  }
+  // centre of the part of the chart box the stitcher can actually see
+  // (the app view pads the box under its floating bars; the page may be
+  // scrolled so only part of the box is on screen)
+  function viewCentre(){
+    var w=$('trk-canvas-wrap').getBoundingClientRect(), cs=getComputedStyle($('trk-canvas-wrap'));
+    var t=Math.max(w.top+parseFloat(cs.paddingTop||0),0), b=Math.min(w.bottom-parseFloat(cs.paddingBottom||0),window.innerHeight);
+    if(b<=t){ t=w.top; b=w.bottom; }
+    return {x:(Math.max(w.left,0)+Math.min(w.right,window.innerWidth))/2, y:(t+b)/2};
+  }
+  function centreCell(){
+    var p=viewCentre(), o=cellClient(0,0); if(!o) return {r:0,c:0};
+    return {r:o.vp.r0+(p.y-o.y)/o.k, c:o.vp.c0+(p.x-o.x)/o.k};
+  }
+  function next(){
+    var s=sel(); if(!s||!s.size||!ready()) return;
+    var key=[].concat(Array.from(s)).sort().join('')+'|'+pid(); if(key!==selKey){ selKey=key; visited.clear(); }
+    var from=centreCell(), G=trackerGrid, D=trackerStitched, best=null, bd=Infinity, any=null;
+    for(var r=0;r<G.rows;r++){ var row=G.cells[r], dr=D[r]; for(var c=0;c<G.cols;c++){
+      var ch=row[c]; if(ch===' '||dr[c]||!s.has(ch)) continue;
+      if(!any) any={r:r,c:c};
+      if(visited.has(r*G.cols+c)) continue;
+      var d=(r+.5-from.r)*(r+.5-from.r)+(c+.5-from.c)*(c+.5-from.c); if(d<bd){ bd=d; best={r:r,c:c}; }
+    } }
+    if(!best && any){ visited.clear(); best=any; }   // went round them all: start again
+    if(!best){ place(); return; }
+    visited.add(best.r*G.cols+best.c);
+    jump(best);
+  }
+  function jump(t){
+    var wrap=$('trk-canvas-wrap');
+    if(trkPageMode){
+      var N=trkPageCells, tx_=Math.ceil(trackerGrid.cols/N);
+      trkPageIdx=Math.floor(t.r/N)*tx_+Math.floor(t.c/N); renderTracker();
+    } else {
+      if(trackerCellPx<12){
+        var i=trkZoomLevels.indexOf(16); if(i<0) i=7; trkZoomIdx=i; trkSetZoomPx(trkZoomLevels[i]);
+      }
+      if(!document.body.classList.contains('trk-fs')){
+        var wr=wrap.getBoundingClientRect(); if(wr.top<0||wr.bottom>window.innerHeight) try{ wrap.scrollIntoView({block:'center'}); }catch(e){}
+      }
+      // move the chart so the target sits in the middle of what is visible
+      var p=cellClient(t.r,t.c), v=viewCentre();
+      if(p){
+        window._trkProgScroll=Date.now();
+        wrap.scrollLeft+=p.x+p.k/2-v.x; wrap.scrollTop+=p.y+p.k/2-v.y;
+      }
+      renderTracker();
+    }
+    setTimeout(function(){ ring(t); },60);
+  }
+  function ring(t){
+    var old=document.querySelector('.ppk-ring'); if(old) old.remove();
+    var p=cellClient(t.r,t.c); if(!p) return;
+    var wrap=$('trk-canvas-wrap'), el=document.createElement('div'); el.className='ppk-ring';
+    var sz=Math.max(14,p.k); el.style.width=sz+'px'; el.style.height=sz+'px';
+    wrap.parentNode.insertBefore(el,wrap.nextSibling);
+    overlayPos(el, p.x+p.k/2-sz/2, p.y+p.k/2-sz/2);
+    setTimeout(function(){ el.style.opacity='0'; },2000);
+    setTimeout(function(){ if(el.parentNode) el.remove(); },2500);
+  }
+
+  // ── the pill ──────────────────────────────────────────────────────────
+  function pill(){
+    var p=$('ppk-pill'); if(p) return p;
+    var wrap=$('trk-canvas-wrap'); if(!wrap) return null;
+    p=document.createElement('div'); p.id='ppk-pill'; p.setAttribute('role','toolbar');
+    p.innerHTML='<button type="button" class="ppk-park" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg><span></span></button>'+
+                '<button type="button" class="ppk-next"><span class="ppk-sw"></span><span class="ppk-lbl"></span><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button><small></small>';
+    wrap.parentNode.insertBefore(p,wrap.nextSibling);
+    p.querySelector('.ppk-next').addEventListener('click',function(e){ e.stopPropagation(); next(); });
+    p.querySelector('.ppk-park').addEventListener('click',function(e){ e.stopPropagation(); setArmed(!armed); });
+    ['pointerdown','touchstart'].forEach(function(t){ p.addEventListener(t,function(e){ e.stopPropagation(); },{passive:true}); });
+    return p;
+  }
+  var _cnt=0, _cntKey='';
+  function place(recount){
+    var p=pill(); if(!p) return;
+    var s=sel(), on=ready() && ((s&&s.size>0)||armed);
+    var ws=$('trk-workspace'); if(ws && ws.offsetParent===null && !document.body.classList.contains('trk-fs')) on=false;
+    p.classList.toggle('on',!!on); if(!on) return;
+    var nb=p.querySelector('.ppk-next'), sm=p.querySelector('small');
+    p.querySelector('.ppk-park span').textContent=tx('pk.park');
+    if(s&&s.size){
+      nb.style.display=''; sm.style.display='';
+      var key=Array.from(s).sort().join('')+'|'+pid();
+      if(recount===true || key!==_cntKey){ _cnt=remaining(); _cntKey=key; }
+      var n=_cnt;
+      var first=Array.from(s)[0], col=null; try{ col=trackerColourMap[first]; }catch(e){}
+      p.querySelector('.ppk-sw').style.background=col?'rgb('+col.r+','+col.g+','+col.b+')':'#ccc';
+      p.querySelector('.ppk-lbl').textContent=n?tx('pk.next'):tx('pk.done');
+      nb.disabled=!n; sm.textContent=n?tx('pk.left',{n:num(n)}):'';
+    } else { nb.style.display='none'; sm.style.display='none'; }
+    // bottom-centre of the visible part of the chart box
+    var wrap=$('trk-canvas-wrap'), r=wrap.getBoundingClientRect();
+    var fs=document.body.classList.contains('trk-fs');
+    var vb=Math.min(r.bottom, window.innerHeight), y;
+    var bar=fs?$('trk-fsbar'):null, br=bar&&getComputedStyle(bar).display!=='none'?bar.getBoundingClientRect():null;
+    if(br && br.height>0 && br.top<vb) y=br.top-p.offsetHeight-10;   // full view: just above the floating mode bar
+    else y=vb-p.offsetHeight-12;
+    overlayPos(p, r.left+r.width/2, Math.max(r.top+8,y));
+  }
+  window.plParkPlace=place;
+
+  function hook(){
+    if(typeof window.renderTracker!=='function'||window.renderTracker._ppk) return false;
+    var rt=window.renderTracker;
+    window.renderTracker=function(){ var out=rt.apply(this,arguments); try{ drawParks(); place(); }catch(e){} return out; };
+    window.renderTracker._ppk=1;
+    var up=window.updateTrackerProgressUI;
+    if(typeof up==='function' && !up._ppk){ window.updateTrackerProgressUI=function(){ var o=up.apply(this,arguments); try{ place(true); }catch(e){} return o; }; window.updateTrackerProgressUI._ppk=1; }
+    window.addEventListener('scroll',function(){ var p=$('ppk-pill'); if(p&&p.classList.contains('on')) requestAnimationFrame(place); },{passive:true});
+    window.addEventListener('resize',function(){ setTimeout(place,60); });
+    // the full-view mode bar slides in; settle above it once it has arrived
+    document.addEventListener('transitionend',function(e){ if(e.target && e.target.id==='trk-fsbar') place(); });
+    return true;
+  }
+  function init(){ if(!hook()) setTimeout(init,300); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); }); else setTimeout(init,0);
 })();
 </script>
 </body>
