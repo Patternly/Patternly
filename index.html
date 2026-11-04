@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v695';
+window.PATTERNLY_BUILD='v699';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -5559,6 +5559,7 @@ window.addEventListener('DOMContentLoaded',function(){
 <script>
 /* v659: translations for the help chat / suggestion box (fb.*), merged into PL_I18N like the v648 table. */
 (function(T){ if(!T) return; var A={"en": {"fb.entry": "Help & suggestions", "fb.footer": "Suggest a feature", "fb.title": "Patternly help", "fb.status": "The team reads every message", "fb.hi": "Hi! 👋 I'm here to help. What's your first name?", "fb.back": "Welcome back, {name}! What can I help with today?", "fb.nice": "Nice to meet you, {name}! What can I help with?", "fb.nice0": "No problem! What can I help with?", "fb.namePh": "Your first name", "fb.skip": "Skip", "fb.r.problem": "🐞 Report a problem", "fb.r.idea": "💡 Suggest an idea", "fb.r.question": "❓ Question about the app", "fb.r.account": "👤 Account or Plus", "fb.r.other": "💬 Something else", "fb.a.problem": "Sorry about that. What happened, and what were you doing at the time?", "fb.a.idea": "We'd love to hear it! What would make Patternly better for you?", "fb.a.question": "Ask away and the team will answer. Most how-tos are also in the Guide.", "fb.a.account": "What do you need help with on your account or Plus?", "fb.a.other": "Go ahead, we're listening.", "fb.email": "Can we reply to you by email if needed?", "fb.emailYes": "Yes, email me", "fb.emailNo": "No thanks", "fb.msgPh": "Type your message…", "fb.send": "Send", "fb.sent": "Thanks, {name}! Your message has reached the Patternly team. Anything else?", "fb.sent0": "Thanks! Your message has reached the Patternly team. Anything else?", "fb.more": "Add more", "fb.other": "Something else", "fb.done": "That's all", "fb.bye": "Thanks for helping us make Patternly better. Happy stitching! 🧵", "fb.guide": "Open the Guide", "fb.restart": "New chat", "fb.privacy": "Your name and messages go only to the Patternly team. Never share passwords or card details.", "fb.sending": "Sending…", "fb.short": "Please write a few more words.", "fb.limit": "You've sent 10 messages today. Please try again tomorrow.", "fb.err": "Couldn't send. Check your connection and try again."}, "fr": {"fb.entry": "Aide et suggestions", "fb.footer": "Proposer une idée", "fb.title": "Aide Patternly", "fb.status": "L’équipe lit chaque message", "fb.hi": "Bonjour ! 👋 Je suis là pour vous aider. Quel est votre prénom ?", "fb.back": "Ravi de vous revoir, {name} ! Comment puis-je vous aider aujourd’hui ?", "fb.nice": "Enchanté, {name} ! Comment puis-je vous aider ?", "fb.nice0": "Pas de souci ! Comment puis-je vous aider ?", "fb.namePh": "Votre prénom", "fb.skip": "Passer", "fb.r.problem": "🐞 Signaler un problème", "fb.r.idea": "💡 Proposer une idée", "fb.r.question": "❓ Question sur l’app", "fb.r.account": "👤 Compte ou Plus", "fb.r.other": "💬 Autre chose", "fb.a.problem": "Désolé pour ce souci. Que s’est-il passé, et que faisiez-vous à ce moment-là ?", "fb.a.idea": "Avec plaisir ! Qu’est-ce qui rendrait Patternly plus utile pour vous ?", "fb.a.question": "Posez votre question, l’équipe vous répondra. La plupart des explications sont aussi dans le guide.", "fb.a.account": "De quoi avez-vous besoin pour votre compte ou Plus ?", "fb.a.other": "Allez-y, nous vous écoutons.", "fb.email": "Pouvons-nous vous répondre par e-mail si besoin ?", "fb.emailYes": "Oui, par e-mail", "fb.emailNo": "Non merci", "fb.msgPh": "Écrivez votre message…", "fb.send": "Envoyer", "fb.sent": "Merci, {name} ! Votre message est bien arrivé chez l’équipe Patternly. Autre chose ?", "fb.sent0": "Merci ! Votre message est bien arrivé chez l’équipe Patternly. Autre chose ?", "fb.more": "Ajouter", "fb.other": "Autre sujet", "fb.done": "C’est tout", "fb.bye": "Merci de nous aider à améliorer Patternly. Bonne broderie ! 🧵", "fb.guide": "Ouvrir le guide", "fb.restart": "Nouvelle discussion", "fb.privacy": "Votre prénom et vos messages ne vont qu’à l’équipe Patternly. Ne partagez jamais de mot de passe ni de carte bancaire.", "fb.sending": "Envoi…", "fb.short": "Écrivez encore quelques mots, s’il vous plaît.", "fb.limit": "Vous avez envoyé 10 messages aujourd’hui. Réessayez demain.", "fb.err": "Envoi impossible. Vérifiez votre connexion et réessayez."}, "de": {"fb.entry": "Hilfe & Vorschläge", "fb.footer": "Funktion vorschlagen", "fb.title": "Patternly-Hilfe", "fb.status": "Das Team liest jede Nachricht", "fb.hi": "Hallo! 👋 Ich helfe dir gern. Wie ist dein Vorname?", "fb.back": "Schön, dich wiederzusehen, {name}! Wobei kann ich heute helfen?", "fb.nice": "Schön, dich kennenzulernen, {name}! Wobei kann ich helfen?", "fb.nice0": "Kein Problem! Wobei kann ich helfen?", "fb.namePh": "Dein Vorname", "fb.skip": "Überspringen", "fb.r.problem": "🐞 Problem melden", "fb.r.idea": "💡 Idee vorschlagen", "fb.r.question": "❓ Frage zur App", "fb.r.account": "👤 Konto oder Plus", "fb.r.other": "💬 Etwas anderes", "fb.a.problem": "Das tut uns leid. Was ist passiert, und was hast du gerade gemacht?", "fb.a.idea": "Erzähl gern! Was würde Patternly für dich besser machen?", "fb.a.question": "Frag ruhig, das Team antwortet dir. Die meisten Anleitungen stehen auch in der Anleitung.", "fb.a.account": "Wobei brauchst du Hilfe mit deinem Konto oder Plus?", "fb.a.other": "Schieß los, wir hören zu.", "fb.email": "Dürfen wir dir bei Bedarf per E-Mail antworten?", "fb.emailYes": "Ja, per E-Mail", "fb.emailNo": "Nein danke", "fb.msgPh": "Nachricht schreiben…", "fb.send": "Senden", "fb.sent": "Danke, {name}! Deine Nachricht ist beim Patternly-Team angekommen. Noch etwas?", "fb.sent0": "Danke! Deine Nachricht ist beim Patternly-Team angekommen. Noch etwas?", "fb.more": "Ergänzen", "fb.other": "Anderes Thema", "fb.done": "Das war’s", "fb.bye": "Danke, dass du hilfst, Patternly besser zu machen. Viel Freude beim Sticken! 🧵", "fb.guide": "Anleitung öffnen", "fb.restart": "Neuer Chat", "fb.privacy": "Dein Name und deine Nachrichten gehen nur an das Patternly-Team. Teile nie Passwörter oder Kartendaten.", "fb.sending": "Wird gesendet…", "fb.short": "Bitte schreib noch ein paar Worte mehr.", "fb.limit": "Du hast heute schon 10 Nachrichten gesendet. Bitte versuch es morgen wieder.", "fb.err": "Senden fehlgeschlagen. Prüfe deine Verbindung und versuch es noch einmal."}, "nl": {"fb.entry": "Hulp & suggesties", "fb.footer": "Stel een functie voor", "fb.title": "Patternly-hulp", "fb.status": "Het team leest elk bericht", "fb.hi": "Hoi! 👋 Ik help je graag. Wat is je voornaam?", "fb.back": "Welkom terug, {name}! Waarmee kan ik je vandaag helpen?", "fb.nice": "Leuk je te ontmoeten, {name}! Waarmee kan ik helpen?", "fb.nice0": "Geen probleem! Waarmee kan ik helpen?", "fb.namePh": "Je voornaam", "fb.skip": "Overslaan", "fb.r.problem": "🐞 Probleem melden", "fb.r.idea": "💡 Idee voorstellen", "fb.r.question": "❓ Vraag over de app", "fb.r.account": "👤 Account of Plus", "fb.r.other": "💬 Iets anders", "fb.a.problem": "Vervelend! Wat gebeurde er, en waar was je op dat moment mee bezig?", "fb.a.idea": "Graag! Wat zou Patternly beter maken voor jou?", "fb.a.question": "Vraag maar, het team antwoordt je. De meeste uitleg staat ook in de gids.", "fb.a.account": "Waarmee heb je hulp nodig bij je account of Plus?", "fb.a.other": "Vertel maar, we luisteren.", "fb.email": "Mogen we je zo nodig per e-mail antwoorden?", "fb.emailYes": "Ja, per e-mail", "fb.emailNo": "Nee, bedankt", "fb.msgPh": "Typ je bericht…", "fb.send": "Versturen", "fb.sent": "Bedankt, {name}! Je bericht is aangekomen bij het Patternly-team. Nog iets?", "fb.sent0": "Bedankt! Je bericht is aangekomen bij het Patternly-team. Nog iets?", "fb.more": "Aanvullen", "fb.other": "Iets anders", "fb.done": "Dat was het", "fb.bye": "Bedankt dat je Patternly helpt verbeteren. Veel borduurplezier! 🧵", "fb.guide": "Gids openen", "fb.restart": "Nieuw gesprek", "fb.privacy": "Je naam en berichten gaan alleen naar het Patternly-team. Deel nooit wachtwoorden of kaartgegevens.", "fb.sending": "Versturen…", "fb.short": "Schrijf nog een paar woorden meer.", "fb.limit": "Je hebt vandaag al 10 berichten gestuurd. Probeer het morgen opnieuw.", "fb.err": "Versturen mislukt. Controleer je verbinding en probeer het opnieuw."}, "ru": {"fb.entry": "Помощь и предложения", "fb.footer": "Предложить идею", "fb.title": "Помощь Patternly", "fb.status": "Команда читает каждое сообщение", "fb.hi": "Здравствуйте! 👋 Я помогу. Как вас зовут?", "fb.back": "С возвращением, {name}! Чем могу помочь сегодня?", "fb.nice": "Приятно познакомиться, {name}! Чем могу помочь?", "fb.nice0": "Хорошо! Чем могу помочь?", "fb.namePh": "Ваше имя", "fb.skip": "Пропустить", "fb.r.problem": "🐞 Сообщить о проблеме", "fb.r.idea": "💡 Предложить идею", "fb.r.question": "❓ Вопрос о приложении", "fb.r.account": "👤 Аккаунт или Plus", "fb.r.other": "💬 Другое", "fb.a.problem": "Жаль, что так вышло. Что случилось и что вы в этот момент делали?", "fb.a.idea": "С удовольствием выслушаем! Что сделало бы Patternly удобнее для вас?", "fb.a.question": "Спрашивайте, команда ответит. Большинство инструкций есть и в руководстве.", "fb.a.account": "С чем нужна помощь по аккаунту или Plus?", "fb.a.other": "Пишите, мы слушаем.", "fb.email": "Можно ответить вам по e-mail, если понадобится?", "fb.emailYes": "Да, по e-mail", "fb.emailNo": "Нет, спасибо", "fb.msgPh": "Напишите сообщение…", "fb.send": "Отправить", "fb.sent": "Спасибо, {name}! Ваше сообщение получено командой Patternly. Что-то ещё?", "fb.sent0": "Спасибо! Ваше сообщение получено командой Patternly. Что-то ещё?", "fb.more": "Дополнить", "fb.other": "Другая тема", "fb.done": "Это всё", "fb.bye": "Спасибо, что помогаете улучшать Patternly. Приятной вышивки! 🧵", "fb.guide": "Открыть руководство", "fb.restart": "Новый чат", "fb.privacy": "Ваше имя и сообщения видит только команда Patternly. Никогда не сообщайте пароли и данные карт.", "fb.sending": "Отправка…", "fb.short": "Напишите, пожалуйста, чуть подробнее.", "fb.limit": "Сегодня вы уже отправили 10 сообщений. Попробуйте завтра.", "fb.err": "Не удалось отправить. Проверьте соединение и попробуйте ещё раз."}, "uk": {"fb.entry": "Допомога та пропозиції", "fb.footer": "Запропонувати ідею", "fb.title": "Допомога Patternly", "fb.status": "Команда читає кожне повідомлення", "fb.hi": "Вітаю! 👋 Я допоможу. Як вас звати?", "fb.back": "З поверненням, {name}! Чим можу допомогти сьогодні?", "fb.nice": "Приємно познайомитися, {name}! Чим можу допомогти?", "fb.nice0": "Гаразд! Чим можу допомогти?", "fb.namePh": "Ваше ім’я", "fb.skip": "Пропустити", "fb.r.problem": "🐞 Повідомити про проблему", "fb.r.idea": "💡 Запропонувати ідею", "fb.r.question": "❓ Питання про застосунок", "fb.r.account": "👤 Акаунт або Plus", "fb.r.other": "💬 Інше", "fb.a.problem": "Шкода, що так сталося. Що трапилося і що ви в цей момент робили?", "fb.a.idea": "Залюбки вислухаємо! Що зробило б Patternly зручнішим для вас?", "fb.a.question": "Питайте, команда відповість. Більшість інструкцій є і в посібнику.", "fb.a.account": "З чим потрібна допомога щодо акаунта або Plus?", "fb.a.other": "Пишіть, ми слухаємо.", "fb.email": "Чи можна відповісти вам на e-mail, якщо знадобиться?", "fb.emailYes": "Так, на e-mail", "fb.emailNo": "Ні, дякую", "fb.msgPh": "Напишіть повідомлення…", "fb.send": "Надіслати", "fb.sent": "Дякуємо, {name}! Ваше повідомлення отримала команда Patternly. Щось іще?", "fb.sent0": "Дякуємо! Ваше повідомлення отримала команда Patternly. Щось іще?", "fb.more": "Доповнити", "fb.other": "Інша тема", "fb.done": "Це все", "fb.bye": "Дякуємо, що допомагаєте покращувати Patternly. Приємної вишивки! 🧵", "fb.guide": "Відкрити посібник", "fb.restart": "Новий чат", "fb.privacy": "Ваше ім’я та повідомлення бачить лише команда Patternly. Ніколи не надсилайте паролі чи дані карток.", "fb.sending": "Надсилання…", "fb.short": "Напишіть, будь ласка, трохи детальніше.", "fb.limit": "Сьогодні ви вже надіслали 10 повідомлень. Спробуйте завтра.", "fb.err": "Не вдалося надіслати. Перевірте з’єднання і спробуйте ще раз."}, "es": {"fb.entry": "Ayuda y sugerencias", "fb.footer": "Sugiere una función", "fb.title": "Ayuda de Patternly", "fb.status": "El equipo lee todos los mensajes", "fb.hi": "¡Hola! 👋 Estoy aquí para ayudarte. ¿Cómo te llamas?", "fb.back": "¡Hola de nuevo, {name}! ¿En qué te puedo ayudar hoy?", "fb.nice": "¡Encantados, {name}! ¿En qué te puedo ayudar?", "fb.nice0": "¡Sin problema! ¿En qué te puedo ayudar?", "fb.namePh": "Tu nombre", "fb.skip": "Saltar", "fb.r.problem": "🐞 Informar de un problema", "fb.r.idea": "💡 Sugerir una idea", "fb.r.question": "❓ Pregunta sobre la app", "fb.r.account": "👤 Cuenta o Plus", "fb.r.other": "💬 Otra cosa", "fb.a.problem": "Lo sentimos. ¿Qué pasó y qué estabas haciendo en ese momento?", "fb.a.idea": "¡Nos encantará leerla! ¿Qué haría Patternly mejor para ti?", "fb.a.question": "Pregunta y el equipo te responderá. Casi todas las instrucciones están también en la guía.", "fb.a.account": "¿Con qué necesitas ayuda en tu cuenta o Plus?", "fb.a.other": "Adelante, te escuchamos.", "fb.email": "¿Podemos responderte por correo si hace falta?", "fb.emailYes": "Sí, por correo", "fb.emailNo": "No, gracias", "fb.msgPh": "Escribe tu mensaje…", "fb.send": "Enviar", "fb.sent": "¡Gracias, {name}! Tu mensaje ha llegado al equipo de Patternly. ¿Algo más?", "fb.sent0": "¡Gracias! Tu mensaje ha llegado al equipo de Patternly. ¿Algo más?", "fb.more": "Añadir más", "fb.other": "Otro tema", "fb.done": "Eso es todo", "fb.bye": "Gracias por ayudarnos a mejorar Patternly. ¡Feliz bordado! 🧵", "fb.guide": "Abrir la guía", "fb.restart": "Nuevo chat", "fb.privacy": "Tu nombre y tus mensajes solo llegan al equipo de Patternly. Nunca compartas contraseñas ni datos de tarjeta.", "fb.sending": "Enviando…", "fb.short": "Escribe unas palabras más, por favor.", "fb.limit": "Hoy ya has enviado 10 mensajes. Vuelve a intentarlo mañana.", "fb.err": "No se pudo enviar. Revisa tu conexión e inténtalo de nuevo."}, "it": {"fb.entry": "Aiuto e suggerimenti", "fb.footer": "Suggerisci una funzione", "fb.title": "Aiuto Patternly", "fb.status": "Il team legge ogni messaggio", "fb.hi": "Ciao! 👋 Sono qui per aiutarti. Come ti chiami?", "fb.back": "Bentornato, {name}! Come posso aiutarti oggi?", "fb.nice": "Piacere, {name}! Come posso aiutarti?", "fb.nice0": "Nessun problema! Come posso aiutarti?", "fb.namePh": "Il tuo nome", "fb.skip": "Salta", "fb.r.problem": "🐞 Segnala un problema", "fb.r.idea": "💡 Suggerisci un’idea", "fb.r.question": "❓ Domanda sull’app", "fb.r.account": "👤 Account o Plus", "fb.r.other": "💬 Altro", "fb.a.problem": "Ci dispiace. Cosa è successo e cosa stavi facendo in quel momento?", "fb.a.idea": "Ci farebbe piacere! Cosa renderebbe Patternly migliore per te?", "fb.a.question": "Chiedi pure, il team ti risponderà. Quasi tutte le istruzioni sono anche nella guida.", "fb.a.account": "Di cosa hai bisogno per il tuo account o Plus?", "fb.a.other": "Dicci pure, ti ascoltiamo.", "fb.email": "Possiamo risponderti via e-mail se serve?", "fb.emailYes": "Sì, via e-mail", "fb.emailNo": "No, grazie", "fb.msgPh": "Scrivi il tuo messaggio…", "fb.send": "Invia", "fb.sent": "Grazie, {name}! Il tuo messaggio è arrivato al team di Patternly. Altro?", "fb.sent0": "Grazie! Il tuo messaggio è arrivato al team di Patternly. Altro?", "fb.more": "Aggiungi", "fb.other": "Altro argomento", "fb.done": "È tutto", "fb.bye": "Grazie per aiutarci a migliorare Patternly. Buon ricamo! 🧵", "fb.guide": "Apri la guida", "fb.restart": "Nuova chat", "fb.privacy": "Il tuo nome e i tuoi messaggi arrivano solo al team di Patternly. Non condividere mai password o dati della carta.", "fb.sending": "Invio…", "fb.short": "Scrivi qualche parola in più, per favore.", "fb.limit": "Oggi hai già inviato 10 messaggi. Riprova domani.", "fb.err": "Invio non riuscito. Controlla la connessione e riprova."}}; for(var l in A){ T[l]=T[l]||{}; for(var k in A[l]) T[l][k]=A[l][k]; } })(window.PL_I18N);
+(function(T){ if(!T) return; var A={"en": {"fb.statusAi": "Instant answers, team on hand", "fb.aiNote": "Answers come from an AI assistant and can be wrong. Chats stay private unless you send them to the team.", "fb.helped": "👍 That helped", "fb.toTeam": "📨 Send to the team", "fb.glad": "Glad I could help! Anything else?", "fb.aiFail": "I can't answer that right now, so I've passed your message to the team.", "fb.followPh": "Ask a follow-up…", "fb.ai.problem": "Sorry about that. Tell me what happened and I'll help you fix it.", "fb.ai.question": "Ask me anything about Patternly.", "fb.ai.account": "What do you need help with on your account or Plus?", "fb.ai.other": "Go ahead, I'm listening."}, "fr": {"fb.statusAi": "Réponses immédiates, l’équipe est là", "fb.aiNote": "Les réponses viennent d’un assistant IA et peuvent contenir des erreurs. La discussion reste privée sauf si vous l’envoyez à l’équipe.", "fb.helped": "👍 Ça m’a aidé", "fb.toTeam": "📨 Envoyer à l’équipe", "fb.glad": "Ravi d’avoir pu aider ! Autre chose ?", "fb.aiFail": "Je ne peux pas répondre pour le moment, j’ai donc transmis votre message à l’équipe.", "fb.followPh": "Posez une autre question…", "fb.ai.problem": "Désolé pour ce souci. Dites-moi ce qui s’est passé et je vous aide à le régler.", "fb.ai.question": "Posez-moi vos questions sur Patternly.", "fb.ai.account": "De quoi avez-vous besoin pour votre compte ou Plus ?", "fb.ai.other": "Allez-y, je vous écoute."}, "de": {"fb.statusAi": "Sofort-Antworten, das Team ist da", "fb.aiNote": "Die Antworten kommen von einem KI-Assistenten und können Fehler enthalten. Der Chat bleibt privat, außer du schickst ihn ans Team.", "fb.helped": "👍 Hat geholfen", "fb.toTeam": "📨 Ans Team senden", "fb.glad": "Freut mich, dass ich helfen konnte! Noch etwas?", "fb.aiFail": "Ich kann gerade nicht antworten, deshalb habe ich deine Nachricht ans Team weitergegeben.", "fb.followPh": "Weitere Frage stellen…", "fb.ai.problem": "Das tut mir leid. Erzähl mir, was passiert ist, dann helfe ich dir.", "fb.ai.question": "Frag mich alles zu Patternly.", "fb.ai.account": "Wobei brauchst du Hilfe mit deinem Konto oder Plus?", "fb.ai.other": "Schieß los, ich höre zu."}, "nl": {"fb.statusAi": "Direct antwoord, het team staat klaar", "fb.aiNote": "Antwoorden komen van een AI-assistent en kunnen fouten bevatten. Het gesprek blijft privé, tenzij je het naar het team stuurt.", "fb.helped": "👍 Dat hielp", "fb.toTeam": "📨 Naar het team sturen", "fb.glad": "Fijn dat ik kon helpen! Nog iets?", "fb.aiFail": "Ik kan nu niet antwoorden, dus ik heb je bericht doorgestuurd naar het team.", "fb.followPh": "Stel een vervolgvraag…", "fb.ai.problem": "Vervelend! Vertel wat er gebeurde, dan help ik je het op te lossen.", "fb.ai.question": "Vraag me alles over Patternly.", "fb.ai.account": "Waarmee heb je hulp nodig bij je account of Plus?", "fb.ai.other": "Vertel maar, ik luister."}, "ru": {"fb.statusAi": "Мгновенные ответы, команда рядом", "fb.aiNote": "Ответы даёт ИИ-ассистент, и он может ошибаться. Чат остаётся личным, пока вы не отправите его команде.", "fb.helped": "👍 Помогло", "fb.toTeam": "📨 Отправить команде", "fb.glad": "Рад, что смог помочь! Что-то ещё?", "fb.aiFail": "Сейчас я не могу ответить, поэтому передал ваше сообщение команде.", "fb.followPh": "Задайте ещё вопрос…", "fb.ai.problem": "Жаль, что так вышло. Расскажите, что случилось, и я помогу это исправить.", "fb.ai.question": "Спрашивайте что угодно о Patternly.", "fb.ai.account": "С чем нужна помощь по аккаунту или Plus?", "fb.ai.other": "Пишите, я слушаю."}, "uk": {"fb.statusAi": "Миттєві відповіді, команда поруч", "fb.aiNote": "Відповіді дає ШІ-асистент, і він може помилятися. Чат залишається приватним, доки ви не надішлете його команді.", "fb.helped": "👍 Допомогло", "fb.toTeam": "📨 Надіслати команді", "fb.glad": "Радий, що зміг допомогти! Щось іще?", "fb.aiFail": "Зараз я не можу відповісти, тому передав ваше повідомлення команді.", "fb.followPh": "Поставте ще запитання…", "fb.ai.problem": "Шкода, що так сталося. Розкажіть, що трапилося, і я допоможу це виправити.", "fb.ai.question": "Питайте що завгодно про Patternly.", "fb.ai.account": "З чим потрібна допомога щодо акаунта або Plus?", "fb.ai.other": "Пишіть, я слухаю."}, "es": {"fb.statusAi": "Respuestas al instante, el equipo está aquí", "fb.aiNote": "Las respuestas vienen de un asistente de IA y pueden tener errores. El chat es privado salvo que lo envíes al equipo.", "fb.helped": "👍 Me ha ayudado", "fb.toTeam": "📨 Enviar al equipo", "fb.glad": "¡Me alegra haber ayudado! ¿Algo más?", "fb.aiFail": "Ahora no puedo responder, así que he pasado tu mensaje al equipo.", "fb.followPh": "Haz otra pregunta…", "fb.ai.problem": "Lo siento. Cuéntame qué pasó y te ayudo a solucionarlo.", "fb.ai.question": "Pregúntame lo que quieras sobre Patternly.", "fb.ai.account": "¿Con qué necesitas ayuda en tu cuenta o Plus?", "fb.ai.other": "Adelante, te escucho."}, "it": {"fb.statusAi": "Risposte immediate, il team è qui", "fb.aiNote": "Le risposte arrivano da un assistente IA e possono contenere errori. La chat resta privata, a meno che tu non la invii al team.", "fb.helped": "👍 Mi è stato utile", "fb.toTeam": "📨 Invia al team", "fb.glad": "Felice di averti aiutato! Altro?", "fb.aiFail": "Ora non riesco a rispondere, quindi ho passato il tuo messaggio al team.", "fb.followPh": "Fai un’altra domanda…", "fb.ai.problem": "Mi dispiace. Dimmi cosa è successo e ti aiuto a risolverlo.", "fb.ai.question": "Chiedimi qualsiasi cosa su Patternly.", "fb.ai.account": "Di cosa hai bisogno per il tuo account o Plus?", "fb.ai.other": "Dimmi pure, ti ascolto."}}; for(var l in A){ T[l]=T[l]||{}; for(var k in A[l]) T[l][k]=A[l][k]; } })(window.PL_I18N);
 </script>
 <!-- TOP BAR -->
 <!-- ══════════════════════════════════════════════════════════
@@ -38915,7 +38916,8 @@ body.dark #pmo .row.danger{color:#f08a8a}body.dark #pmo .row.danger .ic{backgrou
 })();
 </script>
 <!-- v659: help chat ("Help & suggestions"). Chat-style: name → reason → (email ok?) → messages. API: plFeedbackOpen(where). Posts each message to /feedback.
-     Step 2 (AI answers) will reply inside the same log for the "question" reason. -->
+     v691: reply buttons sit under the last message; when the middleware has an ANTHROPIC_API_KEY, messages (except ideas)
+     get instant AI answers from /help/chat, with "Send to the team" to forward the chat. No key / no answer = sent to the team. -->
 <style id="plfb-style">
 .plfb{--fb-bg:#fff;--fb-line:#efe3e6;--fb-ink:#2b2226;--fb-mute:#7d6b72;--fb-acc:#8B1A2B;--fb-chip:#f7f1f2;--fb-bot:#f4eef0;--fb-ok:#2e7d4f;--fb-err:#b3261e;
   position:fixed;inset:0;z-index:9600;display:none;align-items:flex-end;justify-content:flex-end;background:rgba(20,12,18,.32);font-family:inherit;padding:1rem}
@@ -38946,7 +38948,7 @@ body.dark .fb-m.me{color:#1d1420}
 .fb-typing i:nth-child(2){animation-delay:.15s}.fb-typing i:nth-child(3){animation-delay:.3s}
 @keyframes fbDot{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-2px)}}
 @keyframes fbIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-.fb-chips{display:flex;flex-wrap:wrap;gap:.4rem;padding:.2rem .85rem .6rem;justify-content:flex-end}
+.fb-chips{display:flex;flex-wrap:wrap;gap:.4rem;padding:.15rem 0 .3rem;justify-content:flex-end;flex:none}
 .fb-chips:empty{display:none}
 .fb-chip{border:1.5px solid var(--fb-acc);background:var(--fb-bg);color:var(--fb-acc);border-radius:999px;font-size:.8rem;font-weight:700;padding:.45rem .8rem;line-height:1.2}
 .fb-chip:active{background:var(--fb-chip)}
@@ -38981,8 +38983,7 @@ body.ptly-appui #plfb-fab{bottom:calc(84px + var(--sa-bottom,0px))}
       <button class="fb-ib" type="button" id="fb-restart" data-i18n-title="fb.restart" title="New chat" aria-label="New chat">↺</button>
       <button class="fb-ib" type="button" aria-label="Close" onclick="plFeedbackClose()">✕</button>
     </div>
-    <div class="fb-log" id="fb-log" aria-live="polite"></div>
-    <div class="fb-chips" id="fb-chips"></div>
+    <div class="fb-log" id="fb-log" aria-live="polite"><div class="fb-chips" id="fb-chips"></div></div>
     <div class="fb-bar" id="fb-bar">
       <textarea class="fb-in" id="fb-in" rows="1" maxlength="2000" placeholder="Type your message…"></textarea>
       <input class="fb-hp" id="fb-hp" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
@@ -38993,20 +38994,24 @@ body.ptly-appui #plfb-fab{bottom:calc(84px + var(--sa-bottom,0px))}
 <script>
 (function(){
   var REASONS=['problem','idea','question','account','other'];
-  var S=null, where='', signedIn=false, busy=false;
+  var S=null, where='', signedIn=false, busy=false, aiOn=false;
   function $(id){ return document.getElementById(id); }
   function tx(k,v){ var s=k; try{ s=window.plT?plT(k):k; }catch(e){} if(v) for(var n in v) s=s.split('{'+n+'}').join(v[n]); return s; }
   function platform(){ try{ if(window.Capacitor && Capacitor.getPlatform){ var p=Capacitor.getPlatform(); if(p==='ios'||p==='android') return p; } }catch(e){} return 'web'; }
   function base(){ return (window.PATTERNLY_API_BASE||'/apps/patternly'); }
   function qs(){ try{ return (typeof plSessQS==='function')?plSessQS():''; }catch(e){ return ''; } }
+  function lang(){ try{ return (window.plCurrentLang?plCurrentLang():'en'); }catch(e){ return 'en'; } }
   function getName(){ try{ return (localStorage.getItem('pl_fb_name')||'').slice(0,40); }catch(e){ return ''; } }
   function setName(n){ try{ if(n) localStorage.setItem('pl_fb_name',n); else localStorage.removeItem('pl_fb_name'); }catch(e){} }
   function scroll(){ var l=$('fb-log'); l.scrollTop=l.scrollHeight; }
   function el(cls,text){ var d=document.createElement('div'); d.className=cls; if(text!=null) d.textContent=text; return d; }
-  function me(text){ var d=el('fb-m me',text); $('fb-log').appendChild(d); scroll(); return d; }
+  // v691: every bubble goes in above the reply buttons, so the buttons sit right under the last message
+  function add(n){ $('fb-log').insertBefore(n,$('fb-chips')); scroll(); return n; }
+  function me(text){ return add(el('fb-m me',text)); }
+  function typing(){ var t=el('fb-typing'); t.innerHTML='<i></i><i></i><i></i>'; return add(t); }
   function bot(text,then){
-    var t=el('fb-typing'); t.innerHTML='<i></i><i></i><i></i>'; $('fb-log').appendChild(t); scroll();
-    setTimeout(function(){ t.remove(); $('fb-log').appendChild(el('fb-m bot',text)); scroll(); if(then) then(); }, 420);
+    var t=typing();
+    setTimeout(function(){ t.remove(); add(el('fb-m bot',text)); if(then) then(); }, 420);
   }
   function chips(list){
     var c=$('fb-chips'); c.innerHTML='';
@@ -39019,30 +39024,88 @@ body.ptly-appui #plfb-fab{bottom:calc(84px + var(--sa-bottom,0px))}
       setTimeout(function(){ try{ if(!(window.matchMedia&&matchMedia('(pointer:coarse)').matches)) i.focus(); }catch(e){} },40); }
   }
   function grow(){ var i=$('fb-in'); i.style.height='auto'; i.style.height=Math.min(120,i.scrollHeight)+'px'; $('fb-go').disabled=!i.value.trim(); }
+  function useAi(){ return aiOn && S && S.mode!=='team' && S.reason!=='idea'; }
+  function setStatus(){ var e=document.querySelector('#plfb .fb-hd em'); if(e) e.textContent=tx(aiOn?'fb.statusAi':'fb.status'); var p=$('fb-ainote'); if(p) p.style.display=aiOn?'':'none'; }
   function reasonChips(){ chips(REASONS.map(function(r){ return [tx('fb.r.'+r), function(){ pick(r); }]; })); }
   function askReason(first){
     var n=S.name;
     bot(first==='back'?tx('fb.back',{name:n}):(n?tx('fb.nice',{name:n}):tx('fb.nice0')), function(){ S.step='reason'; input(false); reasonChips(); });
   }
+  function askEmail(then){
+    if(!(signedIn && S.contact==null && (S.reason==='problem'||S.reason==='account'||S.reason==='question'))){ then(); return; }
+    bot(tx('fb.email'),function(){ S.step='email'; chips([[tx('fb.emailYes'),function(){ S.contact=true; me(tx('fb.emailYes')); then(); }],[tx('fb.emailNo'),function(){ S.contact=false; me(tx('fb.emailNo')); then(); }]]); });
+  }
   function pick(r){
-    S.reason=r; me(tx('fb.r.'+r));
-    if(signedIn && S.contact==null && (r==='problem'||r==='account'||r==='question')){
-      bot(tx('fb.email'),function(){ S.step='email'; chips([[tx('fb.emailYes'),function(){ S.contact=true; me(tx('fb.emailYes')); prompt(); }],[tx('fb.emailNo'),function(){ S.contact=false; me(tx('fb.emailNo')); prompt(); }]]); });
-    } else prompt();
+    S.reason=r; S.mode=''; S.hist=[]; me(tx('fb.r.'+r));
+    if(useAi()) prompt(); else askEmail(prompt);    // with AI on, the email question waits until the chat is sent to the team
   }
   function prompt(){
-    bot(tx('fb.a.'+S.reason),function(){
+    bot(tx((useAi()?'fb.ai.':'fb.a.')+S.reason),function(){
       S.step='msg'; input(true);
-      if(S.reason==='question') chips([[tx('fb.guide'),function(){ plFeedbackClose(); try{ openGuide(); }catch(e){} }]]);
+      if(S.reason==='question' && !useAi()) chips([[tx('fb.guide'),function(){ plFeedbackClose(); try{ openGuide(); }catch(e){} }]]);
     });
   }
   function afterSent(){
+    S.mode='team';
     bot(S.name?tx('fb.sent',{name:S.name}):tx('fb.sent0'),function(){
       S.step='after'; input(false);
       chips([[tx('fb.more'),function(){ me(tx('fb.more')); S.step='msg'; input(true); }],
              [tx('fb.other'),function(){ me(tx('fb.other')); S.step='reason'; bot(tx('fb.nice0'),reasonChips); }],
-             [tx('fb.done'),function(){ me(tx('fb.done')); bot(tx('fb.bye'),function(){ S.step='done'; chips([[tx('fb.restart'),start]]); }); }]]);
+             [tx('fb.done'),bye]]);
     });
+  }
+  function bye(){ me(tx('fb.done')); bot(tx('fb.bye'),function(){ S.step='done'; input(false); chips([[tx('fb.restart'),start]]); }); }
+  // Sends one message to the team inbox (/feedback). Resolves {ok, lim, short}.
+  async function sendTeam(text){
+    try{
+      var r=await fetch(base()+'/feedback'+qs(),{method:'POST',credentials:'include',headers:{'content-type':'application/json'},
+        body:JSON.stringify({kind:S.reason,text:text,name:S.name||'',conv:S.conv,lang:lang(),platform:platform(),app:(typeof PATTERNLY_BUILD==='string'?PATTERNLY_BUILD:''),where:where,contact:S.contact===true,hp:$('fb-hp').value})});
+      var j=null; try{ j=await r.json(); }catch(e){}
+      return {ok:!!(j&&j.ok), lim:!!(j&&j.limit), short:!!(j&&j.error==='too short')};
+    }catch(e){ return {ok:false}; }
+  }
+  function failNote(lim){ add(el('fb-err',tx(lim?'fb.limit':'fb.err'))); }
+  // The AI chat as one text for the team: first question kept, then the latest turns, max 2,000 characters.
+  function transcript(){
+    var lines=S.hist.map(function(m){ return (m.role==='user'?'Customer: ':'Assistant: ')+m.content; });
+    var t=lines.join('\n\n'); if(t.length<=2000) return t;
+    var head=lines[0].slice(0,500), tail=t.slice(-(2000-head.length-6)); return head+'\n\n…\n'+tail;
+  }
+  function toTeam(){
+    me(tx('fb.toTeam'));
+    askEmail(async function(){
+      busy=true; input(false); var t=typing();
+      var res=await sendTeam(transcript()); t.remove(); busy=false;
+      if(res.ok){ afterSent(); return; }
+      failNote(res.lim);
+      chips(res.lim?[[tx('fb.done'),function(){ plFeedbackClose(); }]]:[[tx('fb.toTeam'),toTeam]]);
+    });
+  }
+  function aiChips(){
+    chips([[tx('fb.helped'),function(){ me(tx('fb.helped')); bot(tx('fb.glad'),function(){ S.step='after'; input(false); chips([[tx('fb.other'),function(){ me(tx('fb.other')); S.step='reason'; bot(tx('fb.nice0'),reasonChips); }],[tx('fb.done'),bye]]); }); }],
+           [tx('fb.toTeam'),toTeam]]);
+  }
+  async function askAi(v,bub){
+    S.hist.push({role:'user',content:v});
+    var t=typing(), j=null;
+    try{
+      var r=await fetch(base()+'/help/chat'+qs(),{method:'POST',credentials:'include',headers:{'content-type':'application/json'},
+        body:JSON.stringify({messages:S.hist,lang:lang(),platform:platform(),where:where,kind:S.reason,hp:$('fb-hp').value})});
+      try{ j=await r.json(); }catch(e){}
+    }catch(e){}
+    t.remove();
+    if(j && j.ok && j.text){
+      var a=String(j.text).replace(/\*\*(.+?)\*\*/g,'$1').replace(/^#+\s*/gm,'');
+      S.hist.push({role:'assistant',content:a}); add(el('fb-m bot',a));
+      busy=false; S.step='msg'; input(true,tx('fb.followPh')); aiChips(); return;
+    }
+    if(j && j.off){ aiOn=false; setStatus(); }
+    // No answer (AI off, busy, limit, long chat): hand the message to the team instead of leaving them stuck.
+    var res=await sendTeam(S.hist.length>1?transcript():v); busy=false;
+    if(res.ok){ add(el('fb-m bot',tx('fb.aiFail'))); S.mode='team'; S.step='after';
+      chips([[tx('fb.more'),function(){ me(tx('fb.more')); S.step='msg'; input(true); }],[tx('fb.other'),function(){ me(tx('fb.other')); S.step='reason'; bot(tx('fb.nice0'),reasonChips); }],[tx('fb.done'),bye]]); return; }
+    S.hist.pop(); bub.classList.add('fail'); failNote(res.lim);
+    if(!res.lim){ input(true); $('fb-in').value=v; grow(); } else chips([[tx('fb.done'),function(){ plFeedbackClose(); }]]);
   }
   async function submit(){
     if(busy) return;
@@ -39051,38 +39114,37 @@ body.ptly-appui #plfb-fab{bottom:calc(84px + var(--sa-bottom,0px))}
       var n=v.replace(/\s+/g,' ').slice(0,40); S.name=n; setName(n); me(n); input(false); chips([]); askReason(); return;
     }
     if(S.step!=='msg') return;
-    if(v.length<5){ bot(tx('fb.short')); return; }
+    if(v.length<5 && !useAi()){ bot(tx('fb.short')); return; }
+    if(v.length<2){ return; }
     busy=true; $('fb-go').disabled=true; var bub=me(v); $('fb-in').value=''; grow(); input(false); chips([]);
-    var lang='en'; try{ lang=(window.plCurrentLang?plCurrentLang():'en'); }catch(e){}
-    var ok=false, lim=false;
-    try{
-      var r=await fetch(base()+'/feedback'+qs(),{method:'POST',credentials:'include',headers:{'content-type':'application/json'},
-        body:JSON.stringify({kind:S.reason,text:v,name:S.name||'',conv:S.conv,lang:lang,platform:platform(),app:(typeof PATTERNLY_BUILD==='string'?PATTERNLY_BUILD:''),where:where,contact:S.contact===true,hp:$('fb-hp').value})});
-      var j=null; try{ j=await r.json(); }catch(e){}
-      ok=!!(j&&j.ok); lim=!!(j&&j.limit);
-      if(j && j.error==='too short'){ busy=false; bub.classList.add('fail'); bot(tx('fb.short'),function(){ input(true); $('fb-in').value=v; grow(); }); return; }
-    }catch(e){}
+    if(useAi()){ askAi(v,bub); return; }
+    var res=await sendTeam(v);
     busy=false;
-    if(ok){ afterSent(); return; }
-    bub.classList.add('fail'); var er=el('fb-err',tx(lim?'fb.limit':'fb.err')); $('fb-log').appendChild(er); scroll();
-    if(!lim){ input(true); $('fb-in').value=v; grow(); }
+    if(res.short){ bub.classList.add('fail'); bot(tx('fb.short'),function(){ input(true); $('fb-in').value=v; grow(); }); return; }
+    if(res.ok){ afterSent(); return; }
+    bub.classList.add('fail'); failNote(res.lim);
+    if(!res.lim){ input(true); $('fb-in').value=v; grow(); }
     else chips([[tx('fb.done'),function(){ plFeedbackClose(); }]]);
   }
   function start(){
-    S={step:'', name:getName(), reason:'', contact:null, conv:Date.now().toString(36)+Math.random().toString(36).slice(2,6)};
-    $('fb-log').innerHTML=''; chips([]); input(false);
-    $('fb-log').appendChild(el('fb-priv',tx('fb.privacy')));
+    S={step:'', name:getName(), reason:'', mode:'', hist:[], contact:null, conv:Date.now().toString(36)+Math.random().toString(36).slice(2,6)};
+    var l=$('fb-log'), c=$('fb-chips'); l.innerHTML=''; l.appendChild(c); chips([]); input(false);
+    var pv=el('fb-priv',tx('fb.privacy')); var an=document.createElement('span'); an.id='fb-ainote'; an.textContent=' '+tx('fb.aiNote'); pv.appendChild(an); add(pv); setStatus();
     if(S.name){ askReason('back'); }
     else bot(tx('fb.hi'),function(){ S.step='name'; input(true,tx('fb.namePh'),40); chips([[tx('fb.skip'),function(){ me(tx('fb.skip')); input(false); askReason(); }]]); });
   }
   async function checkSignedIn(){
     try{ var r=await fetch(base()+'/whoami'+qs(),{credentials:'include',cache:'no-store'}); var j=r.ok?await r.json():null; signedIn=!!(j && j.loggedIn); }catch(e){ signedIn=false; }
   }
+  async function checkAi(){
+    try{ var r=await fetch(base()+'/help/chat'+qs(),{credentials:'include',cache:'no-store'}); var j=r.ok?await r.json():null; aiOn=!!(j && j.ai); }catch(e){ aiOn=false; }
+    setStatus();
+  }
   window.plFeedbackOpen=function(w){
     where=String(w||'');
     $('plfb').classList.add('on');
     try{ if(typeof lpCloseMenu==='function') lpCloseMenu(); }catch(e){}
-    checkSignedIn();
+    checkSignedIn(); checkAi();
     if(!S || S.step==='done') start(); else scroll();
   };
   window.plFeedbackClose=function(){ $('plfb').classList.remove('on'); try{ $('fb-in').blur(); }catch(e){} };
