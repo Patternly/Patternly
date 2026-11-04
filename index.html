@@ -5472,7 +5472,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v673';
+window.PATTERNLY_BUILD='v674';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -10355,7 +10355,21 @@ let viewMode = 'realistic'; // 'pattern' or 'realistic' — Realistic is the def
 // Extended view mode (declared here so render() can access it)
 let extViewMode = 'realistic';
 
+// v674 – a canvas bigger than the device allows is silently blank (iPhone: a 400×400 pattern at 222% wanted a
+// 16001×16001 px canvas, 1 GB). Keep the backing canvas under a safe pixel budget: shrink the backing cell size
+// and let CSS show it at the zoomed size (the canvas is image-rendering:pixelated and cellAt() works from the
+// on-screen rect, as fitted zoom already does).
+function edCapCanvas(){
+  const lim=(navigator.maxTouchPoints>0)?40e6:120e6;   // under what phones already drew at 100% before v674
+  if((COLS*CELL+1)*(ROWS*CELL+1)<=lim) return;
+  const disp=canvas.style.width?(parseFloat(canvas.style.width)/COLS):CELL;
+  CELL=Math.max(1,Math.floor(Math.sqrt(lim/(COLS*ROWS)))-1);
+  canvas.width=COLS*CELL+1; canvas.height=ROWS*CELL+1;
+  canvas.style.width=Math.round(COLS*disp)+'px';
+  canvas.style.height=Math.round(ROWS*disp)+'px';
+}
 function render() {
+  try{ edCapCanvas(); }catch(e){}
   _lyFlatCache=null; // any repaint may follow an edit — recompute composite lazily
   lySyncActive();
   if(viewMode==='realistic') renderRealistic();
