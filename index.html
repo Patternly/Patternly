@@ -11050,6 +11050,27 @@ function _fabricPattern(fr,fg,fb,cell){
   return _fabTilePat;
 }
 
+let _aidaFarKey='', _aidaFarPat=null;
+function _aidaFarPattern(fr,fg,fb,cell){
+  const n=Math.max(3,Math.round(cell));
+  const key=fr+','+fg+','+fb+','+n;
+  if(key===_aidaFarKey && _aidaFarPat) return _aidaFarPat;
+  const t=document.createElement('canvas'); t.width=n; t.height=n;
+  const g=t.getContext('2d');
+  const lum=0.299*fr+0.587*fg+0.114*fb;
+  const d=lum>200?72:(lum>110?60:-45);          // holes darker on light fabric, lighter on very dark fabric
+  const c=(v,k)=>Math.max(0,Math.min(255,Math.round(v+k)));
+  // thread block: a little lighter in the middle, a little darker towards the gaps
+  g.fillStyle=`rgb(${c(fr,-d*0.25)},${c(fg,-d*0.25)},${c(fb,-d*0.25)})`; g.fillRect(0,0,n,n);
+  const m=Math.max(1,Math.round(n*0.12));
+  g.fillStyle=`rgb(${c(fr,d>0?6:-6)},${c(fg,d>0?6:-6)},${c(fb,d>0?6:-6)})`; g.fillRect(m,m,n-2*m,n-2*m);
+  // hole at each corner (a quarter in each tile corner, so they meet on the stitch lines)
+  const h=Math.max(1,Math.round(n*0.2));
+  g.fillStyle=`rgb(${c(fr,-d)},${c(fg,-d)},${c(fb,-d)})`;
+  g.fillRect(0,0,h,h); g.fillRect(n-h,0,h,h); g.fillRect(0,n-h,h,h); g.fillRect(n-h,n-h,h,h);
+  _aidaFarPat=ctx.createPattern(t,'repeat'); _aidaFarKey=key;
+  return _aidaFarPat;
+}
 function renderRealistic() {
   ctx.clearRect(0,0,canvas.width,canvas.height);
   const fab = hexToRgb(fabricColorHex);
@@ -11072,6 +11093,16 @@ function renderRealistic() {
   window._edFineGrid=Math.max(0,Math.min(1,(_disp-5)/10));
   ctx.fillStyle=`rgb(${fr},${fg},${fb})`;
   ctx.fillRect(0,0,W,H);
+  // v688: far away the weave photo is faded out (it turns to grey haze), which made the fabric look
+  // like a different, plain fabric (Cristian). Instead draw a crisp, simple Aida: one soft square
+  // per stitch with a small hole at each corner, fading out as the photo weave fades in.
+  const _aida=(_disp>=3 && CELL>=3) ? 1-_weave : 0;
+  if(_aida>0){
+    ctx.globalAlpha=_aida;
+    ctx.fillStyle=_aidaFarPattern(fr,fg,fb,CELL);
+    ctx.fillRect(0,0,W,H);
+    ctx.globalAlpha=1;
+  }
   if(!SMALL && _weave>0){
     const holeR=Math.max(0,fr-55), holeG=Math.max(0,fg-52), holeB=Math.max(0,fb-48);
     ctx.globalAlpha=_weave;
