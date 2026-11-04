@@ -5472,7 +5472,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v674';
+window.PATTERNLY_BUILD='v675';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -39494,6 +39494,7 @@ body.dark.ptly-appui #trk-fspanel.pst .pst-more>button.pst-danger{color:#f08a8a!
   body.ptly-appui.app-mode #right-panel{padding-top:22px!important;transition:transform .25s ease,height .25s ease!important}
   body.ptly-appui.app-mode #right-panel.psh-full{height:calc(100vh - var(--psh-top,64px))!important;border-radius:16px 16px 0 0}
   body.ptly-appui.app-mode .psh-drag{transition:none!important}
+  body.ptly-appui.app-mode .psh-held{max-height:none!important}
 }
 </style>
 <script id="psh-src">
@@ -39525,9 +39526,11 @@ body.dark.ptly-appui #trk-fspanel.pst .pst-more>button.pst-danger{color:#f08a8a!
       var t=e.target; if(t.closest&&t.closest('input,select,textarea,canvas,[contenteditable]')&&!grab.contains(t)) { mode='skip'; return; }
       y0=e.touches[0].clientY; x0=e.touches[0].clientX; lastDy=0;
       wasFull=sheet.classList.contains('psh-full');
+      var held=sheet.classList.contains('psh-held');
       startH=sheet.getBoundingClientRect().height;
       fullH=window.innerHeight-topEdge();
-      if(wasFull) normH=sheet._pshNorm||Math.min(startH,Math.round(window.innerHeight*0.7)); else normH=sheet._pshNorm=startH;
+      if(wasFull||held) normH=sheet._pshNorm||Math.min(startH,Math.round(window.innerHeight*0.7)); else normH=sheet._pshNorm=startH;
+      wasFull=wasFull||held;   // v675: a sheet left at a chosen height can still be pulled up or down
       scr=scrollerOf(t,sheet); onZone=inZone(t);
     },{passive:true});
     sheet.addEventListener('touchmove',function(e){
@@ -39552,15 +39555,18 @@ body.dark.ptly-appui #trk-fspanel.pst .pst-more>button.pst-danger{color:#f08a8a!
       if(mode!=='drag'){ mode=null; return; }
       mode=null; sheet.classList.remove('psh-drag');
       var h=startH-lastDy;
-      setImp(sheet,'height',null); setImp(sheet,'transform',null);
-      if(h<normH*0.72){ sheet.classList.remove('psh-full'); try{ opts.close(); }catch(e){} return; }
-      var full=opts.canFull && (wasFull ? h>fullH-(fullH-normH)*0.5 : h>normH+(fullH-normH)*0.25);
-      sheet.classList.toggle('psh-full',!!full);
+      setImp(sheet,'transform',null);
+      if(h<normH*0.72){ setImp(sheet,'height',null); sheet.classList.remove('psh-full','psh-held'); try{ opts.close(); }catch(e){} return; }
+      // v675: the sheet stays where it is let go (Cristian: it jumped back to the middle). Close to the top → full,
+      // close to its normal height → normal, anywhere else → held at that height.
+      if(opts.canFull && h>=fullH-48){ setImp(sheet,'height',null); sheet.classList.remove('psh-held'); sheet.classList.add('psh-full'); }
+      else if(!opts.canFull || Math.abs(h-normH)<28 || h<normH){ setImp(sheet,'height',null); sheet.classList.remove('psh-full','psh-held'); }
+      else { sheet.classList.remove('psh-full'); sheet.classList.add('psh-held'); setImp(sheet,'height',Math.round(Math.min(h,fullH))+'px'); }
     }
     sheet.addEventListener('touchend',settle,{passive:true});
     sheet.addEventListener('touchcancel',settle,{passive:true});
     // Leaving the sheet open at full height next time would be surprising: reset when it closes.
-    new MutationObserver(function(){ if(!opts.isOpen() && sheet.classList.contains('psh-full')) sheet.classList.remove('psh-full'); }).observe(sheet,{attributes:true,attributeFilter:['class']});
+    new MutationObserver(function(){ if(!opts.isOpen() && (sheet.classList.contains('psh-full')||sheet.classList.contains('psh-held'))){ sheet.classList.remove('psh-full','psh-held'); setImp(sheet,'height',null); } }).observe(sheet,{attributes:true,attributeFilter:['class']});
   }
   window.pshAttach=attach;
   function init(){
