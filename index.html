@@ -5472,7 +5472,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v677';
+window.PATTERNLY_BUILD='v678';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -39685,6 +39685,265 @@ body.dark.ptly-appui #trk-fspanel.pst .pst-more>button.pst-danger{color:#f08a8a!
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,10); });
   else setTimeout(init,10);
+})();
+</script>
+<style id="pdd-style">
+/* v678 – desktop editor tool dock (option A step 1, thread "Simplify the desktop web editor").
+   Active on body.pdd-on = editor open on a screen wider than 820px (website and tablets/iPad app).
+   Phones and the app UI under 820px keep #ped-dock / #quick-bar. The 12 tool icons leave the left
+   panel and live here; strands / wraps / brush options move into the strip above the dock. */
+#pdd-dock,#pdd-opts,#pdd-pick{display:none}
+body.pdd-on #pdd-dock{display:flex}
+body.pdd-on #pdd-opts.has{display:flex}
+body.pdd-on #pdd-pick.open{display:block}
+body.pdd-on #quick-bar,body.pdd-on #qb-picker{display:none!important}
+body.pdd-on #tools-section{display:none!important}
+body.cv-open #pdd-dock,body.cv-open #pdd-opts,body.cv-open #pdd-pick,
+body:has(#export-panel.open) #pdd-dock,body:has(#export-panel.open) #pdd-opts,body:has(#export-panel.open) #pdd-pick,
+body:has(#modal-overlay.show) #pdd-dock,body:has(#modal-overlay.show) #pdd-opts,body:has(#modal-overlay.show) #pdd-pick{display:none!important}
+#pdd-dock{position:fixed;z-index:620;transform:translateX(-50%);align-items:center;gap:2px;padding:6px 8px;background:rgba(255,255,255,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid #eee2e6;border-radius:20px;box-shadow:0 10px 30px rgba(60,30,40,.16),0 2px 6px rgba(60,30,40,.06);font-family:inherit;max-width:calc(100vw - 32px)}
+#pdd-dock button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:58px;height:54px;padding:4px 6px;border:0;background:none;border-radius:14px;color:#6f6168;font:inherit;font-size:.68rem;font-weight:600;cursor:pointer;transition:background .12s,color .12s}
+#pdd-dock button span{white-space:nowrap;max-width:76px;overflow:hidden;text-overflow:ellipsis}
+#pdd-dock button svg{width:22px;height:22px}
+#pdd-dock button:hover{background:#f8eff2;color:#2b2226}
+#pdd-dock button.on{background:#fdedf0;color:#8B1A2B}
+#pdd-dock button:focus-visible{outline:2px solid #8B1A2B;outline-offset:1px}
+#pdd-dock .add svg{width:20px;height:20px}
+#pdd-dock .dv{width:1px;height:34px;background:#eee2e6;margin:0 6px;flex:none}
+#pdd-dock .sw{width:26px;height:26px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1.5px #d9cbd0;display:grid;place-items:center;font-size:.5rem;font-weight:800;color:#fff;text-shadow:0 0 2px rgba(0,0,0,.6);background:conic-gradient(#e85d75,#f2b84b,#7cc47f,#5aa9e6,#a77be0,#e85d75)}
+#pdd-dock .rc{display:flex;gap:6px;align-items:center;padding:0 4px 0 2px}
+#pdd-dock .rc:empty{display:none}
+#pdd-dock .rc button{min-width:0;width:24px;height:24px;padding:0;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #ddd0d5;font-size:0}
+#pdd-dock .rc button:hover{transform:scale(1.12)}
+#pdd-opts{position:fixed;z-index:619;transform:translateX(-50%);align-items:center;gap:10px;padding:6px 10px;background:rgba(255,255,255,.97);border:1px solid #eee2e6;border-radius:14px;box-shadow:0 6px 18px rgba(60,30,40,.12);font-family:inherit}
+#pdd-opts>div{margin:0!important;background:none!important;padding:0!important;min-width:220px}
+#pdd-opts #brush-selector>div{margin-bottom:0!important}
+#pdd-opts #brush-selector{display:none}
+#pdd-opts #brush-selector[style*="block"]{display:flex!important;gap:14px;align-items:center}
+#pdd-opts .ob{border:1.5px solid #efe0e2;background:#fff;color:#8B1A2B;border-radius:9px;padding:6px 12px;font:inherit;font-size:.74rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px}
+#pdd-opts .ob svg{width:15px;height:15px}
+#pdd-opts .ob:hover{background:#fdf3f5}
+#pdd-opts .ob.on{background:#fdedf0;border-color:#8B1A2B}
+#pdd-pick{position:fixed;z-index:621;transform:translateX(-50%);width:340px;max-height:min(460px,calc(100vh - 160px));overflow:auto;padding:10px;background:#fff;border:1px solid #eee2e6;border-radius:16px;box-shadow:0 18px 44px rgba(60,30,40,.22);font-family:inherit}
+#pdd-pick h4{margin:2px 6px 8px;font-size:.7rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#9a8890}
+#pdd-pick .r{display:flex;align-items:center;gap:10px;padding:4px 4px 4px 8px;border-radius:10px}
+#pdd-pick .r:hover{background:#faf3f5}
+#pdd-pick .r.on{background:#fdedf0}
+#pdd-pick .use{flex:1;display:flex;align-items:center;gap:10px;border:0;background:none;font:inherit;font-size:.84rem;color:#2b2226;cursor:pointer;text-align:left;padding:5px 0}
+#pdd-pick .use svg{width:20px;height:20px;color:#8B1A2B;flex:none}
+#pdd-pick kbd{font-family:inherit;font-size:.66rem;color:#9a8890;border:1px solid #eadde2;border-radius:5px;padding:1px 5px;margin-left:auto}
+#pdd-pick .pin{border:1.5px solid #eadde2;background:#fff;border-radius:8px;font:inherit;font-size:.68rem;font-weight:700;color:#9a8890;padding:4px 8px;cursor:pointer;white-space:nowrap}
+#pdd-pick .pin.on{background:#8B1A2B;border-color:#8B1A2B;color:#fff}
+#pdd-pick .ft{margin:8px 6px 2px;font-size:.72rem;color:#9a8890;line-height:1.4}
+body.dark #pdd-dock,body.dark #pdd-opts,body.dark #pdd-pick{background:rgba(26,21,36,.97);border-color:#3a3044;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+body.dark #pdd-dock button{color:#a99fb2}
+body.dark #pdd-dock button:hover{background:#2c2436;color:#efe9f2}
+body.dark #pdd-dock button.on{background:#3a2028;color:#f0b3c0}
+body.dark #pdd-dock .dv{background:#3a3044}
+body.dark #pdd-dock .sw,body.dark #pdd-dock .rc button{border-color:#1a1524;box-shadow:0 0 0 1.5px #4a3f55}
+body.dark #pdd-opts .ob{background:#221b2d;border-color:#4a3d55;color:#f0b3c0}
+body.dark #pdd-opts .ob.on{background:#3a2028;border-color:#f0b3c0}
+body.dark #pdd-opts span{color:#c9bfd0!important}
+body.dark #pdd-opts button:not(.ob){background:#221b2d!important;border-color:#4a3d55!important;color:#c9bfd0!important}
+body.dark #pdd-opts button.active,body.dark #pdd-opts button[style*="var(--accent)"]{background:#3a2028!important;border-color:#f0b3c0!important;color:#f0b3c0!important}
+body.dark #pdd-pick h4,body.dark #pdd-pick .ft,body.dark #pdd-pick kbd{color:#a99fb2;border-color:#4a3d55}
+body.dark #pdd-pick .use{color:#efe9f2}
+body.dark #pdd-pick .use svg{color:#f0b3c0}
+body.dark #pdd-pick .r:hover{background:#2c2436}
+body.dark #pdd-pick .r.on{background:#3a2028}
+body.dark #pdd-pick .pin{background:#221b2d;border-color:#4a3d55;color:#a99fb2}
+body.dark #pdd-pick .pin.on{background:#c4475d;border-color:#c4475d;color:#fff}
+@media (prefers-reduced-motion:reduce){#pdd-dock button{transition:none}}
+</style>
+<script id="pdd-src">
+(function(){
+  var S={
+    en:{"pdd.shape":"Shapes","pdd.text":"Text","pdd.add":"Add","pdd.all":"All tools","pdd.pin":"In dock","pdd.unpin":"Add to dock","pdd.colours":"Colours","pdd.opts":"options","pdd.foot":"Click a tool to use it. \"Add to dock\" keeps it at the bottom of the fabric. Shortcut keys still work.","pdd.again":"Click again for options"},
+    fr:{"pdd.shape":"Formes","pdd.text":"Texte","pdd.add":"Ajouter","pdd.all":"Tous les outils","pdd.pin":"Dans la barre","pdd.unpin":"Ajouter à la barre","pdd.colours":"Couleurs","pdd.opts":"options","pdd.foot":"Cliquez sur un outil pour l'utiliser. « Ajouter à la barre » le garde en bas de la toile. Les raccourcis clavier fonctionnent toujours.","pdd.again":"Cliquez à nouveau pour les options"},
+    de:{"pdd.shape":"Formen","pdd.text":"Text","pdd.add":"Hinzufügen","pdd.all":"Alle Werkzeuge","pdd.pin":"In der Leiste","pdd.unpin":"Zur Leiste","pdd.colours":"Farben","pdd.opts":"Optionen","pdd.foot":"Klicke ein Werkzeug an, um es zu benutzen. „Zur Leiste“ behält es unten am Stoff. Tastenkürzel funktionieren weiter.","pdd.again":"Nochmal klicken für Optionen"},
+    nl:{"pdd.shape":"Vormen","pdd.text":"Tekst","pdd.add":"Toevoegen","pdd.all":"Alle gereedschap","pdd.pin":"In de balk","pdd.unpin":"Aan balk toevoegen","pdd.colours":"Kleuren","pdd.opts":"opties","pdd.foot":"Klik op een gereedschap om het te gebruiken. \"Aan balk toevoegen\" houdt het onderaan de stof. Sneltoetsen werken nog steeds.","pdd.again":"Klik nogmaals voor opties"},
+    ru:{"pdd.shape":"Фигуры","pdd.text":"Текст","pdd.add":"Добавить","pdd.all":"Все инструменты","pdd.pin":"На панели","pdd.unpin":"На панель","pdd.colours":"Цвета","pdd.opts":"настройки","pdd.foot":"Нажмите на инструмент, чтобы выбрать его. «На панель» оставляет его внизу канвы. Горячие клавиши работают как раньше.","pdd.again":"Нажмите ещё раз для настроек"},
+    uk:{"pdd.shape":"Фігури","pdd.text":"Текст","pdd.add":"Додати","pdd.all":"Усі інструменти","pdd.pin":"На панелі","pdd.unpin":"На панель","pdd.colours":"Кольори","pdd.opts":"налаштування","pdd.foot":"Натисніть інструмент, щоб вибрати його. «На панель» залишає його внизу канви. Гарячі клавіші працюють як раніше.","pdd.again":"Натисніть ще раз для налаштувань"},
+    es:{"pdd.shape":"Formas","pdd.text":"Texto","pdd.add":"Añadir","pdd.all":"Todas las herramientas","pdd.pin":"En la barra","pdd.unpin":"Añadir a la barra","pdd.colours":"Colores","pdd.opts":"opciones","pdd.foot":"Haz clic en una herramienta para usarla. «Añadir a la barra» la deja abajo de la tela. Los atajos de teclado siguen funcionando.","pdd.again":"Haz clic otra vez para ver opciones"},
+    it:{"pdd.shape":"Forme","pdd.text":"Testo","pdd.add":"Aggiungi","pdd.all":"Tutti gli strumenti","pdd.pin":"Nella barra","pdd.unpin":"Aggiungi alla barra","pdd.colours":"Colori","pdd.opts":"opzioni","pdd.foot":"Clicca uno strumento per usarlo. \"Aggiungi alla barra\" lo tiene in fondo alla tela. Le scorciatoie da tastiera funzionano ancora.","pdd.again":"Clicca di nuovo per le opzioni"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; return s; }
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function on(){ return document.body.classList.contains('app-mode') && window.innerWidth>820; }
+  // Tools in the order of the old left-panel grid; key = keyboard shortcut shown in "All tools".
+  var ALL=[['pan','H'],['draw','D'],['erase','E'],['brush',''],['eyedrop','P'],['fill','F'],['halfback','G'],['knot','K'],['shape','S'],['text','T'],['confetti',''],['select','V']];
+  var DEF=['pan','draw','erase','halfback','fill','eyedrop','select'];
+  // Tools whose settings live in the side drawer: first click picks, a second click opens the drawer.
+  var DRAWER={draw:1,fill:1,select:1,shape:1,text:1,confetti:1};
+  // These are useless without their settings, so they open the drawer straight away (as before).
+  var OPEN_NOW={shape:1,text:1,confetti:1};
+  var PKEY='ptly_desk_dock', RKEY='ptly_recent_cols';
+  var pins=DEF.slice(), recent=[];
+  try{ var p0=JSON.parse(localStorage.getItem(PKEY)||'null'); if(Array.isArray(p0)) pins=p0.filter(function(t){ return ALL.some(function(a){ return a[0]===t; }); }); }catch(e){}
+  try{ var r0=JSON.parse(localStorage.getItem(RKEY)||'[]'); if(Array.isArray(r0)) recent=r0.slice(0,8); }catch(e){}
+  function name(t){ return t==='shape'?tx('pdd.shape'):t==='text'?tx('pdd.text'):(typeof toolLabel==='function'?toolLabel(t):t); }
+  function short(t){ var n=name(t); return n.length>11 ? n.split(' ')[0] : n; }
+  function icon(t){ var b=document.querySelector('#tools-section .ct-btn[data-tool="'+t+'"] svg'); if(!b) return ''; var c=b.cloneNode(true); c.removeAttribute('width'); c.removeAttribute('height'); return c.outerHTML; }
+  var dock, opts, pick, built=false, moved=false, homes=[];
+  var ADD='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+  var GEAR='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>';
+  function cur(){ return (typeof activeTool!=='undefined')?activeTool:''; }
+  function drawerOpen(){ var d=$('tools-drawer'); return !!(d && d.classList.contains('open')); }
+  function use(t){
+    var was=cur();
+    try{
+      if(was===t && DRAWER[t]){ if(drawerOpen()) $('tools-drawer').classList.remove('open'); else setActiveTool(t); }
+      else if(OPEN_NOW[t]) setActiveTool(t);
+      else setActiveTool(t,{noDrawer:true});
+    }catch(e){ console.warn('[pdd]',e); }
+    sync();
+  }
+  function showPick(v){ if(!pick) return; pick.classList.toggle('open',v); if(v) renderPick(); place(); }
+  function build(){
+    if(built) return; built=true;
+    dock=document.createElement('div'); dock.id='pdd-dock'; dock.setAttribute('role','toolbar');
+    opts=document.createElement('div'); opts.id='pdd-opts';
+    pick=document.createElement('div'); pick.id='pdd-pick'; pick.setAttribute('role','dialog');
+    [opts,dock,pick].forEach(function(e){ document.body.appendChild(e); });
+    dock.addEventListener('click',function(e){
+      var b=e.target.closest('button'); if(!b) return;
+      var t=b.getAttribute('data-t'), a=b.getAttribute('data-a'), ci=b.getAttribute('data-ci');
+      if(t){ showPick(false); use(t); }
+      else if(a==='add'){ e.stopPropagation(); showPick(!pick.classList.contains('open')); }
+      else if(a==='colours') colours();
+      else if(ci!=null){ try{ setActiveColor(+ci); }catch(_){} sync(); }
+    });
+    pick.addEventListener('click',function(e){
+      e.stopPropagation();
+      var b=e.target.closest('button'); if(!b) return;
+      var t=b.getAttribute('data-t');
+      if(b.classList.contains('pin')){
+        var i=pins.indexOf(t); if(i>=0) pins.splice(i,1); else pins.push(t);
+        pins=ALL.map(function(a){ return a[0]; }).filter(function(x){ return pins.indexOf(x)>=0; });
+        try{ localStorage.setItem(PKEY,JSON.stringify(pins)); }catch(_){}
+        renderDock(); renderPick(); place();
+      } else if(t){ showPick(false); use(t); }
+    });
+    opts.addEventListener('click',function(e){
+      var b=e.target.closest('button.ob'); if(!b) return;
+      if(drawerOpen()) $('tools-drawer').classList.remove('open'); else { try{ setActiveTool(cur()); }catch(_){} }
+      sync();
+    });
+    document.addEventListener('click',function(e){ if(pick.classList.contains('open') && !pick.contains(e.target) && !dock.contains(e.target)) showPick(false); });
+    document.addEventListener('keydown',function(e){ if(e.key==='Escape' && pick.classList.contains('open')) showPick(false); });
+    renderDock();
+  }
+  function colours(){
+    try{
+      var rp=$('right-panel'); if(!rp) return;
+      if(rp.classList.contains('collapsed')){ var rb=$('right-panel-btn'); if(rb) rb.click(); }
+      var t=rp.querySelector('.rp-tab[data-rp-tab="palette"]'); if(t) t.click();
+    }catch(e){}
+  }
+  function renderDock(){
+    if(!built) return;
+    var h='';
+    pins.forEach(function(t){ h+='<button data-t="'+t+'" title="'+esc(name(t))+'" aria-label="'+esc(name(t))+'">'+icon(t)+'<span>'+esc(short(t))+'</span></button>'; });
+    h+='<button data-a="add" class="add" title="'+esc(tx('pdd.all'))+'" aria-label="'+esc(tx('pdd.all'))+'">'+ADD+'<span>'+esc(tx('pdd.add'))+'</span></button>';
+    h+='<span class="dv"></span><button data-a="colours" title="'+esc(tx('pdd.colours'))+'"><span class="sw" id="pdd-sw"></span><span>'+esc(tx('pdd.colours'))+'</span></button><span class="rc" id="pdd-rc"></span>';
+    dock.innerHTML=h; dock._rc=null;
+    sync();
+  }
+  function renderPick(){
+    var t0=cur(), h='<h4>'+esc(tx('pdd.all'))+'</h4>';
+    ALL.forEach(function(a){
+      var t=a[0], p=pins.indexOf(t)>=0;
+      h+='<div class="r'+(t===t0?' on':'')+'"><button class="use" data-t="'+t+'">'+icon(t)+'<span>'+esc(name(t))+'</span>'+(a[1]?'<kbd>'+a[1]+'</kbd>':'')+'</button>'
+        +'<button class="pin'+(p?' on':'')+'" data-t="'+t+'" aria-pressed="'+p+'">'+esc(p?'✓ '+tx('pdd.pin'):'+ '+tx('pdd.unpin'))+'</button></div>';
+    });
+    h+='<p class="ft">'+esc(tx('pdd.foot'))+'</p>';
+    pick.innerHTML=h;
+  }
+  // Move the strands / wraps / brush boxes into the strip while the dock is on; put them back otherwise.
+  function moveOpts(v){
+    if(v===moved || !opts) return;
+    ['strand-selector','wraps-selector','brush-selector'].forEach(function(id){
+      var el=$(id); if(!el) return;
+      if(v){ var mk=document.createComment('pdd:'+id); el.parentNode.insertBefore(mk,el); homes.push([mk,el]); opts.appendChild(el); }
+    });
+    if(!v){ homes.forEach(function(h){ h[0].parentNode.insertBefore(h[1],h[0]); h[0].remove(); }); homes=[]; }
+    moved=v;
+  }
+  function place(){
+    if(!built || !on()) return;
+    var ca=$('canvas-area'); if(!ca) return;
+    var r=ca.getBoundingClientRect(); if(!r.width) return;
+    var cx=Math.round(r.left+r.width/2), bottom=Math.max(12, Math.round(window.innerHeight-r.bottom+18));
+    dock.style.left=cx+'px'; dock.style.bottom=bottom+'px';
+    var dh=dock.offsetHeight||66;
+    opts.style.left=cx+'px'; opts.style.bottom=(bottom+dh+10)+'px';
+    pick.style.left=cx+'px'; pick.style.bottom=(bottom+dh+10)+'px';
+  }
+  function palette(){ try{ return getSortedPaletteItems(); }catch(e){ return []; } }
+  function sync(){
+    var v=on();
+    document.body.classList.toggle('pdd-on',v);
+    if(!built) return;
+    moveOpts(v);
+    if(!v){ showPick(false); return; }
+    try{
+      var t=cur();
+      dock.querySelectorAll('button[data-t]').forEach(function(b){ b.classList.toggle('on',b.getAttribute('data-t')===t); b.title=name(b.getAttribute('data-t'))+(b.getAttribute('data-t')===t&&DRAWER[t]?' · '+tx('pdd.again'):''); });
+      var ab=dock.querySelector('button[data-a="add"]'); if(ab) ab.classList.toggle('on', !!t && pins.indexOf(t)<0);
+      var sel=['strand-selector','wraps-selector','brush-selector'].some(function(id){ var el=$(id); return el && el.style.display==='block'; });
+      var ob=opts.querySelector('button.ob');
+      if(DRAWER[t]){
+        if(!ob){ ob=document.createElement('button'); ob.className='ob'; opts.insertBefore(ob,opts.firstChild); }
+        var lbl=name(t)+' '+tx('pdd.opts');
+        if(ob._l!==lbl){ ob._l=lbl; ob.innerHTML=GEAR+esc(lbl); }
+        ob.classList.toggle('on',drawerOpen()); ob.style.display='';
+      } else if(ob) ob.style.display='none';
+      opts.classList.toggle('has', sel || !!DRAWER[t]);
+      var sw=$('pdd-sw'), ci=(typeof activeColorIdx!=='undefined')?activeColorIdx:null, pal=palette();
+      if(sw){
+        if(ci!=null && pal.indexOf(ci)>=0){ sw.style.background=colourHex(ci); sw.textContent=colourShortCode(ci); sw.title=colourLabel(ci); }
+        else { sw.style.background=''; sw.textContent=''; sw.title=''; }
+      }
+      var rs=recent.filter(function(c){ return c!==ci && pal.indexOf(c)>=0; }).slice(0,5), h='';
+      rs.forEach(function(c){ h+='<button data-ci="'+c+'" style="background:'+colourHex(c)+'" title="'+esc(colourLabel(c))+'" aria-label="'+esc(colourLabel(c))+'"></button>'; });
+      var rc=$('pdd-rc'); if(rc && rc._h!==h){ rc._h=h; rc.innerHTML=h; }
+    }catch(e){}
+    place();
+  }
+  function noteColour(){
+    try{
+      var ci=(typeof activeColorIdx!=='undefined')?activeColorIdx:null;
+      if(ci==null || (typeof activeColor!=='undefined' && activeColor===null)) return;
+      try{ var r1=JSON.parse(localStorage.getItem(RKEY)||'[]'); if(Array.isArray(r1)) recent=r1; }catch(e){}
+      if(recent[0]===ci) return;
+      recent=[ci].concat(recent.filter(function(c){ return c!==ci; })).slice(0,8);
+      try{ localStorage.setItem(RKEY, JSON.stringify(recent)); }catch(e){}
+    }catch(e){}
+  }
+  function wrap(nm, after){
+    var f=window[nm]; if(typeof f!=='function' || f._pdd) return;
+    var w=function(){ var r=f.apply(this,arguments); try{ after.apply(null,arguments); }catch(e){} return r; };
+    for(var k in f){ try{ w[k]=f[k]; }catch(e){} }
+    w._pdd=1; window[nm]=w;
+  }
+  function init(){
+    build();
+    wrap('setActiveTool', function(){ sync(); });
+    wrap('setActiveColor', function(){ if(on()){ noteColour(); sync(); } });
+    wrap('buildWorkingPalette', function(){ if(on()){ noteColour(); sync(); } });
+    if(typeof window.plApplyLang==='function' && !window.plApplyLang._pdd){
+      var al=window.plApplyLang; window.plApplyLang=function(){ var r=al.apply(this,arguments); try{ renderDock(); }catch(e){} return r; }; window.plApplyLang._pdd=1;
+    }
+    new MutationObserver(function(){ sync(); }).observe(document.body,{attributes:true,attributeFilter:['class']});
+    var d=$('tools-drawer'); if(d) new MutationObserver(function(){ sync(); }).observe(d,{attributes:true,attributeFilter:['class']});
+    var ca=$('canvas-area'); if(ca && window.ResizeObserver) new ResizeObserver(place).observe(ca);
+    window.addEventListener('resize',sync);
+    sync();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
+  else setTimeout(init,0);
 })();
 </script>
 </body>
