@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v712';
+window.PATTERNLY_BUILD='v713';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -19886,7 +19886,18 @@ document.getElementById('lp-photo-input').addEventListener('change',function(){
 // ── Tracker projects: full parsed pattern saved in the browser ──
 const TRK_INDEX='patternly_trk_index';
 function trkIndex(){ try{ return JSON.parse(localStorage.getItem(TRK_INDEX)||'[]'); }catch(e){ return []; } }
-function trkIndexWrite(list){ try{ localStorage.setItem(TRK_INDEX, JSON.stringify(list)); }catch(e){} try{ if(typeof plWidgetUpdate==='function') plWidgetUpdate(); }catch(e){} }
+function trkIndexWrite(list){
+  // v713: the list is never trimmed. If this small store is ever full, older
+  // cards give up their preview picture (redrawn next time they are opened)
+  // rather than any pattern being dropped.
+  try{ localStorage.setItem(TRK_INDEX, JSON.stringify(list)); }
+  catch(e){
+    try{
+      const slim=list.map((p,i)=> i<6 ? p : Object.assign({}, p, {thumb:null}));
+      localStorage.setItem(TRK_INDEX, JSON.stringify(slim));
+    }catch(e2){ trkStorageWarn(); }
+  }
+  try{ if(typeof plWidgetUpdate==='function') plWidgetUpdate(); }catch(e){} }
 // ── Uploaded-pattern blob store ──────────────────────────────────────────────
 // Chart blobs (0.5–1 MB each) used to live in localStorage, which caps at ~5 MB
 // per origin — a device couldn't hold even five patterns. They now live in
@@ -19966,6 +19977,26 @@ function trkBlobDel(id){
   _trkBlobMem.delete(id);
   _trkIdbDel(id);
   try{ localStorage.removeItem('patternly_trk_proj_'+id); }catch(e){}
+  _trkBlobMem.delete('__prog__'+id); _trkIdbDel('__prog__'+id);
+}
+// v713: stitched-marks storage. Marks normally live in localStorage; if that is
+// full, they go to IndexedDB instead of being lost without a word.
+function trkProgSet(id, json){
+  try{
+    localStorage.setItem('patternly_tracker_'+id, json);
+    if(_trkBlobMem.has('__prog__'+id)){ _trkBlobMem.delete('__prog__'+id); _trkIdbDel('__prog__'+id); }
+  }catch(e){
+    _trkBlobMem.set('__prog__'+id, json); _trkIdbPut('__prog__'+id, json);
+  }
+}
+function trkProgGet(id){
+  try{ const v=localStorage.getItem('patternly_tracker_'+id); if(v!=null) return v; }catch(e){}
+  return _trkBlobMem.has('__prog__'+id) ? _trkBlobMem.get('__prog__'+id) : null;
+}
+let _trkStorageWarned=false;
+function trkStorageWarn(){
+  if(_trkStorageWarned) return; _trkStorageWarned=true;
+  if(typeof toast==='function') toast('This device is running low on space for Patternly. Nothing was removed, but please delete a pattern you no longer need.', 7000);
 }
 // A stable, unique id for syncing a project to the account. Local project keys
 // are derived from filenames and collide when two patterns share a legend name
@@ -20122,20 +20153,10 @@ function trkSaveProject(){
       threads:(trackerLegend.rowCount||Object.keys(trackerColourMap).length),
       sessions:(prev&&prev.sessions)||{}, syncId:_upSyncId});
     trkPendingName='';
-    // Trimming to the slot limit used to silently discard the oldest project
-    // and its progress. Tell the person, and clear the orphaned data properly
-    // rather than leaving it occupying storage forever.
-    if(list.length>8){
-      for(const gone of list.slice(8)){
-        try{
-          trkBlobDel(gone.id);
-          localStorage.removeItem('patternly_tracker_'+gone.id);
-        }catch(e){}
-      }
-      const names=list.slice(8).map(g=>g.name).join(', ');
-      setTimeout(()=>toast('Storage full — removed the oldest tracked pattern ('+names+')'), 400);
-    }
-    trkIndexWrite(list.slice(0,8));
+    // v713: no slot limit. Charts live in IndexedDB (hundreds of MB), so the old
+    // 8-pattern cap from the localStorage days only ever deleted people's work.
+    // Tracked patterns are removed only when the person deletes them.
+    trkIndexWrite(list);
   }catch(e){ console.warn('[tracker] project save failed (storage full?)', e); }
 }
 function trkUpdateIndexProgress(done){
@@ -20241,7 +20262,7 @@ async function trkRecoverMissingBlob(id){
       try{
         const prog=await trkUserPatternFetchProgress(aid);
         if(prog && typeof prog==='string' && prog.indexOf('|')>=0){
-          localStorage.setItem('patternly_tracker_'+id, JSON.stringify({cols:rec.cols, rows:rec.rows, data:prog}));
+          trkProgSet(id, JSON.stringify({cols:rec.cols, rows:rec.rows, data:prog}));
         }
       }catch(e){}
       return blob;   // caller opens it via the normal path below
@@ -20472,7 +20493,7 @@ async function trkImportBackup(file){
     const proj=b.project;
     const newId='imp_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
     trkBlobSet(newId, JSON.stringify(proj));
-    if(b.progress && b.progress.data) localStorage.setItem('patternly_tracker_'+newId, JSON.stringify(b.progress));
+    if(b.progress && b.progress.data) trkProgSet(newId, JSON.stringify(b.progress));
     const idx=b.index||{};
     let total=0; for(const line of (proj.cells||'').split('\n')) for(const ch of line.split('\u0001')) if(ch!==' ') total++;
     if(!total && typeof idx.total==='number') total=idx.total;
@@ -20484,7 +20505,7 @@ async function trkImportBackup(file){
       thumb:idx.thumb||null,
       threads:idx.threads||(proj.legend&&proj.legend.rowCount)||0,
       sessions:idx.sessions||{} };
-    trkIndexWrite([entry, ...trkIndex().filter(p=>p.id!==newId)].slice(0,8));
+    trkIndexWrite([entry, ...trkIndex().filter(p=>p.id!==newId)]);
     trkOpenProject(newId);
     toast('Backup restored \uD83E\uDDF5');
   }catch(e){ console.error(e); toast('Could not import that backup (storage full?)'); }
@@ -21485,7 +21506,7 @@ async function trkContinueFromAccount(it, card){
   try{
     const prog = await trkUserPatternFetchProgress(it.id);
     if(prog && typeof prog==='string' && prog.indexOf('|')>=0){
-      localStorage.setItem('patternly_tracker_'+localId,
+      trkProgSet(localId,
         JSON.stringify({cols:it.cols, rows:it.rows, data:prog}));
     }
   }catch(e){ console.error('[trk] continue: progress restore failed', e); }
@@ -27793,7 +27814,7 @@ function saveTrackerProgress(){
   _trkSaveT=setTimeout(()=>{
     try{
       const rows=trkPackProgress();
-      localStorage.setItem('patternly_tracker_'+trackerActiveProjectKey,
+      trkProgSet(trackerActiveProjectKey,
         JSON.stringify({cols:trackerGrid.cols, rows:trackerGrid.rows, data:rows}));
     }catch(e){ console.warn('[tracker] save failed', e); }
   },300);
@@ -27819,7 +27840,7 @@ function trkFlushProgress(){
 }
 function loadTrackerProgress(){
   try{
-    const raw=localStorage.getItem('patternly_tracker_'+trackerActiveProjectKey);
+    const raw=trkProgGet(trackerActiveProjectKey);
     if(!raw) return;
     const s=JSON.parse(raw);
     if(s.cols!==trackerGrid.cols||s.rows!==trackerGrid.rows) return; // different pattern under same name
