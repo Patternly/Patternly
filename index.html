@@ -5472,7 +5472,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v675';
+window.PATTERNLY_BUILD='v676';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -39049,15 +39049,15 @@ body.ptly-appui #trk-cb-head .cb-title .n{font-family:'DM Sans',system-ui,sans-s
 body.ptly-appui #pcl-chips{display:flex;gap:6px;flex-basis:100%;order:5;margin-top:8px;overflow-x:auto;scrollbar-width:none}
 #pcl-chips button{flex:none;border:1.5px solid #eadde1;background:#fff;color:#5a4a52;border-radius:999px;padding:5px 12px;font:inherit;font-size:.78rem;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent}
 #pcl-chips button.on{background:#2b2226;border-color:#2b2226;color:#fff}
-/* v672 – second, quieter row: sort by colour number or by stitches */
-#pcl-sort2{display:none}
-body.ptly-appui #pcl-sort2{display:flex;align-items:center;gap:4px;flex-basis:100%;order:6;margin-top:6px;font-size:.74rem;color:#9a8890}
-#pcl-sort2 .l{margin-right:2px}
-#pcl-sort2 button{border:0;background:transparent;color:#7a6a72;font:inherit;font-size:.76rem;font-weight:600;padding:4px 8px;border-radius:8px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-#pcl-sort2 button.on{background:#f4e6ea;color:#8B1A2B}
-body.dark #pcl-sort2{color:#9d92a8}
-body.dark #pcl-sort2 button{color:#b3a8bd}
-body.dark #pcl-sort2 button.on{background:#3a2028;color:#f3a6b4}
+/* v676 – one Sort dropdown (Kit order / Colour number / Stitches) styled as a chip, then Most left and Hide finished */
+#pcl-chips .pcl-sel{position:relative;flex:none;display:flex;align-items:center;gap:4px;border:1.5px solid #eadde1;background:#fff;color:#5a4a52;border-radius:999px;padding:0 10px 0 12px;font-size:.78rem;font-weight:600;cursor:pointer}
+#pcl-chips .pcl-sel.on{background:#2b2226;border-color:#2b2226;color:#fff}
+#pcl-chips .pcl-sel span{opacity:.75;font-weight:500}
+#pcl-chips .pcl-sel select{appearance:none;-webkit-appearance:none;border:0;background:transparent;color:inherit;font:inherit;font-weight:700;padding:5px 14px 5px 0;cursor:pointer;outline:none}
+#pcl-chips .pcl-sel::after{content:'';position:absolute;right:11px;top:50%;width:6px;height:6px;margin-top:-5px;border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;transform:rotate(45deg);pointer-events:none}
+#pcl-chips .pcl-sel select option{color:#2b2226}
+body.dark #pcl-chips .pcl-sel{background:#221c30;border-color:#37303f;color:#d9cfe0}
+body.dark #pcl-chips .pcl-sel.on{background:#f1e9f3;border-color:#f1e9f3;color:#1a1524}
 body.ptly-appui #trk-cb-body{padding:4px 10px calc(.8rem + var(--sa-bottom,0px));gap:2px}
 body.ptly-appui .cbrow.pcl{display:flex;align-items:center;gap:12px;padding:8px 8px;border:0;border-radius:12px;background:transparent;width:100%}
 body.ptly-appui .cbrow.pcl.sel{background:#fdedf0}
@@ -39086,14 +39086,14 @@ body.dark.ptly-appui .cbrow.pcl.done .lf{color:#7cc47f}
 <script id="pcl-src">
 (function(){
   var S={
-    en:{"cl2.kit":"Kit order","cl2.most":"Most left","cl2.hide":"Hide finished","cl2.left":"{n} left","cl2.done":"Done","cl2.by":"Sort by","cl2.num":"Colour number","cl2.st":"Stitches"},
-    fr:{"cl2.kit":"Ordre du kit","cl2.most":"Le plus restant","cl2.hide":"Masquer terminées","cl2.left":"{n} restants","cl2.done":"Fini","cl2.by":"Trier par","cl2.num":"Numéro","cl2.st":"Points"},
-    de:{"cl2.kit":"Packungsreihenfolge","cl2.most":"Meiste übrig","cl2.hide":"Fertige ausblenden","cl2.left":"{n} übrig","cl2.done":"Fertig","cl2.by":"Sortieren","cl2.num":"Farbnummer","cl2.st":"Stiche"},
-    nl:{"cl2.kit":"Pakketvolgorde","cl2.most":"Meeste over","cl2.hide":"Klaar verbergen","cl2.left":"{n} over","cl2.done":"Klaar","cl2.by":"Sorteren op","cl2.num":"Kleurnummer","cl2.st":"Steken"},
-    ru:{"cl2.kit":"Как в наборе","cl2.most":"Больше осталось","cl2.hide":"Скрыть готовые","cl2.left":"осталось {n}","cl2.done":"Готово","cl2.by":"Сортировка","cl2.num":"Номер цвета","cl2.st":"Крестики"},
-    uk:{"cl2.kit":"Як у наборі","cl2.most":"Більше лишилось","cl2.hide":"Сховати готові","cl2.left":"лишилось {n}","cl2.done":"Готово","cl2.by":"Сортування","cl2.num":"Номер кольору","cl2.st":"Хрестики"},
-    es:{"cl2.kit":"Orden del kit","cl2.most":"Más pendientes","cl2.hide":"Ocultar terminados","cl2.left":"faltan {n}","cl2.done":"Hecho","cl2.by":"Ordenar por","cl2.num":"Número","cl2.st":"Puntadas"},
-    it:{"cl2.kit":"Ordine del kit","cl2.most":"Più rimasti","cl2.hide":"Nascondi finiti","cl2.left":"{n} rimasti","cl2.done":"Fatto","cl2.by":"Ordina per","cl2.num":"Numero","cl2.st":"Punti"}
+    en:{"cl2.kit":"Kit order","cl2.most":"Most left","cl2.hide":"Hide finished","cl2.left":"{n} left","cl2.done":"Done","cl2.by":"Sort by","cl2.num":"Colour number","cl2.st":"Stitches","cl2.sort":"Sort"},
+    fr:{"cl2.kit":"Ordre du kit","cl2.most":"Le plus restant","cl2.hide":"Masquer terminées","cl2.left":"{n} restants","cl2.done":"Fini","cl2.by":"Trier par","cl2.num":"Numéro","cl2.st":"Points","cl2.sort":"Trier"},
+    de:{"cl2.kit":"Packungsreihenfolge","cl2.most":"Meiste übrig","cl2.hide":"Fertige ausblenden","cl2.left":"{n} übrig","cl2.done":"Fertig","cl2.by":"Sortieren","cl2.num":"Farbnummer","cl2.st":"Stiche","cl2.sort":"Sortieren"},
+    nl:{"cl2.kit":"Pakketvolgorde","cl2.most":"Meeste over","cl2.hide":"Klaar verbergen","cl2.left":"{n} over","cl2.done":"Klaar","cl2.by":"Sorteren op","cl2.num":"Kleurnummer","cl2.st":"Steken","cl2.sort":"Sorteren"},
+    ru:{"cl2.kit":"Как в наборе","cl2.most":"Больше осталось","cl2.hide":"Скрыть готовые","cl2.left":"осталось {n}","cl2.done":"Готово","cl2.by":"Сортировка","cl2.num":"Номер цвета","cl2.st":"Крестики","cl2.sort":"Сортировка"},
+    uk:{"cl2.kit":"Як у наборі","cl2.most":"Більше лишилось","cl2.hide":"Сховати готові","cl2.left":"лишилось {n}","cl2.done":"Готово","cl2.by":"Сортування","cl2.num":"Номер кольору","cl2.st":"Хрестики","cl2.sort":"Сортування"},
+    es:{"cl2.kit":"Orden del kit","cl2.most":"Más pendientes","cl2.hide":"Ocultar terminados","cl2.left":"faltan {n}","cl2.done":"Hecho","cl2.by":"Ordenar por","cl2.num":"Número","cl2.st":"Puntadas","cl2.sort":"Ordenar"},
+    it:{"cl2.kit":"Ordine del kit","cl2.most":"Più rimasti","cl2.hide":"Nascondi finiti","cl2.left":"{n} rimasti","cl2.done":"Fatto","cl2.by":"Ordina per","cl2.num":"Numero","cl2.st":"Punti","cl2.sort":"Ordina"}
   };
   try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
   function tx(k){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; return s; }
@@ -39102,6 +39102,11 @@ body.dark.ptly-appui .cbrow.pcl.done .lf{color:#7cc47f}
   var sort='kit', hide=false;
   try{ sort=localStorage.getItem('ptly_cl_sort')||'kit'; hide=localStorage.getItem('ptly_cl_hide')==='1'; }catch(e){}
   function fmt(n){ try{ return Number(n).toLocaleString(window.PL_LANG||'en'); }catch(e){ return String(n); } }
+  function baseSort(){ var b='kit'; try{ b=localStorage.getItem('ptly_cl_base')||(sort!=='most'?sort:'kit'); }catch(e){} return /^(kit|num|st)$/.test(b)?b:'kit'; }
+  function setSort(v){
+    sort=v;
+    try{ localStorage.setItem('ptly_cl_sort',v); if(v!=='most') localStorage.setItem('ptly_cl_base',v); }catch(e){}
+  }
   function chips(){
     var head=document.getElementById('trk-cb-head'); if(!head) return;
     var c=document.getElementById('pcl-chips');
@@ -39110,27 +39115,23 @@ body.dark.ptly-appui .cbrow.pcl.done .lf{color:#7cc47f}
       c.addEventListener('click',function(e){
         var b=e.target.closest('button'); if(!b) return; var a=b.getAttribute('data-a');
         if(a==='hide'){ hide=!hide; try{ localStorage.setItem('ptly_cl_hide',hide?'1':'0'); }catch(_){} }
-        else { sort=a; try{ localStorage.setItem('ptly_cl_sort',sort); }catch(_){} }
+        else if(a==='most') setSort(sort==='most'?baseSort():'most');   // Most left toggles back to the chosen order
         apply();
       });
     }
-    var h='<button data-a="kit" class="'+(sort==='kit'?'on':'')+'">'+esc(tx('cl2.kit'))+'</button>'
+    // v676: all sort orders together in one "Sort" dropdown (Cristian); Most left and Hide finished stay as chips.
+    var base=(sort==='most')?(c._base||baseSort()):sort;
+    var opt=function(v,k){ return '<option value="'+v+'"'+(base===v?' selected':'')+'>'+esc(tx(k))+'</option>'; };
+    var h='<label class="pcl-sel'+(sort!=='most'?' on':'')+'"><span>'+esc(tx('cl2.sort'))+'</span><select aria-label="'+esc(tx('cl2.sort'))+'">'
+      +opt('kit','cl2.kit')+opt('num','cl2.num')+opt('st','cl2.st')+'</select></label>'
       +'<button data-a="most" class="'+(sort==='most'?'on':'')+'">'+esc(tx('cl2.most'))+'</button>'
       +'<button data-a="hide" class="'+(hide?'on':'')+'">'+esc(tx('cl2.hide'))+'</button>';
-    if(c._h!==h){ c._h=h; c.innerHTML=h; }
-    var c2=document.getElementById('pcl-sort2');
-    if(!c2){
-      c2=document.createElement('div'); c2.id='pcl-sort2'; head.appendChild(c2);
-      c2.addEventListener('click',function(e){
-        var b=e.target.closest('button'); if(!b) return; sort=b.getAttribute('data-a');
-        try{ localStorage.setItem('ptly_cl_sort',sort); }catch(_){}
-        apply();
-      });
+    if(c._h!==h){
+      c._h=h; c.innerHTML=h;
+      c.querySelector('select').addEventListener('change',function(e){ setSort(e.target.value); apply(); });
     }
-    var h2='<span class="l">'+esc(tx('cl2.by'))+'</span>'
-      +'<button data-a="num" class="'+(sort==='num'?'on':'')+'">'+esc(tx('cl2.num'))+'</button>'
-      +'<button data-a="st" class="'+(sort==='st'?'on':'')+'">'+esc(tx('cl2.st'))+'</button>';
-    if(c2._h!==h2){ c2._h=h2; c2.innerHTML=h2; }
+    c._base=base;
+    var old=document.getElementById('pcl-sort2'); if(old) old.remove();
     if(document.body.classList.contains('pcl-hide')!==hide) document.body.classList.toggle('pcl-hide',hide);
   }
   // Turn the plain list rows into the picture's rows (the click handler on each row is kept).
