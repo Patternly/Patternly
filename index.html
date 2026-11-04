@@ -5472,7 +5472,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v670';
+window.PATTERNLY_BUILD='v671';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -39451,7 +39451,8 @@ body.dark.ptly-appui #trk-fspanel.pst .pst-more>button.pst-danger{color:#f08a8a!
     return v;
   }
   function scrollerOf(el,sheet){
-    while(el && el!==sheet){
+    var stop=sheet.parentNode;   // the sheet itself can be the scroller (Pattern settings)
+    while(el && el!==stop){
       if(el.nodeType===1){ var cs=getComputedStyle(el); if(/(auto|scroll)/.test(cs.overflowY) && el.scrollHeight>el.clientHeight+1) return el; }
       el=el.parentNode;
     }
@@ -39520,6 +39521,108 @@ body.dark.ptly-appui #trk-fspanel.pst .pst-more>button.pst-danger{color:#f08a8a!
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
   else setTimeout(init,0);
+})();
+</script>
+<style id="pdw-style">
+/* v671 – app editor windows (Tools, Pattern settings, Adjust colours, View) become bottom sheets like the colour
+   sheet: they never cover the top bar, have a clear ✕ and a drag handle, only one is open at a time, and the
+   tool dock and recent colours hide while one is open. App only, ≤820px; website and desktop unchanged. */
+#psh-sbhead{display:none}
+@media (max-width:820px){
+  body.ptly-appui.app-mode #tools-drawer,body.ptly-appui.app-mode #adjust-drawer,body.ptly-appui.app-mode #view-drawer{
+    left:0!important;right:0!important;top:auto!important;bottom:0!important;width:100%!important;max-width:none!important;height:auto!important;
+    max-height:min(72vh,620px)!important;border-right:0!important;border-radius:20px 20px 0 0;padding-top:22px;padding-bottom:var(--sa-bottom,0px);
+    transform:translateY(105%);transition:transform .25s ease,max-height .25s ease!important;z-index:640!important;box-shadow:0 -10px 34px rgba(0,0,0,.28)!important}
+  body.ptly-appui.app-mode #tools-drawer.open,body.ptly-appui.app-mode #adjust-drawer.open,body.ptly-appui.app-mode #view-drawer.open{transform:translateY(0)}
+  body.ptly-appui.app-mode #tools-drawer.psh-full,body.ptly-appui.app-mode #adjust-drawer.psh-full,body.ptly-appui.app-mode #view-drawer.psh-full{max-height:calc(100vh - var(--psh-top,64px))!important}
+  body.ptly-appui.app-mode #tools-drawer.psh-drag,body.ptly-appui.app-mode #adjust-drawer.psh-drag,body.ptly-appui.app-mode #view-drawer.psh-drag{max-height:none!important}
+  body.ptly-appui.app-mode #sidebar{left:0!important;right:0!important;top:auto!important;bottom:0!important;width:100%!important;max-width:none!important;
+    height:min(72vh,620px)!important;max-height:none!important;border-right:0!important;border-radius:20px 20px 0 0;padding-top:0!important;padding-bottom:calc(var(--sa-bottom,0px) + 12px);
+    transform:translateY(105%);transition:transform .25s ease,height .25s ease!important;z-index:640!important;box-shadow:0 -10px 34px rgba(0,0,0,.28)!important}
+  body.ptly-appui.app-mode #sidebar.open{transform:translateY(0)}
+  body.ptly-appui.app-mode #sidebar.psh-full{height:calc(100vh - var(--psh-top,64px))!important}
+  body.ptly-appui.app-mode #sidebar::before,body.ptly-appui.app-mode #sidebar>.psh-grab{display:none!important}
+  body.ptly-appui.app-mode #mobile-sidebar-close{display:none!important}
+  body.ptly-appui.app-mode #sidebar-backdrop{z-index:630!important;background:rgba(20,14,24,.45)!important}
+  body.ptly-appui.app-mode.pdw-open #sidebar-backdrop{display:block!important}
+  body.ptly-appui.app-mode.pdw-open #ped-dock,body.ptly-appui.app-mode.pdw-open #ped-recent{display:none!important}
+  /* Sheet header: title + round ✕ */
+  body.ptly-appui.app-mode #psh-sbhead{display:flex;position:sticky;top:0;z-index:8;align-items:center;justify-content:space-between;padding:22px 14px 10px 18px;background:var(--white,#fff);border-bottom:1px solid #f3e6ea;touch-action:none}
+  body.ptly-appui.app-mode #psh-sbhead::before{content:'';position:absolute;top:8px;left:50%;width:44px;height:5px;margin-left:-22px;border-radius:3px;background:#d9cbd0}
+  #psh-sbhead .t{font-family:'DM Serif Display',serif;font-size:1.15rem;color:var(--ink,#2b2226)}
+  body.ptly-appui.app-mode #psh-sbhead button,body.ptly-appui.app-mode #tools-drawer-close,body.ptly-appui.app-mode #adjust-close,body.ptly-appui.app-mode #view-drawer-close{
+    width:34px!important;height:34px!important;border-radius:50%!important;border:0!important;background:#f4ecef!important;color:#5a4a52!important;font-size:0!important;
+    display:flex!important;align-items:center;justify-content:center;flex:none;cursor:pointer;padding:0!important}
+  body.ptly-appui.app-mode #psh-sbhead button::before,body.ptly-appui.app-mode #tools-drawer-close::before,body.ptly-appui.app-mode #adjust-close::before,body.ptly-appui.app-mode #view-drawer-close::before{content:'✕';font-size:15px;line-height:1}
+  body.ptly-appui.app-mode #tools-drawer-title{font-size:1.15rem!important}
+}
+</style>
+<script id="pdw-src">
+(function(){
+  var S={
+    en:{"pdw.set":"Pattern settings","pdw.close":"Close"},
+    fr:{"pdw.set":"Réglages du motif","pdw.close":"Fermer"},
+    de:{"pdw.set":"Mustereinstellungen","pdw.close":"Schließen"},
+    nl:{"pdw.set":"Patrooninstellingen","pdw.close":"Sluiten"},
+    ru:{"pdw.set":"Настройки схемы","pdw.close":"Закрыть"},
+    uk:{"pdw.set":"Налаштування схеми","pdw.close":"Закрити"},
+    es:{"pdw.set":"Ajustes del patrón","pdw.close":"Cerrar"},
+    it:{"pdw.set":"Impostazioni schema","pdw.close":"Chiudi"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; return s; }
+  function $(id){ return document.getElementById(id); }
+  var IDS=['tools-drawer','adjust-drawer','view-drawer','sidebar'];
+  function anyOpen(){
+    for(var i=0;i<IDS.length;i++){ var e=$(IDS[i]); if(e&&e.classList.contains('open')) return true; }
+    return false;
+  }
+  function sync(){
+    var on=window.innerWidth<=820 && anyOpen();
+    // Only write when it changes: many observers watch the body class.
+    if(document.body.classList.contains('pdw-open')!==on) document.body.classList.toggle('pdw-open',on);
+  }
+  function header(){
+    var sb=$('sidebar'); if(!sb) return;
+    var h=$('psh-sbhead');
+    if(!h){
+      h=document.createElement('div'); h.id='psh-sbhead';
+      h.innerHTML='<span class="t"></span><button type="button"></button>';
+      h.querySelector('button').addEventListener('click',function(){ if(typeof closeSidebar==='function') closeSidebar(); else sb.classList.remove('open'); });
+      sb.insertBefore(h,sb.firstChild);
+    }
+    h.querySelector('.t').textContent=tx('pdw.set');
+    h.querySelector('button').setAttribute('aria-label',tx('pdw.close'));
+  }
+  function init(){
+    if(!document.body.classList.contains('ptly-appui')){
+      if(!init._mo){ init._mo=new MutationObserver(function(){ if(document.body.classList.contains('ptly-appui')){ init._mo.disconnect(); init(); } }); init._mo.observe(document.body,{attributes:true,attributeFilter:['class']}); }
+      return;
+    }
+    header();
+    var mo=new MutationObserver(sync);
+    IDS.forEach(function(id){
+      var el=$(id); if(!el) return;
+      mo.observe(el,{attributes:true,attributeFilter:['class']});
+      if(id!=='sidebar' && el.firstElementChild) el.firstElementChild.classList.add('pdw-head');
+      if(typeof window.pshAttach==='function'){
+        var o={canFull:true,isOpen:function(){ return el.classList.contains('open'); },close:function(){ el.classList.remove('open'); }};
+        if(id==='sidebar'){ o.zones=['#psh-sbhead']; o.close=function(){ if(typeof closeSidebar==='function') closeSidebar(); else el.classList.remove('open'); }; }
+        else o.zones=['.pdw-head'];
+        window.pshAttach(el,o);
+      }
+    });
+    // Tapping the dimmed area closes whichever window is open.
+    var bd=$('sidebar-backdrop');
+    if(bd) bd.addEventListener('click',function(){ if(document.body.classList.contains('ptly-appui') && window.innerWidth<=820 && typeof closeEditorPanels==='function') closeEditorPanels(null); });
+    window.addEventListener('resize',sync);
+    if(typeof window.plApplyLang==='function' && !window.plApplyLang._pdw){
+      var al=window.plApplyLang; window.plApplyLang=function(){ var r=al.apply(this,arguments); try{ header(); }catch(e){} return r; }; window.plApplyLang._pdw=1;
+    }
+    sync();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,10); });
+  else setTimeout(init,10);
 })();
 </script>
 </body>
