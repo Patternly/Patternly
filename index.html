@@ -5472,7 +5472,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v679';
+window.PATTERNLY_BUILD='v680';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -40101,6 +40101,122 @@ body.dark #pdt-menu button.danger,body.dark #pdt-menu button.danger svg{color:#f
     // Name and size change in many places (open, rename, resize): a light poll keeps them honest.
     setInterval(function(){ if(on() && !document.hidden) sync(); },1500);
     sync();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
+  else setTimeout(init,0);
+})();
+</script>
+<style id="pdr-style">
+/* v680 – desktop editor side rail (option A step 3). Only while body.pdd-on (editor, wider than 820px).
+   The long left panel becomes 4 buttons (Pattern, Photo, Fabric, Threads). Each opens the matching
+   part of the same #sidebar as a card over the fabric; nothing is moved out of #sidebar.
+   #pdr-rail lives inside #app-wrapper, so night mode reaches it through the editor's invert filter
+   (light colours only here, like the rest of the editor). */
+#pdr-rail,#pdr-head{display:none}
+body.pdd-on #pdr-rail{display:flex}
+body.pdd-on #sidebar{position:absolute!important;left:84px;top:12px;width:320px!important;min-width:0!important;max-height:calc(100% - 24px);overflow-y:auto!important;z-index:60;border:1px solid #eee2e6!important;border-radius:16px;box-shadow:0 18px 44px rgba(60,30,40,.18);display:none!important;transition:none}
+body.pdd-on.pdr-open #sidebar{display:flex!important}
+body.pdd-on #left-panel-toggle-bar{display:none!important}
+body.pdd-on #pdr-head{display:flex}
+body.pdd-on #sidebar>[data-pdr]{display:none!important}
+body.pdd-on #sidebar[data-pdr-g="pattern"]>[data-pdr="pattern"],
+body.pdd-on #sidebar[data-pdr-g="photo"]>[data-pdr="photo"],
+body.pdd-on #sidebar[data-pdr-g="fabric"]>[data-pdr="fabric"],
+body.pdd-on #sidebar[data-pdr-g="threads"]>[data-pdr="threads"]{display:block!important}
+body.pdd-on #sidebar>[data-pdr="pattern"].pdr-flex{display:none!important}
+body.pdd-on #sidebar[data-pdr-g="pattern"]>[data-pdr="pattern"].pdr-flex{display:flex!important;padding-top:12px!important}
+#pdr-head{align-items:center;justify-content:space-between;gap:8px;padding:12px 14px 6px 16px;position:sticky;top:0;background:#fff;z-index:2}
+#pdr-head b{font-family:'DM Serif Display',serif;font-weight:400;font-size:1.1rem;color:#2b2226}
+#pdr-head button{width:30px;height:30px;border:0;border-radius:50%;background:#f6eef1;color:#6f6168;cursor:pointer;display:grid;place-items:center;font-size:.95rem;line-height:1}
+#pdr-head button:hover{background:#efe1e6;color:#2b2226}
+#pdr-rail{width:76px;flex:none;flex-direction:column;align-items:center;gap:6px;padding:12px 0;background:#fff;border-right:1px solid #efe0e2;z-index:61}
+#pdr-rail button{width:62px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 0 7px;border:0;background:none;border-radius:14px;color:#6f6168;font:inherit;font-size:.68rem;font-weight:600;cursor:pointer;transition:background .12s,color .12s}
+#pdr-rail button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#pdr-rail button:hover{background:#f8eff2;color:#2b2226}
+#pdr-rail button.on{background:#fdedf0;color:#8B1A2B}
+#pdr-rail button:focus-visible{outline:2px solid #8B1A2B;outline-offset:1px}
+@media (prefers-reduced-motion:reduce){#pdr-rail button{transition:none}}
+</style>
+<script id="pdr-src">
+(function(){
+  var S={
+    en:{"pdr.pattern":"Pattern","pdr.photo":"Photo","pdr.fabric":"Fabric","pdr.threads":"Threads","pdr.close":"Close"},
+    fr:{"pdr.pattern":"Grille","pdr.photo":"Photo","pdr.fabric":"Toile","pdr.threads":"Fils","pdr.close":"Fermer"},
+    de:{"pdr.pattern":"Muster","pdr.photo":"Foto","pdr.fabric":"Stoff","pdr.threads":"Garne","pdr.close":"Schließen"},
+    nl:{"pdr.pattern":"Patroon","pdr.photo":"Foto","pdr.fabric":"Stof","pdr.threads":"Garens","pdr.close":"Sluiten"},
+    ru:{"pdr.pattern":"Схема","pdr.photo":"Фото","pdr.fabric":"Канва","pdr.threads":"Нитки","pdr.close":"Закрыть"},
+    uk:{"pdr.pattern":"Схема","pdr.photo":"Фото","pdr.fabric":"Канва","pdr.threads":"Нитки","pdr.close":"Закрити"},
+    es:{"pdr.pattern":"Patrón","pdr.photo":"Foto","pdr.fabric":"Tela","pdr.threads":"Hilos","pdr.close":"Cerrar"},
+    it:{"pdr.pattern":"Schema","pdr.photo":"Foto","pdr.fabric":"Tela","pdr.threads":"Fili","pdr.close":"Chiudi"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; return s; }
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  var G=[
+    ['pattern','<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16"/>'],
+    ['photo','<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5-5-8 8"/>'],
+    ['fabric','<path d="M4 4h16v16H4z"/><path d="M4 8h16M4 12h16M4 16h16" stroke-dasharray="2 2"/><path d="M8 4v16M12 4v16M16 4v16" stroke-dasharray="2 2"/>'],
+    ['threads','<path d="M7 4h10M7 20h10"/><path d="M8 4v16M16 4v16"/><path d="M8 8l8 2M8 12l8 2M8 16l8 2"/>']
+  ];
+  var rail, head, built=false, cur='';
+  // Which rail button each part of the old left panel belongs to (found by a control inside it).
+  var FIND=[['view-btn','pattern',1],['cols-range','pattern'],['upload-zone','photo'],['fabric-grid','fabric'],['aida-select','fabric'],['add-cart-btn','threads']];
+  function on(){ return document.body.classList.contains('pdd-on'); }
+  function tag(){
+    var sb=$('sidebar'); if(!sb) return;
+    FIND.forEach(function(f){
+      var el=$(f[0]); if(!el) return;
+      while(el && el.parentNode!==sb) el=el.parentNode;
+      if(el){ el.setAttribute('data-pdr',f[1]); if(f[2]) el.classList.add('pdr-flex'); }
+    });
+  }
+  function open(g){
+    var sb=$('sidebar'); if(!sb) return;
+    if(!g || g===cur){ cur=''; document.body.classList.remove('pdr-open'); }
+    else {
+      cur=g; sb.setAttribute('data-pdr-g',g); document.body.classList.add('pdr-open');
+      head.querySelector('b').textContent=tx('pdr.'+g); sb.scrollTop=0;
+    }
+    rail.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on',b.getAttribute('data-g')===cur); b.setAttribute('aria-expanded',b.getAttribute('data-g')===cur); });
+  }
+  window.pdrOpen=open;
+  function build(){
+    if(built) return;
+    var app=$('app'), sb=$('sidebar'); if(!app || !sb) return;
+    built=true;
+    rail=document.createElement('nav'); rail.id='pdr-rail';
+    app.insertBefore(rail, app.firstChild);
+    head=document.createElement('div'); head.id='pdr-head'; head.setAttribute('data-pdr-all','1');
+    head.innerHTML='<b></b><button type="button" data-x="1">✕</button>';
+    sb.insertBefore(head, sb.firstChild);
+    head.addEventListener('click',function(e){ if(e.target.closest('button')) open(''); });
+    rail.addEventListener('click',function(e){ var b=e.target.closest('button[data-g]'); if(b) open(b.getAttribute('data-g')); });
+    // Clicking the fabric or the colours panel closes the card; clicks inside pop-ups and drawers do not.
+    document.addEventListener('pointerdown',function(e){
+      if(!cur || !on()) return;
+      var t=e.target;
+      var ca=$('canvas-area'), rp=$('right-panel');
+      if((ca && ca.contains(t)) || (rp && rp.contains(t))) open('');
+    },true);
+    document.addEventListener('keydown',function(e){ if(e.key==='Escape' && cur && on()){ var ae=document.activeElement; if(!ae || !/INPUT|SELECT|TEXTAREA/.test(ae.tagName)) open(''); } });
+    tag(); render();
+  }
+  function render(){
+    if(!built) return;
+    var h='';
+    G.forEach(function(g){ h+='<button type="button" data-g="'+g[0]+'" aria-expanded="false" title="'+esc(tx('pdr.'+g[0]))+'"><svg viewBox="0 0 24 24">'+g[1]+'</svg><span>'+esc(tx('pdr.'+g[0]))+'</span></button>'; });
+    rail.innerHTML=h;
+    var x=head.querySelector('button'); x.title=tx('pdr.close'); x.setAttribute('aria-label',tx('pdr.close'));
+    if(cur){ var c=cur; cur=''; open(c); }
+  }
+  function sync(){ if(built && !on() && cur) open(''); }
+  function init(){
+    build(); if(!built) return;
+    if(typeof window.plApplyLang==='function' && !window.plApplyLang._pdr){
+      var al=window.plApplyLang; window.plApplyLang=function(){ var r=al.apply(this,arguments); try{ render(); }catch(e){} return r; }; window.plApplyLang._pdr=1;
+    }
+    new MutationObserver(sync).observe(document.body,{attributes:true,attributeFilter:['class']});
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
   else setTimeout(init,0);
