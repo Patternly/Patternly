@@ -15,7 +15,51 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v106";
+const MW_VERSION = "v107";
+
+// v107: the help sheet the in-app AI assistant answers from (/help/chat). Keep it
+// to facts that are true in the live app; update it when a feature changes.
+const HELP_SHEET = `You are the Patternly assistant inside the Patternly cross-stitch app (by UK Luca-S LTD). You answer customers in the app's help chat.
+
+How to answer
+- Be warm, short and practical: 1 to 5 short sentences, or numbered steps when the user needs to tap through screens. Plain text only, no markdown, no headings, no tables.
+- Only answer from the facts below. If you are not sure, or the question needs a person (refunds, billing problems, a missing purchase, deleting an account, a bug you cannot solve, a wholesale or brand enquiry), say so honestly and tell them to tap "Send to the team" below the chat; the team reads every message.
+- Never ask for or accept passwords, card numbers or access codes in the chat. Never promise refunds, release dates or new features.
+- Stay on Patternly and cross stitch. Politely decline anything unrelated.
+- If they share an idea or wish, thank them and suggest tapping "Send to the team" so it reaches the people who plan new versions.
+
+What Patternly is
+Patternly works on the website (luca-s.com/apps/patternly) and in the iPhone/iPad and Android apps, in English, French, German, Dutch, Russian, Ukrainian, Spanish and Italian. Main parts:
+1. Editor: draw a cross-stitch chart or convert a photo into a pattern, choose thread brand (DMC, Anchor, Luca-S and more), fabric count and colours, then export a PDF chart with symbol key. Backstitch outlines, blended threads and a thread shopping list are included.
+2. Stitch Tracker: work a chart on screen and tap stitches as you finish them; progress is saved.
+3. Scan Your Pattern (BETA): photograph or scan a paper chart and its colour key, and Patternly turns it into a Tracker project.
+In the apps the bottom bar has Home, Editor, Tracker and More (account, settings, help). On the website the same parts are in the menu.
+
+Turning a photo into a pattern
+On the home page tap "Upload Image" (or open the Editor and upload a picture). Pick the photo, choose size, number of colours and thread brand, check the preview, then open it in the Editor, download the PDF, or send it straight to the Tracker.
+
+Stitch Tracker
+- Open Tracker, then "New Pattern". Four ways in: Kit Patterns (Luca-S and partner kits), Scan Your Pattern (BETA), Upload, and Restore Backup.
+- Upload accepts a PDF chart (vector PDFs made by pattern software work best; the colour key/legend should be in the PDF), and pattern files .ptly, .oxs and .pat.
+- Kits bought on luca-s.com: sign in with the same email used for the order and the kit patterns appear automatically. Kits from a shop or a gift: scan the QR code on the insert card with the phone camera, or open Tracker, Kit Patterns, find the pattern and type the access code from the card once.
+- Marking: modes Pan (move around), Mark (tap a stitch to mark it done), Erase (unmark) and Pick (choose a colour from the chart). Pinch or use + and - to zoom, tap the percentage to fit. Press and hold a colour to highlight it. Use the colour list to work one colour at a time; it shows stitches left and roughly how much thread you need.
+- Full view hides everything except the chart. Settings (in full view or the tracker tools) control the tint colour of finished stitches, grid lines, centre lines, backstitch, page mode and pattern info.
+- Progress saves on the device and, when signed in, to the account, so it continues on another device after signing in with the same account. You can also download a backup file from the tracker and restore it later with Restore Backup.
+
+Scan Your Pattern (BETA)
+Tracker, New Pattern, Scan Your Pattern. First photograph the colour key and tap a symbol column, then photograph each chart page (or pick photos or a PDF). In the app "Take photo" opens a guided scanner that outlines the page and takes the picture when it is steady. Tips: good even light, no shadows or glare, page flat and filling the frame. Stitches the scan is unsure about are marked to check; tap them to fix. It is a beta, so some stitches may need correcting; backstitch is not read from photos yet.
+
+Account, Plus and prices
+- Sign in with a Luca-S account (email) or with Apple. Signing in keeps designs and tracker progress synced.
+- Free: full editor, photo to pattern, thread tools and calculators, PDF export with a monthly download limit, a limited number of saved designs.
+- Patternly Plus: adds the Stitch Tracker, unlimited downloads, more saved designs, progress synced across devices and priority support. There is a free trial. Prices depend on country and store; the Pricing page in the app shows the current price.
+- In the apps Plus is bought and managed through the App Store or Google Play (manage or cancel in the phone's subscription settings; "Restore purchases" is on the subscription page). On the website it is managed through the Luca-S account.
+- Anything about charges, refunds or a subscription that does not show: ask them to tap "Send to the team".
+
+Common fixes
+- Something looks stuck or out of date: close and reopen the app, or refresh the website; check the internet connection.
+- Progress or designs missing on a new device: make sure you are signed in with the same account as before.
+- A PDF will not upload or looks wrong: photo-scanned PDFs are not read as charts by Upload; use Scan Your Pattern instead.`;
 
 const enc = new TextEncoder();
 
@@ -4141,6 +4185,75 @@ async function handleRequest(context) {
     await env.ENTITLEMENTS.put(key, JSON.stringify(rec), { metadata: { lang, plus, cid: rec.cid } });
     if (rec.cid) { try { await env.ENTITLEMENTS.put("pushcid:" + rec.cid + ":" + await sha256b64(token), key); } catch (e) {} }   // v97: per-customer device index
     return new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
+  }
+
+  // v107: /help/chat — instant AI answers inside the help chat (Claude Haiku 5.5).
+  // GET  -> {ok, ai}  (ai = the ANTHROPIC_API_KEY secret is set; without it the chat
+  //         simply forwards messages to the team like before)
+  // POST {messages:[{role:"user"|"assistant", content}], lang, platform, where, kind}
+  //      -> {ok:true, text} | {ok:false, error, off?, limit?}
+  // Privacy: nothing is stored (no chat text, no IP); only per-hour/day counters.
+  // Limits: 20 messages an hour and 60 a day per account or IP, 3,000 a day for
+  // everyone together, 10 questions per chat, 1,000 characters per message.
+  if (url.pathname.endsWith("/help/chat") && url.pathname.indexOf("/partner/") < 0) {
+    const h = { "content-type": "application/json", "cache-control": "no-store" };
+    const out = (obj) => new Response(JSON.stringify(obj), { status: 200, headers: h });
+    const aiOn = !!env.ANTHROPIC_API_KEY;
+    if (request.method === "GET") return out({ ok: true, ai: aiOn });
+    if (request.method !== "POST") return out({ ok: false, error: "method not allowed" });
+    if (!aiOn) return out({ ok: false, error: "off", off: true });
+    let b; try { b = await request.json(); } catch (e) { return out({ ok: false, error: "bad json" }); }
+    if (b && b.hp) return out({ ok: false, error: "off", off: true });
+    const all = Array.isArray(b && b.messages) ? b.messages : [];
+    if (all.length > 40 || all.filter((m) => m && m.role !== "assistant").length > 10) return out({ ok: false, error: "long chat", long: true });
+    const raw = all.slice(-20);
+    const msgs = [];
+    for (const m of raw) {
+      const role = m && m.role === "assistant" ? "assistant" : "user";
+      const content = String((m && m.content) || "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").trim().slice(0, 1000);
+      if (!content) continue;
+      if (msgs.length && msgs[msgs.length - 1].role === role) msgs[msgs.length - 1].content += "\n" + content;
+      else msgs.push({ role, content });
+    }
+    while (msgs.length && msgs[0].role !== "user") msgs.shift();
+    if (!msgs.length || msgs[msgs.length - 1].role !== "user") return out({ ok: false, error: "no question" });
+    if (msgs.filter((m) => m.role === "user").length > 10) return out({ ok: false, error: "long chat", long: true });
+    const ip = auth.proxied
+      ? String(request.headers.get("x-forwarded-for") || "").split(",")[0].trim()
+      : String(request.headers.get("cf-connecting-ip") || "").trim();
+    const who = auth.loggedIn && auth.customerId ? "c" + auth.customerId : (ip ? "i" + await sha256b64(ip) : "anon");
+    const now = new Date(), day = now.toISOString().slice(0, 10), hour = now.toISOString().slice(0, 13);
+    if (env.ENTITLEMENTS) {
+      const keys = [["rlai:h:" + hour + ":" + who, 20, 4000], ["rlai:d:" + day + ":" + who, 60, 90000], ["rlai:g:" + day, 3000, 90000]];
+      const vals = [];
+      for (const k of keys) { let n = 0; try { n = +((await env.ENTITLEMENTS.get(k[0])) || 0) || 0; } catch (e) {} vals.push(n); }
+      for (let i = 0; i < keys.length; i++) if (vals[i] >= keys[i][1]) return out({ ok: false, error: "limit", limit: true });
+      for (let i = 0; i < keys.length; i++) { try { await env.ENTITLEMENTS.put(keys[i][0], String(vals[i] + 1), { expirationTtl: keys[i][2] }); } catch (e) {} }
+    }
+    const LANGN = { en: "English", fr: "French", de: "German", nl: "Dutch", ru: "Russian", uk: "Ukrainian", es: "Spanish", it: "Italian" };
+    const lang = LANGN[String((b && b.lang) || "").slice(0, 2)] ? String(b.lang).slice(0, 2) : "en";
+    const plat = { ios: "the iPhone/iPad app", android: "the Android app", web: "the website" }[String((b && b.platform) || "")] || "the website";
+    const where = String((b && b.where) || "").replace(/[^\w\-]/g, "").slice(0, 30);
+    const kind = String((b && b.kind) || "").replace(/[^a-z]/g, "").slice(0, 12);
+    const system = HELP_SHEET + "\n\nThis user is on " + plat + ". The app language is " + LANGN[lang] +
+      "; answer in the language the user writes in (default " + LANGN[lang] + ")." +
+      (kind ? " They picked the reason \"" + kind + "\"." : "") + (where ? " They opened the chat from: " + where + "." : "");
+    let r, j;
+    try {
+      const ac = new AbortController(); const tm = setTimeout(() => ac.abort(), 25000);
+      r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST", signal: ac.signal,
+        headers: { "content-type": "application/json", "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2026-10-21" },
+        body: JSON.stringify({ model: "claude-haiku-5-5", max_tokens: 900, system, messages: msgs, output_config: { effort: "low" } })
+      });
+      clearTimeout(tm);
+      j = await r.json();
+    } catch (e) { return out({ ok: false, error: "busy" }); }
+    if (!r.ok || !j || j.type === "error") { console.log("help/chat api error", r && r.status, j && j.error && j.error.type); return out({ ok: false, error: "busy" }); }
+    if (j.stop_reason === "refusal") return out({ ok: false, error: "refusal" });
+    const text = (j.content || []).filter((c) => c && c.type === "text").map((c) => c.text).join("\n").trim().slice(0, 3000);
+    if (!text) return out({ ok: false, error: "busy" });
+    return out({ ok: true, text });
   }
 
   // v106: POST /feedback — the in-app help chat ("Help & suggestions"): one record per message,
