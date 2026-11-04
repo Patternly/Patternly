@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v686';
+window.PATTERNLY_BUILD='v687';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -40259,6 +40259,124 @@ body.pdd-on #sidebar[data-pdr-g="pattern"]>[data-pdr="pattern"].pdr-flex{display
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
   else setTimeout(init,0);
+})();
+</script>
+<style id="pps-style">
+/* v687 (built as v681): app Pattern settings as clear cards (one open at a time) */
+.pps-head{display:none}
+@media (max-width:820px){
+body.pps-on #sidebar{background:#f7f2f3}
+body.pps-on #sidebar #tools-section{background:none;border:0;box-shadow:none;padding:0 14px;margin:0}
+body.pps-on #sidebar #tools-section>div:first-child,body.pps-on #sidebar #active-tool-label{display:none!important}
+body.pps-on #sidebar .pps-view{padding:4px 14px 10px;margin:0}
+body.pps-on #sidebar .pps-view #view-btn{width:100%!important;height:40px!important;border-radius:11px!important;background:#fff!important;border:1px solid #ecdde1!important;color:#8B1A2B!important;font-weight:700;font-size:.85rem;font-family:inherit;box-shadow:none!important}
+body.pps-on #sidebar .pps-card{background:#fff;border:1px solid #ecdde1;border-radius:14px;margin:0 14px 10px;padding:0 14px;box-shadow:0 1px 2px rgba(60,20,30,.04)}
+body.pps-on #sidebar .pps-card.pps-open{padding-bottom:14px}
+body.pps-on #sidebar .pps-card>h3{display:none}
+body.pps-on #sidebar .pps-card:not(.pps-open)>*:not(.pps-head){display:none!important}
+body.pps-on #sidebar .pps-head{display:flex;align-items:center;gap:12px;width:calc(100% + 28px);margin:0 -14px;padding:13px 14px;background:none;border:0;text-align:left;font-family:inherit;cursor:pointer;color:inherit;-webkit-tap-highlight-color:transparent}
+body.pps-on #sidebar .pps-card.pps-open .pps-head{border-bottom:1px solid #f3e7ea;margin-bottom:12px}
+body.pps-on #sidebar .pps-ic{flex:0 0 38px;height:38px;border-radius:11px;background:#fdf1f4;color:#8B1A2B;display:flex;align-items:center;justify-content:center}
+body.pps-on #sidebar .pps-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+body.pps-on #sidebar .pps-tt{font-weight:700;font-size:.95rem;color:#2a1a1e}
+body.pps-on #sidebar .pps-sum{font-size:.78rem;color:#8a7a7e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.pps-on #sidebar .pps-chev{flex:0 0 auto;color:#b49aa1;transition:transform .2s}
+body.pps-on #sidebar .pps-card.pps-open .pps-chev{transform:rotate(180deg)}
+body.pps-on #sidebar .pps-card .row-label{font-size:.72rem;color:#8a7a7e;margin:12px 0 6px;font-weight:600}
+}
+</style>
+<script id="pps-src">
+(function(){
+  if(window._ppsInit) return; window._ppsInit=1;
+  var S={
+    en:{"pps.size":"Pattern size","pps.photo":"Photo to pattern","pps.fabric":"Fabric","pps.threads":"Buy threads","pps.st":"{w} × {h} stitches","pps.nophoto":"Add a photo to turn it into stitches","pps.hasphoto":"Photo added","pps.buy":"Order the threads for this pattern"},
+    fr:{"pps.size":"Taille de la grille","pps.photo":"Photo en grille","pps.fabric":"Toile","pps.threads":"Acheter les fils","pps.st":"{w} × {h} points","pps.nophoto":"Ajoutez une photo pour la transformer en points","pps.hasphoto":"Photo ajoutée","pps.buy":"Commander les fils de cette grille"},
+    de:{"pps.size":"Mustergröße","pps.photo":"Foto zu Muster","pps.fabric":"Stoff","pps.threads":"Garne kaufen","pps.st":"{w} × {h} Stiche","pps.nophoto":"Foto hinzufügen und in Stiche umwandeln","pps.hasphoto":"Foto hinzugefügt","pps.buy":"Garne für dieses Muster bestellen"},
+    nl:{"pps.size":"Patroongrootte","pps.photo":"Foto naar patroon","pps.fabric":"Stof","pps.threads":"Garen kopen","pps.st":"{w} × {h} steken","pps.nophoto":"Voeg een foto toe om er steken van te maken","pps.hasphoto":"Foto toegevoegd","pps.buy":"Bestel de garens voor dit patroon"},
+    ru:{"pps.size":"Размер схемы","pps.photo":"Фото в схему","pps.fabric":"Канва","pps.threads":"Купить нитки","pps.st":"{w} × {h} крестиков","pps.nophoto":"Добавьте фото, чтобы превратить его в крестики","pps.hasphoto":"Фото добавлено","pps.buy":"Заказать нитки для этой схемы"},
+    uk:{"pps.size":"Розмір схеми","pps.photo":"Фото в схему","pps.fabric":"Канва","pps.threads":"Купити нитки","pps.st":"{w} × {h} хрестиків","pps.nophoto":"Додайте фото, щоб перетворити його на хрестики","pps.hasphoto":"Фото додано","pps.buy":"Замовити нитки для цієї схеми"},
+    es:{"pps.size":"Tamaño del patrón","pps.photo":"Foto a patrón","pps.fabric":"Tela","pps.threads":"Comprar hilos","pps.st":"{w} × {h} puntadas","pps.nophoto":"Añade una foto para convertirla en puntadas","pps.hasphoto":"Foto añadida","pps.buy":"Pedir los hilos de este patrón"},
+    it:{"pps.size":"Dimensione schema","pps.photo":"Da foto a schema","pps.fabric":"Tessuto","pps.threads":"Compra i fili","pps.st":"{w} × {h} punti","pps.nophoto":"Aggiungi una foto per trasformarla in punti","pps.hasphoto":"Foto aggiunta","pps.buy":"Ordina i fili per questo schema"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k,v){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; if(v) for(var n in v) s=s.split('{'+n+'}').join(v[n]); return s; }
+  function $(id){ return document.getElementById(id); }
+  function on(){ var b=document.body; return b.classList.contains('ptly-appui') && b.classList.contains('app-mode') && window.innerWidth<=820; }
+  var IC={
+    size:'<path d="M4 9V4h5M20 15v5h-5M4 4l6 6M20 20l-6-6"/>',
+    photo:'<rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="M21 16l-5-5-8 8"/>',
+    fabric:'<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16"/>',
+    threads:'<path d="M5 7h14l-1.3 10.5a2 2 0 0 1-2 1.5H8.3a2 2 0 0 1-2-1.5z"/><path d="M9 7a3 3 0 0 1 6 0"/>'
+  };
+  var CHEV='<svg class="pps-chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+  var cards=[], openKey='size', built=false;
+  function sumFor(k){
+    try{
+      if(k==='size') return tx('pps.st',{w:(typeof COLS!=='undefined'?COLS:'?'),h:(typeof ROWS!=='undefined'?ROWS:'?')});
+      if(k==='photo'){ var c=$('clear-image-section'); return (c && c.style.display!=='none') ? tx('pps.hasphoto') : tx('pps.nophoto'); }
+      if(k==='fabric'){ var a=($('fabric-label')||{}).textContent||''; var b=($('fabric-trigger-text')||{}).textContent||''; b=b.split('—')[0].trim(); return [a.trim(),b].filter(Boolean).join(' · '); }
+      if(k==='threads') return tx('pps.buy');
+    }catch(e){}
+    return '';
+  }
+  function head(k){
+    var h=document.createElement('button'); h.type='button'; h.className='pps-head';
+    h.innerHTML='<span class="pps-ic"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+IC[k]+'</svg></span><span class="pps-tx"><span class="pps-tt"></span><span class="pps-sum"></span></span>'+CHEV;
+    h.addEventListener('click',function(){ openKey=(openKey===k)?'':k; apply(); });
+    return h;
+  }
+  function build(){
+    var sb=$('sidebar'); if(!sb) return false;
+    var secs=[].slice.call(sb.querySelectorAll(':scope > .sidebar-section'));
+    var find=function(key){ for(var i=0;i<secs.length;i++){ var h=secs[i].querySelector(':scope > h3[data-i18n="'+key+'"], :scope > h3 [data-i18n="'+key+'"]'); if(h) return secs[i]; } return null; };
+    var size=find('ed.canvassize'), photo=find('ed.convertimage'), fab=find('ed.fabriccolour');
+    var aida=$('aida-select'), cart=sb.querySelector('.cart-section');
+    if(!size||!photo||!fab) return false;
+    // Fabric count joins the Fabric card
+    if(aida){ var cnt=aida.closest('.sidebar-section'); if(cnt && cnt!==fab){ while(cnt.firstChild) fab.appendChild(cnt.firstChild); cnt.style.display='none'; cnt.classList.add('pps-gone'); } }
+    var thr=cart?cart.closest('.sidebar-section'):null;
+    [['size',size],['photo',photo],['fabric',fab],['threads',thr]].forEach(function(p){
+      if(!p[1]) return; p[1].classList.add('pps-card'); var h=head(p[0]); p[1].insertBefore(h,p[1].firstChild); cards.push({k:p[0],el:p[1],h:h});
+    });
+    var vb=$('view-btn'); if(vb && vb.parentNode) vb.parentNode.classList.add('pps-view');
+    built=true; return true;
+  }
+  function apply(){
+    if(!built) return;
+    cards.forEach(function(c){
+      c.el.classList.toggle('pps-open', c.k===openKey);
+      c.h.setAttribute('aria-expanded', c.k===openKey?'true':'false');
+      var t=c.h.querySelector('.pps-tt'), s=c.h.querySelector('.pps-sum');
+      var tt=tx('pps.'+c.k), ss=sumFor(c.k);
+      if(t.textContent!==tt) t.textContent=tt;
+      if(s.textContent!==ss) s.textContent=ss;
+    });
+  }
+  // The size sliders could still show an older pattern's size (e.g. 70 for a new 50×50); match them to the pattern when the sheet opens.
+  function syncSize(){
+    try{
+      if(!on() || typeof COLS==='undefined') return;
+      [['cols',COLS],['rows',ROWS]].forEach(function(p){ var r=$(p[0]+'-range'), v=$(p[0]+'-val'); if(r && +r.value!==p[1]) r.value=p[1]; if(v && v.textContent!==String(p[1])) v.textContent=p[1]; });
+    }catch(e){}
+  }
+  var tmr=0;
+  function soon(){ clearTimeout(tmr); tmr=setTimeout(refresh,150); }
+  function refresh(){
+    var o=on();
+    document.body.classList.toggle('pps-on', o);
+    if(!o) return;
+    if(!built && !build()) return;
+    apply();
+  }
+  function init(){
+    var sb=$('sidebar'); if(!sb){ setTimeout(init,500); return; }
+    try{ new MutationObserver(function(){ var open=sb.classList.contains('open'); if(open && !sb._ppsWas){ syncSize(); refresh(); } sb._ppsWas=open; }).observe(sb,{attributes:true,attributeFilter:['class']}); }catch(e){}
+    sb.addEventListener('click',soon,true); sb.addEventListener('change',soon,true); sb.addEventListener('input',soon,true);
+    window.addEventListener('resize',soon);
+    try{ new MutationObserver(soon).observe(document.body,{attributes:true,attributeFilter:['class']}); }catch(e){}
+    refresh();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
 })();
 </script>
 </body>
