@@ -5472,7 +5472,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v677';
+window.PATTERNLY_BUILD='v678';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -11031,15 +11031,28 @@ function renderRealistic() {
   // with a bright highlight arc on top and shadow at bottom.
   // Dark holes sit between bundles at intersections.
 
-  const holeR=Math.max(0,fr-55), holeG=Math.max(0,fg-52), holeB=Math.max(0,fb-48);
-  ctx.fillStyle=`rgb(${holeR},${holeG},${holeB})`;
+  // v678: zoomed out, the weave photo shrinks to a grey haze (holes + shadows average out) and the
+  // per-stitch lines fill every pixel — the fabric looked foggy (Cristian). Fade the weave and the
+  // fine grid in with the on-screen stitch size: plain fabric colour + 10-blocks far away, full weave close up.
+  let _disp=CELL;
+  try{ const _rw=canvas.getBoundingClientRect().width; if(_rw>0) _disp=_rw/COLS; }catch(e){}
+  const _weave=Math.max(0,Math.min(1,(_disp-10)/12));
+  window._edFineGrid=Math.max(0,Math.min(1,(_disp-5)/10));
+  ctx.fillStyle=`rgb(${fr},${fg},${fb})`;
   ctx.fillRect(0,0,W,H);
-
-  if(!SMALL){
+  if(!SMALL && _weave>0){
+    const holeR=Math.max(0,fr-55), holeG=Math.max(0,fg-52), holeB=Math.max(0,fb-48);
+    ctx.globalAlpha=_weave;
+    ctx.fillStyle=`rgb(${holeR},${holeG},${holeB})`;
+    ctx.fillRect(0,0,W,H);
     // The weave is periodic (2 bundles per axis), so render ONE 2x2-bundle tile
     // offscreen and pattern-fill — hundreds of times faster on large canvases.
+    ctx.globalAlpha=1;
     ctx.fillStyle = _fabricPattern(fr,fg,fb,CELL);
+    // blend the textured tile over the plain fabric in proportion to zoom
+    ctx.globalAlpha=_weave;
     ctx.fillRect(0,0,W,H);
+    ctx.globalAlpha=1;
   }
 
   // ── STITCHES ─────────────────────────────────────────────────
@@ -11060,13 +11073,15 @@ function renderRealistic() {
   // 10x10 stitch guide grid (same as pattern view)
   if(!window._vdHideGrid){
     const gc = window._gc || {};
-    const op = gc.opacity !== undefined ? gc.opacity : 0.35;
+    const op = (gc.opacity !== undefined ? gc.opacity : 0.35) * (window._edFineGrid!=null ? window._edFineGrid : 1);
     const lw = gc.lineW || 0.5;
     const blw = gc.blockLineW || 1.0;
     const bs = gc.blockSize || 10;
+    if(op>0.02){
     ctx.strokeStyle=`rgba(0,0,0,${op})`;ctx.lineWidth=lw;
     for(let c=0;c<=COLS;c++){ctx.beginPath();ctx.moveTo(c*CELL,0);ctx.lineTo(c*CELL,ROWS*CELL);ctx.stroke();}
     for(let r=0;r<=ROWS;r++){ctx.beginPath();ctx.moveTo(0,r*CELL);ctx.lineTo(COLS*CELL,r*CELL);ctx.stroke();}
+    }
     ctx.strokeStyle='rgba(0,0,0,0.5)';ctx.lineWidth=blw;
     for(let c=0;c<=COLS;c+=bs){ctx.beginPath();ctx.moveTo(c*CELL,0);ctx.lineTo(c*CELL,ROWS*CELL);ctx.stroke();}
     for(let r=0;r<=ROWS;r+=bs){ctx.beginPath();ctx.moveTo(0,r*CELL);ctx.lineTo(COLS*CELL,r*CELL);ctx.stroke();}
