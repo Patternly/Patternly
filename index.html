@@ -5472,7 +5472,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v676';
+window.PATTERNLY_BUILD='v677';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -7721,7 +7721,7 @@ document.addEventListener('DOMContentLoaded', function(){
     <div id="xp-preview-card-head">
       <span id="xp-preview-title">Live preview</span>
       <span style="flex:1"></span>
-      <button id="xp-full-btn" title="Preview the whole pattern" style="border:1.5px solid #eadde1!important;border-radius:6px;width:auto;padding:0 .6rem;font-size:.8rem;height:30px;margin-right:.25rem">🖼 Full</button><button id="xp-prev" title="Previous chart page">‹</button>
+      <button id="xp-full-btn" title="Preview the whole pattern" style="border:1.5px solid #eadde1!important;border-radius:6px;width:auto;padding:0 .6rem;font-size:.8rem;height:30px;margin-right:.25rem;white-space:nowrap">Full</button><button id="xp-prev" title="Previous chart page">‹</button>
       <button id="xp-next" title="Next chart page">›</button>
       <button id="xp-preview-close" title="Close preview" style="margin-left:.3rem">✕</button>
     </div>
@@ -15547,7 +15547,7 @@ document.getElementById('download-btn').addEventListener('click', expOpen);
     _xpFull=!_xpFull;
     const b=document.getElementById('xp-full-btn');
     b.classList.toggle('active', _xpFull);
-    b.textContent=_xpFull?'← Back to pages':'🖼 Full';
+    b.textContent=_xpFull?'‹ Pages':'Full';   // v677: short labels without the emoji, so they fit the button on phones
     xpPreviewRender();
   });
   document.getElementById('xp-preview-modal').addEventListener('click', e=>{ if(e.target.id==='xp-preview-modal') xpPreviewClose(); });
