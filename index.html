@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v708';
+window.PATTERNLY_BUILD='v709';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -37628,7 +37628,7 @@ body.dark #pal-shop-btn,body.dark #outline-btn{background:#2f2540!important;colo
   <div class="ps-card">
     <div class="ps-head"><div><h3 id="ps-title">Thread shopping list</h3><p id="ps-sub"></p></div><button type="button" class="ps-x" id="ps-x" aria-label="Close">✕</button></div>
     <div class="ps-sum"><div class="need"><b id="ps-need">0</b><span id="ps-need-l">skeins to buy</span></div><div class="have"><b id="ps-have">0</b><span>colours you have</span></div><div><b id="ps-tot">0</b><span>colours in total</span></div></div>
-    <div class="ps-bar"><span class="ps-seg" id="ps-filter"><button type="button" data-v="all" class="on">All</button><button type="button" data-v="need">To buy</button><button type="button" data-v="have">Have</button></span><button type="button" class="ps-all" id="ps-clear">Clear ticks</button></div>
+    <div class="ps-bar"><span class="ps-seg" id="ps-filter"><button type="button" data-v="all" class="on">All</button><button type="button" data-v="need">To buy</button><button type="button" data-v="have">Have</button></span><button type="button" class="ps-all" id="ps-clear">Clear ticks</button><button type="button" class="ps-all ps-stash" id="ps-stash">My threads ›</button></div>
     <div class="ps-list" id="ps-list"></div>
     <div class="ps-note" id="ps-note"></div>
     <div class="ps-foot"><button type="button" class="pri" id="ps-share">Share</button><button type="button" id="ps-copy">Copy</button><button type="button" id="ps-csv">CSV</button><button type="button" id="ps-pdf">PDF</button></div>
@@ -37643,8 +37643,14 @@ body.dark #pal-shop-btn,body.dark #outline-btn{background:#2f2540!important;colo
   const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   // "Have" ticks are a stash per thread (brand SKU), shared by every
   // pattern's list on this device: tick DMC 310 once and every list knows.
-  function loadHave(){ try{ const o=JSON.parse(localStorage.getItem(STORE)||'{}'); return (o&&o.h)||{}; }catch(e){ return {}; } }
-  function saveHave(h){ try{ localStorage.setItem(STORE, JSON.stringify({h})); }catch(e){} }
+  // v709: the same store also holds My Threads: c = skeins owned per thread
+  // (when the stitcher counted them) and m = label/colour for the list. A
+  // count, when there is one, decides "enough"; a plain tick (h) means enough.
+  function loadStore(){ try{ const o=JSON.parse(localStorage.getItem(STORE)||'{}')||{}; return {h:o.h||{},c:o.c||{},m:o.m||{}}; }catch(e){ return {h:{},c:{},m:{}}; } }
+  function saveStore(o){ try{ localStorage.setItem(STORE, JSON.stringify(o)); }catch(e){} try{ window.dispatchEvent(new Event('pl-stash')); }catch(e){} }
+  function loadHave(){ return loadStore().h; }
+  function saveHave(h){ const o=loadStore(); o.h=h; Object.keys(o.c).forEach(k=>{ if(!h[k]) delete o.c[k]; }); saveStore(o); }
+  function ownedOf(k){ const c=loadStore().c[k]; return c==null?null:+c; }
   // Rows → one row per real thread. A blend row ({parts:[a,b]}) uses one
   // strand of each thread instead of two of one, so each part gets half its
   // thread length and is merged with the same thread used on its own.
@@ -37667,17 +37673,28 @@ body.dark #pal-shop-btn,body.dark #outline-btn{background:#2f2540!important;colo
     return rows.sort((a,b)=>String(a.code||a.label).localeCompare(String(b.code||b.label),undefined,{numeric:true}));
   }
   const fmtM=m=>m>=10?Math.round(m)+' m':m>=1?m.toFixed(1)+' m':Math.max(1,Math.round(m*100))+' cm';
-  function haveSet(){ return loadHave(); }
-  function setHave(k,on){ const h=loadHave(); if(on) h[k]=1; else delete h[k]; saveHave(h); }
+  // key → 1 for threads this pattern needs no more of
+  function haveSet(){
+    const o=loadStore(), out={};
+    (cur?cur.rows:[]).forEach(r=>{ const c=o.c[r.key]; if(c!=null ? +c>=r.skeins : o.h[r.key]) out[r.key]=1; });
+    return out;
+  }
+  function setHave(k,on,row){
+    const o=loadStore();
+    if(on){ o.h[k]=1; if(o.c[k]!=null && row && +o.c[k]<row.skeins) o.c[k]=row.skeins; if(row) o.m[k]={l:row.label,r:row.r,g:row.g,b:row.b}; }
+    else { delete o.h[k]; delete o.c[k]; }
+    saveStore(o);
+  }
   function paint(){
     const have=haveSet(), rows=cur.rows;
     let need=0, got=0;
-    rows.forEach(r=>{ if(have[r.key]) got++; else need+=r.skeins; });
+    rows.forEach(r=>{ if(have[r.key]) got++; else need+=r.skeins-Math.min(r.skeins,Math.max(0,ownedOf(r.key)||0)); });
     $('ps-need').textContent=need; $('ps-need-l').textContent=need===1?'skein to buy':'skeins to buy';
     $('ps-have').textContent=got; $('ps-tot').textContent=rows.length;
     const show=rows.filter(r=>filter==='all'||(filter==='have')===!!have[r.key]);
     $('ps-list').innerHTML=show.length? show.map(r=>{
-      const sub=[r.stitches?r.stitches.toLocaleString()+' stitches':'', r.blend?('incl. '+r.blend.toLocaleString()+' in blends'):'', r.metres?'≈ '+fmtM(r.metres):''].filter(Boolean).join(' · ');
+      const own=ownedOf(r.key), short=!have[r.key] && own>0;
+      const sub=[r.stitches?r.stitches.toLocaleString()+' stitches':'', r.blend?('incl. '+r.blend.toLocaleString()+' in blends'):'', r.metres?'≈ '+fmtM(r.metres):'', short?('you have '+own+', buy '+(r.skeins-own)+' more'):''].filter(Boolean).join(' · ');
       return `<div class="ps-row${have[r.key]?' got':''}" data-k="${esc(r.key)}"><span class="ps-sw" style="background:rgb(${r.r},${r.g},${r.b})"></span><span class="ps-txt"><b>${esc(r.label)}</b><span>${esc(sub)}</span></span><span class="ps-qty">${r.skeins}<small>skein${r.skeins>1?'s':''}</small></span><button type="button" class="ps-have" aria-pressed="${have[r.key]?'true':'false'}"><i>${have[r.key]?'✓':''}</i>Have</button></div>`;
     }).join('') : `<div class="ps-empty">${filter==='have'?'Tick the threads you already have.':filter==='need'?'You have every thread for this pattern 🎉':'No threads in this pattern yet.'}</div>`;
     $('ps-clear').style.visibility=got?'visible':'hidden';
@@ -37686,7 +37703,7 @@ body.dark #pal-shop-btn,body.dark #outline-btn{background:#2f2540!important;colo
     const have=haveSet();
     const need=cur.rows.filter(r=>!have[r.key]);
     const lines=[cur.title+' — threads to buy ('+cur.brand+')'];
-    need.forEach(r=>lines.push('☐ '+r.label+' — '+r.skeins+' skein'+(r.skeins>1?'s':'')));
+    need.forEach(r=>{ const n=r.skeins-Math.min(r.skeins,Math.max(0,ownedOf(r.key)||0)); lines.push('☐ '+r.label+' — '+n+' skein'+(n>1?'s':'')); });
     if(!need.length) lines.push('Nothing to buy, you have every thread.');
     lines.push('', 'Made with Patternly');
     return lines.join('\n');
@@ -37723,7 +37740,7 @@ body.dark #pal-shop-btn,body.dark #outline-btn{background:#2f2540!important;colo
     const m=15; let y=m+2;
     doc.setFont(undefined,'bold'); doc.setFontSize(15); doc.setTextColor(30,25,32);
     doc.text(String(cur.title).slice(0,60)+' — thread shopping list', m, y); y+=7;
-    const need=cur.rows.filter(r=>!have[r.key]).reduce((s,r)=>s+r.skeins,0);
+    const need=cur.rows.filter(r=>!have[r.key]).reduce((s,r)=>s+r.skeins-Math.min(r.skeins,Math.max(0,ownedOf(r.key)||0)),0);
     doc.setFont(undefined,'normal'); doc.setFontSize(9.5); doc.setTextColor(120,105,112);
     doc.text(cur.brand+'  ·  '+cur.rows.length+' colours  ·  '+need+' skeins to buy'+(cur.note?'  ·  '+cur.note:''), m, y); y+=9;
     doc.setFontSize(8.5); doc.setTextColor(90,80,86);
@@ -37763,8 +37780,11 @@ body.dark #pal-shop-btn,body.dark #outline-btn{background:#2f2540!important;colo
   $('ps-list').addEventListener('click',e=>{
     const b=e.target.closest('.ps-have'); if(!b||!cur) return;
     const k=b.closest('.ps-row').dataset.k, on=!haveSet()[k];
-    setHave(k,on); paint();
+    setHave(k,on,cur.rows.find(r=>r.key===k)); paint();
   });
+  // v709: My Threads (the whole stash) opens over the list; the list repaints when it changes
+  $('ps-stash').addEventListener('click',()=>{ if(typeof window.plStashOpen==='function') window.plStashOpen(); });
+  window.addEventListener('pl-stash',()=>{ if(cur && root.classList.contains('on')) paint(); });
   $('ps-filter').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; filter=b.dataset.v; $('ps-filter').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); paint(); });
   $('ps-clear').addEventListener('click',()=>{ const h=loadHave(); cur.rows.forEach(r=>delete h[r.key]); saveHave(h); paint(); });
   $('ps-copy').addEventListener('click',copy);
@@ -41142,6 +41162,219 @@ body.dark .ppk-ring{box-shadow:0 0 0 3px #1f1a2b,0 0 0 6px #f0b3c0}
   }
   function init(){ if(!hook()) setTimeout(init,300); }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); }); else setTimeout(init,0);
+})();
+</script>
+<style id="pstash-style">
+/* v709: My Threads — the threads you own, shared with every shopping list */
+.ps-bar{flex-wrap:wrap}
+.ps-bar .ps-stash{margin-left:.35rem}
+#pstash{--st-bg:#fff;--st-line:#efe3e6;--st-ink:#2b2226;--st-mute:#7d6b72;--st-acc:#8B1A2B;--st-chip:#f7f1f2;--st-ok:#2e7d4f;
+  position:fixed;inset:0;z-index:9600;display:none;align-items:center;justify-content:center;background:rgba(20,12,18,.45);padding:1rem}
+body.dark #pstash{--st-bg:#221a2e;--st-line:#3a2f47;--st-ink:#f2ecf4;--st-mute:#a596ab;--st-acc:#d66a7d;--st-chip:#2b2238;--st-ok:#7fd6a0}
+#pstash.on{display:flex}
+#pstash *{box-sizing:border-box}
+#pstash button,#pstash select,#pstash input,#pstash textarea{font-family:inherit}
+#pstash .st-card{background:var(--st-bg);color:var(--st-ink);width:min(560px,100%);max-height:min(88vh,860px);border-radius:18px;display:flex;flex-direction:column;box-shadow:0 18px 60px rgba(0,0,0,.28);overflow:hidden}
+#pstash .st-head{display:flex;align-items:flex-start;gap:.75rem;padding:1rem 1.1rem .7rem;border-bottom:1px solid var(--st-line)}
+#pstash .st-head h3{margin:0;font-size:1.08rem;font-weight:800}
+#pstash .st-head p{margin:.2rem 0 0;font-size:.78rem;color:var(--st-mute)}
+#pstash .st-x{margin-left:auto;flex:none;width:34px;height:34px;border-radius:50%;border:none;background:var(--st-chip);color:var(--st-ink);font-size:1rem;cursor:pointer}
+#pstash .st-add{padding:.75rem 1.1rem .5rem;display:grid;grid-template-columns:auto 1fr auto;gap:.45rem}
+#pstash .st-add select,#pstash .st-add textarea{border:1.5px solid var(--st-line);border-radius:10px;background:var(--st-bg);color:var(--st-ink);font-size:.86rem;padding:.5rem .6rem}
+#pstash .st-add textarea{resize:none;height:42px;line-height:1.3}
+#pstash .st-add button{border:none;border-radius:10px;background:var(--st-acc);color:#fff;font-weight:700;font-size:.84rem;padding:0 1rem;cursor:pointer}
+#pstash .st-msg{grid-column:1/-1;font-size:.74rem;color:var(--st-mute);min-height:1em}
+#pstash .st-msg.err{color:var(--st-acc)}
+#pstash .st-find{margin:0 1.1rem .45rem;border:1.5px solid var(--st-line);border-radius:999px;background:var(--st-chip);color:var(--st-ink);font-size:.82rem;padding:.42rem .9rem}
+#pstash .st-list{flex:1;overflow-y:auto;padding:0 1.1rem .4rem;-webkit-overflow-scrolling:touch;min-height:120px}
+#pstash .st-row{display:flex;align-items:center;gap:.65rem;padding:.5rem 0;border-bottom:1px solid var(--st-line)}
+#pstash .st-row:last-child{border-bottom:none}
+#pstash .st-sw{width:30px;height:30px;border-radius:8px;flex:none;border:1px solid rgba(0,0,0,.14)}
+#pstash .st-txt{flex:1;min-width:0}
+#pstash .st-txt b{display:block;font-size:.86rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pstash .st-txt span{font-size:.72rem;color:var(--st-mute)}
+#pstash .st-step{display:inline-flex;align-items:center;border:1.5px solid var(--st-line);border-radius:999px;overflow:hidden;flex:none}
+#pstash .st-step button{width:34px;height:32px;border:none;background:none;color:var(--st-ink);font-size:1.05rem;font-weight:700;cursor:pointer}
+#pstash .st-step b{min-width:28px;text-align:center;font-size:.86rem}
+#pstash .st-empty{padding:1.6rem .4rem;text-align:center;color:var(--st-mute);font-size:.84rem;line-height:1.45}
+#pstash .st-foot{display:grid;grid-template-columns:repeat(3,1fr);gap:.45rem;padding:.75rem 1.1rem calc(.85rem + var(--sa-bottom,0px));border-top:1px solid var(--st-line)}
+#pstash .st-foot button{border:1.5px solid var(--st-line);border-radius:10px;background:var(--st-bg);color:var(--st-ink);font-weight:700;font-size:.8rem;padding:.6rem .3rem;cursor:pointer}
+#pstash .st-note{padding:0 1.1rem .5rem;font-size:.7rem;color:var(--st-mute);line-height:1.4}
+@media (max-width:640px){#pstash{padding:0;align-items:flex-end}#pstash .st-card{border-radius:18px 18px 0 0;max-height:92vh}}
+</style>
+<div id="pstash" role="dialog" aria-modal="true" aria-labelledby="st-title">
+  <div class="st-card">
+    <div class="st-head"><div><h3 id="st-title"></h3><p id="st-sub"></p></div><button type="button" class="st-x" id="st-x" aria-label="Close">✕</button></div>
+    <div class="st-add">
+      <select id="st-brand" aria-label="Brand"></select>
+      <textarea id="st-codes" rows="1" spellcheck="false" autocomplete="off"></textarea>
+      <button type="button" id="st-addbtn"></button>
+      <div class="st-msg" id="st-msg"></div>
+    </div>
+    <input type="search" class="st-find" id="st-find" autocomplete="off">
+    <div class="st-list" id="st-list"></div>
+    <div class="st-note" id="st-note"></div>
+    <div class="st-foot"><button type="button" id="st-import"></button><button type="button" id="st-copy"></button><button type="button" id="st-csv">CSV</button></div>
+    <input type="file" id="st-file" accept=".csv,.txt,text/csv,text/plain" style="display:none">
+  </div>
+</div>
+<script id="pstash-src">
+/* v709: My Threads. Reads and writes the same localStorage store as the
+   shopping list (patternly_shop): h = have (enough), c = skeins counted,
+   m = label/colour. A thread with a count is always also in h, so the
+   shopping list's own "Clear ticks" keeps working. Device-only, no sync. */
+(function(){
+  var S={
+    en:{"sk.title":"My threads","sk.sub":"{n} threads · {s} skeins counted","sk.sub0":"The threads you already own","sk.ph":"Thread numbers, e.g. 310, 321, 3865","sk.add":"Add","sk.added":"Added {n}","sk.nf":"Not found: {c}","sk.find":"Search my threads","sk.empty":"No threads yet. Type the numbers of the skeins you own, or import a list. Shopping lists then only ask you to buy what is missing.","sk.import":"Import list","sk.copy":"Copy","sk.copied":"List copied","sk.note":"Kept on this device. Every pattern's shopping list uses it: threads you have enough of are ticked, and short ones show how many more to buy.","sk.count":"{n} skeins","sk.count1":"1 skein","sk.have":"have, not counted","sk.open":"My threads"},
+    fr:{"sk.title":"Mes fils","sk.sub":"{n} fils · {s} échevettes comptées","sk.sub0":"Les fils que vous possédez déjà","sk.ph":"Numéros de fils, ex. 310, 321, 3865","sk.add":"Ajouter","sk.added":"{n} ajouté(s)","sk.nf":"Introuvable : {c}","sk.find":"Rechercher dans mes fils","sk.empty":"Aucun fil pour l'instant. Saisissez les numéros des échevettes que vous avez, ou importez une liste. Les listes d'achats ne vous demanderont alors que ce qui manque.","sk.import":"Importer","sk.copy":"Copier","sk.copied":"Liste copiée","sk.note":"Enregistré sur cet appareil. La liste d'achats de chaque modèle l'utilise : les fils suffisants sont cochés, et pour les autres elle indique combien en acheter.","sk.count":"{n} échevettes","sk.count1":"1 échevette","sk.have":"possédé, non compté","sk.open":"Mes fils"},
+    de:{"sk.title":"Meine Garne","sk.sub":"{n} Garne · {s} Docken gezählt","sk.sub0":"Die Garne, die Sie schon haben","sk.ph":"Garnnummern, z. B. 310, 321, 3865","sk.add":"Hinzufügen","sk.added":"{n} hinzugefügt","sk.nf":"Nicht gefunden: {c}","sk.find":"Meine Garne durchsuchen","sk.empty":"Noch keine Garne. Geben Sie die Nummern Ihrer Docken ein oder importieren Sie eine Liste. Einkaufslisten zeigen dann nur noch, was fehlt.","sk.import":"Liste importieren","sk.copy":"Kopieren","sk.copied":"Liste kopiert","sk.note":"Auf diesem Gerät gespeichert. Die Einkaufsliste jedes Musters nutzt sie: Garne, von denen Sie genug haben, sind abgehakt, bei anderen steht, wie viele noch fehlen.","sk.count":"{n} Docken","sk.count1":"1 Docke","sk.have":"vorhanden, nicht gezählt","sk.open":"Meine Garne"},
+    nl:{"sk.title":"Mijn garens","sk.sub":"{n} garens · {s} strengen geteld","sk.sub0":"De garens die je al hebt","sk.ph":"Garennummers, bijv. 310, 321, 3865","sk.add":"Toevoegen","sk.added":"{n} toegevoegd","sk.nf":"Niet gevonden: {c}","sk.find":"Zoek in mijn garens","sk.empty":"Nog geen garens. Typ de nummers van je strengen of importeer een lijst. Boodschappenlijsten vragen dan alleen wat ontbreekt.","sk.import":"Lijst importeren","sk.copy":"Kopiëren","sk.copied":"Lijst gekopieerd","sk.note":"Bewaard op dit apparaat. De boodschappenlijst van elk patroon gebruikt dit: garens waarvan je genoeg hebt zijn afgevinkt, bij de rest staat hoeveel je nog moet kopen.","sk.count":"{n} strengen","sk.count1":"1 streng","sk.have":"in bezit, niet geteld","sk.open":"Mijn garens"},
+    ru:{"sk.title":"Мои нитки","sk.sub":"Ниток: {n} · мотков посчитано: {s}","sk.sub0":"Нитки, которые у вас уже есть","sk.ph":"Номера ниток, напр. 310, 321, 3865","sk.add":"Добавить","sk.added":"Добавлено: {n}","sk.nf":"Не найдено: {c}","sk.find":"Поиск по моим ниткам","sk.empty":"Ниток пока нет. Введите номера мотков, которые у вас есть, или импортируйте список. Тогда списки покупок будут показывать только недостающее.","sk.import":"Импорт списка","sk.copy":"Копировать","sk.copied":"Список скопирован","sk.note":"Хранится на этом устройстве. Список покупок каждой схемы использует его: нитки, которых хватает, отмечены, для остальных указано, сколько докупить.","sk.count":"мотков: {n}","sk.count1":"1 моток","sk.have":"есть, не посчитано","sk.open":"Мои нитки"},
+    uk:{"sk.title":"Мої нитки","sk.sub":"Ниток: {n} · мотків пораховано: {s}","sk.sub0":"Нитки, які у вас уже є","sk.ph":"Номери ниток, напр. 310, 321, 3865","sk.add":"Додати","sk.added":"Додано: {n}","sk.nf":"Не знайдено: {c}","sk.find":"Пошук у моїх нитках","sk.empty":"Ниток поки немає. Введіть номери мотків, які у вас є, або імпортуйте список. Тоді списки покупок показуватимуть лише те, чого бракує.","sk.import":"Імпорт списку","sk.copy":"Копіювати","sk.copied":"Список скопійовано","sk.note":"Зберігається на цьому пристрої. Список покупок кожної схеми використовує його: нитки, яких вистачає, позначені, для інших указано, скільки докупити.","sk.count":"мотків: {n}","sk.count1":"1 моток","sk.have":"є, не пораховано","sk.open":"Мої нитки"},
+    es:{"sk.title":"Mis hilos","sk.sub":"{n} hilos · {s} madejas contadas","sk.sub0":"Los hilos que ya tienes","sk.ph":"Números de hilo, p. ej. 310, 321, 3865","sk.add":"Añadir","sk.added":"{n} añadido(s)","sk.nf":"No encontrado: {c}","sk.find":"Buscar en mis hilos","sk.empty":"Aún no hay hilos. Escribe los números de las madejas que tienes o importa una lista. Así las listas de compra solo te pedirán lo que falta.","sk.import":"Importar lista","sk.copy":"Copiar","sk.copied":"Lista copiada","sk.note":"Se guarda en este dispositivo. La lista de compra de cada patrón la usa: los hilos de los que tienes suficiente aparecen marcados y en el resto ves cuántos comprar.","sk.count":"{n} madejas","sk.count1":"1 madeja","sk.have":"lo tienes, sin contar","sk.open":"Mis hilos"},
+    it:{"sk.title":"I miei fili","sk.sub":"{n} fili · {s} matassine contate","sk.sub0":"I fili che hai già","sk.ph":"Numeri dei fili, es. 310, 321, 3865","sk.add":"Aggiungi","sk.added":"{n} aggiunti","sk.nf":"Non trovato: {c}","sk.find":"Cerca nei miei fili","sk.empty":"Ancora nessun filo. Scrivi i numeri delle matassine che hai o importa un elenco. Così le liste della spesa chiederanno solo quello che manca.","sk.import":"Importa elenco","sk.copy":"Copia","sk.copied":"Elenco copiato","sk.note":"Salvato su questo dispositivo. La lista della spesa di ogni schema lo usa: i fili sufficienti sono spuntati, per gli altri vedi quanti comprarne.","sk.count":"{n} matassine","sk.count1":"1 matassina","sk.have":"presente, non contato","sk.open":"I miei fili"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k,v){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; if(v) for(var n in v) s=s.split('{'+n+'}').join(String(v[n])); return s; }
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  var root=$('pstash'); if(!root) return;
+  var STORE='patternly_shop', BK='patternly_stash_brand';
+  function load(){ try{ var o=JSON.parse(localStorage.getItem(STORE)||'{}')||{}; return {h:o.h||{},c:o.c||{},m:o.m||{}}; }catch(e){ return {h:{},c:{},m:{}}; } }
+  function save(o){ try{ localStorage.setItem(STORE,JSON.stringify(o)); }catch(e){} try{ window.dispatchEvent(new Event('pl-stash')); }catch(e){} }
+  // same key the shopping list uses ("Luca-S-084", "Luca-S 84" → LUCAS84)
+  function norm(s){ return String(s||'').toUpperCase().replace(/[^A-Z0-9+]/g,'').replace(/(\D)0+(\d)/g,'$1$2'); }
+  var IDX=null;   // key → {label,r,g,b,brand}; per brand: code → key
+  function index(){
+    if(IDX) return IDX;
+    IDX={byKey:{},byCode:{}};
+    try{
+      Object.keys(PALETTES).forEach(function(b){
+        var P=PALETTES[b], n=P.baseLen||P.colours.length, codes=IDX.byCode[b]={};
+        for(var i=0;i<n;i++){
+          var t=P.colours[i]; if(!t||t.blend) continue;
+          var key=norm(t.sku||t.label); IDX.byKey[key]={label:(/^\d/.test(String(t.label))?P.name+' ':'')+t.label,r:t.r,g:t.g,b:t.b,brand:b};
+          var code=String(t.sku||t.label).replace(new RegExp('^'+P.name.replace(/[^A-Za-z0-9]/g,'[^A-Za-z0-9]?')+'[^A-Za-z0-9]*','i'),'');
+          codes[norm('X'+code).slice(1)]=key;
+        }
+      });
+    }catch(e){}
+    return IDX;
+  }
+  function info(k,o){
+    var m=o.m[k], i=index().byKey[k];
+    if(i) return i;
+    if(m) return {label:m.l,r:m.r,g:m.g,b:m.b};
+    return {label:k,r:200,g:200,b:200};
+  }
+  var find='';
+  function paint(){
+    var o=load(), keys=Object.keys(o.h).concat(Object.keys(o.c).filter(function(k){ return !o.h[k]; }));
+    var rows=keys.map(function(k){ var i=info(k,o); return {k:k,label:i.label,r:i.r,g:i.g,b:i.b,c:o.c[k]}; })
+      .sort(function(a,b){ return String(a.label).localeCompare(String(b.label),undefined,{numeric:true}); });
+    var counted=rows.reduce(function(s,r){ return s+(r.c>0?+r.c:0); },0);
+    $('st-sub').textContent=rows.length?tx('sk.sub',{n:rows.length,s:counted}):tx('sk.sub0');
+    var q=find.trim().toLowerCase(), show=q?rows.filter(function(r){ return String(r.label).toLowerCase().indexOf(q)>=0; }):rows;
+    $('st-find').style.display=rows.length>8?'':'none';
+    $('st-list').innerHTML=show.length?show.map(function(r){
+      var sub=r.c>0?(+r.c===1?tx('sk.count1'):tx('sk.count',{n:r.c})):tx('sk.have');
+      return '<div class="st-row" data-k="'+esc(r.k)+'"><span class="st-sw" style="background:rgb('+r.r+','+r.g+','+r.b+')"></span><span class="st-txt"><b>'+esc(r.label)+'</b><span>'+esc(sub)+'</span></span>'+
+        '<span class="st-step"><button type="button" data-d="-1" aria-label="−">−</button><b>'+(r.c>0?r.c:'✓')+'</b><button type="button" data-d="1" aria-label="+">+</button></span></div>';
+    }).join(''):'<div class="st-empty">'+esc(rows.length?'—':tx('sk.empty'))+'</div>';
+  }
+  function step(k,d){
+    var o=load(), c=o.c[k]!=null?+o.c[k]:0;
+    if(o.c[k]==null && d<0){ delete o.h[k]; delete o.c[k]; }   // "have, not counted" − = remove
+    else { c=Math.max(0,c+d); if(c===0){ delete o.h[k]; delete o.c[k]; } else { o.c[k]=c; o.h[k]=1; } }
+    save(o); paint();
+  }
+  // Typed: every comma/space-separated item is a thread number.
+  // File (fileMode): one thread per line; the first cell is the thread
+  // ("DMC 310", "310 Black"), a later small number is the skein count —
+  // so a CSV saved from here imports back as it was.
+  function addCodes(text,fileMode){
+    var b=$('st-brand').value, I=index(), o=load(), added=0, nf=[];
+    var P=PALETTES[b]||{name:''};
+    var items=[];
+    if(fileMode) String(text||'').split(/\r?\n/).forEach(function(line){
+      var cells=line.split(/[,;\t]/).map(function(x){ return x.replace(/^\s*"|"\s*$/g,'').trim(); }).filter(Boolean);
+      if(!cells.length) return;
+      var n=null; for(var j=1;j<cells.length;j++) if(/^\d{1,2}$/.test(cells[j])){ n=+cells[j]; break; }
+      items.push({s:cells[0],n:n});
+    });
+    else String(text||'').split(/[\n,;\t]+|\s+/).forEach(function(x){ if(x.trim()) items.push({s:x.trim(),n:null}); });
+    var pres={}; Object.keys(I.byCode).forEach(function(bb){ pres[bb]=new RegExp('^'+String(PALETTES[bb].name).replace(/[^A-Za-z0-9]/g,'[^A-Za-z0-9]?')+'[^A-Za-z0-9]+','i'); });
+    items.forEach(function(it){
+      var codes=I.byCode[b]||{}, pre=pres[b]||/^$/;
+      // a line that names its brand ("Anchor 403") uses that brand's numbers
+      Object.keys(pres).forEach(function(bb){ if(pres[bb].test(it.s)){ codes=I.byCode[bb]; pre=pres[bb]; } });
+      var tok=it.s.replace(pre,'').split(/[\s·:]+/).filter(Boolean)[0]||'';
+      if(!tok || /^(brand|thread|threads|sku|code|number|colour|color|skeins|have)$/i.test(tok)) return;
+      if(!fileMode && new RegExp('^'+String(P.name).replace(/[^A-Za-z0-9]/g,'[^A-Za-z0-9]?')+'$','i').test(tok)) return;   // a bare brand word typed between numbers
+      var k=codes[norm('X'+tok).slice(1)];
+      if(!k){ nf.push(tok); return; }
+      if(!o.h[k]){ added++; }
+      o.h[k]=1; if(it.n!=null && it.n>0) o.c[k]=it.n; else if(o.c[k]==null) o.c[k]=1;
+      var i=I.byKey[k]; if(i) o.m[k]={l:i.label,r:i.r,g:i.g,b:i.b};
+    });
+    save(o); paint();
+    var msg=$('st-msg'); msg.className='st-msg'+(nf.length?' err':'');
+    msg.textContent=(added?tx('sk.added',{n:added}):'')+(nf.length?(added?' · ':'')+tx('sk.nf',{c:nf.slice(0,6).join(', ')+(nf.length>6?'…':'')}):'');
+    return !nf.length;
+  }
+  function textList(){
+    var o=load();
+    return Object.keys(o.h).map(function(k){ var i=info(k,o), c=o.c[k]; return i.label+(c>0?' × '+c:''); }).sort(function(a,b){ return a.localeCompare(b,undefined,{numeric:true}); }).join('\n');
+  }
+  function brandSel(){
+    var sel=$('st-brand'); if(sel.options.length) return;
+    var last='dmc'; try{ last=localStorage.getItem(BK)||'dmc'; }catch(e){}
+    try{ Object.keys(PALETTES).forEach(function(b){ var op=document.createElement('option'); op.value=b; op.textContent=PALETTES[b].name; sel.appendChild(op); }); }catch(e){}
+    sel.value=PALETTES[last]?last:'dmc';
+  }
+  function labels(){
+    $('st-title').textContent=tx('sk.title'); $('st-codes').placeholder=tx('sk.ph'); $('st-addbtn').textContent=tx('sk.add');
+    $('st-find').placeholder=tx('sk.find'); $('st-import').textContent=tx('sk.import'); $('st-copy').textContent=tx('sk.copy'); $('st-note').textContent=tx('sk.note');
+  }
+  function close(){ root.classList.remove('on'); document.removeEventListener('keydown',onKey,true); }
+  function onKey(e){ if(e.key==='Escape'){ e.stopPropagation(); close(); } }
+  window.plStashOpen=function(){
+    brandSel(); labels(); find=''; $('st-find').value=''; $('st-msg').textContent=''; paint();
+    root.classList.add('on'); document.addEventListener('keydown',onKey,true);
+  };
+  $('st-x').addEventListener('click',close);
+  root.addEventListener('click',function(e){ if(e.target===root) close(); });
+  $('st-brand').addEventListener('change',function(){ try{ localStorage.setItem(BK,this.value); }catch(e){} });
+  $('st-addbtn').addEventListener('click',function(){ var t=$('st-codes'); if(addCodes(t.value)) t.value=''; });
+  $('st-codes').addEventListener('keydown',function(e){ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); $('st-addbtn').click(); } });
+  $('st-find').addEventListener('input',function(){ find=this.value; paint(); });
+  $('st-list').addEventListener('click',function(e){ var b=e.target.closest('button[data-d]'); if(!b) return; step(b.closest('.st-row').dataset.k, +b.dataset.d); });
+  $('st-import').addEventListener('click',function(){ $('st-file').click(); });
+  $('st-file').addEventListener('change',function(){
+    var f=this.files&&this.files[0]; this.value=''; if(!f) return;
+    var r=new FileReader(); r.onload=function(){ addCodes(String(r.result||''),true); }; r.readAsText(f);
+  });
+  $('st-copy').addEventListener('click',function(){
+    var t=textList(); var ok=function(){ try{ toast(tx('sk.copied')); }catch(e){} };
+    try{ navigator.clipboard.writeText(t).then(ok,function(){}); }catch(e){}
+  });
+  $('st-csv').addEventListener('click',function(){
+    var o=load(), q=function(s){ return '"'+String(s==null?'':s).replace(/"/g,'""')+'"'; }, out='Thread,Skeins\n';
+    Object.keys(o.h).forEach(function(k){ out+=q(info(k,o).label)+','+(o.c[k]>0?o.c[k]:'')+'\n'; });
+    var blob=new Blob(['﻿'+out],{type:'text/csv;charset=utf-8'});
+    if(typeof rawDownload==='function') rawDownload(blob,'My threads.csv');
+    else { var u=URL.createObjectURL(blob), a=document.createElement('a'); a.href=u; a.download='My threads.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(u); },1500); }
+  });
+  // Entry in My Account › More, under Thread Colours
+  function accountRow(){
+    var hub=$('acct-hub'); if(!hub || $('acct-stash-row')) return;
+    var th=hub.querySelector('button[onclick="openThreads()"]');
+    var b=document.createElement('button'); b.className='acct-hub-row'; b.id='acct-stash-row'; b.type='button';
+    b.innerHTML='<span data-i18n="sk.open">'+esc(tx('sk.open'))+'</span><i>&rsaquo;</i>';
+    b.addEventListener('click',function(){ window.plStashOpen(); });
+    if(th && th.nextSibling) hub.insertBefore(b,th.nextSibling); else hub.appendChild(b);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',accountRow); else accountRow();
 })();
 </script>
 </body>
