@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v694';
+window.PATTERNLY_BUILD='v695';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -10374,8 +10374,32 @@ function edCapCanvas(){
   canvas.style.width=Math.round(COLS*disp)+'px';
   canvas.style.height=Math.round(ROWS*disp)+'px';
 }
+// v695 (built as v685/v688): on computers with a high-density screen (Mac retina, most laptops) the editor canvas was
+// drawn at 1 backing pixel per CSS pixel and stretched by the browser, so fabric, stitches and grid
+// looked blurry (Cristian, after v678). Draw the backing at devicePixelRatio and keep the on-screen
+// size in CSS, like edCapCanvas/fitZoomToView already do. cellAt() maps the pointer by the rect, so
+// clicks are unaffected. window._edSharpK = backing px per CSS px (grid line widths and exports use it).
+// Touch devices keep the old behaviour (memory limits, pinch code reads CELL).
+function edSharpCanvas(){
+  window._edSharpK=1;
+  const dpr=Math.min(window.devicePixelRatio||1, 2);
+  if(dpr<=1 || navigator.maxTouchPoints>0) return;
+  const disp=canvas.style.width?(parseFloat(canvas.style.width)/COLS):CELL;
+  if(!(disp>0)) return;
+  const lim=120e6;
+  let want=Math.round(disp*dpr);
+  const cap=Math.floor(Math.sqrt(lim/(COLS*ROWS)))-1;
+  if(want>cap) want=Math.max(Math.ceil(disp), cap);
+  if(want<=CELL){ window._edSharpK=CELL/disp; return; }
+  CELL=want;
+  canvas.width=COLS*CELL+1; canvas.height=ROWS*CELL+1;
+  canvas.style.width=Math.round(COLS*disp)+'px';
+  canvas.style.height=Math.round(ROWS*disp)+'px';
+  window._edSharpK=CELL/disp;
+}
 function render() {
   try{ edCapCanvas(); }catch(e){}
+  try{ edSharpCanvas(); }catch(e){}
   _lyFlatCache=null; // any repaint may follow an edit — recompute composite lazily
   lySyncActive();
   if(viewMode==='realistic') renderRealistic();
@@ -10643,8 +10667,9 @@ function renderPattern() {
   if(!window._vdHideGrid){
     const gc = window._gc || {};
     const op = gc.opacity !== undefined ? gc.opacity : 0.35;
-    const lw = gc.lineW || 0.5;
-    const blw = gc.blockLineW || 1.0;
+    const _k = window._edSharpK || 1;
+    const lw = (gc.lineW || 0.5) * _k;
+    const blw = (gc.blockLineW || 1.0) * _k;
     const bs = gc.blockSize || 10;
     // Thin cell lines — opacity controlled by slider
     ctx.strokeStyle=`rgba(0,0,0,${op})`;ctx.lineWidth=lw;
@@ -10657,7 +10682,7 @@ function renderPattern() {
     if(gc.centerOn){
       const hr = hexToRgb(gc.centerColor||'#000000');
       const cop = gc.centerOp !== undefined ? gc.centerOp : 0.7;
-      const cth = gc.centerTh || 1.5;
+      const cth = (gc.centerTh || 1.5) * (window._edSharpK || 1);
       ctx.strokeStyle=`rgba(${hr.r},${hr.g},${hr.b},${cop})`;ctx.lineWidth=cth;
       const midC=Math.floor(COLS/2), midR=Math.floor(ROWS/2);
       ctx.beginPath();ctx.moveTo(midC*CELL,0);ctx.lineTo(midC*CELL,ROWS*CELL);ctx.stroke();
@@ -10925,8 +10950,9 @@ function renderLines() {
   if(!window._vdHideGrid){
     const gc = window._gc || {};
     const op = gc.opacity !== undefined ? gc.opacity : 0.35;
-    const lw = gc.lineW || 0.5;
-    const blw = gc.blockLineW || 1.0;
+    const _k = window._edSharpK || 1;
+    const lw = (gc.lineW || 0.5) * _k;
+    const blw = (gc.blockLineW || 1.0) * _k;
     const bs = gc.blockSize || 10;
     ctx.strokeStyle=`rgba(0,0,0,${op})`; ctx.lineWidth=lw;
     for(let c=0;c<=COLS;c++){ctx.beginPath();ctx.moveTo(c*sz,0);ctx.lineTo(c*sz,ROWS*sz);ctx.stroke();}
@@ -10937,7 +10963,7 @@ function renderLines() {
     if(gc.centerOn){
       const hr = hexToRgb(gc.centerColor||'#000000');
       const cop = gc.centerOp !== undefined ? gc.centerOp : 0.7;
-      const cth = gc.centerTh || 1.5;
+      const cth = (gc.centerTh || 1.5) * (window._edSharpK || 1);
       ctx.strokeStyle=`rgba(${hr.r},${hr.g},${hr.b},${cop})`;ctx.lineWidth=cth;
       const midC=Math.floor(COLS/2), midR=Math.floor(ROWS/2);
       ctx.beginPath();ctx.moveTo(midC*sz,0);ctx.lineTo(midC*sz,ROWS*sz);ctx.stroke();
@@ -10983,7 +11009,8 @@ function _fabricPattern(fr,fg,fb,cell){
   if(key===_fabTileKey && _fabTilePat) return _fabTilePat;
   _fabEnsureImg();
   // close zoom → macro weave (chunky bundles); far zoom → fine weave
-  const useMacro = (cell>=32 && _fabMacroReady);
+  // v695: the fine photo is soft and turns to haze far away; use the sharp macro photo at every size
+  const useMacro = _fabMacroReady;
   const B = useMacro ? _FAB_MACRO_BLOCKS : _FAB_AIDA_BLOCKS;
   const srcImg = useMacro ? _fabMacro : _fabImg;
   const srcReady = useMacro ? _fabMacroReady : _fabImgReady;
@@ -10995,8 +11022,19 @@ function _fabricPattern(fr,fg,fb,cell){
   t.fillRect(0,0,px,px);
   if(srcReady){
     t.imageSmoothingEnabled=true; try{ t.imageSmoothingQuality='high'; }catch(e){}
-    t.drawImage(srcImg,0,0,srcImg.width,srcImg.height,0,0,px,px);
+    // v695: shrink in halving steps (like a mipmap) so threads and holes stay crisp instead of
+    // one big smoothed jump that blurs them into grey
+    let _src=srcImg, _sw=srcImg.width;
+    while(_sw/2>=px*1.5){
+      const _h=document.createElement('canvas'); const _n=Math.round(_sw/2); _h.width=_n; _h.height=_n;
+      const _hc=_h.getContext('2d'); _hc.imageSmoothingEnabled=true; try{ _hc.imageSmoothingQuality='high'; }catch(e){}
+      _hc.drawImage(_src,0,0,_sw,_sw,0,0,_n,_n); _src=_h; _sw=_n;
+    }
+    t.drawImage(_src,0,0,_sw,_sw,0,0,px,px);
     const id=t.getImageData(0,0,px,px), d=id.data;
+    // v695: small stitches average the light bundles and dark holes together; stretch the grain
+    // back out so a stitch still reads as a raised block with holes, like close up
+    const _ck = cell<30 ? 1+Math.min(1,(30-cell)/24)*0.9 : 1;
     // Light fabrics have no headroom above their own tone, so the WHOLE texture
     // must ride at-or-below the fabric colour (real white Aida photographs as
     // white bundle tops + grey shadow). Shift the grain down as the colour
@@ -11008,7 +11046,7 @@ function _fabricPattern(fr,fg,fb,cell){
     const off=36*wt;   // ≈ the grain's bundle-top level, so tops land ON the fabric tone
     const H=Math.max(8,255-lum);
     for(let i=0;i<d.length;i+=4){
-      let g=d[i]-128-off;
+      let g=(d[i]-128)*_ck-off;
       if(g>0 && g>H*0.85) g=H*0.85;
       const r=fr+g, gg=fg+g, b=fb+g;
       d[i]  = r<0?0:(r>255?255:r);
@@ -11029,7 +11067,7 @@ function renderRealistic() {
   const fab = hexToRgb(fabricColorHex);
   const fr=fab.r, fg=fab.g, fb=fab.b;
   const W=canvas.width, H=canvas.height;
-  const SMALL = CELL < 5;
+  const SMALL = CELL < 4;
 
   // ── AIDA FABRIC ──────────────────────────────────────────────
   // Each stitch cell = 2×2 thread bundles.
@@ -11042,7 +11080,7 @@ function renderRealistic() {
   // fine grid in with the on-screen stitch size: plain fabric colour + 10-blocks far away, full weave close up.
   let _disp=CELL;
   try{ const _rw=canvas.getBoundingClientRect().width; if(_rw>0) _disp=_rw/COLS; }catch(e){}
-  const _weave=Math.max(0,Math.min(1,(_disp-10)/12));
+  const _weave=Math.max(0,Math.min(1,(_disp-3)/3));   // v695: keep the real weave photo down to ~4-6 px per stitch (was 10-22)
   window._edFineGrid=Math.max(0,Math.min(1,(_disp-5)/10));
   ctx.fillStyle=`rgb(${fr},${fg},${fb})`;
   ctx.fillRect(0,0,W,H);
@@ -11080,8 +11118,9 @@ function renderRealistic() {
   if(!window._vdHideGrid){
     const gc = window._gc || {};
     const op = (gc.opacity !== undefined ? gc.opacity : 0.35) * (window._edFineGrid!=null ? window._edFineGrid : 1);
-    const lw = gc.lineW || 0.5;
-    const blw = gc.blockLineW || 1.0;
+    const _k = window._edSharpK || 1;
+    const lw = (gc.lineW || 0.5) * _k;
+    const blw = (gc.blockLineW || 1.0) * _k;
     const bs = gc.blockSize || 10;
     if(op>0.02){
     ctx.strokeStyle=`rgba(0,0,0,${op})`;ctx.lineWidth=lw;
@@ -11094,7 +11133,7 @@ function renderRealistic() {
     if(gc.centerOn){
       const hr = hexToRgb(gc.centerColor||'#000000');
       const cop = gc.centerOp !== undefined ? gc.centerOp : 0.7;
-      const cth = gc.centerTh || 1.5;
+      const cth = (gc.centerTh || 1.5) * (window._edSharpK || 1);
       ctx.strokeStyle=`rgba(${hr.r},${hr.g},${hr.b},${cop})`;ctx.lineWidth=cth;
       const midC=Math.floor(COLS/2), midR=Math.floor(ROWS/2);
       ctx.beginPath();ctx.moveTo(midC*CELL,0);ctx.lineTo(midC*CELL,ROWS*CELL);ctx.stroke();
@@ -15740,7 +15779,7 @@ function downloadCanvasAsPdf(canvas, filename){
 // CANVAS BUILDERS (return a <canvas>, used for preview + download)
 // ─────────────────────────────────────────────────────────────
 function buildSimpleCanvas(){
-  const scale=3;
+  const scale=3/(window._edSharpK||1);
   const exp=document.createElement('canvas');exp.width=COLS*CELL*scale;exp.height=ROWS*CELL*scale;
   const ec=exp.getContext('2d');ec.scale(scale,scale);
   ec.fillStyle=fabricColorHex;ec.fillRect(0,0,exp.width,exp.height);
@@ -17631,7 +17670,7 @@ function shapeHitTest(e){
   const rect=canvas.getBoundingClientRect();
   const sx=canvas.width/rect.width, sy=canvas.height/rect.height;
   const px=(e.clientX-rect.left)*sx, py=(e.clientY-rect.top)*sy;
-  const x=shapeC*CELL, y=shapeR*CELL, w=shapeW*CELL, h=shapeH*CELL, hs=12;
+  const x=shapeC*CELL, y=shapeR*CELL, w=shapeW*CELL, h=shapeH*CELL, hs=12*(window._edSharpK||1);
   if(Math.abs(px-x)<=hs&&Math.abs(py-y)<=hs) return 'resize-nw';
   if(Math.abs(px-(x+w))<=hs&&Math.abs(py-y)<=hs) return 'resize-ne';
   if(Math.abs(px-x)<=hs&&Math.abs(py-(y+h))<=hs) return 'resize-sw';
@@ -18432,7 +18471,7 @@ function textHitTest(e){
   const rect=canvas.getBoundingClientRect();
   const sx=canvas.width/rect.width, sy=canvas.height/rect.height;
   const px=(e.clientX-rect.left)*sx, py=(e.clientY-rect.top)*sy;
-  const x=textC*CELL, y=textR*CELL, w=textW*CELL, h=textH*CELL, hs=12;
+  const x=textC*CELL, y=textR*CELL, w=textW*CELL, h=textH*CELL, hs=12*(window._edSharpK||1);
   if(Math.abs(px-x)<=hs&&Math.abs(py-y)<=hs) return 'resize-nw';
   if(Math.abs(px-(x+w))<=hs&&Math.abs(py-y)<=hs) return 'resize-ne';
   if(Math.abs(px-x)<=hs&&Math.abs(py-(y+h))<=hs) return 'resize-sw';
