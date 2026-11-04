@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v706';
+window.PATTERNLY_BUILD='v707';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -27288,14 +27288,17 @@ function updateTrackerProgressUI(){
       if(ms && ms>300000 && totalDone>200){
         const perMs=totalDone/ms, mins=Math.round(left/perMs/60000);
         if(mins>0 && mins<100000){
+          // v707: always in stitching hours. "~5d" read as five calendar
+          // days when it meant 120 hours of non-stop stitching; the
+          // calendar-style estimate is the pace line below.
           extra = mins<90 ? ' · '+trkT('pg.mleft',{n:mins})
-                : mins<1440 ? ' · '+trkT('pg.hleft',{n:Math.round(mins/60)})
-                : ' · '+trkT('pg.dleft',{n:Math.round(mins/1440)});
+                : ' · '+trkT('pg.hleft',{n:Math.round(mins/60).toLocaleString()});
         }
       }
     }
+    const paceHtml=(left>0 && typeof window.plPaceLine==='function')?window.plPaceLine(left):'';   // v707
     el.innerHTML=`${totalDone.toLocaleString()} / ${totalAll.toLocaleString()} · ${pct}%`
-      + (left>0?`<span style="display:block;font-weight:400;font-size:.72rem;color:var(--lp-muted,#7d6b72);margin-top:.1rem">${left.toLocaleString()} ${trkT('pg.togo')}${extra}</span>`:
+      + (left>0?`<span style="display:block;font-weight:400;font-size:.72rem;color:var(--lp-muted,#7d6b72);margin-top:.1rem">${left.toLocaleString()} ${trkT('pg.togo')}${extra}</span>${paceHtml}`:
                 `<span style="display:block;font-weight:700;font-size:.72rem;color:#2E7D32;margin-top:.1rem">${trkT('pg.finished')}</span>`);
   })();
   trkUpdateIndexProgress(totalDone);
@@ -40671,5 +40674,225 @@ body.pps-on #sidebar .pps-card .row-label{font-size:.72rem;color:#8a7a7e;margin:
   body.dark.ptly-appui.app-mode #ped-recent button.on{box-shadow:0 0 0 2.5px #f0b3c0}
 }
 </style>
+<style id="ppc-style">
+/* v707: finish estimate under the tracker progress + stitching calendar sheet */
+#trk-overall .ppc-pace{display:block;font-weight:400;font-size:.72rem;color:var(--lp-muted,#7d6b72);margin-top:.15rem}
+#trk-overall .ppc-pace b{font-weight:700;color:var(--lp-red,#8B1A2B)}
+body.dark #trk-overall .ppc-pace b{color:#f0b3c0}
+.trk-streak .ts-cal{flex:0 0 auto;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;border:1.5px solid #ead7dc;background:#fff;color:var(--lp-red,#8B1A2B);cursor:pointer;padding:0}
+.trk-streak .ts-cal svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.trk-streak .ts-days{cursor:pointer}
+body.dark .trk-streak .ts-cal{background:#2a2226;border-color:#4a3a40;color:#f0b3c0}
+#ppc-ov{position:fixed;inset:0;z-index:100050;background:rgba(30,12,20,.45);display:flex;align-items:flex-end;justify-content:center;opacity:0;transition:opacity .18s}
+#ppc-ov.on{opacity:1}
+@media(min-width:640px){#ppc-ov{align-items:center}}
+#ppc-card{width:100%;max-width:420px;max-height:92vh;overflow:auto;background:#fff;color:#2b2226;border-radius:22px 22px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom,0px));box-shadow:0 -10px 40px rgba(60,20,30,.2);transform:translateY(24px);transition:transform .2s}
+#ppc-ov.on #ppc-card{transform:none}
+@media(min-width:640px){#ppc-card{border-radius:22px;padding-bottom:18px}}
+#ppc-card .ppc-hd{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+#ppc-card .ppc-hd h3{flex:1;margin:0;font-size:1.05rem;font-weight:800}
+#ppc-card .ppc-x{width:34px;height:34px;border-radius:50%;border:0;background:#f5eef0;color:#5a4a50;font-size:1rem;cursor:pointer}
+#ppc-card .ppc-nav{display:flex;align-items:center;gap:8px;margin:2px 0 10px}
+#ppc-card .ppc-nav b{flex:1;text-align:center;font-size:.95rem;text-transform:capitalize}
+#ppc-card .ppc-nav button{width:36px;height:36px;border-radius:50%;border:1.5px solid #ead7dc;background:#fff;color:#8B1A2B;font-size:1.1rem;cursor:pointer}
+#ppc-card .ppc-nav button:disabled{opacity:.35;cursor:default}
+#ppc-card .ppc-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+#ppc-card .ppc-wd{text-align:center;font-size:.68rem;font-weight:700;color:#9a8890;text-transform:uppercase;padding-bottom:2px}
+#ppc-card .ppc-d{aspect-ratio:1;border-radius:10px;border:0;background:#f6f0f2;color:#6d5c63;font:inherit;font-size:.78rem;font-weight:600;cursor:pointer;padding:0;position:relative}
+#ppc-card .ppc-d.e{background:none;cursor:default}
+#ppc-card .ppc-d.l1{background:#f7d3db;color:#5a1622}
+#ppc-card .ppc-d.l2{background:#e996a8;color:#4a0f1b}
+#ppc-card .ppc-d.l3{background:#c9475f;color:#fff}
+#ppc-card .ppc-d.l4{background:#8B1A2B;color:#fff}
+#ppc-card .ppc-d.today{box-shadow:0 0 0 2px #fff,0 0 0 3.5px #8B1A2B}
+#ppc-card .ppc-d.sel{outline:2.5px solid #2b2226;outline-offset:1px}
+#ppc-card .ppc-d.fut{opacity:.45;cursor:default}
+#ppc-card .ppc-sum{display:flex;gap:8px;margin:12px 0 8px}
+#ppc-card .ppc-sum div{flex:1;background:#fbf6f7;border-radius:14px;padding:8px 10px}
+#ppc-card .ppc-sum b{display:block;font-size:1.05rem}
+#ppc-card .ppc-sum span{display:block;font-size:.7rem;color:#9a8890}
+#ppc-card .ppc-day{min-height:2.6em;font-size:.82rem;color:#5a4a50;line-height:1.4;background:#fbf6f7;border-radius:14px;padding:8px 10px}
+#ppc-card .ppc-day b{color:#2b2226}
+#ppc-card .ppc-key{display:flex;align-items:center;justify-content:flex-end;gap:4px;font-size:.68rem;color:#9a8890;margin-top:8px}
+#ppc-card .ppc-key i{width:12px;height:12px;border-radius:3px;display:inline-block;background:#f6f0f2}
+#ppc-card .ppc-key i.l1{background:#f7d3db}#ppc-card .ppc-key i.l2{background:#e996a8}#ppc-card .ppc-key i.l3{background:#c9475f}#ppc-card .ppc-key i.l4{background:#8B1A2B}
+body.dark #ppc-card{background:#1f1a2b;color:#f3e9ec;box-shadow:0 -10px 40px rgba(0,0,0,.5)}
+body.dark #ppc-card .ppc-x{background:#2c2438;color:#d9cfe0}
+body.dark #ppc-card .ppc-nav button{background:#1f1a2b;border-color:#4a3f55;color:#f0b3c0}
+body.dark #ppc-card .ppc-d{background:#2c2438;color:#bfb2c8}
+body.dark #ppc-card .ppc-d.e{background:none}
+body.dark #ppc-card .ppc-d.l1{background:#4a2633;color:#f3d9df}
+body.dark #ppc-card .ppc-d.l2{background:#7a2c40;color:#fff}
+body.dark #ppc-card .ppc-d.l3{background:#b23a55;color:#fff}
+body.dark #ppc-card .ppc-d.l4{background:#e0607c;color:#1f1a2b}
+body.dark #ppc-card .ppc-d.today{box-shadow:0 0 0 2px #1f1a2b,0 0 0 3.5px #f0b3c0}
+body.dark #ppc-card .ppc-d.sel{outline-color:#f3e9ec}
+body.dark #ppc-card .ppc-sum div,body.dark #ppc-card .ppc-day{background:#2c2438;color:#d9cfe0}
+body.dark #ppc-card .ppc-day b{color:#fff}
+body.dark #ppc-card .ppc-key i{background:#2c2438}
+body.dark #ppc-card .ppc-key i.l1{background:#4a2633}body.dark #ppc-card .ppc-key i.l2{background:#7a2c40}body.dark #ppc-card .ppc-key i.l3{background:#b23a55}body.dark #ppc-card .ppc-key i.l4{background:#e0607c}
+@media (prefers-reduced-motion:reduce){#ppc-ov,#ppc-card{transition:none}}
+</style>
+<script id="ppc-src">
+/* v707: finish estimate + stitching calendar.
+   Reads only what the tracker already keeps: each tracked pattern's
+   `sessions` (date -> stitches done at the end of that day) in trkIndex(),
+   plus the streak days. It never writes progress, sessions or sync data. */
+(function(){
+  var S={
+    en:{"pc.pace":"At your pace (~{a} a day): about {n} more stitching days","pc.pace1":"At your pace: about 1 more stitching day","pc.by":"finished around {d}","pc.cal":"Stitching calendar","pc.days":"stitching days","pc.stitches":"stitches","pc.best":"best day","pc.tap":"Tap a day to see what you stitched.","pc.none":"No stitching recorded on this day.","pc.some":"You stitched on this day.","pc.st":"{n} stitches","pc.less":"Less","pc.more":"More","pc.open":"Open the stitching calendar"},
+    fr:{"pc.pace":"À votre rythme (~{a} par jour) : encore environ {n} jours de broderie","pc.pace1":"À votre rythme : encore environ 1 jour de broderie","pc.by":"fini vers le {d}","pc.cal":"Calendrier de broderie","pc.days":"jours brodés","pc.stitches":"points","pc.best":"meilleur jour","pc.tap":"Touchez un jour pour voir ce que vous avez brodé.","pc.none":"Aucune broderie enregistrée ce jour-là.","pc.some":"Vous avez brodé ce jour-là.","pc.st":"{n} points","pc.less":"Moins","pc.more":"Plus","pc.open":"Ouvrir le calendrier de broderie"},
+    de:{"pc.pace":"In Ihrem Tempo (~{a} pro Tag): noch etwa {n} Stick-Tage","pc.pace1":"In Ihrem Tempo: noch etwa 1 Stick-Tag","pc.by":"fertig etwa am {d}","pc.cal":"Stick-Kalender","pc.days":"Stick-Tage","pc.stitches":"Stiche","pc.best":"bester Tag","pc.tap":"Tippen Sie auf einen Tag, um zu sehen, was Sie gestickt haben.","pc.none":"An diesem Tag wurde nichts gestickt.","pc.some":"An diesem Tag haben Sie gestickt.","pc.st":"{n} Stiche","pc.less":"Weniger","pc.more":"Mehr","pc.open":"Stick-Kalender öffnen"},
+    nl:{"pc.pace":"In jouw tempo (~{a} per dag): nog ongeveer {n} borduurdagen","pc.pace1":"In jouw tempo: nog ongeveer 1 borduurdag","pc.by":"klaar rond {d}","pc.cal":"Borduurkalender","pc.days":"borduurdagen","pc.stitches":"steken","pc.best":"beste dag","pc.tap":"Tik op een dag om te zien wat je borduurde.","pc.none":"Op deze dag is niets geborduurd.","pc.some":"Op deze dag heb je geborduurd.","pc.st":"{n} steken","pc.less":"Minder","pc.more":"Meer","pc.open":"Borduurkalender openen"},
+    ru:{"pc.pace":"В вашем темпе (~{a} в день): ещё примерно {n} дн. вышивки","pc.pace1":"В вашем темпе: ещё примерно 1 день вышивки","pc.by":"готово примерно {d}","pc.cal":"Календарь вышивки","pc.days":"дней вышивки","pc.stitches":"крестиков","pc.best":"лучший день","pc.tap":"Нажмите на день, чтобы увидеть, что вы вышили.","pc.none":"В этот день вышивки не было.","pc.some":"В этот день вы вышивали.","pc.st":"{n} крестиков","pc.less":"Меньше","pc.more":"Больше","pc.open":"Открыть календарь вышивки"},
+    uk:{"pc.pace":"У вашому темпі (~{a} на день): ще приблизно {n} дн. вишивки","pc.pace1":"У вашому темпі: ще приблизно 1 день вишивки","pc.by":"готово приблизно {d}","pc.cal":"Календар вишивки","pc.days":"днів вишивки","pc.stitches":"хрестиків","pc.best":"найкращий день","pc.tap":"Натисніть на день, щоб побачити, що ви вишили.","pc.none":"Цього дня вишивки не було.","pc.some":"Цього дня ви вишивали.","pc.st":"{n} хрестиків","pc.less":"Менше","pc.more":"Більше","pc.open":"Відкрити календар вишивки"},
+    es:{"pc.pace":"A tu ritmo (~{a} al día): unos {n} días más de bordado","pc.pace1":"A tu ritmo: más o menos 1 día más de bordado","pc.by":"terminado hacia el {d}","pc.cal":"Calendario de bordado","pc.days":"días bordando","pc.stitches":"puntadas","pc.best":"mejor día","pc.tap":"Toca un día para ver lo que bordaste.","pc.none":"No hay bordado registrado este día.","pc.some":"Este día bordaste.","pc.st":"{n} puntadas","pc.less":"Menos","pc.more":"Más","pc.open":"Abrir el calendario de bordado"},
+    it:{"pc.pace":"Al tuo ritmo (~{a} al giorno): ancora circa {n} giorni di ricamo","pc.pace1":"Al tuo ritmo: ancora circa 1 giorno di ricamo","pc.by":"finito verso il {d}","pc.cal":"Calendario del ricamo","pc.days":"giorni di ricamo","pc.stitches":"punti","pc.best":"giorno migliore","pc.tap":"Tocca un giorno per vedere cosa hai ricamato.","pc.none":"Nessun ricamo registrato in questo giorno.","pc.some":"In questo giorno hai ricamato.","pc.st":"{n} punti","pc.less":"Meno","pc.more":"Di più","pc.open":"Apri il calendario del ricamo"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k,v){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; if(v) for(var n in v) s=s.split('{'+n+'}').join(String(v[n])); return s; }
+  function loc(){ return window.PL_LANG||document.documentElement.lang||'en'; }
+  function num(n){ try{ return Number(n||0).toLocaleString(loc()); }catch(e){ return String(n||0); } }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function $(id){ return document.getElementById(id); }
+  var DAY=86400000;
+  function key(t){ return new Date(t).toISOString().slice(0,10); }   // same UTC day keys the tracker writes
+  function keyMs(k){ return Date.parse(k+'T00:00:00Z'); }
+  function index(){ try{ return (typeof trkIndex==='function')?(trkIndex()||[]):[]; }catch(e){ return []; } }
+
+  // Stitches worked per day for one pattern. A day's value is the running
+  // total at the end of that day, so a day's work is the rise since the last
+  // recorded day. The very first day has no earlier total: it only counts when
+  // it is small enough to be real stitching (not an imported backup).
+  function perDay(p){
+    var s=(p&&p.sessions)||{}, ks=Object.keys(s).filter(function(k){ return /^\d{4}-\d\d-\d\d$/.test(k); }).sort(), out=[], prev=null;
+    ks.forEach(function(k,i){
+      var v=+s[k]||0, n=null;
+      if(i===0){ if(v>0 && v<=1500) n=v; }
+      else n=Math.max(0, v-prev);
+      prev=v; out.push({d:k,n:n,first:i===0});
+    });
+    return out;
+  }
+
+  // Finish estimate for the open pattern, as one short line (HTML) or ''.
+  // Needs at least two real stitching days in the last 60 days; otherwise it
+  // stays quiet rather than guessing.
+  function paceLine(entry,left){
+    if(!entry||!(left>0)) return '';
+    var days=perDay(entry), now=Date.now(), recent=days.filter(function(x){ return x.n>0 && !x.first && now-keyMs(x.d)<=60*DAY; });
+    if(recent.length<2) return '';
+    recent=recent.slice(-10);
+    var avg=recent.reduce(function(a,x){ return a+x.n; },0)/recent.length;
+    if(!(avg>=1)) return '';
+    var n=Math.ceil(left/avg); if(n>2000) return '';
+    // how often they stitch this pattern: stitching days per week, over the
+    // last 4 weeks (or since they started, if that is shorter, min one week)
+    var all=days.filter(function(x){ return x.n>0 || x.first; }).map(function(x){ return keyMs(x.d); });
+    var since=Math.max(now-28*DAY, all.length?all[0]:now), span=Math.max(7*DAY, now-since+DAY);
+    var count=all.filter(function(t){ return t>=since-DAY; }).length;
+    var perWeek=Math.min(7, count/(span/(7*DAY)));
+    var txt = n<=1 ? tx('pc.pace1') : tx('pc.pace',{a:num(Math.round(avg)),n:'<b>'+num(n)+'</b>'});
+    if(perWeek>0){
+      var fin=new Date(now+Math.max(1,Math.round(n*7/perWeek))*DAY), opt={day:'numeric',month:'short'};
+      if(fin.getFullYear()!==new Date().getFullYear()) opt.year='numeric';
+      var ds; try{ ds=fin.toLocaleDateString(loc(),opt); }catch(e){ ds=fin.toDateString(); }
+      txt+=', '+tx('pc.by',{d:ds});
+    }
+    return '<span class="ppc-pace">'+txt+'</span>';
+  }
+  window.plPaceLine=function(left){
+    try{ var id=(typeof trackerActiveProjectKey!=='undefined')?trackerActiveProjectKey:null; return paceLine(index().find(function(p){ return p.id===id; }),left); }catch(e){ return ''; }
+  };
+
+  // ── Calendar data: every tracked pattern's days, plus streak-only days ──
+  function calData(){
+    var map={};
+    index().forEach(function(p){
+      perDay(p).forEach(function(x){
+        if(x.n===0) return;
+        var m=map[x.d]||(map[x.d]={n:0,known:false,list:[]});
+        if(x.n>0){ m.n+=x.n; m.known=true; m.list.push({name:p.name||'',n:x.n}); }
+        else m.list.push({name:p.name||'',n:null});
+      });
+    });
+    var sd=[]; try{ sd=(typeof plStreakDays==='function')?plStreakDays():[]; }catch(e){}
+    try{ if(window._plStreakSrv&&_plStreakSrv.days) sd=sd.concat(_plStreakSrv.days); }catch(e){}
+    sd.forEach(function(d){ if(/^\d{4}-\d\d-\d\d$/.test(d) && !map[d]) map[d]={n:0,known:false,list:[]}; });
+    return map;
+  }
+  var cur=null, data=null, sel=null;
+  function level(m,max){
+    if(!m) return '';
+    if(!m.known||!max) return 'l1';
+    var r=m.n/max; return r>.75?'l4':r>.4?'l3':r>.15?'l2':'l1';
+  }
+  function draw(){
+    var card=$('ppc-card'); if(!card) return;
+    var y=cur.getUTCFullYear(), mo=cur.getUTCMonth(), first=new Date(Date.UTC(y,mo,1)), dim=new Date(Date.UTC(y,mo+1,0)).getUTCDate();
+    var today=key(Date.now()), title; try{ title=first.toLocaleDateString(loc(),{month:'long',year:'numeric',timeZone:'UTC'}); }catch(e){ title=y+'-'+(mo+1); }
+    var days=0, sts=0, best=0, max=0, d, k, m;
+    for(d=1; d<=dim; d++){ k=key(Date.UTC(y,mo,d)); m=data[k]; if(m){ days++; sts+=m.n; if(m.n>best) best=m.n; if(m.n>max) max=m.n; } }
+    // Monday-first weekday names in the person's language
+    var wd=''; for(var i=0;i<7;i++){ var t=new Date(Date.UTC(2024,0,1+i)), w; try{ w=t.toLocaleDateString(loc(),{weekday:'narrow',timeZone:'UTC'}); }catch(e){ w='MTWTFSS'[i]; } wd+='<div class="ppc-wd">'+esc(w)+'</div>'; }
+    var lead=(first.getUTCDay()+6)%7, cells='';
+    for(i=0;i<lead;i++) cells+='<span class="ppc-d e"></span>';
+    for(d=1; d<=dim; d++){
+      k=key(Date.UTC(y,mo,d)); m=data[k];
+      var fut=k>today, cls='ppc-d '+level(m,max)+(k===today?' today':'')+(k===sel?' sel':'')+(fut?' fut':'');
+      cells+='<button type="button" class="'+cls+'" data-k="'+k+'"'+(fut?' disabled':'')+'>'+d+'</button>';
+    }
+    var nowM=new Date(); var atNow=(y===nowM.getUTCFullYear() && mo===nowM.getUTCMonth());
+    card.innerHTML=
+      '<div class="ppc-hd"><h3>'+esc(tx('pc.cal'))+'</h3><button type="button" class="ppc-x" aria-label="Close">✕</button></div>'+
+      '<div class="ppc-nav"><button type="button" data-m="-1" aria-label="‹">‹</button><b>'+esc(title)+'</b><button type="button" data-m="1" aria-label="›"'+(atNow?' disabled':'')+'>›</button></div>'+
+      '<div class="ppc-grid">'+wd+cells+'</div>'+
+      '<div class="ppc-key">'+esc(tx('pc.less'))+' <i></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i> '+esc(tx('pc.more'))+'</div>'+
+      '<div class="ppc-sum"><div><b>'+num(days)+'</b><span>'+esc(tx('pc.days'))+'</span></div><div><b>'+num(sts)+'</b><span>'+esc(tx('pc.stitches'))+'</span></div><div><b>'+num(best)+'</b><span>'+esc(tx('pc.best'))+'</span></div></div>'+
+      '<div class="ppc-day">'+dayText()+'</div>';
+  }
+  function dayText(){
+    if(!sel) return esc(tx('pc.tap'));
+    var m=data[sel], ds; try{ ds=new Date(keyMs(sel)).toLocaleDateString(loc(),{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}); }catch(e){ ds=sel; }
+    var h='<b>'+esc(ds)+'</b><br>';
+    if(!m) return h+esc(tx('pc.none'));
+    if(!m.list.length) return h+esc(tx('pc.some'));
+    return h+m.list.map(function(x){ return esc(x.name)+(x.n?' · '+esc(tx('pc.st',{n:num(x.n)})):''); }).join('<br>');
+  }
+  function close(){
+    var ov=$('ppc-ov'); if(!ov) return; ov.classList.remove('on');
+    document.removeEventListener('keydown',onKey);
+    setTimeout(function(){ if(ov.parentNode) ov.parentNode.removeChild(ov); },200);
+  }
+  function onKey(e){ if(e.key==='Escape') close(); }
+  window.plCalendarOpen=function(){
+    if($('ppc-ov')) return;
+    data=calData(); var n=new Date(); cur=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),1)); sel=data[key(Date.now())]?key(Date.now()):null;
+    var ov=document.createElement('div'); ov.id='ppc-ov'; ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true');
+    ov.innerHTML='<div id="ppc-card"></div>'; document.body.appendChild(ov);
+    draw();
+    ov.addEventListener('click',function(e){
+      if(e.target===ov || e.target.closest('.ppc-x')){ close(); return; }
+      var nb=e.target.closest('[data-m]'); if(nb&&!nb.disabled){ cur=new Date(Date.UTC(cur.getUTCFullYear(),cur.getUTCMonth()+(+nb.getAttribute('data-m')),1)); draw(); return; }
+      var db=e.target.closest('.ppc-d[data-k]'); if(db&&!db.disabled){ sel=db.getAttribute('data-k'); draw(); }
+    });
+    document.addEventListener('keydown',onKey);
+    requestAnimationFrame(function(){ ov.classList.add('on'); });
+  };
+
+  // Calendar button on the streak card; the 7 dots open it too.
+  function addButton(){
+    var box=$('trk-streak'); if(!box||$('trk-streak-cal')) return;
+    var b=document.createElement('button'); b.type='button'; b.id='trk-streak-cal'; b.className='ts-cal';
+    b.title=tx('pc.open'); b.setAttribute('aria-label',tx('pc.open'));
+    b.innerHTML='<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
+    b.onclick=function(e){ e.stopPropagation(); window.plCalendarOpen(); };
+    var share=$('trk-streak-share'); box.insertBefore(b, share||null);
+    var dots=$('trk-streak-days'); if(dots) dots.addEventListener('click',function(){ window.plCalendarOpen(); });
+  }
+  function init(){ addButton(); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+})();
+</script>
 </body>
 </html>
