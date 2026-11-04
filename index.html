@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v684';
+window.PATTERNLY_BUILD='v686';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -38504,14 +38504,14 @@ body.dark #ped-menu hr{border-color:#37303f}
 <script id="ped-src">
 (function(){
   var S={
-    en:{"pe.back":"Back to My designs","pe.undo":"Undo","pe.redo":"Redo","pe.export":"Export","pe.more":"More","pe.saved":"Saved","pe.saving":"Saving…","pe.unsaved":"Not saved yet","pe.move":"Move","pe.draw":"Draw","pe.erase":"Erase","pe.select":"Select","pe.tools":"Tools","pe.colours":"Colours","pe.recent":"Recent","pe.history":"Edit history","pe.size":"Text size","pe.layers":"Layers","pe.library":"Thread library","pe.check":"Check pattern","pe.settings":"Pattern settings","pe.save":"Save now","pe.clear":"Clear pattern"},
-    fr:{"pe.back":"Retour à Mes créations","pe.undo":"Annuler","pe.redo":"Rétablir","pe.export":"Exporter","pe.more":"Plus","pe.saved":"Enregistré","pe.saving":"Enregistrement…","pe.unsaved":"Pas encore enregistré","pe.move":"Déplacer","pe.draw":"Dessiner","pe.erase":"Gommer","pe.select":"Sélection","pe.tools":"Outils","pe.colours":"Couleurs","pe.recent":"Récentes","pe.history":"Historique","pe.size":"Taille du texte","pe.layers":"Calques","pe.library":"Bibliothèque de fils","pe.check":"Vérifier la grille","pe.settings":"Réglages de la grille","pe.save":"Enregistrer","pe.clear":"Effacer la grille"},
-    de:{"pe.back":"Zurück zu Meine Designs","pe.undo":"Rückgängig","pe.redo":"Wiederholen","pe.export":"Export","pe.more":"Mehr","pe.saved":"Gespeichert","pe.saving":"Speichert…","pe.unsaved":"Noch nicht gespeichert","pe.move":"Bewegen","pe.draw":"Zeichnen","pe.erase":"Radieren","pe.select":"Auswahl","pe.tools":"Werkzeuge","pe.colours":"Farben","pe.recent":"Zuletzt","pe.history":"Verlauf","pe.size":"Textgröße","pe.layers":"Ebenen","pe.library":"Garnbibliothek","pe.check":"Muster prüfen","pe.settings":"Mustereinstellungen","pe.save":"Jetzt speichern","pe.clear":"Muster leeren"},
-    nl:{"pe.back":"Terug naar Mijn ontwerpen","pe.undo":"Ongedaan maken","pe.redo":"Opnieuw","pe.export":"Exporteren","pe.more":"Meer","pe.saved":"Opgeslagen","pe.saving":"Opslaan…","pe.unsaved":"Nog niet opgeslagen","pe.move":"Verplaatsen","pe.draw":"Tekenen","pe.erase":"Gummen","pe.select":"Selectie","pe.tools":"Gereedschap","pe.colours":"Kleuren","pe.recent":"Recent","pe.history":"Geschiedenis","pe.size":"Tekstgrootte","pe.layers":"Lagen","pe.library":"Garenbibliotheek","pe.check":"Patroon controleren","pe.settings":"Patrooninstellingen","pe.save":"Nu opslaan","pe.clear":"Patroon wissen"},
-    ru:{"pe.back":"Назад к Моим дизайнам","pe.undo":"Отменить","pe.redo":"Повторить","pe.export":"Экспорт","pe.more":"Ещё","pe.saved":"Сохранено","pe.saving":"Сохранение…","pe.unsaved":"Ещё не сохранено","pe.move":"Двигать","pe.draw":"Рисовать","pe.erase":"Стереть","pe.select":"Выделить","pe.tools":"Инструменты","pe.colours":"Цвета","pe.recent":"Недавние","pe.history":"История","pe.size":"Размер текста","pe.layers":"Слои","pe.library":"Библиотека ниток","pe.check":"Проверить схему","pe.settings":"Настройки схемы","pe.save":"Сохранить","pe.clear":"Очистить схему"},
-    uk:{"pe.back":"Назад до Моїх дизайнів","pe.undo":"Скасувати","pe.redo":"Повторити","pe.export":"Експорт","pe.more":"Ще","pe.saved":"Збережено","pe.saving":"Збереження…","pe.unsaved":"Ще не збережено","pe.move":"Рухати","pe.draw":"Малювати","pe.erase":"Стерти","pe.select":"Виділити","pe.tools":"Інструменти","pe.colours":"Кольори","pe.recent":"Недавні","pe.history":"Історія","pe.size":"Розмір тексту","pe.layers":"Шари","pe.library":"Бібліотека ниток","pe.check":"Перевірити схему","pe.settings":"Налаштування схеми","pe.save":"Зберегти","pe.clear":"Очистити схему"},
-    es:{"pe.back":"Volver a Mis diseños","pe.undo":"Deshacer","pe.redo":"Rehacer","pe.export":"Exportar","pe.more":"Más","pe.saved":"Guardado","pe.saving":"Guardando…","pe.unsaved":"Aún sin guardar","pe.move":"Mover","pe.draw":"Dibujar","pe.erase":"Borrar","pe.select":"Seleccionar","pe.tools":"Herramientas","pe.colours":"Colores","pe.recent":"Recientes","pe.history":"Historial","pe.size":"Tamaño del texto","pe.layers":"Capas","pe.library":"Biblioteca de hilos","pe.check":"Revisar patrón","pe.settings":"Ajustes del patrón","pe.save":"Guardar ahora","pe.clear":"Vaciar patrón"},
-    it:{"pe.back":"Torna a I miei design","pe.undo":"Annulla","pe.redo":"Ripeti","pe.export":"Esporta","pe.more":"Altro","pe.saved":"Salvato","pe.saving":"Salvataggio…","pe.unsaved":"Non ancora salvato","pe.move":"Sposta","pe.draw":"Disegna","pe.erase":"Gomma","pe.select":"Seleziona","pe.tools":"Strumenti","pe.colours":"Colori","pe.recent":"Recenti","pe.history":"Cronologia","pe.size":"Dimensione testo","pe.layers":"Livelli","pe.library":"Libreria fili","pe.check":"Controlla schema","pe.settings":"Impostazioni schema","pe.save":"Salva ora","pe.clear":"Svuota schema"}
+    en:{"pe.back":"Back to My designs","pe.undo":"Undo","pe.redo":"Redo","pe.export":"Export","pe.more":"More","pe.saved":"Saved","pe.saving":"Saving…","pe.unsaved":"Not saved yet","pe.move":"Move","pe.draw":"Draw","pe.erase":"Erase","pe.select":"Select","pe.tools":"Tools","pe.colours":"Colours","pe.recent":"Recent","pe.history":"Edit history","pe.size":"Text size","pe.layers":"Layers","pe.library":"Thread library","pe.check":"Check pattern","pe.settings":"Pattern settings","pe.save":"Save now","pe.clear":"Clear pattern","pe.setshort":"Settings","pe.selecttool":"Select"},
+    fr:{"pe.back":"Retour à Mes créations","pe.undo":"Annuler","pe.redo":"Rétablir","pe.export":"Exporter","pe.more":"Plus","pe.saved":"Enregistré","pe.saving":"Enregistrement…","pe.unsaved":"Pas encore enregistré","pe.move":"Déplacer","pe.draw":"Dessiner","pe.erase":"Gommer","pe.select":"Sélection","pe.tools":"Outils","pe.colours":"Couleurs","pe.recent":"Récentes","pe.history":"Historique","pe.size":"Taille du texte","pe.layers":"Calques","pe.library":"Bibliothèque de fils","pe.check":"Vérifier la grille","pe.settings":"Réglages de la grille","pe.save":"Enregistrer","pe.clear":"Effacer la grille","pe.setshort":"Réglages","pe.selecttool":"Sélection"},
+    de:{"pe.back":"Zurück zu Meine Designs","pe.undo":"Rückgängig","pe.redo":"Wiederholen","pe.export":"Export","pe.more":"Mehr","pe.saved":"Gespeichert","pe.saving":"Speichert…","pe.unsaved":"Noch nicht gespeichert","pe.move":"Bewegen","pe.draw":"Zeichnen","pe.erase":"Radieren","pe.select":"Auswahl","pe.tools":"Werkzeuge","pe.colours":"Farben","pe.recent":"Zuletzt","pe.history":"Verlauf","pe.size":"Textgröße","pe.layers":"Ebenen","pe.library":"Garnbibliothek","pe.check":"Muster prüfen","pe.settings":"Mustereinstellungen","pe.save":"Jetzt speichern","pe.clear":"Muster leeren","pe.setshort":"Einstellungen","pe.selecttool":"Auswahl"},
+    nl:{"pe.back":"Terug naar Mijn ontwerpen","pe.undo":"Ongedaan maken","pe.redo":"Opnieuw","pe.export":"Exporteren","pe.more":"Meer","pe.saved":"Opgeslagen","pe.saving":"Opslaan…","pe.unsaved":"Nog niet opgeslagen","pe.move":"Verplaatsen","pe.draw":"Tekenen","pe.erase":"Gummen","pe.select":"Selectie","pe.tools":"Gereedschap","pe.colours":"Kleuren","pe.recent":"Recent","pe.history":"Geschiedenis","pe.size":"Tekstgrootte","pe.layers":"Lagen","pe.library":"Garenbibliotheek","pe.check":"Patroon controleren","pe.settings":"Patrooninstellingen","pe.save":"Nu opslaan","pe.clear":"Patroon wissen","pe.setshort":"Instellingen","pe.selecttool":"Selecteren"},
+    ru:{"pe.back":"Назад к Моим дизайнам","pe.undo":"Отменить","pe.redo":"Повторить","pe.export":"Экспорт","pe.more":"Ещё","pe.saved":"Сохранено","pe.saving":"Сохранение…","pe.unsaved":"Ещё не сохранено","pe.move":"Двигать","pe.draw":"Рисовать","pe.erase":"Стереть","pe.select":"Выделить","pe.tools":"Инструменты","pe.colours":"Цвета","pe.recent":"Недавние","pe.history":"История","pe.size":"Размер текста","pe.layers":"Слои","pe.library":"Библиотека ниток","pe.check":"Проверить схему","pe.settings":"Настройки схемы","pe.save":"Сохранить","pe.clear":"Очистить схему","pe.setshort":"Настройки","pe.selecttool":"Выделение"},
+    uk:{"pe.back":"Назад до Моїх дизайнів","pe.undo":"Скасувати","pe.redo":"Повторити","pe.export":"Експорт","pe.more":"Ще","pe.saved":"Збережено","pe.saving":"Збереження…","pe.unsaved":"Ще не збережено","pe.move":"Рухати","pe.draw":"Малювати","pe.erase":"Стерти","pe.select":"Виділити","pe.tools":"Інструменти","pe.colours":"Кольори","pe.recent":"Недавні","pe.history":"Історія","pe.size":"Розмір тексту","pe.layers":"Шари","pe.library":"Бібліотека ниток","pe.check":"Перевірити схему","pe.settings":"Налаштування схеми","pe.save":"Зберегти","pe.clear":"Очистити схему","pe.setshort":"Налаштування","pe.selecttool":"Виділення"},
+    es:{"pe.back":"Volver a Mis diseños","pe.undo":"Deshacer","pe.redo":"Rehacer","pe.export":"Exportar","pe.more":"Más","pe.saved":"Guardado","pe.saving":"Guardando…","pe.unsaved":"Aún sin guardar","pe.move":"Mover","pe.draw":"Dibujar","pe.erase":"Borrar","pe.select":"Seleccionar","pe.tools":"Herramientas","pe.colours":"Colores","pe.recent":"Recientes","pe.history":"Historial","pe.size":"Tamaño del texto","pe.layers":"Capas","pe.library":"Biblioteca de hilos","pe.check":"Revisar patrón","pe.settings":"Ajustes del patrón","pe.save":"Guardar ahora","pe.clear":"Vaciar patrón","pe.setshort":"Ajustes","pe.selecttool":"Seleccionar"},
+    it:{"pe.back":"Torna a I miei design","pe.undo":"Annulla","pe.redo":"Ripeti","pe.export":"Esporta","pe.more":"Altro","pe.saved":"Salvato","pe.saving":"Salvataggio…","pe.unsaved":"Non ancora salvato","pe.move":"Sposta","pe.draw":"Disegna","pe.erase":"Gomma","pe.select":"Seleziona","pe.tools":"Strumenti","pe.colours":"Colori","pe.recent":"Recenti","pe.history":"Cronologia","pe.size":"Dimensione testo","pe.layers":"Livelli","pe.library":"Libreria fili","pe.check":"Controlla schema","pe.settings":"Impostazioni schema","pe.save":"Salva ora","pe.clear":"Svuota schema","pe.setshort":"Impostazioni","pe.selecttool":"Selezione"}
   };
   try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
   function tx(k){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; return s; }
@@ -38596,6 +38596,7 @@ body.dark #ped-menu hr{border-color:#37303f}
     dock.addEventListener('click',function(e){
       var b=e.target.closest('button'); if(!b) return; var a=b.getAttribute('data-a');
       if(a==='colours') later(function(){ sheet('palette'); });
+      else if(a==='settings') later(function(){ railAction('sidebar'); sync(); });   // v680: Pattern settings from the dock
       else tool(a);
     });
     rec.addEventListener('click',function(e){ var b=e.target.closest('button[data-ci]'); if(b){ try{ setActiveColor(+b.getAttribute('data-ci')); }catch(_){} } });
@@ -38612,7 +38613,7 @@ body.dark #ped-menu hr{border-color:#37303f}
       +'<button data-a="export" id="ped-export">'+svg(IC.exp)+esc(tx('pe.export'))+'</button>'
       +'<button data-a="more" aria-label="'+esc(tx('pe.more'))+'">'+svg(IC.more)+'</button>';
     function db(a,ic,k){ return '<button data-a="'+a+'">'+svg(IC[ic])+'<span>'+esc(tx(k))+'</span></button>'; }
-    dock.innerHTML=db('pan','pan','pe.move')+db('draw','draw','pe.draw')+db('erase','erase','pe.erase')+db('select','select','pe.select')+db('more','tools','pe.tools')
+    dock.innerHTML=db('pan','pan','pe.move')+db('draw','draw','pe.draw')+db('erase','erase','pe.erase')+db('more','tools','pe.tools')+db('settings','set','pe.setshort')
       +'<button data-a="colours"><span class="sw" id="ped-sw"></span><span>'+esc(tx('pe.colours'))+'</span></button>';
     function mi(a,ic,k,cls){ return '<button data-a="'+a+'"'+(cls?' class="'+cls+'"':'')+'>'+svg(IC[ic])+esc(tx(k))+'</button>'; }
     menu.innerHTML=mi('hist','hist','pe.history')+mi('size','size','pe.size')+mi('layers','layers','pe.layers')+mi('lib','lib','pe.library')+mi('check','check','pe.check')+mi('set','set','pe.settings')
@@ -38620,6 +38621,21 @@ body.dark #ped-menu hr{border-color:#37303f}
     sync();
   }
   function palette(){ try{ return getSortedPaletteItems(); }catch(e){ return []; } }
+  // v680: Select left the dock, so the Tools sheet gets a Select row (after Pan) in the app.
+  function selectInTools(){
+    var list=$('td-tool-list'); if(!list) return;
+    var b=$('ped-td-select');
+    if(!b){
+      var pan=list.querySelector('.td-btn[data-tool="pan"]'); if(!pan) return;
+      b=document.createElement('button'); b.className='td-btn'; b.id='ped-td-select'; b.setAttribute('data-tool','select');
+      b.addEventListener('click',function(){ try{ setActiveTool('select'); }catch(e){} });
+      pan.parentNode.insertBefore(b,pan.nextSibling);
+    }
+    var lab=esc(tx('pe.selecttool'));
+    if(b._l!==lab){ b._l=lab; b.innerHTML='<svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="2.5 2"><rect x="3" y="3" width="12" height="12" rx="1.5"/></svg>'+lab; }
+    var t=(typeof activeTool!=='undefined')?activeTool:'';
+    b.classList.toggle('active', t==='select');
+  }
   function sync(){
     if(!built || !on()) return;
     try{
@@ -38633,8 +38649,10 @@ body.dark #ped-menu hr{border-color:#37303f}
       var sub=(cols&&rows?cols+'×'+rows+' · ':'')+html, sb=$('ped-sub');
       if(sb && sb._h!==sub){ sb._h=sub; sb.innerHTML=sub; }
       var t=(typeof activeTool!=='undefined')?activeTool:'';
-      var main={pan:1,draw:1,erase:1,select:1};
-      dock.querySelectorAll('button[data-a]').forEach(function(b){ var a=b.getAttribute('data-a'); b.classList.toggle('on', a===t || (a==='more' && t && !main[t])); });
+      var main={pan:1,draw:1,erase:1};
+      var sbOpen=!!($('sidebar')&&$('sidebar').classList.contains('open'));
+      dock.querySelectorAll('button[data-a]').forEach(function(b){ var a=b.getAttribute('data-a'); b.classList.toggle('on', a==='settings' ? sbOpen : (a===t || (a==='more' && t && !main[t]))); });
+      selectInTools();
       var sw=$('ped-sw'), ci=(typeof activeColorIdx!=='undefined')?activeColorIdx:null, pal=palette();
       if(sw){
         if(ci!=null && pal.indexOf(ci)>=0){ sw.style.background=colourHex(ci); sw.textContent=colourShortCode(ci); sw.title=colourLabel(ci); }
