@@ -11009,7 +11009,8 @@ function _fabricPattern(fr,fg,fb,cell){
   if(key===_fabTileKey && _fabTilePat) return _fabTilePat;
   _fabEnsureImg();
   // close zoom → macro weave (chunky bundles); far zoom → fine weave
-  const useMacro = (cell>=14 && _fabMacroReady);   // v688: the fine photo is soft; the sharp macro photo from 14 backing px up
+  // v688: the fine photo is soft and turns to haze far away; use the sharp macro photo at every size
+  const useMacro = _fabMacroReady;
   const B = useMacro ? _FAB_MACRO_BLOCKS : _FAB_AIDA_BLOCKS;
   const srcImg = useMacro ? _fabMacro : _fabImg;
   const srcReady = useMacro ? _fabMacroReady : _fabImgReady;
@@ -11021,8 +11022,19 @@ function _fabricPattern(fr,fg,fb,cell){
   t.fillRect(0,0,px,px);
   if(srcReady){
     t.imageSmoothingEnabled=true; try{ t.imageSmoothingQuality='high'; }catch(e){}
-    t.drawImage(srcImg,0,0,srcImg.width,srcImg.height,0,0,px,px);
+    // v688: shrink in halving steps (like a mipmap) so threads and holes stay crisp instead of
+    // one big smoothed jump that blurs them into grey
+    let _src=srcImg, _sw=srcImg.width;
+    while(_sw/2>=px*1.5){
+      const _h=document.createElement('canvas'); const _n=Math.round(_sw/2); _h.width=_n; _h.height=_n;
+      const _hc=_h.getContext('2d'); _hc.imageSmoothingEnabled=true; try{ _hc.imageSmoothingQuality='high'; }catch(e){}
+      _hc.drawImage(_src,0,0,_sw,_sw,0,0,_n,_n); _src=_h; _sw=_n;
+    }
+    t.drawImage(_src,0,0,_sw,_sw,0,0,px,px);
     const id=t.getImageData(0,0,px,px), d=id.data;
+    // v688: small stitches average the light bundles and dark holes together; stretch the grain
+    // back out so a stitch still reads as a raised block with holes, like close up
+    const _ck = cell<30 ? 1+Math.min(1,(30-cell)/24)*0.9 : 1;
     // Light fabrics have no headroom above their own tone, so the WHOLE texture
     // must ride at-or-below the fabric colour (real white Aida photographs as
     // white bundle tops + grey shadow). Shift the grain down as the colour
@@ -11034,7 +11046,7 @@ function _fabricPattern(fr,fg,fb,cell){
     const off=36*wt;   // ≈ the grain's bundle-top level, so tops land ON the fabric tone
     const H=Math.max(8,255-lum);
     for(let i=0;i<d.length;i+=4){
-      let g=d[i]-128-off;
+      let g=(d[i]-128)*_ck-off;
       if(g>0 && g>H*0.85) g=H*0.85;
       const r=fr+g, gg=fg+g, b=fb+g;
       d[i]  = r<0?0:(r>255?255:r);
@@ -11050,33 +11062,12 @@ function _fabricPattern(fr,fg,fb,cell){
   return _fabTilePat;
 }
 
-let _aidaFarKey='', _aidaFarPat=null;
-function _aidaFarPattern(fr,fg,fb,cell){
-  const n=Math.max(3,Math.round(cell));
-  const key=fr+','+fg+','+fb+','+n;
-  if(key===_aidaFarKey && _aidaFarPat) return _aidaFarPat;
-  const t=document.createElement('canvas'); t.width=n; t.height=n;
-  const g=t.getContext('2d');
-  const lum=0.299*fr+0.587*fg+0.114*fb;
-  const d=lum>200?72:(lum>110?60:-45);          // holes darker on light fabric, lighter on very dark fabric
-  const c=(v,k)=>Math.max(0,Math.min(255,Math.round(v+k)));
-  // thread block: a little lighter in the middle, a little darker towards the gaps
-  g.fillStyle=`rgb(${c(fr,-d*0.25)},${c(fg,-d*0.25)},${c(fb,-d*0.25)})`; g.fillRect(0,0,n,n);
-  const m=Math.max(1,Math.round(n*0.12));
-  g.fillStyle=`rgb(${c(fr,d>0?6:-6)},${c(fg,d>0?6:-6)},${c(fb,d>0?6:-6)})`; g.fillRect(m,m,n-2*m,n-2*m);
-  // hole at each corner (a quarter in each tile corner, so they meet on the stitch lines)
-  const h=Math.max(1,Math.round(n*0.2));
-  g.fillStyle=`rgb(${c(fr,-d)},${c(fg,-d)},${c(fb,-d)})`;
-  g.fillRect(0,0,h,h); g.fillRect(n-h,0,h,h); g.fillRect(0,n-h,h,h); g.fillRect(n-h,n-h,h,h);
-  _aidaFarPat=ctx.createPattern(t,'repeat'); _aidaFarKey=key;
-  return _aidaFarPat;
-}
 function renderRealistic() {
   ctx.clearRect(0,0,canvas.width,canvas.height);
   const fab = hexToRgb(fabricColorHex);
   const fr=fab.r, fg=fab.g, fb=fab.b;
   const W=canvas.width, H=canvas.height;
-  const SMALL = CELL < 5;
+  const SMALL = CELL < 4;
 
   // ── AIDA FABRIC ──────────────────────────────────────────────
   // Each stitch cell = 2×2 thread bundles.
@@ -11089,20 +11080,10 @@ function renderRealistic() {
   // fine grid in with the on-screen stitch size: plain fabric colour + 10-blocks far away, full weave close up.
   let _disp=CELL;
   try{ const _rw=canvas.getBoundingClientRect().width; if(_rw>0) _disp=_rw/COLS; }catch(e){}
-  const _weave=Math.max(0,Math.min(1,(_disp-10)/12));
+  const _weave=Math.max(0,Math.min(1,(_disp-3)/3));   // v688: keep the real weave photo down to ~4-6 px per stitch (was 10-22)
   window._edFineGrid=Math.max(0,Math.min(1,(_disp-5)/10));
   ctx.fillStyle=`rgb(${fr},${fg},${fb})`;
   ctx.fillRect(0,0,W,H);
-  // v688: far away the weave photo is faded out (it turns to grey haze), which made the fabric look
-  // like a different, plain fabric (Cristian). Instead draw a crisp, simple Aida: one soft square
-  // per stitch with a small hole at each corner, fading out as the photo weave fades in.
-  const _aida=(_disp>=3 && CELL>=3) ? 1-_weave : 0;
-  if(_aida>0){
-    ctx.globalAlpha=_aida;
-    ctx.fillStyle=_aidaFarPattern(fr,fg,fb,CELL);
-    ctx.fillRect(0,0,W,H);
-    ctx.globalAlpha=1;
-  }
   if(!SMALL && _weave>0){
     const holeR=Math.max(0,fr-55), holeG=Math.max(0,fg-52), holeB=Math.max(0,fb-48);
     ctx.globalAlpha=_weave;
