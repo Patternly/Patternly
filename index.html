@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v709';
+window.PATTERNLY_BUILD='v712';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -38334,24 +38334,55 @@ body.pltl-sheet #pltl-sheet{display:flex}
 #pltl-sheet .ic svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 #pltl-sheet .ic.r{background:#fdedf0;color:#8B1A2B}#pltl-sheet .ic.p{background:#f0ebfc;color:#6b4fb0}#pltl-sheet .ic.g{background:#fef6e4;color:#a86a00}
 body.dark #pltl-sheet .ic.r{background:#3a2028;color:#e0a9b4}body.dark #pltl-sheet .ic.p{background:#2b2338;color:#c4b0f0}body.dark #pltl-sheet .ic.g{background:#31281a;color:#e0a64a}
+#pltl-chips button[hidden],#pltl-hideall[hidden]{display:none!important}
+body.ptly-appui.pltl-home .pltl-secoff{display:none!important}
+#pltl-hideall{align-self:flex-start;border:0;background:none;padding:0;font:inherit;font-size:.82rem;font-weight:700;color:var(--lp-red,#8B1A2B);cursor:pointer}
+body.dark #pltl-hideall{color:#e0a9b4}
+.pltl-hide{display:none}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard{position:relative}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .body h4{padding-right:74px}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard > .pltl-hide{display:inline-flex;align-items:center;gap:4px;position:absolute;top:9px;right:9px;border:1px solid var(--lp-border,#e8e4f0);background:#fff;color:var(--lp-muted,#5a5268);border-radius:999px;padding:.26rem .55rem;font:inherit;font-size:.72rem;font-weight:600;cursor:pointer;z-index:2}
+body.dark.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard > .pltl-hide{background:#221b2d;border-color:#3a3146;color:#c9bfd3}
+.pltl-hide svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 #pltl-sheet .beta{font-size:.6rem;font-weight:700;color:#6b4fb0;background:#f0ebfc;border-radius:6px;padding:1px 5px;margin-left:5px;vertical-align:2px}
 </style>
 <script id="pltl-src">
 (function(){
   var S={
-    en:{"tl.title":"Stitch Tracker","tl.add":"Add pattern","tl.all":"All","tl.prog":"In progress","tl.fin":"Finished","tl.sheet":"Add a pattern to track","tl.kit":"Kit pattern","tl.kitsub":"Luca-S and partner kits, by QR or code","tl.scan":"Scan a paper chart","tl.scansub":"Photos or PDF of a printed chart","tl.up":"Upload a chart file","tl.upsub":"PDF, OXS, .pat or .ptly","tl.bk":"Restore a backup","tl.bksub":"A backup file saved from Patternly","tl.new":"New here?","tl.guide":"Read the guide","tl.empty":"No patterns yet","tl.emptysub":"Tap Add pattern to open a kit, scan a chart or upload one.","tl.nomatch":"Nothing here yet."},
-    fr:{"tl.title":"Suivi de broderie","tl.add":"Ajouter","tl.all":"Tout","tl.prog":"En cours","tl.fin":"Terminés","tl.sheet":"Ajouter une grille à suivre","tl.kit":"Grille d'un kit","tl.kitsub":"Kits Luca-S et partenaires, par QR ou code","tl.scan":"Scanner une grille papier","tl.scansub":"Photos ou PDF d'une grille imprimée","tl.up":"Importer un fichier","tl.upsub":"PDF, OXS, .pat ou .ptly","tl.bk":"Restaurer une sauvegarde","tl.bksub":"Un fichier de sauvegarde Patternly","tl.new":"Nouveau ici ?","tl.guide":"Lire le guide","tl.empty":"Aucune grille pour l'instant","tl.emptysub":"Touchez Ajouter pour ouvrir un kit, scanner ou importer une grille.","tl.nomatch":"Rien ici pour l'instant."},
-    de:{"tl.title":"Stich-Tracker","tl.add":"Hinzufügen","tl.all":"Alle","tl.prog":"In Arbeit","tl.fin":"Fertig","tl.sheet":"Muster zum Verfolgen hinzufügen","tl.kit":"Packungsmuster","tl.kitsub":"Luca-S- und Partnerpackungen, per QR oder Code","tl.scan":"Papiervorlage scannen","tl.scansub":"Fotos oder PDF einer gedruckten Vorlage","tl.up":"Vorlagendatei hochladen","tl.upsub":"PDF, OXS, .pat oder .ptly","tl.bk":"Sicherung wiederherstellen","tl.bksub":"Eine in Patternly gespeicherte Sicherung","tl.new":"Neu hier?","tl.guide":"Anleitung lesen","tl.empty":"Noch keine Muster","tl.emptysub":"Tippe auf Hinzufügen, um eine Packung zu öffnen, eine Vorlage zu scannen oder hochzuladen.","tl.nomatch":"Hier ist noch nichts."},
-    nl:{"tl.title":"Steekvolger","tl.add":"Toevoegen","tl.all":"Alles","tl.prog":"Bezig","tl.fin":"Klaar","tl.sheet":"Patroon toevoegen om te volgen","tl.kit":"Pakketpatroon","tl.kitsub":"Luca-S- en partnerpakketten, via QR of code","tl.scan":"Papieren patroon scannen","tl.scansub":"Foto's of PDF van een geprint patroon","tl.up":"Patroonbestand uploaden","tl.upsub":"PDF, OXS, .pat of .ptly","tl.bk":"Back-up terugzetten","tl.bksub":"Een back-upbestand uit Patternly","tl.new":"Nieuw hier?","tl.guide":"Lees de gids","tl.empty":"Nog geen patronen","tl.emptysub":"Tik op Toevoegen om een pakket te openen, een patroon te scannen of te uploaden.","tl.nomatch":"Hier staat nog niets."},
-    ru:{"tl.title":"Трекер вышивки","tl.add":"Добавить","tl.all":"Все","tl.prog":"В работе","tl.fin":"Готовые","tl.sheet":"Добавить схему","tl.kit":"Схема из набора","tl.kitsub":"Наборы Luca-S и партнёров, по QR или коду","tl.scan":"Сканировать бумажную схему","tl.scansub":"Фото или PDF печатной схемы","tl.up":"Загрузить файл схемы","tl.upsub":"PDF, OXS, .pat или .ptly","tl.bk":"Восстановить из копии","tl.bksub":"Файл резервной копии Patternly","tl.new":"Впервые здесь?","tl.guide":"Прочитать руководство","tl.empty":"Пока нет схем","tl.emptysub":"Нажмите «Добавить», чтобы открыть набор, отсканировать или загрузить схему.","tl.nomatch":"Здесь пока ничего нет."},
-    uk:{"tl.title":"Трекер вишивки","tl.add":"Додати","tl.all":"Усі","tl.prog":"У роботі","tl.fin":"Готові","tl.sheet":"Додати схему","tl.kit":"Схема з набору","tl.kitsub":"Набори Luca-S і партнерів, за QR або кодом","tl.scan":"Сканувати паперову схему","tl.scansub":"Фото або PDF друкованої схеми","tl.up":"Завантажити файл схеми","tl.upsub":"PDF, OXS, .pat або .ptly","tl.bk":"Відновити з копії","tl.bksub":"Файл резервної копії Patternly","tl.new":"Уперше тут?","tl.guide":"Прочитати посібник","tl.empty":"Поки немає схем","tl.emptysub":"Натисніть «Додати», щоб відкрити набір, відсканувати або завантажити схему.","tl.nomatch":"Тут поки нічого немає."},
-    es:{"tl.title":"Seguimiento de puntadas","tl.add":"Añadir","tl.all":"Todos","tl.prog":"En curso","tl.fin":"Terminados","tl.sheet":"Añadir un patrón para seguir","tl.kit":"Patrón de un kit","tl.kitsub":"Kits de Luca-S y marcas socias, por QR o código","tl.scan":"Escanear un patrón en papel","tl.scansub":"Fotos o PDF de un patrón impreso","tl.up":"Subir un archivo","tl.upsub":"PDF, OXS, .pat o .ptly","tl.bk":"Restaurar una copia","tl.bksub":"Un archivo de copia de Patternly","tl.new":"¿Nuevo aquí?","tl.guide":"Lee la guía","tl.empty":"Aún no hay patrones","tl.emptysub":"Toca Añadir para abrir un kit, escanear o subir un patrón.","tl.nomatch":"Aquí aún no hay nada."},
-    it:{"tl.title":"Tracker dei punti","tl.add":"Aggiungi","tl.all":"Tutti","tl.prog":"In corso","tl.fin":"Finiti","tl.sheet":"Aggiungi uno schema da seguire","tl.kit":"Schema di un kit","tl.kitsub":"Kit Luca-S e dei partner, con QR o codice","tl.scan":"Scansiona uno schema cartaceo","tl.scansub":"Foto o PDF di uno schema stampato","tl.up":"Carica un file","tl.upsub":"PDF, OXS, .pat o .ptly","tl.bk":"Ripristina un backup","tl.bksub":"Un file di backup di Patternly","tl.new":"Nuovo qui?","tl.guide":"Leggi la guida","tl.empty":"Ancora nessuno schema","tl.emptysub":"Tocca Aggiungi per aprire un kit, scansionare o caricare uno schema.","tl.nomatch":"Qui non c'è ancora niente."}
+    en:{"tl.title":"Stitch Tracker","tl.add":"Add pattern","tl.all":"All","tl.prog":"In progress","tl.fin":"Finished","tl.sheet":"Add a pattern to track","tl.kit":"Kit pattern","tl.kitsub":"Luca-S and partner kits, by QR or code","tl.scan":"Scan a paper chart","tl.scansub":"Photos or PDF of a printed chart","tl.up":"Upload a chart file","tl.upsub":"PDF, OXS, .pat or .ptly","tl.bk":"Restore a backup","tl.bksub":"A backup file saved from Patternly","tl.new":"New here?","tl.guide":"Read the guide","tl.empty":"No patterns yet","tl.emptysub":"Tap Add pattern to open a kit, scan a chart or upload one.","tl.nomatch":"Nothing here yet.","tl.hidden":"Hidden","tl.hide":"Hide","tl.unhide":"Show","tl.hideall":"Hide {n} not started","tl.nohidden":"Nothing hidden. Tap the eye on a pattern to hide it."},
+    fr:{"tl.title":"Suivi de broderie","tl.add":"Ajouter","tl.all":"Tout","tl.prog":"En cours","tl.fin":"Terminés","tl.sheet":"Ajouter une grille à suivre","tl.kit":"Grille d'un kit","tl.kitsub":"Kits Luca-S et partenaires, par QR ou code","tl.scan":"Scanner une grille papier","tl.scansub":"Photos ou PDF d'une grille imprimée","tl.up":"Importer un fichier","tl.upsub":"PDF, OXS, .pat ou .ptly","tl.bk":"Restaurer une sauvegarde","tl.bksub":"Un fichier de sauvegarde Patternly","tl.new":"Nouveau ici ?","tl.guide":"Lire le guide","tl.empty":"Aucune grille pour l'instant","tl.emptysub":"Touchez Ajouter pour ouvrir un kit, scanner ou importer une grille.","tl.nomatch":"Rien ici pour l'instant.","tl.hidden":"Masqués","tl.hide":"Masquer","tl.unhide":"Afficher","tl.hideall":"Masquer {n} non commencés","tl.nohidden":"Rien de masqué. Touchez l’œil d’une grille pour la masquer."},
+    de:{"tl.title":"Stich-Tracker","tl.add":"Hinzufügen","tl.all":"Alle","tl.prog":"In Arbeit","tl.fin":"Fertig","tl.sheet":"Muster zum Verfolgen hinzufügen","tl.kit":"Packungsmuster","tl.kitsub":"Luca-S- und Partnerpackungen, per QR oder Code","tl.scan":"Papiervorlage scannen","tl.scansub":"Fotos oder PDF einer gedruckten Vorlage","tl.up":"Vorlagendatei hochladen","tl.upsub":"PDF, OXS, .pat oder .ptly","tl.bk":"Sicherung wiederherstellen","tl.bksub":"Eine in Patternly gespeicherte Sicherung","tl.new":"Neu hier?","tl.guide":"Anleitung lesen","tl.empty":"Noch keine Muster","tl.emptysub":"Tippe auf Hinzufügen, um eine Packung zu öffnen, eine Vorlage zu scannen oder hochzuladen.","tl.nomatch":"Hier ist noch nichts.","tl.hidden":"Ausgeblendet","tl.hide":"Ausblenden","tl.unhide":"Anzeigen","tl.hideall":"{n} nicht begonnene ausblenden","tl.nohidden":"Nichts ausgeblendet. Tippe auf das Auge eines Musters, um es auszublenden."},
+    nl:{"tl.title":"Steekvolger","tl.add":"Toevoegen","tl.all":"Alles","tl.prog":"Bezig","tl.fin":"Klaar","tl.sheet":"Patroon toevoegen om te volgen","tl.kit":"Pakketpatroon","tl.kitsub":"Luca-S- en partnerpakketten, via QR of code","tl.scan":"Papieren patroon scannen","tl.scansub":"Foto's of PDF van een geprint patroon","tl.up":"Patroonbestand uploaden","tl.upsub":"PDF, OXS, .pat of .ptly","tl.bk":"Back-up terugzetten","tl.bksub":"Een back-upbestand uit Patternly","tl.new":"Nieuw hier?","tl.guide":"Lees de gids","tl.empty":"Nog geen patronen","tl.emptysub":"Tik op Toevoegen om een pakket te openen, een patroon te scannen of te uploaden.","tl.nomatch":"Hier staat nog niets.","tl.hidden":"Verborgen","tl.hide":"Verbergen","tl.unhide":"Tonen","tl.hideall":"{n} niet begonnen verbergen","tl.nohidden":"Niets verborgen. Tik op het oog bij een patroon om het te verbergen."},
+    ru:{"tl.title":"Трекер вышивки","tl.add":"Добавить","tl.all":"Все","tl.prog":"В работе","tl.fin":"Готовые","tl.sheet":"Добавить схему","tl.kit":"Схема из набора","tl.kitsub":"Наборы Luca-S и партнёров, по QR или коду","tl.scan":"Сканировать бумажную схему","tl.scansub":"Фото или PDF печатной схемы","tl.up":"Загрузить файл схемы","tl.upsub":"PDF, OXS, .pat или .ptly","tl.bk":"Восстановить из копии","tl.bksub":"Файл резервной копии Patternly","tl.new":"Впервые здесь?","tl.guide":"Прочитать руководство","tl.empty":"Пока нет схем","tl.emptysub":"Нажмите «Добавить», чтобы открыть набор, отсканировать или загрузить схему.","tl.nomatch":"Здесь пока ничего нет.","tl.hidden":"Скрытые","tl.hide":"Скрыть","tl.unhide":"Показать","tl.hideall":"Скрыть {n} не начатых","tl.nohidden":"Ничего не скрыто. Нажмите на глаз у схемы, чтобы скрыть её."},
+    uk:{"tl.title":"Трекер вишивки","tl.add":"Додати","tl.all":"Усі","tl.prog":"У роботі","tl.fin":"Готові","tl.sheet":"Додати схему","tl.kit":"Схема з набору","tl.kitsub":"Набори Luca-S і партнерів, за QR або кодом","tl.scan":"Сканувати паперову схему","tl.scansub":"Фото або PDF друкованої схеми","tl.up":"Завантажити файл схеми","tl.upsub":"PDF, OXS, .pat або .ptly","tl.bk":"Відновити з копії","tl.bksub":"Файл резервної копії Patternly","tl.new":"Уперше тут?","tl.guide":"Прочитати посібник","tl.empty":"Поки немає схем","tl.emptysub":"Натисніть «Додати», щоб відкрити набір, відсканувати або завантажити схему.","tl.nomatch":"Тут поки нічого немає.","tl.hidden":"Приховані","tl.hide":"Приховати","tl.unhide":"Показати","tl.hideall":"Приховати {n} не розпочатих","tl.nohidden":"Нічого не приховано. Торкніться ока біля схеми, щоб приховати її."},
+    es:{"tl.title":"Seguimiento de puntadas","tl.add":"Añadir","tl.all":"Todos","tl.prog":"En curso","tl.fin":"Terminados","tl.sheet":"Añadir un patrón para seguir","tl.kit":"Patrón de un kit","tl.kitsub":"Kits de Luca-S y marcas socias, por QR o código","tl.scan":"Escanear un patrón en papel","tl.scansub":"Fotos o PDF de un patrón impreso","tl.up":"Subir un archivo","tl.upsub":"PDF, OXS, .pat o .ptly","tl.bk":"Restaurar una copia","tl.bksub":"Un archivo de copia de Patternly","tl.new":"¿Nuevo aquí?","tl.guide":"Lee la guía","tl.empty":"Aún no hay patrones","tl.emptysub":"Toca Añadir para abrir un kit, escanear o subir un patrón.","tl.nomatch":"Aquí aún no hay nada.","tl.hidden":"Ocultos","tl.hide":"Ocultar","tl.unhide":"Mostrar","tl.hideall":"Ocultar {n} sin empezar","tl.nohidden":"Nada oculto. Toca el ojo de un patrón para ocultarlo."},
+    it:{"tl.title":"Tracker dei punti","tl.add":"Aggiungi","tl.all":"Tutti","tl.prog":"In corso","tl.fin":"Finiti","tl.sheet":"Aggiungi uno schema da seguire","tl.kit":"Schema di un kit","tl.kitsub":"Kit Luca-S e dei partner, con QR o codice","tl.scan":"Scansiona uno schema cartaceo","tl.scansub":"Foto o PDF di uno schema stampato","tl.up":"Carica un file","tl.upsub":"PDF, OXS, .pat o .ptly","tl.bk":"Ripristina un backup","tl.bksub":"Un file di backup di Patternly","tl.new":"Nuovo qui?","tl.guide":"Leggi la guida","tl.empty":"Ancora nessuno schema","tl.emptysub":"Tocca Aggiungi per aprire un kit, scansionare o caricare uno schema.","tl.nomatch":"Qui non c'è ancora niente.","tl.hidden":"Nascosti","tl.hide":"Nascondi","tl.unhide":"Mostra","tl.hideall":"Nascondi {n} non iniziati","tl.nohidden":"Niente di nascosto. Tocca l’occhio di uno schema per nasconderlo."}
   };
   try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
   function tx(k){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; return s; }
   function app(){ return document.body.classList.contains('ptly-appui'); }
   var filter='all', head, foot, empty;
+  // v712: hide patterns from the list (this device only; nothing is deleted or synced)
+  var HK='ptly_tl_hidden', hidden={};
+  try{ hidden=JSON.parse(localStorage.getItem(HK)||'{}')||{}; }catch(e){ hidden={}; }
+  function saveHidden(){ try{ localStorage.setItem(HK, JSON.stringify(hidden)); }catch(e){} }
+  function keyOf(c){
+    if(c.dataset.sku) return 'k:'+c.dataset.sku;
+    if(c.dataset.id) return 'p:'+c.dataset.id;
+    var h=c.querySelector('h4'); return h ? 'c:'+h.textContent.trim() : '';
+  }
+  function notStarted(c){ return !!c.dataset.sku && !c.dataset.id && !c.querySelector('button.del') && pct(c)<=0; }
+  var EYE='<svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  var EYEOFF='<svg viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.1M6.6 6.6C3.9 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+  function hideBtn(c, k){
+    var r=c;   // on the card itself: the app list hides each card's button row
+    var b=r.querySelector(':scope > .pltl-hide');
+    if(!b){ b=document.createElement('button'); b.type='button'; b.className='pltl-hide';
+      b.addEventListener('click',function(e){ e.stopPropagation(); var kk=keyOf(c); if(!kk) return; if(hidden[kk]) delete hidden[kk]; else hidden[kk]=Date.now(); saveHidden(); apply(); });
+      r.appendChild(b); }
+    var isH=!!hidden[k], lab=isH?tx('tl.unhide'):tx('tl.hide');
+    if(b._s!==lab){ b._s=lab; b.innerHTML=(isH?EYE:EYEOFF)+'<span>'+lab+'</span>'; b.title=lab; b.setAttribute('aria-label',lab); }
+  }
   var IC={
     kit:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M20 20h.01M17 20v.01"/>',
     scan:'<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/>',
@@ -38376,18 +38407,35 @@ body.dark #pltl-sheet .ic.r{background:#3a2028;color:#e0a9b4}body.dark #pltl-she
   function sheet(on){ document.body.classList.toggle('pltl-sheet',!!on); }
   function pct(card){ var b=card.querySelector('.trk-pbar>div'); if(!b) return -1; var w=parseFloat(b.style.width); return isNaN(w)?-1:w; }
   function apply(){
-    var cards=document.querySelectorAll('#trk-projects .trk-cardgrid > .trk-pcard'), shown=0;
+    var cards=document.querySelectorAll('#trk-projects .trk-cardgrid > .trk-pcard'), shown=0, nHid=0, nNew=0;
     cards.forEach(function(c){
       if(c.classList.contains('new')){ c.classList.add('pltl-off'); return; }
-      var p=pct(c), off=false;
-      if(filter==='prog') off=(p>=100); else if(filter==='fin') off=(p<100);
+      var p=pct(c), off=false, k=keyOf(c), isH=!!(k && hidden[k]);
+      if(isH) nHid++;
+      if(!isH && notStarted(c)) nNew++;
+      hideBtn(c,k);
+      if(filter==='hid') off=!isH;
+      else if(isH) off=true;
+      else if(filter==='prog') off=(p>=100); else if(filter==='fin') off=(p<100);
       c.classList.toggle('pltl-off',off); if(!off) shown++;
       if(!c._pltl){ c._pltl=1; c.addEventListener('click',function(e){
         if(!document.body.classList.contains('pltl-home')) return;
         if(e.target.closest('button,a,input')) return;
         var o=c.querySelector('button.open'); if(o) o.click(); }); }
     });
-    var none=!cards.length || !shown, h=!cards.length ? '<b>'+tx('tl.empty')+'</b><span>'+tx('tl.emptysub')+'</span>' : '<span>'+tx('tl.nomatch')+'</span>';
+    // A section whose cards are all filtered out (e.g. every owned kit hidden) drops its heading too
+    ['trk-kits-section','trk-uploads-section'].forEach(function(id){
+      var sec=document.getElementById(id); if(!sec) return;
+      var cs=sec.querySelectorAll('.trk-cardgrid > .trk-pcard:not(.new)'), vis=0;
+      cs.forEach(function(c){ if(!c.classList.contains('pltl-off')) vis++; });
+      var off=cs.length>0 && vis===0;
+      if(sec.classList.contains('pltl-secoff')!==off) sec.classList.toggle('pltl-secoff',off);
+    });
+    var hc=head && head.querySelector('#pltl-chips [data-f="hid"]');
+    if(hc){ var ht=tx('tl.hidden')+' ('+nHid+')'; if(hc.textContent!==ht) hc.textContent=ht; var hv=(nHid>0||filter==='hid'); if(hc.hidden===hv) hc.hidden=!hv; }
+    var ha=head && head.querySelector('#pltl-hideall');
+    if(ha){ var hv2=(filter==='all'||filter==='prog') && nNew>=2; if(ha.hidden===hv2) ha.hidden=!hv2; var at=tx('tl.hideall').replace('{n}',nNew); if(ha.textContent!==at) ha.textContent=at; }
+    var none=!cards.length || !shown, h=!cards.length ? '<b>'+tx('tl.empty')+'</b><span>'+tx('tl.emptysub')+'</span>' : (filter==='hid' ? '<span>'+tx('tl.nohidden')+'</span>' : '<span>'+tx('tl.nomatch')+'</span>');
     if(document.body.classList.contains('pltl-none')!==none) document.body.classList.toggle('pltl-none',none);
     if(empty._h!==h){ empty._h=h; empty.innerHTML=h; }   // guarded: this node sits inside the observed list
   }
@@ -38407,7 +38455,8 @@ body.dark #pltl-sheet .ic.r{background:#3a2028;color:#e0a9b4}body.dark #pltl-she
     var up=document.getElementById('trk-upload'), pr=document.getElementById('trk-projects'); if(!up||!pr) return;
     head=document.createElement('div'); head.id='pltl-head';
     head.innerHTML='<div class="r1"><h1></h1><button type="button" id="pltl-add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span></span></button></div>'
-      +'<div id="pltl-chips" role="group"><button type="button" data-f="all" aria-pressed="true"></button><button type="button" data-f="prog" aria-pressed="false"></button><button type="button" data-f="fin" aria-pressed="false"></button></div>';
+      +'<div id="pltl-chips" role="group"><button type="button" data-f="all" aria-pressed="true"></button><button type="button" data-f="prog" aria-pressed="false"></button><button type="button" data-f="fin" aria-pressed="false"></button><button type="button" data-f="hid" aria-pressed="false" hidden></button></div>'
+      +'<button type="button" id="pltl-hideall" hidden></button>';
     up.insertBefore(head, up.firstChild);
     empty=document.createElement('div'); empty.id='pltl-empty'; pr.insertBefore(empty, pr.firstChild);
     var st=document.getElementById('trk-streak'); if(st && st.parentNode===pr) pr.insertBefore(st, pr.firstChild);
@@ -38418,6 +38467,9 @@ body.dark #pltl-sheet .ic.r{background:#3a2028;color:#e0a9b4}body.dark #pltl-she
     head.querySelector('#pltl-add').onclick=function(){ sheet(true); };
     head.querySelectorAll('#pltl-chips button').forEach(function(b){ b.onclick=function(){
       filter=b.getAttribute('data-f'); head.querySelectorAll('#pltl-chips button').forEach(function(x){ x.setAttribute('aria-pressed', x===b?'true':'false'); }); apply(); }; });
+    head.querySelector('#pltl-hideall').onclick=function(){
+      document.querySelectorAll('#trk-projects .trk-cardgrid > .trk-pcard').forEach(function(c){ if(c.classList.contains('new')) return; var k=keyOf(c); if(k && !hidden[k] && notStarted(c)) hidden[k]=Date.now(); });
+      saveHidden(); apply(); };
     foot.addEventListener('click',function(e){ if(e.target.closest('a')){ e.preventDefault(); try{ openTrackerGuide(); }catch(_){} } });
     sc.onclick=function(){ sheet(false); };
     sh.addEventListener('click',function(e){ var r=e.target.closest('[data-go]'); if(r) go(r.getAttribute('data-go')); });
