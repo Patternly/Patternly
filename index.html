@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v706';
+window.PATTERNLY_BUILD='v709';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -26638,6 +26638,7 @@ trkCanvas.addEventListener('pointerdown', e=>{
   }
   const cell=trkCellAt(e); if(!cell) return;
   if(trkPickArm){ e.preventDefault(); trkPickAt(cell); return; }
+  if(typeof window.plParkTapAt==='function' && window.plParkTapAt(cell,e)){ e.preventDefault(); return; }   // v708: parking mode takes the tap
   if(trkMode==='mark' || trkMode==='erase'){
     trkCanvas.setPointerCapture(e.pointerId);
     trkStrokeBegin();
@@ -27288,14 +27289,17 @@ function updateTrackerProgressUI(){
       if(ms && ms>300000 && totalDone>200){
         const perMs=totalDone/ms, mins=Math.round(left/perMs/60000);
         if(mins>0 && mins<100000){
+          // v707: always in stitching hours. "~5d" read as five calendar
+          // days when it meant 120 hours of non-stop stitching; the
+          // calendar-style estimate is the pace line below.
           extra = mins<90 ? ' · '+trkT('pg.mleft',{n:mins})
-                : mins<1440 ? ' · '+trkT('pg.hleft',{n:Math.round(mins/60)})
-                : ' · '+trkT('pg.dleft',{n:Math.round(mins/1440)});
+                : ' · '+trkT('pg.hleft',{n:Math.round(mins/60).toLocaleString()});
         }
       }
     }
+    const paceHtml=(left>0 && typeof window.plPaceLine==='function')?window.plPaceLine(left):'';   // v707
     el.innerHTML=`${totalDone.toLocaleString()} / ${totalAll.toLocaleString()} · ${pct}%`
-      + (left>0?`<span style="display:block;font-weight:400;font-size:.72rem;color:var(--lp-muted,#7d6b72);margin-top:.1rem">${left.toLocaleString()} ${trkT('pg.togo')}${extra}</span>`:
+      + (left>0?`<span style="display:block;font-weight:400;font-size:.72rem;color:var(--lp-muted,#7d6b72);margin-top:.1rem">${left.toLocaleString()} ${trkT('pg.togo')}${extra}</span>${paceHtml}`:
                 `<span style="display:block;font-weight:700;font-size:.72rem;color:#2E7D32;margin-top:.1rem">${trkT('pg.finished')}</span>`);
   })();
   trkUpdateIndexProgress(totalDone);
@@ -37624,7 +37628,7 @@ body.dark #pal-shop-btn,body.dark #outline-btn{background:#2f2540!important;colo
   <div class="ps-card">
     <div class="ps-head"><div><h3 id="ps-title">Thread shopping list</h3><p id="ps-sub"></p></div><button type="button" class="ps-x" id="ps-x" aria-label="Close">✕</button></div>
     <div class="ps-sum"><div class="need"><b id="ps-need">0</b><span id="ps-need-l">skeins to buy</span></div><div class="have"><b id="ps-have">0</b><span>colours you have</span></div><div><b id="ps-tot">0</b><span>colours in total</span></div></div>
-    <div class="ps-bar"><span class="ps-seg" id="ps-filter"><button type="button" data-v="all" class="on">All</button><button type="button" data-v="need">To buy</button><button type="button" data-v="have">Have</button></span><button type="button" class="ps-all" id="ps-clear">Clear ticks</button></div>
+    <div class="ps-bar"><span class="ps-seg" id="ps-filter"><button type="button" data-v="all" class="on">All</button><button type="button" data-v="need">To buy</button><button type="button" data-v="have">Have</button></span><button type="button" class="ps-all" id="ps-clear">Clear ticks</button><button type="button" class="ps-all ps-stash" id="ps-stash">My threads ›</button></div>
     <div class="ps-list" id="ps-list"></div>
     <div class="ps-note" id="ps-note"></div>
     <div class="ps-foot"><button type="button" class="pri" id="ps-share">Share</button><button type="button" id="ps-copy">Copy</button><button type="button" id="ps-csv">CSV</button><button type="button" id="ps-pdf">PDF</button></div>
@@ -37639,8 +37643,14 @@ body.dark #pal-shop-btn,body.dark #outline-btn{background:#2f2540!important;colo
   const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   // "Have" ticks are a stash per thread (brand SKU), shared by every
   // pattern's list on this device: tick DMC 310 once and every list knows.
-  function loadHave(){ try{ const o=JSON.parse(localStorage.getItem(STORE)||'{}'); return (o&&o.h)||{}; }catch(e){ return {}; } }
-  function saveHave(h){ try{ localStorage.setItem(STORE, JSON.stringify({h})); }catch(e){} }
+  // v709: the same store also holds My Threads: c = skeins owned per thread
+  // (when the stitcher counted them) and m = label/colour for the list. A
+  // count, when there is one, decides "enough"; a plain tick (h) means enough.
+  function loadStore(){ try{ const o=JSON.parse(localStorage.getItem(STORE)||'{}')||{}; return {h:o.h||{},c:o.c||{},m:o.m||{}}; }catch(e){ return {h:{},c:{},m:{}}; } }
+  function saveStore(o){ try{ localStorage.setItem(STORE, JSON.stringify(o)); }catch(e){} try{ window.dispatchEvent(new Event('pl-stash')); }catch(e){} }
+  function loadHave(){ return loadStore().h; }
+  function saveHave(h){ const o=loadStore(); o.h=h; Object.keys(o.c).forEach(k=>{ if(!h[k]) delete o.c[k]; }); saveStore(o); }
+  function ownedOf(k){ const c=loadStore().c[k]; return c==null?null:+c; }
   // Rows → one row per real thread. A blend row ({parts:[a,b]}) uses one
   // strand of each thread instead of two of one, so each part gets half its
   // thread length and is merged with the same thread used on its own.
@@ -37663,17 +37673,28 @@ body.dark #pal-shop-btn,body.dark #outline-btn{background:#2f2540!important;colo
     return rows.sort((a,b)=>String(a.code||a.label).localeCompare(String(b.code||b.label),undefined,{numeric:true}));
   }
   const fmtM=m=>m>=10?Math.round(m)+' m':m>=1?m.toFixed(1)+' m':Math.max(1,Math.round(m*100))+' cm';
-  function haveSet(){ return loadHave(); }
-  function setHave(k,on){ const h=loadHave(); if(on) h[k]=1; else delete h[k]; saveHave(h); }
+  // key → 1 for threads this pattern needs no more of
+  function haveSet(){
+    const o=loadStore(), out={};
+    (cur?cur.rows:[]).forEach(r=>{ const c=o.c[r.key]; if(c!=null ? +c>=r.skeins : o.h[r.key]) out[r.key]=1; });
+    return out;
+  }
+  function setHave(k,on,row){
+    const o=loadStore();
+    if(on){ o.h[k]=1; if(o.c[k]!=null && row && +o.c[k]<row.skeins) o.c[k]=row.skeins; if(row) o.m[k]={l:row.label,r:row.r,g:row.g,b:row.b}; }
+    else { delete o.h[k]; delete o.c[k]; }
+    saveStore(o);
+  }
   function paint(){
     const have=haveSet(), rows=cur.rows;
     let need=0, got=0;
-    rows.forEach(r=>{ if(have[r.key]) got++; else need+=r.skeins; });
+    rows.forEach(r=>{ if(have[r.key]) got++; else need+=r.skeins-Math.min(r.skeins,Math.max(0,ownedOf(r.key)||0)); });
     $('ps-need').textContent=need; $('ps-need-l').textContent=need===1?'skein to buy':'skeins to buy';
     $('ps-have').textContent=got; $('ps-tot').textContent=rows.length;
     const show=rows.filter(r=>filter==='all'||(filter==='have')===!!have[r.key]);
     $('ps-list').innerHTML=show.length? show.map(r=>{
-      const sub=[r.stitches?r.stitches.toLocaleString()+' stitches':'', r.blend?('incl. '+r.blend.toLocaleString()+' in blends'):'', r.metres?'≈ '+fmtM(r.metres):''].filter(Boolean).join(' · ');
+      const own=ownedOf(r.key), short=!have[r.key] && own>0;
+      const sub=[r.stitches?r.stitches.toLocaleString()+' stitches':'', r.blend?('incl. '+r.blend.toLocaleString()+' in blends'):'', r.metres?'≈ '+fmtM(r.metres):'', short?('you have '+own+', buy '+(r.skeins-own)+' more'):''].filter(Boolean).join(' · ');
       return `<div class="ps-row${have[r.key]?' got':''}" data-k="${esc(r.key)}"><span class="ps-sw" style="background:rgb(${r.r},${r.g},${r.b})"></span><span class="ps-txt"><b>${esc(r.label)}</b><span>${esc(sub)}</span></span><span class="ps-qty">${r.skeins}<small>skein${r.skeins>1?'s':''}</small></span><button type="button" class="ps-have" aria-pressed="${have[r.key]?'true':'false'}"><i>${have[r.key]?'✓':''}</i>Have</button></div>`;
     }).join('') : `<div class="ps-empty">${filter==='have'?'Tick the threads you already have.':filter==='need'?'You have every thread for this pattern 🎉':'No threads in this pattern yet.'}</div>`;
     $('ps-clear').style.visibility=got?'visible':'hidden';
@@ -37682,7 +37703,7 @@ body.dark #pal-shop-btn,body.dark #outline-btn{background:#2f2540!important;colo
     const have=haveSet();
     const need=cur.rows.filter(r=>!have[r.key]);
     const lines=[cur.title+' — threads to buy ('+cur.brand+')'];
-    need.forEach(r=>lines.push('☐ '+r.label+' — '+r.skeins+' skein'+(r.skeins>1?'s':'')));
+    need.forEach(r=>{ const n=r.skeins-Math.min(r.skeins,Math.max(0,ownedOf(r.key)||0)); lines.push('☐ '+r.label+' — '+n+' skein'+(n>1?'s':'')); });
     if(!need.length) lines.push('Nothing to buy, you have every thread.');
     lines.push('', 'Made with Patternly');
     return lines.join('\n');
@@ -37719,7 +37740,7 @@ body.dark #pal-shop-btn,body.dark #outline-btn{background:#2f2540!important;colo
     const m=15; let y=m+2;
     doc.setFont(undefined,'bold'); doc.setFontSize(15); doc.setTextColor(30,25,32);
     doc.text(String(cur.title).slice(0,60)+' — thread shopping list', m, y); y+=7;
-    const need=cur.rows.filter(r=>!have[r.key]).reduce((s,r)=>s+r.skeins,0);
+    const need=cur.rows.filter(r=>!have[r.key]).reduce((s,r)=>s+r.skeins-Math.min(r.skeins,Math.max(0,ownedOf(r.key)||0)),0);
     doc.setFont(undefined,'normal'); doc.setFontSize(9.5); doc.setTextColor(120,105,112);
     doc.text(cur.brand+'  ·  '+cur.rows.length+' colours  ·  '+need+' skeins to buy'+(cur.note?'  ·  '+cur.note:''), m, y); y+=9;
     doc.setFontSize(8.5); doc.setTextColor(90,80,86);
@@ -37759,8 +37780,11 @@ body.dark #pal-shop-btn,body.dark #outline-btn{background:#2f2540!important;colo
   $('ps-list').addEventListener('click',e=>{
     const b=e.target.closest('.ps-have'); if(!b||!cur) return;
     const k=b.closest('.ps-row').dataset.k, on=!haveSet()[k];
-    setHave(k,on); paint();
+    setHave(k,on,cur.rows.find(r=>r.key===k)); paint();
   });
+  // v709: My Threads (the whole stash) opens over the list; the list repaints when it changes
+  $('ps-stash').addEventListener('click',()=>{ if(typeof window.plStashOpen==='function') window.plStashOpen(); });
+  window.addEventListener('pl-stash',()=>{ if(cur && root.classList.contains('on')) paint(); });
   $('ps-filter').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; filter=b.dataset.v; $('ps-filter').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); paint(); });
   $('ps-clear').addEventListener('click',()=>{ const h=loadHave(); cur.rows.forEach(r=>delete h[r.key]); saveHave(h); paint(); });
   $('ps-copy').addEventListener('click',copy);
@@ -40671,5 +40695,687 @@ body.pps-on #sidebar .pps-card .row-label{font-size:.72rem;color:#8a7a7e;margin:
   body.dark.ptly-appui.app-mode #ped-recent button.on{box-shadow:0 0 0 2.5px #f0b3c0}
 }
 </style>
+<style id="ppc-style">
+/* v707: finish estimate under the tracker progress + stitching calendar sheet */
+#trk-overall .ppc-pace{display:block;font-weight:400;font-size:.72rem;color:var(--lp-muted,#7d6b72);margin-top:.15rem}
+#trk-overall .ppc-pace b{font-weight:700;color:var(--lp-red,#8B1A2B)}
+body.dark #trk-overall .ppc-pace b{color:#f0b3c0}
+.trk-streak .ts-cal{flex:0 0 auto;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;border:1.5px solid #ead7dc;background:#fff;color:var(--lp-red,#8B1A2B);cursor:pointer;padding:0}
+.trk-streak .ts-cal svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.trk-streak .ts-days{cursor:pointer}
+body.dark .trk-streak .ts-cal{background:#2a2226;border-color:#4a3a40;color:#f0b3c0}
+#ppc-ov{position:fixed;inset:0;z-index:100050;background:rgba(30,12,20,.45);display:flex;align-items:flex-end;justify-content:center;opacity:0;transition:opacity .18s}
+#ppc-ov.on{opacity:1}
+@media(min-width:640px){#ppc-ov{align-items:center}}
+#ppc-card{width:100%;max-width:420px;max-height:92vh;overflow:auto;background:#fff;color:#2b2226;border-radius:22px 22px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom,0px));box-shadow:0 -10px 40px rgba(60,20,30,.2);transform:translateY(24px);transition:transform .2s}
+#ppc-ov.on #ppc-card{transform:none}
+@media(min-width:640px){#ppc-card{border-radius:22px;padding-bottom:18px}}
+#ppc-card .ppc-hd{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+#ppc-card .ppc-hd h3{flex:1;margin:0;font-size:1.05rem;font-weight:800}
+#ppc-card .ppc-x{width:34px;height:34px;border-radius:50%;border:0;background:#f5eef0;color:#5a4a50;font-size:1rem;cursor:pointer}
+#ppc-card .ppc-nav{display:flex;align-items:center;gap:8px;margin:2px 0 10px}
+#ppc-card .ppc-nav b{flex:1;text-align:center;font-size:.95rem;text-transform:capitalize}
+#ppc-card .ppc-nav button{width:36px;height:36px;border-radius:50%;border:1.5px solid #ead7dc;background:#fff;color:#8B1A2B;font-size:1.1rem;cursor:pointer}
+#ppc-card .ppc-nav button:disabled{opacity:.35;cursor:default}
+#ppc-card .ppc-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+#ppc-card .ppc-wd{text-align:center;font-size:.68rem;font-weight:700;color:#9a8890;text-transform:uppercase;padding-bottom:2px}
+#ppc-card .ppc-d{aspect-ratio:1;border-radius:10px;border:0;background:#f6f0f2;color:#6d5c63;font:inherit;font-size:.78rem;font-weight:600;cursor:pointer;padding:0;position:relative}
+#ppc-card .ppc-d.e{background:none;cursor:default}
+#ppc-card .ppc-d.l1{background:#f7d3db;color:#5a1622}
+#ppc-card .ppc-d.l2{background:#e996a8;color:#4a0f1b}
+#ppc-card .ppc-d.l3{background:#c9475f;color:#fff}
+#ppc-card .ppc-d.l4{background:#8B1A2B;color:#fff}
+#ppc-card .ppc-d.today{box-shadow:0 0 0 2px #fff,0 0 0 3.5px #8B1A2B}
+#ppc-card .ppc-d.sel{outline:2.5px solid #2b2226;outline-offset:1px}
+#ppc-card .ppc-d.fut{opacity:.45;cursor:default}
+#ppc-card .ppc-sum{display:flex;gap:8px;margin:12px 0 8px}
+#ppc-card .ppc-sum div{flex:1;background:#fbf6f7;border-radius:14px;padding:8px 10px}
+#ppc-card .ppc-sum b{display:block;font-size:1.05rem}
+#ppc-card .ppc-sum span{display:block;font-size:.7rem;color:#9a8890}
+#ppc-card .ppc-day{min-height:2.6em;font-size:.82rem;color:#5a4a50;line-height:1.4;background:#fbf6f7;border-radius:14px;padding:8px 10px}
+#ppc-card .ppc-day b{color:#2b2226}
+#ppc-card .ppc-key{display:flex;align-items:center;justify-content:flex-end;gap:4px;font-size:.68rem;color:#9a8890;margin-top:8px}
+#ppc-card .ppc-key i{width:12px;height:12px;border-radius:3px;display:inline-block;background:#f6f0f2}
+#ppc-card .ppc-key i.l1{background:#f7d3db}#ppc-card .ppc-key i.l2{background:#e996a8}#ppc-card .ppc-key i.l3{background:#c9475f}#ppc-card .ppc-key i.l4{background:#8B1A2B}
+body.dark #ppc-card{background:#1f1a2b;color:#f3e9ec;box-shadow:0 -10px 40px rgba(0,0,0,.5)}
+body.dark #ppc-card .ppc-x{background:#2c2438;color:#d9cfe0}
+body.dark #ppc-card .ppc-nav button{background:#1f1a2b;border-color:#4a3f55;color:#f0b3c0}
+body.dark #ppc-card .ppc-d{background:#2c2438;color:#bfb2c8}
+body.dark #ppc-card .ppc-d.e{background:none}
+body.dark #ppc-card .ppc-d.l1{background:#4a2633;color:#f3d9df}
+body.dark #ppc-card .ppc-d.l2{background:#7a2c40;color:#fff}
+body.dark #ppc-card .ppc-d.l3{background:#b23a55;color:#fff}
+body.dark #ppc-card .ppc-d.l4{background:#e0607c;color:#1f1a2b}
+body.dark #ppc-card .ppc-d.today{box-shadow:0 0 0 2px #1f1a2b,0 0 0 3.5px #f0b3c0}
+body.dark #ppc-card .ppc-d.sel{outline-color:#f3e9ec}
+body.dark #ppc-card .ppc-sum div,body.dark #ppc-card .ppc-day{background:#2c2438;color:#d9cfe0}
+body.dark #ppc-card .ppc-day b{color:#fff}
+body.dark #ppc-card .ppc-key i{background:#2c2438}
+body.dark #ppc-card .ppc-key i.l1{background:#4a2633}body.dark #ppc-card .ppc-key i.l2{background:#7a2c40}body.dark #ppc-card .ppc-key i.l3{background:#b23a55}body.dark #ppc-card .ppc-key i.l4{background:#e0607c}
+@media (prefers-reduced-motion:reduce){#ppc-ov,#ppc-card{transition:none}}
+</style>
+<script id="ppc-src">
+/* v707: finish estimate + stitching calendar.
+   Reads only what the tracker already keeps: each tracked pattern's
+   `sessions` (date -> stitches done at the end of that day) in trkIndex(),
+   plus the streak days. It never writes progress, sessions or sync data. */
+(function(){
+  var S={
+    en:{"pc.pace":"At your pace (~{a} a day): about {n} more stitching days","pc.pace1":"At your pace: about 1 more stitching day","pc.by":"finished around {d}","pc.cal":"Stitching calendar","pc.days":"stitching days","pc.stitches":"stitches","pc.best":"best day","pc.tap":"Tap a day to see what you stitched.","pc.none":"No stitching recorded on this day.","pc.some":"You stitched on this day.","pc.st":"{n} stitches","pc.less":"Less","pc.more":"More","pc.open":"Open the stitching calendar"},
+    fr:{"pc.pace":"À votre rythme (~{a} par jour) : encore environ {n} jours de broderie","pc.pace1":"À votre rythme : encore environ 1 jour de broderie","pc.by":"fini vers le {d}","pc.cal":"Calendrier de broderie","pc.days":"jours brodés","pc.stitches":"points","pc.best":"meilleur jour","pc.tap":"Touchez un jour pour voir ce que vous avez brodé.","pc.none":"Aucune broderie enregistrée ce jour-là.","pc.some":"Vous avez brodé ce jour-là.","pc.st":"{n} points","pc.less":"Moins","pc.more":"Plus","pc.open":"Ouvrir le calendrier de broderie"},
+    de:{"pc.pace":"In Ihrem Tempo (~{a} pro Tag): noch etwa {n} Stick-Tage","pc.pace1":"In Ihrem Tempo: noch etwa 1 Stick-Tag","pc.by":"fertig etwa am {d}","pc.cal":"Stick-Kalender","pc.days":"Stick-Tage","pc.stitches":"Stiche","pc.best":"bester Tag","pc.tap":"Tippen Sie auf einen Tag, um zu sehen, was Sie gestickt haben.","pc.none":"An diesem Tag wurde nichts gestickt.","pc.some":"An diesem Tag haben Sie gestickt.","pc.st":"{n} Stiche","pc.less":"Weniger","pc.more":"Mehr","pc.open":"Stick-Kalender öffnen"},
+    nl:{"pc.pace":"In jouw tempo (~{a} per dag): nog ongeveer {n} borduurdagen","pc.pace1":"In jouw tempo: nog ongeveer 1 borduurdag","pc.by":"klaar rond {d}","pc.cal":"Borduurkalender","pc.days":"borduurdagen","pc.stitches":"steken","pc.best":"beste dag","pc.tap":"Tik op een dag om te zien wat je borduurde.","pc.none":"Op deze dag is niets geborduurd.","pc.some":"Op deze dag heb je geborduurd.","pc.st":"{n} steken","pc.less":"Minder","pc.more":"Meer","pc.open":"Borduurkalender openen"},
+    ru:{"pc.pace":"В вашем темпе (~{a} в день): ещё примерно {n} дн. вышивки","pc.pace1":"В вашем темпе: ещё примерно 1 день вышивки","pc.by":"готово примерно {d}","pc.cal":"Календарь вышивки","pc.days":"дней вышивки","pc.stitches":"крестиков","pc.best":"лучший день","pc.tap":"Нажмите на день, чтобы увидеть, что вы вышили.","pc.none":"В этот день вышивки не было.","pc.some":"В этот день вы вышивали.","pc.st":"{n} крестиков","pc.less":"Меньше","pc.more":"Больше","pc.open":"Открыть календарь вышивки"},
+    uk:{"pc.pace":"У вашому темпі (~{a} на день): ще приблизно {n} дн. вишивки","pc.pace1":"У вашому темпі: ще приблизно 1 день вишивки","pc.by":"готово приблизно {d}","pc.cal":"Календар вишивки","pc.days":"днів вишивки","pc.stitches":"хрестиків","pc.best":"найкращий день","pc.tap":"Натисніть на день, щоб побачити, що ви вишили.","pc.none":"Цього дня вишивки не було.","pc.some":"Цього дня ви вишивали.","pc.st":"{n} хрестиків","pc.less":"Менше","pc.more":"Більше","pc.open":"Відкрити календар вишивки"},
+    es:{"pc.pace":"A tu ritmo (~{a} al día): unos {n} días más de bordado","pc.pace1":"A tu ritmo: más o menos 1 día más de bordado","pc.by":"terminado hacia el {d}","pc.cal":"Calendario de bordado","pc.days":"días bordando","pc.stitches":"puntadas","pc.best":"mejor día","pc.tap":"Toca un día para ver lo que bordaste.","pc.none":"No hay bordado registrado este día.","pc.some":"Este día bordaste.","pc.st":"{n} puntadas","pc.less":"Menos","pc.more":"Más","pc.open":"Abrir el calendario de bordado"},
+    it:{"pc.pace":"Al tuo ritmo (~{a} al giorno): ancora circa {n} giorni di ricamo","pc.pace1":"Al tuo ritmo: ancora circa 1 giorno di ricamo","pc.by":"finito verso il {d}","pc.cal":"Calendario del ricamo","pc.days":"giorni di ricamo","pc.stitches":"punti","pc.best":"giorno migliore","pc.tap":"Tocca un giorno per vedere cosa hai ricamato.","pc.none":"Nessun ricamo registrato in questo giorno.","pc.some":"In questo giorno hai ricamato.","pc.st":"{n} punti","pc.less":"Meno","pc.more":"Di più","pc.open":"Apri il calendario del ricamo"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k,v){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; if(v) for(var n in v) s=s.split('{'+n+'}').join(String(v[n])); return s; }
+  function loc(){ return window.PL_LANG||document.documentElement.lang||'en'; }
+  function num(n){ try{ return Number(n||0).toLocaleString(loc()); }catch(e){ return String(n||0); } }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function $(id){ return document.getElementById(id); }
+  var DAY=86400000;
+  function key(t){ return new Date(t).toISOString().slice(0,10); }   // same UTC day keys the tracker writes
+  function keyMs(k){ return Date.parse(k+'T00:00:00Z'); }
+  function index(){ try{ return (typeof trkIndex==='function')?(trkIndex()||[]):[]; }catch(e){ return []; } }
+
+  // Stitches worked per day for one pattern. A day's value is the running
+  // total at the end of that day, so a day's work is the rise since the last
+  // recorded day. The very first day has no earlier total: it only counts when
+  // it is small enough to be real stitching (not an imported backup).
+  function perDay(p){
+    var s=(p&&p.sessions)||{}, ks=Object.keys(s).filter(function(k){ return /^\d{4}-\d\d-\d\d$/.test(k); }).sort(), out=[], prev=null;
+    ks.forEach(function(k,i){
+      var v=+s[k]||0, n=null;
+      if(i===0){ if(v>0 && v<=1500) n=v; }
+      else n=Math.max(0, v-prev);
+      prev=v; out.push({d:k,n:n,first:i===0});
+    });
+    return out;
+  }
+
+  // Finish estimate for the open pattern, as one short line (HTML) or ''.
+  // Needs at least two real stitching days in the last 60 days; otherwise it
+  // stays quiet rather than guessing.
+  function paceLine(entry,left){
+    if(!entry||!(left>0)) return '';
+    var days=perDay(entry), now=Date.now(), recent=days.filter(function(x){ return x.n>0 && !x.first && now-keyMs(x.d)<=60*DAY; });
+    if(recent.length<2) return '';
+    recent=recent.slice(-10);
+    var avg=recent.reduce(function(a,x){ return a+x.n; },0)/recent.length;
+    if(!(avg>=1)) return '';
+    var n=Math.ceil(left/avg); if(n>2000) return '';
+    // how often they stitch this pattern: stitching days per week, over the
+    // last 4 weeks (or since they started, if that is shorter, min one week)
+    var all=days.filter(function(x){ return x.n>0 || x.first; }).map(function(x){ return keyMs(x.d); });
+    var since=Math.max(now-28*DAY, all.length?all[0]:now), span=Math.max(7*DAY, now-since+DAY);
+    var count=all.filter(function(t){ return t>=since-DAY; }).length;
+    var perWeek=Math.min(7, count/(span/(7*DAY)));
+    var txt = n<=1 ? tx('pc.pace1') : tx('pc.pace',{a:num(Math.round(avg)),n:'<b>'+num(n)+'</b>'});
+    if(perWeek>0){
+      var fin=new Date(now+Math.max(1,Math.round(n*7/perWeek))*DAY), opt={day:'numeric',month:'short'};
+      if(fin.getFullYear()!==new Date().getFullYear()) opt.year='numeric';
+      var ds; try{ ds=fin.toLocaleDateString(loc(),opt); }catch(e){ ds=fin.toDateString(); }
+      txt+=', '+tx('pc.by',{d:ds});
+    }
+    return '<span class="ppc-pace">'+txt+'</span>';
+  }
+  window.plPaceLine=function(left){
+    try{ var id=(typeof trackerActiveProjectKey!=='undefined')?trackerActiveProjectKey:null; return paceLine(index().find(function(p){ return p.id===id; }),left); }catch(e){ return ''; }
+  };
+
+  // ── Calendar data: every tracked pattern's days, plus streak-only days ──
+  function calData(){
+    var map={};
+    index().forEach(function(p){
+      perDay(p).forEach(function(x){
+        if(x.n===0) return;
+        var m=map[x.d]||(map[x.d]={n:0,known:false,list:[]});
+        if(x.n>0){ m.n+=x.n; m.known=true; m.list.push({name:p.name||'',n:x.n}); }
+        else m.list.push({name:p.name||'',n:null});
+      });
+    });
+    var sd=[]; try{ sd=(typeof plStreakDays==='function')?plStreakDays():[]; }catch(e){}
+    try{ if(window._plStreakSrv&&_plStreakSrv.days) sd=sd.concat(_plStreakSrv.days); }catch(e){}
+    sd.forEach(function(d){ if(/^\d{4}-\d\d-\d\d$/.test(d) && !map[d]) map[d]={n:0,known:false,list:[]}; });
+    return map;
+  }
+  var cur=null, data=null, sel=null;
+  function level(m,max){
+    if(!m) return '';
+    if(!m.known||!max) return 'l1';
+    var r=m.n/max; return r>.75?'l4':r>.4?'l3':r>.15?'l2':'l1';
+  }
+  function draw(){
+    var card=$('ppc-card'); if(!card) return;
+    var y=cur.getUTCFullYear(), mo=cur.getUTCMonth(), first=new Date(Date.UTC(y,mo,1)), dim=new Date(Date.UTC(y,mo+1,0)).getUTCDate();
+    var today=key(Date.now()), title; try{ title=first.toLocaleDateString(loc(),{month:'long',year:'numeric',timeZone:'UTC'}); }catch(e){ title=y+'-'+(mo+1); }
+    var days=0, sts=0, best=0, max=0, d, k, m;
+    for(d=1; d<=dim; d++){ k=key(Date.UTC(y,mo,d)); m=data[k]; if(m){ days++; sts+=m.n; if(m.n>best) best=m.n; if(m.n>max) max=m.n; } }
+    // Monday-first weekday names in the person's language
+    var wd=''; for(var i=0;i<7;i++){ var t=new Date(Date.UTC(2024,0,1+i)), w; try{ w=t.toLocaleDateString(loc(),{weekday:'narrow',timeZone:'UTC'}); }catch(e){ w='MTWTFSS'[i]; } wd+='<div class="ppc-wd">'+esc(w)+'</div>'; }
+    var lead=(first.getUTCDay()+6)%7, cells='';
+    for(i=0;i<lead;i++) cells+='<span class="ppc-d e"></span>';
+    for(d=1; d<=dim; d++){
+      k=key(Date.UTC(y,mo,d)); m=data[k];
+      var fut=k>today, cls='ppc-d '+level(m,max)+(k===today?' today':'')+(k===sel?' sel':'')+(fut?' fut':'');
+      cells+='<button type="button" class="'+cls+'" data-k="'+k+'"'+(fut?' disabled':'')+'>'+d+'</button>';
+    }
+    var nowM=new Date(); var atNow=(y===nowM.getUTCFullYear() && mo===nowM.getUTCMonth());
+    card.innerHTML=
+      '<div class="ppc-hd"><h3>'+esc(tx('pc.cal'))+'</h3><button type="button" class="ppc-x" aria-label="Close">✕</button></div>'+
+      '<div class="ppc-nav"><button type="button" data-m="-1" aria-label="‹">‹</button><b>'+esc(title)+'</b><button type="button" data-m="1" aria-label="›"'+(atNow?' disabled':'')+'>›</button></div>'+
+      '<div class="ppc-grid">'+wd+cells+'</div>'+
+      '<div class="ppc-key">'+esc(tx('pc.less'))+' <i></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i> '+esc(tx('pc.more'))+'</div>'+
+      '<div class="ppc-sum"><div><b>'+num(days)+'</b><span>'+esc(tx('pc.days'))+'</span></div><div><b>'+num(sts)+'</b><span>'+esc(tx('pc.stitches'))+'</span></div><div><b>'+num(best)+'</b><span>'+esc(tx('pc.best'))+'</span></div></div>'+
+      '<div class="ppc-day">'+dayText()+'</div>';
+  }
+  function dayText(){
+    if(!sel) return esc(tx('pc.tap'));
+    var m=data[sel], ds; try{ ds=new Date(keyMs(sel)).toLocaleDateString(loc(),{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}); }catch(e){ ds=sel; }
+    var h='<b>'+esc(ds)+'</b><br>';
+    if(!m) return h+esc(tx('pc.none'));
+    if(!m.list.length) return h+esc(tx('pc.some'));
+    return h+m.list.map(function(x){ return esc(x.name)+(x.n?' · '+esc(tx('pc.st',{n:num(x.n)})):''); }).join('<br>');
+  }
+  function close(){
+    var ov=$('ppc-ov'); if(!ov) return; ov.classList.remove('on');
+    document.removeEventListener('keydown',onKey);
+    setTimeout(function(){ if(ov.parentNode) ov.parentNode.removeChild(ov); },200);
+  }
+  function onKey(e){ if(e.key==='Escape') close(); }
+  window.plCalendarOpen=function(){
+    if($('ppc-ov')) return;
+    data=calData(); var n=new Date(); cur=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),1)); sel=data[key(Date.now())]?key(Date.now()):null;
+    var ov=document.createElement('div'); ov.id='ppc-ov'; ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true');
+    ov.innerHTML='<div id="ppc-card"></div>'; document.body.appendChild(ov);
+    draw();
+    ov.addEventListener('click',function(e){
+      if(e.target===ov || e.target.closest('.ppc-x')){ close(); return; }
+      var nb=e.target.closest('[data-m]'); if(nb&&!nb.disabled){ cur=new Date(Date.UTC(cur.getUTCFullYear(),cur.getUTCMonth()+(+nb.getAttribute('data-m')),1)); draw(); return; }
+      var db=e.target.closest('.ppc-d[data-k]'); if(db&&!db.disabled){ sel=db.getAttribute('data-k'); draw(); }
+    });
+    document.addEventListener('keydown',onKey);
+    requestAnimationFrame(function(){ ov.classList.add('on'); });
+  };
+
+  // Calendar button on the streak card; the 7 dots open it too.
+  function addButton(){
+    var box=$('trk-streak'); if(!box||$('trk-streak-cal')) return;
+    var b=document.createElement('button'); b.type='button'; b.id='trk-streak-cal'; b.className='ts-cal';
+    b.title=tx('pc.open'); b.setAttribute('aria-label',tx('pc.open'));
+    b.innerHTML='<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
+    b.onclick=function(e){ e.stopPropagation(); window.plCalendarOpen(); };
+    var share=$('trk-streak-share'); box.insertBefore(b, share||null);
+    var dots=$('trk-streak-days'); if(dots) dots.addEventListener('click',function(){ window.plCalendarOpen(); });
+  }
+  function init(){ addButton(); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+})();
+</script>
+<style id="ppk-style">
+/* v708: "Next stitch" + parking marks pill over the tracker chart */
+#ppk-pill{position:absolute;z-index:30;display:none;color:#fff;align-items:center;gap:6px;padding:5px;border-radius:999px;background:rgba(43,34,38,.92);box-shadow:0 8px 24px rgba(43,34,38,.3);transform:translateX(-50%);white-space:nowrap;-webkit-user-select:none;user-select:none}
+#ppk-pill.on{display:flex}
+#ppk-pill button{font:inherit;font-size:.82rem;font-weight:700;border:0;border-radius:999px;padding:.5rem .95rem;cursor:pointer;color:#fff;background:transparent;display:inline-flex;align-items:center;gap:.35rem;min-height:38px}
+#ppk-pill button.ppk-next{background:#8B1A2B}
+#ppk-pill button.ppk-next:disabled{background:#2E7D32;opacity:1;cursor:default}
+#ppk-pill button.ppk-park[aria-pressed="true"]{background:#fff;color:#8B1A2B}
+#ppk-pill .ppk-sw{width:14px;height:14px;border-radius:4px;box-shadow:0 0 0 1.5px rgba(255,255,255,.85);flex:0 0 auto}
+#ppk-pill small{font-size:.7rem;font-weight:600;opacity:.75;padding:0 .3rem 0 .1rem}
+#ppk-pill svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.ppk-ring{position:absolute;z-index:29;pointer-events:none;border-radius:6px;box-shadow:0 0 0 3px #fff,0 0 0 6px #8B1A2B;animation:ppkPulse .5s ease-in-out 4 alternate;transition:opacity .4s}
+@keyframes ppkPulse{from{transform:scale(1)}to{transform:scale(1.35)}}
+body.dark #ppk-pill{background:rgba(31,26,43,.95);box-shadow:0 8px 24px rgba(0,0,0,.5)}
+body.dark .ppk-ring{box-shadow:0 0 0 3px #1f1a2b,0 0 0 6px #f0b3c0}
+@media (prefers-reduced-motion:reduce){.ppk-ring{animation:none}}
+</style>
+<script id="ppk-src">
+/* v708: work one colour at a time.
+   When a colour is in focus (tap it in the list, or press-and-hold a stitch),
+   a small pill over the chart offers "Next stitch" (jumps to the nearest
+   stitch of that colour that is not marked yet and rings it) and "Park"
+   (tap stitches to leave a parking mark where a thread is waiting; tap again
+   to remove). Parking marks are drawn in the thread's colour, kept per
+   pattern on this device (localStorage patternly_trk_park), and never touch
+   progress or sync. */
+(function(){
+  var S={
+    en:{"pk.next":"Next stitch","pk.left":"{n} left","pk.done":"All stitched","pk.park":"Park","pk.parktip":"Tap a stitch to park your thread there. Tap it again to remove the mark.","pk.parked":"Parking mark added","pk.unparked":"Parking mark removed"},
+    fr:{"pk.next":"Point suivant","pk.left":"{n} restants","pk.done":"Tout est brodé","pk.park":"Garer","pk.parktip":"Touchez un point pour y garer votre fil. Touchez-le à nouveau pour retirer la marque.","pk.parked":"Marque de fil garé ajoutée","pk.unparked":"Marque retirée"},
+    de:{"pk.next":"Nächster Stich","pk.left":"noch {n}","pk.done":"Alles gestickt","pk.park":"Parken","pk.parktip":"Tippen Sie auf einen Stich, um Ihren Faden dort zu parken. Erneut tippen entfernt die Markierung.","pk.parked":"Parkmarke gesetzt","pk.unparked":"Parkmarke entfernt"},
+    nl:{"pk.next":"Volgende steek","pk.left":"nog {n}","pk.done":"Alles geborduurd","pk.park":"Parkeren","pk.parktip":"Tik op een steek om je draad daar te parkeren. Tik nogmaals om de markering te verwijderen.","pk.parked":"Parkeermarkering geplaatst","pk.unparked":"Parkeermarkering verwijderd"},
+    ru:{"pk.next":"Следующий крестик","pk.left":"осталось {n}","pk.done":"Всё вышито","pk.park":"Парковка","pk.parktip":"Нажмите на крестик, чтобы оставить там нитку. Нажмите ещё раз, чтобы убрать метку.","pk.parked":"Метка парковки поставлена","pk.unparked":"Метка парковки убрана"},
+    uk:{"pk.next":"Наступний хрестик","pk.left":"залишилось {n}","pk.done":"Усе вишито","pk.park":"Паркування","pk.parktip":"Натисніть на хрестик, щоб залишити там нитку. Натисніть ще раз, щоб прибрати мітку.","pk.parked":"Мітку паркування додано","pk.unparked":"Мітку паркування прибрано"},
+    es:{"pk.next":"Siguiente puntada","pk.left":"quedan {n}","pk.done":"Todo bordado","pk.park":"Aparcar","pk.parktip":"Toca una puntada para aparcar ahí tu hilo. Tócala otra vez para quitar la marca.","pk.parked":"Marca de hilo aparcado añadida","pk.unparked":"Marca quitada"},
+    it:{"pk.next":"Punto successivo","pk.left":"ne mancano {n}","pk.done":"Tutto ricamato","pk.park":"Parcheggia","pk.parktip":"Tocca un punto per parcheggiare lì il filo. Toccalo di nuovo per togliere il segno.","pk.parked":"Segno di parcheggio aggiunto","pk.unparked":"Segno di parcheggio tolto"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k,v){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; if(v) for(var n in v) s=s.split('{'+n+'}').join(String(v[n])); return s; }
+  function loc(){ return window.PL_LANG||document.documentElement.lang||'en'; }
+  function num(n){ try{ return Number(n||0).toLocaleString(loc()); }catch(e){ return String(n||0); } }
+  function $(id){ return document.getElementById(id); }
+  function ready(){ try{ return !!(trackerGrid && trackerStitched); }catch(e){ return false; } }
+  function sel(){ try{ return trkSelectedSyms; }catch(e){ return null; } }
+  function pid(){ try{ return trackerActiveProjectKey||''; }catch(e){ return ''; } }
+  function say(m){ try{ if(typeof toast==='function') toast(m); }catch(e){} }
+
+  // ── parking marks (per pattern, this device) ─────────────────────────
+  var PK='patternly_trk_park';
+  function parkAll(){ try{ return JSON.parse(localStorage.getItem(PK)||'{}')||{}; }catch(e){ return {}; } }
+  function parks(){ var a=parkAll()[pid()]; return Array.isArray(a)?a:[]; }
+  function parksSave(list){
+    try{ var all=parkAll(); if(list.length) all[pid()]=list; else delete all[pid()]; localStorage.setItem(PK,JSON.stringify(all)); }catch(e){}
+  }
+  var armed=false;
+  function setArmed(on){
+    armed=!!on;
+    var b=document.querySelector('#ppk-pill .ppk-park'); if(b) b.setAttribute('aria-pressed',armed?'true':'false');
+    if(armed) say(tx('pk.parktip'));
+    place();
+  }
+  // Called by the tracker's pointerdown before any marking. Returns true when
+  // parking mode owns the press. A press that does not move (a tap) toggles
+  // the mark on release; a drag stays a pan.
+  window.plParkTapAt=function(cell,e){
+    if(!armed||!cell) return false;
+    var x0=e?e.clientX:0, y0=e?e.clientY:0, t0=Date.now();
+    function up(ev){
+      window.removeEventListener('pointerup',up,true); window.removeEventListener('pointercancel',up,true);
+      if(ev.type!=='pointerup'||Date.now()-t0>700||Math.hypot(ev.clientX-x0,ev.clientY-y0)>8) return;
+      toggle(cell);
+    }
+    window.addEventListener('pointerup',up,true); window.addEventListener('pointercancel',up,true);
+    return true;
+  };
+  function toggle(cell){
+    var sym; try{ sym=trackerGrid.cells[cell.r][cell.c]; }catch(e){ return; }
+    var list=parks(), i=list.findIndex(function(p){ return p[0]===cell.r && p[1]===cell.c; });
+    if(i>=0){ list.splice(i,1); say(tx('pk.unparked')); }
+    else { if(sym===' ') return; list.push([cell.r,cell.c]); say(tx('pk.parked')); }
+    parksSave(list); renderTracker();
+  }
+
+  // ── geometry helpers (same maths as renderTracker / trkCellAt) ─────────
+  function cellClient(r,c){
+    var cv=$('trk-canvas'); if(!cv||!trkView) return null;
+    var rect=cv.getBoundingClientRect(), vp=trkViewport(), g=trkView.gut||0, k=trkView.cell;
+    return {x:rect.left+g-trkView.sx+(c-vp.c0)*k, y:rect.top+g-trkView.sy+(r-vp.r0)*k, k:k, vp:vp};
+  }
+  function overlayPos(el, x, y){
+    // position an absolute element at client point x,y inside its offset parent
+    var op=el.offsetParent||document.body;
+    if((op===document.body||op===document.documentElement) && getComputedStyle(op).position==='static'){
+      // no positioned ancestor: absolute = page coordinates
+      el.style.left=(x+window.scrollX)+'px'; el.style.top=(y+window.scrollY)+'px'; return;
+    }
+    var pr=op.getBoundingClientRect();
+    el.style.left=(x-pr.left+op.scrollLeft-(op.clientLeft||0))+'px'; el.style.top=(y-pr.top+op.scrollTop-(op.clientTop||0))+'px';
+  }
+
+  // ── draw parking marks after every chart render ───────────────────────
+  function drawParks(){
+    var list=parks(); if(!list.length||!trkView) return;
+    var cv=$('trk-canvas'), ctx=cv&&cv.getContext('2d'); if(!ctx) return;
+    var vp=trkViewport(), v=trkView, k=v.cell, g=v.gut||0;
+    ctx.save(); ctx.setTransform(v.dpr,0,0,v.dpr,0,0); ctx.translate(g-v.sx,g-v.sy);
+    list.forEach(function(p){
+      var r=p[0], c=p[1]; if(r<vp.r0||r>=vp.r0+vp.nr||c<vp.c0||c>=vp.c0+vp.nc) return;
+      var x=(c-vp.c0)*k, y=(r-vp.r0)*k;
+      if(x+k<v.sx-g-k||x>v.sx-g+v.viewW+k||y+k<v.sy-g-k||y>v.sy-g+v.viewH+k) return;
+      var col=null; try{ col=trackerColourMap[trackerGrid.cells[r][c]]; }catch(e){}
+      var rad=Math.max(3,k*0.3), cx=x+k-rad*0.9, cy=y+rad*0.9;
+      if(k<8){ cx=x+k/2; cy=y+k/2; rad=Math.max(3.5,k*0.9); }
+      ctx.beginPath(); ctx.arc(cx,cy,rad+2,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
+      ctx.beginPath(); ctx.arc(cx,cy,rad+2,0,Math.PI*2); ctx.lineWidth=1.2; ctx.strokeStyle='#2b2226'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx,cy,rad,0,Math.PI*2); ctx.fillStyle=col?'rgb('+col.r+','+col.g+','+col.b+')':'#ff3df0'; ctx.fill();
+      if(k>=8){ ctx.lineWidth=Math.max(1.5,k*0.08); ctx.strokeStyle='#2b2226'; ctx.strokeRect(x+1,y+1,k-2,k-2); }
+    });
+    ctx.restore();
+  }
+
+  // ── "Next stitch" ─────────────────────────────────────────────────────
+  var visited=new Set(), selKey='';
+  function remaining(){
+    var s=sel(); if(!s||!s.size||!ready()) return 0;
+    var n=0, G=trackerGrid, D=trackerStitched;
+    for(var r=0;r<G.rows;r++){ var row=G.cells[r], dr=D[r]; for(var c=0;c<G.cols;c++){ var ch=row[c]; if(ch!==' ' && !dr[c] && s.has(ch)) n++; } }
+    return n;
+  }
+  // centre of the part of the chart box the stitcher can actually see
+  // (the app view pads the box under its floating bars; the page may be
+  // scrolled so only part of the box is on screen)
+  function viewCentre(){
+    var w=$('trk-canvas-wrap').getBoundingClientRect(), cs=getComputedStyle($('trk-canvas-wrap'));
+    var t=Math.max(w.top+parseFloat(cs.paddingTop||0),0), b=Math.min(w.bottom-parseFloat(cs.paddingBottom||0),window.innerHeight);
+    if(b<=t){ t=w.top; b=w.bottom; }
+    return {x:(Math.max(w.left,0)+Math.min(w.right,window.innerWidth))/2, y:(t+b)/2};
+  }
+  function centreCell(){
+    var p=viewCentre(), o=cellClient(0,0); if(!o) return {r:0,c:0};
+    return {r:o.vp.r0+(p.y-o.y)/o.k, c:o.vp.c0+(p.x-o.x)/o.k};
+  }
+  function next(){
+    var s=sel(); if(!s||!s.size||!ready()) return;
+    var key=[].concat(Array.from(s)).sort().join('')+'|'+pid(); if(key!==selKey){ selKey=key; visited.clear(); }
+    var from=centreCell(), G=trackerGrid, D=trackerStitched, best=null, bd=Infinity, any=null;
+    for(var r=0;r<G.rows;r++){ var row=G.cells[r], dr=D[r]; for(var c=0;c<G.cols;c++){
+      var ch=row[c]; if(ch===' '||dr[c]||!s.has(ch)) continue;
+      if(!any) any={r:r,c:c};
+      if(visited.has(r*G.cols+c)) continue;
+      var d=(r+.5-from.r)*(r+.5-from.r)+(c+.5-from.c)*(c+.5-from.c); if(d<bd){ bd=d; best={r:r,c:c}; }
+    } }
+    if(!best && any){ visited.clear(); best=any; }   // went round them all: start again
+    if(!best){ place(); return; }
+    visited.add(best.r*G.cols+best.c);
+    jump(best);
+  }
+  function jump(t){
+    var wrap=$('trk-canvas-wrap');
+    if(trkPageMode){
+      var N=trkPageCells, tx_=Math.ceil(trackerGrid.cols/N);
+      trkPageIdx=Math.floor(t.r/N)*tx_+Math.floor(t.c/N); renderTracker();
+    } else {
+      if(trackerCellPx<12){
+        var i=trkZoomLevels.indexOf(16); if(i<0) i=7; trkZoomIdx=i; trkSetZoomPx(trkZoomLevels[i]);
+      }
+      if(!document.body.classList.contains('trk-fs')){
+        var wr=wrap.getBoundingClientRect(); if(wr.top<0||wr.bottom>window.innerHeight) try{ wrap.scrollIntoView({block:'center'}); }catch(e){}
+      }
+      // move the chart so the target sits in the middle of what is visible
+      var p=cellClient(t.r,t.c), v=viewCentre();
+      if(p){
+        window._trkProgScroll=Date.now();
+        wrap.scrollLeft+=p.x+p.k/2-v.x; wrap.scrollTop+=p.y+p.k/2-v.y;
+      }
+      renderTracker();
+    }
+    setTimeout(function(){ ring(t); },60);
+  }
+  function ring(t){
+    var old=document.querySelector('.ppk-ring'); if(old) old.remove();
+    var p=cellClient(t.r,t.c); if(!p) return;
+    var wrap=$('trk-canvas-wrap'), el=document.createElement('div'); el.className='ppk-ring';
+    var sz=Math.max(14,p.k); el.style.width=sz+'px'; el.style.height=sz+'px';
+    wrap.parentNode.insertBefore(el,wrap.nextSibling);
+    overlayPos(el, p.x+p.k/2-sz/2, p.y+p.k/2-sz/2);
+    setTimeout(function(){ el.style.opacity='0'; },2000);
+    setTimeout(function(){ if(el.parentNode) el.remove(); },2500);
+  }
+
+  // ── the pill ──────────────────────────────────────────────────────────
+  function pill(){
+    var p=$('ppk-pill'); if(p) return p;
+    var wrap=$('trk-canvas-wrap'); if(!wrap) return null;
+    p=document.createElement('div'); p.id='ppk-pill'; p.setAttribute('role','toolbar');
+    p.innerHTML='<button type="button" class="ppk-park" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg><span></span></button>'+
+                '<button type="button" class="ppk-next"><span class="ppk-sw"></span><span class="ppk-lbl"></span><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button><small></small>';
+    wrap.parentNode.insertBefore(p,wrap.nextSibling);
+    p.querySelector('.ppk-next').addEventListener('click',function(e){ e.stopPropagation(); next(); });
+    p.querySelector('.ppk-park').addEventListener('click',function(e){ e.stopPropagation(); setArmed(!armed); });
+    ['pointerdown','touchstart'].forEach(function(t){ p.addEventListener(t,function(e){ e.stopPropagation(); },{passive:true}); });
+    return p;
+  }
+  var _cnt=0, _cntKey='';
+  function place(recount){
+    var p=pill(); if(!p) return;
+    var s=sel(), on=ready() && ((s&&s.size>0)||armed);
+    var ws=$('trk-workspace'); if(ws && ws.offsetParent===null && !document.body.classList.contains('trk-fs')) on=false;
+    p.classList.toggle('on',!!on); if(!on) return;
+    var nb=p.querySelector('.ppk-next'), sm=p.querySelector('small');
+    p.querySelector('.ppk-park span').textContent=tx('pk.park');
+    if(s&&s.size){
+      nb.style.display=''; sm.style.display='';
+      var key=Array.from(s).sort().join('')+'|'+pid();
+      if(recount===true || key!==_cntKey){ _cnt=remaining(); _cntKey=key; }
+      var n=_cnt;
+      var first=Array.from(s)[0], col=null; try{ col=trackerColourMap[first]; }catch(e){}
+      p.querySelector('.ppk-sw').style.background=col?'rgb('+col.r+','+col.g+','+col.b+')':'#ccc';
+      p.querySelector('.ppk-lbl').textContent=n?tx('pk.next'):tx('pk.done');
+      nb.disabled=!n; sm.textContent=n?tx('pk.left',{n:num(n)}):'';
+    } else { nb.style.display='none'; sm.style.display='none'; }
+    // bottom-centre of the visible part of the chart box
+    var wrap=$('trk-canvas-wrap'), r=wrap.getBoundingClientRect();
+    var fs=document.body.classList.contains('trk-fs');
+    var vb=Math.min(r.bottom, window.innerHeight), y;
+    var bar=fs?$('trk-fsbar'):null, br=bar&&getComputedStyle(bar).display!=='none'?bar.getBoundingClientRect():null;
+    if(br && br.height>0 && br.top<vb) y=br.top-p.offsetHeight-10;   // full view: just above the floating mode bar
+    else y=vb-p.offsetHeight-12;
+    overlayPos(p, r.left+r.width/2, Math.max(r.top+8,y));
+  }
+  window.plParkPlace=place;
+
+  function hook(){
+    if(typeof window.renderTracker!=='function'||window.renderTracker._ppk) return false;
+    var rt=window.renderTracker;
+    window.renderTracker=function(){ var out=rt.apply(this,arguments); try{ drawParks(); place(); }catch(e){} return out; };
+    window.renderTracker._ppk=1;
+    var up=window.updateTrackerProgressUI;
+    if(typeof up==='function' && !up._ppk){ window.updateTrackerProgressUI=function(){ var o=up.apply(this,arguments); try{ place(true); }catch(e){} return o; }; window.updateTrackerProgressUI._ppk=1; }
+    window.addEventListener('scroll',function(){ var p=$('ppk-pill'); if(p&&p.classList.contains('on')) requestAnimationFrame(place); },{passive:true});
+    window.addEventListener('resize',function(){ setTimeout(place,60); });
+    // the full-view mode bar slides in; settle above it once it has arrived
+    document.addEventListener('transitionend',function(e){ if(e.target && e.target.id==='trk-fsbar') place(); });
+    return true;
+  }
+  function init(){ if(!hook()) setTimeout(init,300); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); }); else setTimeout(init,0);
+})();
+</script>
+<style id="pstash-style">
+/* v709: My Threads — the threads you own, shared with every shopping list */
+.ps-bar{flex-wrap:wrap}
+.ps-bar .ps-stash{margin-left:.35rem}
+#pstash{--st-bg:#fff;--st-line:#efe3e6;--st-ink:#2b2226;--st-mute:#7d6b72;--st-acc:#8B1A2B;--st-chip:#f7f1f2;--st-ok:#2e7d4f;
+  position:fixed;inset:0;z-index:9600;display:none;align-items:center;justify-content:center;background:rgba(20,12,18,.45);padding:1rem}
+body.dark #pstash{--st-bg:#221a2e;--st-line:#3a2f47;--st-ink:#f2ecf4;--st-mute:#a596ab;--st-acc:#d66a7d;--st-chip:#2b2238;--st-ok:#7fd6a0}
+#pstash.on{display:flex}
+#pstash *{box-sizing:border-box}
+#pstash button,#pstash select,#pstash input,#pstash textarea{font-family:inherit}
+#pstash .st-card{background:var(--st-bg);color:var(--st-ink);width:min(560px,100%);max-height:min(88vh,860px);border-radius:18px;display:flex;flex-direction:column;box-shadow:0 18px 60px rgba(0,0,0,.28);overflow:hidden}
+#pstash .st-head{display:flex;align-items:flex-start;gap:.75rem;padding:1rem 1.1rem .7rem;border-bottom:1px solid var(--st-line)}
+#pstash .st-head h3{margin:0;font-size:1.08rem;font-weight:800}
+#pstash .st-head p{margin:.2rem 0 0;font-size:.78rem;color:var(--st-mute)}
+#pstash .st-x{margin-left:auto;flex:none;width:34px;height:34px;border-radius:50%;border:none;background:var(--st-chip);color:var(--st-ink);font-size:1rem;cursor:pointer}
+#pstash .st-add{padding:.75rem 1.1rem .5rem;display:grid;grid-template-columns:auto 1fr auto;gap:.45rem}
+#pstash .st-add select,#pstash .st-add textarea{border:1.5px solid var(--st-line);border-radius:10px;background:var(--st-bg);color:var(--st-ink);font-size:.86rem;padding:.5rem .6rem}
+#pstash .st-add textarea{resize:none;height:42px;line-height:1.3}
+#pstash .st-add button{border:none;border-radius:10px;background:var(--st-acc);color:#fff;font-weight:700;font-size:.84rem;padding:0 1rem;cursor:pointer}
+#pstash .st-msg{grid-column:1/-1;font-size:.74rem;color:var(--st-mute);min-height:1em}
+#pstash .st-msg.err{color:var(--st-acc)}
+#pstash .st-find{margin:0 1.1rem .45rem;border:1.5px solid var(--st-line);border-radius:999px;background:var(--st-chip);color:var(--st-ink);font-size:.82rem;padding:.42rem .9rem}
+#pstash .st-list{flex:1;overflow-y:auto;padding:0 1.1rem .4rem;-webkit-overflow-scrolling:touch;min-height:120px}
+#pstash .st-row{display:flex;align-items:center;gap:.65rem;padding:.5rem 0;border-bottom:1px solid var(--st-line)}
+#pstash .st-row:last-child{border-bottom:none}
+#pstash .st-sw{width:30px;height:30px;border-radius:8px;flex:none;border:1px solid rgba(0,0,0,.14)}
+#pstash .st-txt{flex:1;min-width:0}
+#pstash .st-txt b{display:block;font-size:.86rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pstash .st-txt span{font-size:.72rem;color:var(--st-mute)}
+#pstash .st-step{display:inline-flex;align-items:center;border:1.5px solid var(--st-line);border-radius:999px;overflow:hidden;flex:none}
+#pstash .st-step button{width:34px;height:32px;border:none;background:none;color:var(--st-ink);font-size:1.05rem;font-weight:700;cursor:pointer}
+#pstash .st-step b{min-width:28px;text-align:center;font-size:.86rem}
+#pstash .st-empty{padding:1.6rem .4rem;text-align:center;color:var(--st-mute);font-size:.84rem;line-height:1.45}
+#pstash .st-foot{display:grid;grid-template-columns:repeat(3,1fr);gap:.45rem;padding:.75rem 1.1rem calc(.85rem + var(--sa-bottom,0px));border-top:1px solid var(--st-line)}
+#pstash .st-foot button{border:1.5px solid var(--st-line);border-radius:10px;background:var(--st-bg);color:var(--st-ink);font-weight:700;font-size:.8rem;padding:.6rem .3rem;cursor:pointer}
+#pstash .st-note{padding:0 1.1rem .5rem;font-size:.7rem;color:var(--st-mute);line-height:1.4}
+@media (max-width:640px){#pstash{padding:0;align-items:flex-end}#pstash .st-card{border-radius:18px 18px 0 0;max-height:92vh}}
+</style>
+<div id="pstash" role="dialog" aria-modal="true" aria-labelledby="st-title">
+  <div class="st-card">
+    <div class="st-head"><div><h3 id="st-title"></h3><p id="st-sub"></p></div><button type="button" class="st-x" id="st-x" aria-label="Close">✕</button></div>
+    <div class="st-add">
+      <select id="st-brand" aria-label="Brand"></select>
+      <textarea id="st-codes" rows="1" spellcheck="false" autocomplete="off"></textarea>
+      <button type="button" id="st-addbtn"></button>
+      <div class="st-msg" id="st-msg"></div>
+    </div>
+    <input type="search" class="st-find" id="st-find" autocomplete="off">
+    <div class="st-list" id="st-list"></div>
+    <div class="st-note" id="st-note"></div>
+    <div class="st-foot"><button type="button" id="st-import"></button><button type="button" id="st-copy"></button><button type="button" id="st-csv">CSV</button></div>
+    <input type="file" id="st-file" accept=".csv,.txt,text/csv,text/plain" style="display:none">
+  </div>
+</div>
+<script id="pstash-src">
+/* v709: My Threads. Reads and writes the same localStorage store as the
+   shopping list (patternly_shop): h = have (enough), c = skeins counted,
+   m = label/colour. A thread with a count is always also in h, so the
+   shopping list's own "Clear ticks" keeps working. Device-only, no sync. */
+(function(){
+  var S={
+    en:{"sk.title":"My threads","sk.sub":"{n} threads · {s} skeins counted","sk.sub0":"The threads you already own","sk.ph":"Thread numbers, e.g. 310, 321, 3865","sk.add":"Add","sk.added":"Added {n}","sk.nf":"Not found: {c}","sk.find":"Search my threads","sk.empty":"No threads yet. Type the numbers of the skeins you own, or import a list. Shopping lists then only ask you to buy what is missing.","sk.import":"Import list","sk.copy":"Copy","sk.copied":"List copied","sk.note":"Kept on this device. Every pattern's shopping list uses it: threads you have enough of are ticked, and short ones show how many more to buy.","sk.count":"{n} skeins","sk.count1":"1 skein","sk.have":"have, not counted","sk.open":"My threads"},
+    fr:{"sk.title":"Mes fils","sk.sub":"{n} fils · {s} échevettes comptées","sk.sub0":"Les fils que vous possédez déjà","sk.ph":"Numéros de fils, ex. 310, 321, 3865","sk.add":"Ajouter","sk.added":"{n} ajouté(s)","sk.nf":"Introuvable : {c}","sk.find":"Rechercher dans mes fils","sk.empty":"Aucun fil pour l'instant. Saisissez les numéros des échevettes que vous avez, ou importez une liste. Les listes d'achats ne vous demanderont alors que ce qui manque.","sk.import":"Importer","sk.copy":"Copier","sk.copied":"Liste copiée","sk.note":"Enregistré sur cet appareil. La liste d'achats de chaque modèle l'utilise : les fils suffisants sont cochés, et pour les autres elle indique combien en acheter.","sk.count":"{n} échevettes","sk.count1":"1 échevette","sk.have":"possédé, non compté","sk.open":"Mes fils"},
+    de:{"sk.title":"Meine Garne","sk.sub":"{n} Garne · {s} Docken gezählt","sk.sub0":"Die Garne, die Sie schon haben","sk.ph":"Garnnummern, z. B. 310, 321, 3865","sk.add":"Hinzufügen","sk.added":"{n} hinzugefügt","sk.nf":"Nicht gefunden: {c}","sk.find":"Meine Garne durchsuchen","sk.empty":"Noch keine Garne. Geben Sie die Nummern Ihrer Docken ein oder importieren Sie eine Liste. Einkaufslisten zeigen dann nur noch, was fehlt.","sk.import":"Liste importieren","sk.copy":"Kopieren","sk.copied":"Liste kopiert","sk.note":"Auf diesem Gerät gespeichert. Die Einkaufsliste jedes Musters nutzt sie: Garne, von denen Sie genug haben, sind abgehakt, bei anderen steht, wie viele noch fehlen.","sk.count":"{n} Docken","sk.count1":"1 Docke","sk.have":"vorhanden, nicht gezählt","sk.open":"Meine Garne"},
+    nl:{"sk.title":"Mijn garens","sk.sub":"{n} garens · {s} strengen geteld","sk.sub0":"De garens die je al hebt","sk.ph":"Garennummers, bijv. 310, 321, 3865","sk.add":"Toevoegen","sk.added":"{n} toegevoegd","sk.nf":"Niet gevonden: {c}","sk.find":"Zoek in mijn garens","sk.empty":"Nog geen garens. Typ de nummers van je strengen of importeer een lijst. Boodschappenlijsten vragen dan alleen wat ontbreekt.","sk.import":"Lijst importeren","sk.copy":"Kopiëren","sk.copied":"Lijst gekopieerd","sk.note":"Bewaard op dit apparaat. De boodschappenlijst van elk patroon gebruikt dit: garens waarvan je genoeg hebt zijn afgevinkt, bij de rest staat hoeveel je nog moet kopen.","sk.count":"{n} strengen","sk.count1":"1 streng","sk.have":"in bezit, niet geteld","sk.open":"Mijn garens"},
+    ru:{"sk.title":"Мои нитки","sk.sub":"Ниток: {n} · мотков посчитано: {s}","sk.sub0":"Нитки, которые у вас уже есть","sk.ph":"Номера ниток, напр. 310, 321, 3865","sk.add":"Добавить","sk.added":"Добавлено: {n}","sk.nf":"Не найдено: {c}","sk.find":"Поиск по моим ниткам","sk.empty":"Ниток пока нет. Введите номера мотков, которые у вас есть, или импортируйте список. Тогда списки покупок будут показывать только недостающее.","sk.import":"Импорт списка","sk.copy":"Копировать","sk.copied":"Список скопирован","sk.note":"Хранится на этом устройстве. Список покупок каждой схемы использует его: нитки, которых хватает, отмечены, для остальных указано, сколько докупить.","sk.count":"мотков: {n}","sk.count1":"1 моток","sk.have":"есть, не посчитано","sk.open":"Мои нитки"},
+    uk:{"sk.title":"Мої нитки","sk.sub":"Ниток: {n} · мотків пораховано: {s}","sk.sub0":"Нитки, які у вас уже є","sk.ph":"Номери ниток, напр. 310, 321, 3865","sk.add":"Додати","sk.added":"Додано: {n}","sk.nf":"Не знайдено: {c}","sk.find":"Пошук у моїх нитках","sk.empty":"Ниток поки немає. Введіть номери мотків, які у вас є, або імпортуйте список. Тоді списки покупок показуватимуть лише те, чого бракує.","sk.import":"Імпорт списку","sk.copy":"Копіювати","sk.copied":"Список скопійовано","sk.note":"Зберігається на цьому пристрої. Список покупок кожної схеми використовує його: нитки, яких вистачає, позначені, для інших указано, скільки докупити.","sk.count":"мотків: {n}","sk.count1":"1 моток","sk.have":"є, не пораховано","sk.open":"Мої нитки"},
+    es:{"sk.title":"Mis hilos","sk.sub":"{n} hilos · {s} madejas contadas","sk.sub0":"Los hilos que ya tienes","sk.ph":"Números de hilo, p. ej. 310, 321, 3865","sk.add":"Añadir","sk.added":"{n} añadido(s)","sk.nf":"No encontrado: {c}","sk.find":"Buscar en mis hilos","sk.empty":"Aún no hay hilos. Escribe los números de las madejas que tienes o importa una lista. Así las listas de compra solo te pedirán lo que falta.","sk.import":"Importar lista","sk.copy":"Copiar","sk.copied":"Lista copiada","sk.note":"Se guarda en este dispositivo. La lista de compra de cada patrón la usa: los hilos de los que tienes suficiente aparecen marcados y en el resto ves cuántos comprar.","sk.count":"{n} madejas","sk.count1":"1 madeja","sk.have":"lo tienes, sin contar","sk.open":"Mis hilos"},
+    it:{"sk.title":"I miei fili","sk.sub":"{n} fili · {s} matassine contate","sk.sub0":"I fili che hai già","sk.ph":"Numeri dei fili, es. 310, 321, 3865","sk.add":"Aggiungi","sk.added":"{n} aggiunti","sk.nf":"Non trovato: {c}","sk.find":"Cerca nei miei fili","sk.empty":"Ancora nessun filo. Scrivi i numeri delle matassine che hai o importa un elenco. Così le liste della spesa chiederanno solo quello che manca.","sk.import":"Importa elenco","sk.copy":"Copia","sk.copied":"Elenco copiato","sk.note":"Salvato su questo dispositivo. La lista della spesa di ogni schema lo usa: i fili sufficienti sono spuntati, per gli altri vedi quanti comprarne.","sk.count":"{n} matassine","sk.count1":"1 matassina","sk.have":"presente, non contato","sk.open":"I miei fili"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k,v){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; if(v) for(var n in v) s=s.split('{'+n+'}').join(String(v[n])); return s; }
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  var root=$('pstash'); if(!root) return;
+  var STORE='patternly_shop', BK='patternly_stash_brand';
+  function load(){ try{ var o=JSON.parse(localStorage.getItem(STORE)||'{}')||{}; return {h:o.h||{},c:o.c||{},m:o.m||{}}; }catch(e){ return {h:{},c:{},m:{}}; } }
+  function save(o){ try{ localStorage.setItem(STORE,JSON.stringify(o)); }catch(e){} try{ window.dispatchEvent(new Event('pl-stash')); }catch(e){} }
+  // same key the shopping list uses ("Luca-S-084", "Luca-S 84" → LUCAS84)
+  function norm(s){ return String(s||'').toUpperCase().replace(/[^A-Z0-9+]/g,'').replace(/(\D)0+(\d)/g,'$1$2'); }
+  var IDX=null;   // key → {label,r,g,b,brand}; per brand: code → key
+  function index(){
+    if(IDX) return IDX;
+    IDX={byKey:{},byCode:{}};
+    try{
+      Object.keys(PALETTES).forEach(function(b){
+        var P=PALETTES[b], n=P.baseLen||P.colours.length, codes=IDX.byCode[b]={};
+        for(var i=0;i<n;i++){
+          var t=P.colours[i]; if(!t||t.blend) continue;
+          var key=norm(t.sku||t.label); IDX.byKey[key]={label:(/^\d/.test(String(t.label))?P.name+' ':'')+t.label,r:t.r,g:t.g,b:t.b,brand:b};
+          var code=String(t.sku||t.label).replace(new RegExp('^'+P.name.replace(/[^A-Za-z0-9]/g,'[^A-Za-z0-9]?')+'[^A-Za-z0-9]*','i'),'');
+          codes[norm('X'+code).slice(1)]=key;
+        }
+      });
+    }catch(e){}
+    return IDX;
+  }
+  function info(k,o){
+    var m=o.m[k], i=index().byKey[k];
+    if(i) return i;
+    if(m) return {label:m.l,r:m.r,g:m.g,b:m.b};
+    return {label:k,r:200,g:200,b:200};
+  }
+  var find='';
+  function paint(){
+    var o=load(), keys=Object.keys(o.h).concat(Object.keys(o.c).filter(function(k){ return !o.h[k]; }));
+    var rows=keys.map(function(k){ var i=info(k,o); return {k:k,label:i.label,r:i.r,g:i.g,b:i.b,c:o.c[k]}; })
+      .sort(function(a,b){ return String(a.label).localeCompare(String(b.label),undefined,{numeric:true}); });
+    var counted=rows.reduce(function(s,r){ return s+(r.c>0?+r.c:0); },0);
+    $('st-sub').textContent=rows.length?tx('sk.sub',{n:rows.length,s:counted}):tx('sk.sub0');
+    var q=find.trim().toLowerCase(), show=q?rows.filter(function(r){ return String(r.label).toLowerCase().indexOf(q)>=0; }):rows;
+    $('st-find').style.display=rows.length>8?'':'none';
+    $('st-list').innerHTML=show.length?show.map(function(r){
+      var sub=r.c>0?(+r.c===1?tx('sk.count1'):tx('sk.count',{n:r.c})):tx('sk.have');
+      return '<div class="st-row" data-k="'+esc(r.k)+'"><span class="st-sw" style="background:rgb('+r.r+','+r.g+','+r.b+')"></span><span class="st-txt"><b>'+esc(r.label)+'</b><span>'+esc(sub)+'</span></span>'+
+        '<span class="st-step"><button type="button" data-d="-1" aria-label="−">−</button><b>'+(r.c>0?r.c:'✓')+'</b><button type="button" data-d="1" aria-label="+">+</button></span></div>';
+    }).join(''):'<div class="st-empty">'+esc(rows.length?'—':tx('sk.empty'))+'</div>';
+  }
+  function step(k,d){
+    var o=load(), c=o.c[k]!=null?+o.c[k]:0;
+    if(o.c[k]==null && d<0){ delete o.h[k]; delete o.c[k]; }   // "have, not counted" − = remove
+    else { c=Math.max(0,c+d); if(c===0){ delete o.h[k]; delete o.c[k]; } else { o.c[k]=c; o.h[k]=1; } }
+    save(o); paint();
+  }
+  // Typed: every comma/space-separated item is a thread number.
+  // File (fileMode): one thread per line; the first cell is the thread
+  // ("DMC 310", "310 Black"), a later small number is the skein count —
+  // so a CSV saved from here imports back as it was.
+  function addCodes(text,fileMode){
+    var b=$('st-brand').value, I=index(), o=load(), added=0, nf=[];
+    var P=PALETTES[b]||{name:''};
+    var items=[];
+    if(fileMode) String(text||'').split(/\r?\n/).forEach(function(line){
+      var cells=line.split(/[,;\t]/).map(function(x){ return x.replace(/^\s*"|"\s*$/g,'').trim(); }).filter(Boolean);
+      if(!cells.length) return;
+      var n=null; for(var j=1;j<cells.length;j++) if(/^\d{1,2}$/.test(cells[j])){ n=+cells[j]; break; }
+      items.push({s:cells[0],n:n});
+    });
+    else String(text||'').split(/[\n,;\t]+|\s+/).forEach(function(x){ if(x.trim()) items.push({s:x.trim(),n:null}); });
+    var pres={}; Object.keys(I.byCode).forEach(function(bb){ pres[bb]=new RegExp('^'+String(PALETTES[bb].name).replace(/[^A-Za-z0-9]/g,'[^A-Za-z0-9]?')+'[^A-Za-z0-9]+','i'); });
+    items.forEach(function(it){
+      var codes=I.byCode[b]||{}, pre=pres[b]||/^$/;
+      // a line that names its brand ("Anchor 403") uses that brand's numbers
+      Object.keys(pres).forEach(function(bb){ if(pres[bb].test(it.s)){ codes=I.byCode[bb]; pre=pres[bb]; } });
+      var tok=it.s.replace(pre,'').split(/[\s·:]+/).filter(Boolean)[0]||'';
+      if(!tok || /^(brand|thread|threads|sku|code|number|colour|color|skeins|have)$/i.test(tok)) return;
+      if(!fileMode && new RegExp('^'+String(P.name).replace(/[^A-Za-z0-9]/g,'[^A-Za-z0-9]?')+'$','i').test(tok)) return;   // a bare brand word typed between numbers
+      var k=codes[norm('X'+tok).slice(1)];
+      if(!k){ nf.push(tok); return; }
+      if(!o.h[k]){ added++; }
+      o.h[k]=1; if(it.n!=null && it.n>0) o.c[k]=it.n; else if(o.c[k]==null) o.c[k]=1;
+      var i=I.byKey[k]; if(i) o.m[k]={l:i.label,r:i.r,g:i.g,b:i.b};
+    });
+    save(o); paint();
+    var msg=$('st-msg'); msg.className='st-msg'+(nf.length?' err':'');
+    msg.textContent=(added?tx('sk.added',{n:added}):'')+(nf.length?(added?' · ':'')+tx('sk.nf',{c:nf.slice(0,6).join(', ')+(nf.length>6?'…':'')}):'');
+    return !nf.length;
+  }
+  function textList(){
+    var o=load();
+    return Object.keys(o.h).map(function(k){ var i=info(k,o), c=o.c[k]; return i.label+(c>0?' × '+c:''); }).sort(function(a,b){ return a.localeCompare(b,undefined,{numeric:true}); }).join('\n');
+  }
+  function brandSel(){
+    var sel=$('st-brand'); if(sel.options.length) return;
+    var last='dmc'; try{ last=localStorage.getItem(BK)||'dmc'; }catch(e){}
+    try{ Object.keys(PALETTES).forEach(function(b){ var op=document.createElement('option'); op.value=b; op.textContent=PALETTES[b].name; sel.appendChild(op); }); }catch(e){}
+    sel.value=PALETTES[last]?last:'dmc';
+  }
+  function labels(){
+    $('st-title').textContent=tx('sk.title'); $('st-codes').placeholder=tx('sk.ph'); $('st-addbtn').textContent=tx('sk.add');
+    $('st-find').placeholder=tx('sk.find'); $('st-import').textContent=tx('sk.import'); $('st-copy').textContent=tx('sk.copy'); $('st-note').textContent=tx('sk.note');
+  }
+  function close(){ root.classList.remove('on'); document.removeEventListener('keydown',onKey,true); }
+  function onKey(e){ if(e.key==='Escape'){ e.stopPropagation(); close(); } }
+  window.plStashOpen=function(){
+    brandSel(); labels(); find=''; $('st-find').value=''; $('st-msg').textContent=''; paint();
+    root.classList.add('on'); document.addEventListener('keydown',onKey,true);
+  };
+  $('st-x').addEventListener('click',close);
+  root.addEventListener('click',function(e){ if(e.target===root) close(); });
+  $('st-brand').addEventListener('change',function(){ try{ localStorage.setItem(BK,this.value); }catch(e){} });
+  $('st-addbtn').addEventListener('click',function(){ var t=$('st-codes'); if(addCodes(t.value)) t.value=''; });
+  $('st-codes').addEventListener('keydown',function(e){ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); $('st-addbtn').click(); } });
+  $('st-find').addEventListener('input',function(){ find=this.value; paint(); });
+  $('st-list').addEventListener('click',function(e){ var b=e.target.closest('button[data-d]'); if(!b) return; step(b.closest('.st-row').dataset.k, +b.dataset.d); });
+  $('st-import').addEventListener('click',function(){ $('st-file').click(); });
+  $('st-file').addEventListener('change',function(){
+    var f=this.files&&this.files[0]; this.value=''; if(!f) return;
+    var r=new FileReader(); r.onload=function(){ addCodes(String(r.result||''),true); }; r.readAsText(f);
+  });
+  $('st-copy').addEventListener('click',function(){
+    var t=textList(); var ok=function(){ try{ toast(tx('sk.copied')); }catch(e){} };
+    try{ navigator.clipboard.writeText(t).then(ok,function(){}); }catch(e){}
+  });
+  $('st-csv').addEventListener('click',function(){
+    var o=load(), q=function(s){ return '"'+String(s==null?'':s).replace(/"/g,'""')+'"'; }, out='Thread,Skeins\n';
+    Object.keys(o.h).forEach(function(k){ out+=q(info(k,o).label)+','+(o.c[k]>0?o.c[k]:'')+'\n'; });
+    var blob=new Blob(['﻿'+out],{type:'text/csv;charset=utf-8'});
+    if(typeof rawDownload==='function') rawDownload(blob,'My threads.csv');
+    else { var u=URL.createObjectURL(blob), a=document.createElement('a'); a.href=u; a.download='My threads.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(u); },1500); }
+  });
+  // Entry in My Account › More, under Thread Colours
+  function accountRow(){
+    var hub=$('acct-hub'); if(!hub || $('acct-stash-row')) return;
+    var th=hub.querySelector('button[onclick="openThreads()"]');
+    var b=document.createElement('button'); b.className='acct-hub-row'; b.id='acct-stash-row'; b.type='button';
+    b.innerHTML='<span data-i18n="sk.open">'+esc(tx('sk.open'))+'</span><i>&rsaquo;</i>';
+    b.addEventListener('click',function(){ window.plStashOpen(); });
+    if(th && th.nextSibling) hub.insertBefore(b,th.nextSibling); else hub.appendChild(b);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',accountRow); else accountRow();
+})();
+</script>
 </body>
 </html>
