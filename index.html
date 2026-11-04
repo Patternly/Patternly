@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v695';
+window.PATTERNLY_BUILD='v696';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -10381,25 +10381,110 @@ function edCapCanvas(){
 // clicks are unaffected. window._edSharpK = backing px per CSS px (grid line widths and exports use it).
 // Touch devices keep the old behaviour (memory limits, pinch code reads CELL).
 function edSharpCanvas(){
-  window._edSharpK=1;
-  const dpr=Math.min(window.devicePixelRatio||1, 2);
-  if(dpr<=1 || navigator.maxTouchPoints>0) return;
+  // v696: also on phones and tablets (dpr up to 3, smaller budget), and never above the pixel budget
+  // (v695 could grow a capped canvas back past it on computers).
   const disp=canvas.style.width?(parseFloat(canvas.style.width)/COLS):CELL;
-  if(!(disp>0)) return;
-  const lim=120e6;
-  let want=Math.round(disp*dpr);
-  const cap=Math.floor(Math.sqrt(lim/(COLS*ROWS)))-1;
-  if(want>cap) want=Math.max(Math.ceil(disp), cap);
-  if(want<=CELL){ window._edSharpK=CELL/disp; return; }
+  window._edSharpK=(disp>0)?CELL/disp:1;
+  const touch=navigator.maxTouchPoints>0;
+  const dpr=Math.min(window.devicePixelRatio||1, touch?3:2);
+  if(dpr<=1 || !(disp>0)) return;
+  const lim=touch?24e6:120e6;
+  const cap=Math.max(1, Math.floor(Math.sqrt(lim/(COLS*ROWS)))-1);
+  const want=Math.min(Math.round(disp*dpr), cap);
+  if(want<=CELL) return;
   CELL=want;
   canvas.width=COLS*CELL+1; canvas.height=ROWS*CELL+1;
   canvas.style.width=Math.round(COLS*disp)+'px';
   canvas.style.height=Math.round(ROWS*disp)+'px';
   window._edSharpK=CELL/disp;
 }
+// v696: zoomed in on a big pattern, the whole canvas can't be stored at screen sharpness (a 400x400
+// pattern at 222% on an iPhone would need 2.3 billion pixels), so its backing is capped (v674) and the
+// browser stretches it: stitches looked blurry and blocky (Cristian). After every render, draw just the
+// part on screen (plus a margin) again at full screen sharpness and lay it over the canvas in a
+// non-interactive canvas (#ed-hi). Scrolling re-draws it once the scroll stops; pinch hides it.
+// window._edVis limits the per-stitch loops to the visible stitches while it draws.
+function _edVR0(){ const v=window._edVis; return v?v.r0:0; }
+function _edVR1(){ const v=window._edVis; return v?v.r1:ROWS; }
+function _edVC0(){ const v=window._edVis; return v?v.c0:0; }
+function _edVC1(){ const v=window._edVis; return v?v.c1:COLS; }
+let _edHiCv=null, _edHiSave=null, _edHiBusy=false;
+function edHiHide(){ if(_edHiCv) _edHiCv.style.display='none'; }
+function edHiPass(keep){
+  // keep: put back what the full render drew in the corner (scroll re-draw). render() runs this pass
+  // first and the full render afterwards, so it needs no copy.
+  if(_edHiBusy) return;
+  try{
+    if(canvas.style.transform || !canvas.isConnected || !canvas.clientWidth){ edHiHide(); return; }
+    const area=canvas.parentElement; if(!area) return;
+    const k=canvas.clientWidth/canvas.width;                 // css px per backing px
+    const cssCell=CELL*k; if(!(cssCell>0)) { edHiHide(); return; }
+    const touch=navigator.maxTouchPoints>0;
+    const dpr=Math.min(window.devicePixelRatio||1, touch?3:2);
+    let hiCell=Math.min(160, Math.round(cssCell*dpr));
+    if(hiCell<=CELL*1.15+0.5){ edHiHide(); return; }       // the canvas is already sharp enough
+    const cr=canvas.getBoundingClientRect(), ar=area.getBoundingClientRect();
+    const bx=canvas.clientLeft, by=canvas.clientTop;
+    const vx0=Math.max(ar.left,0)-cr.left-bx, vx1=Math.min(ar.right,window.innerWidth)-cr.left-bx;
+    const vy0=Math.max(ar.top,0)-cr.top-by,   vy1=Math.min(ar.bottom,window.innerHeight)-cr.top-by;
+    if(vx1<=0||vy1<=0||vx0>=COLS*cssCell||vy0>=ROWS*cssCell){ edHiHide(); return; }
+    let mx=(vx1-vx0)*0.25, my=(vy1-vy0)*0.25;
+    let c0,c1,r0,r1,w,h;
+    for(let tries=0;tries<12;tries++){
+      c0=Math.max(0,Math.floor((vx0-mx)/cssCell)); c1=Math.min(COLS,Math.ceil((vx1+mx)/cssCell));
+      r0=Math.max(0,Math.floor((vy0-my)/cssCell)); r1=Math.min(ROWS,Math.ceil((vy1+my)/cssCell));
+      w=(c1-c0)*hiCell+1; h=(r1-r0)*hiCell+1;
+      if(w<=canvas.width && h<=canvas.height && w*h<=12e6) break;
+      if(mx>1||my>1){ mx=0; my=0; continue; }
+      hiCell=Math.floor(hiCell*0.85);
+    }
+    if(w>canvas.width || h>canvas.height || hiCell<=CELL*1.15+0.5){ edHiHide(); return; }
+    // keep what the full render drew in the top-left corner, draw the sharp part there, copy it out, put it back
+    if(keep){
+      if(!_edHiSave) _edHiSave=document.createElement('canvas');
+      if(_edHiSave.width<w||_edHiSave.height<h){ _edHiSave.width=Math.max(w,_edHiSave.width); _edHiSave.height=Math.max(h,_edHiSave.height); }
+      const sc=_edHiSave.getContext('2d');
+      sc.clearRect(0,0,w,h); sc.drawImage(canvas,0,0,w,h,0,0,w,h);
+    }
+    const keepCELL=CELL, keepK=window._edSharpK;
+    _edHiBusy=true;
+    try{
+      CELL=hiCell; window._edSharpK=hiCell/cssCell; window._edVis={r0,r1,c0,c1};
+      ctx.save();
+      ctx.clearRect(0,0,w,h);
+      ctx.beginPath(); ctx.rect(0,0,w,h); ctx.clip();
+      ctx.translate(-c0*hiCell,-r0*hiCell);
+      _edRenderBody();
+      ctx.restore();
+      if(!_edHiCv){
+        _edHiCv=document.createElement('canvas'); _edHiCv.id='ed-hi';
+        _edHiCv.setAttribute('aria-hidden','true');
+        _edHiCv.style.cssText='position:absolute;pointer-events:none;display:none;z-index:1;margin:0;padding:0;border:0;';
+      }
+      if(_edHiCv.parentElement!==area) area.insertBefore(_edHiCv, canvas.nextSibling);
+      if(_edHiCv.width!==w||_edHiCv.height!==h){ _edHiCv.width=w; _edHiCv.height=h; }
+      const hc=_edHiCv.getContext('2d'); hc.clearRect(0,0,w,h); hc.drawImage(canvas,0,0,w,h,0,0,w,h);
+      const sk=cssCell/hiCell;
+      _edHiCv.style.left=(canvas.offsetLeft+bx+c0*cssCell)+'px';
+      _edHiCv.style.top=(canvas.offsetTop+by+r0*cssCell)+'px';
+      _edHiCv.style.width=(w*sk)+'px'; _edHiCv.style.height=(h*sk)+'px';
+      _edHiCv.style.display='block';
+    } finally {
+      CELL=keepCELL; window._edSharpK=keepK; window._edVis=null;
+      if(keep){ ctx.clearRect(0,0,w,h); ctx.drawImage(_edHiSave,0,0,w,h,0,0,w,h); }
+      _edHiBusy=false;
+    }
+  }catch(e){ edHiHide(); }
+}
+let _edHiTimer=0;
+function edHiSoon(ms){ clearTimeout(_edHiTimer); _edHiTimer=setTimeout(()=>edHiPass(true), ms||120); }
 function render() {
   try{ edCapCanvas(); }catch(e){}
   try{ edSharpCanvas(); }catch(e){}
+  if(!_edHiBusy) edHiPass(false);
+  _edRenderBody();
+}
+function _edRenderBody() {
   _lyFlatCache=null; // any repaint may follow an edit — recompute composite lazily
   lySyncActive();
   if(viewMode==='realistic') renderRealistic();
@@ -10409,7 +10494,7 @@ function render() {
     else if(extViewMode === 'bw') applySymbolOverlay(true);
   }
   // Post-render hooks
-  if(typeof window._rulerPostRender === 'function') window._rulerPostRender();
+  if(typeof window._rulerPostRender === 'function' && !window._edVis) window._rulerPostRender();
   if(typeof drawBrushSizeOverlay === 'function') drawBrushSizeOverlay();
   if(typeof drawShapeOverlay === 'function') drawShapeOverlay();
   if(typeof drawTextOverlay === 'function') drawTextOverlay();
@@ -10424,7 +10509,7 @@ function render() {
   // Selection marching ants
   if(typeof drawSelectionOverlay === 'function') drawSelectionOverlay();
   // Live FLOW score (only when Check tab is open)
-  if(typeof computeFlowScore === 'function' && document.getElementById('rp-pane-check')?.classList.contains('active')) computeFlowScore();
+  if(!window._edVis && typeof computeFlowScore === 'function' && document.getElementById('rp-pane-check')?.classList.contains('active')) computeFlowScore();
   // Center lines overlay
   if(window._vdCL){
     const midC=Math.floor(COLS/2), midR=Math.floor(ROWS/2);
@@ -10641,12 +10726,12 @@ function drawLinesStitch(g,x,y,size,col,st){
 }
 
 function renderPattern() {
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.clearRect(0,0,COLS*CELL+1,ROWS*CELL+1);
   // Fill entire canvas with fabric colour first — eliminates 1px gaps between cells
   ctx.fillStyle=fabricColorHex;
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-  for(let r=0;r<ROWS;r++){
-    for(let c=0;c<COLS;c++){
+  ctx.fillRect(0,0,COLS*CELL+1,ROWS*CELL+1);
+  for(let r=_edVR0();r<_edVR1();r++){
+    for(let c=_edVC0();c<_edVC1();c++){
       const x=c*CELL,y=r*CELL;
       const [ci,_sgRaw]=lyCellAt(r,c);
       if(ci!==null){
@@ -11003,10 +11088,11 @@ function _fabEnsureImg(){
     _fabMacro.src=_FAB_MACRO_B64;
   }
 }
-let _fabTileKey='', _fabTilePat=null;
+let _fabTileKey='', _fabTilePat=null, _fabTiles=new Map();
 function _fabricPattern(fr,fg,fb,cell){
   const key=fr+','+fg+','+fb+','+Math.round(cell*10);
-  if(key===_fabTileKey && _fabTilePat) return _fabTilePat;
+  if(_fabTileKey==='') _fabTiles.clear();   // photo just loaded: drop flat fallbacks
+  if(_fabTiles.has(key)){ _fabTileKey=key; return _fabTiles.get(key); }
   _fabEnsureImg();
   // close zoom → macro weave (chunky bundles); far zoom → fine weave
   // v695: the fine photo is soft and turns to haze far away; use the sharp macro photo at every size
@@ -11059,14 +11145,15 @@ function _fabricPattern(fr,fg,fb,cell){
   // don't cache the flat pre-load fallback — cache only the textured tile
   _fabTileKey = srcReady ? key : '';
   _fabTilePat=ctx.createPattern(tile,'repeat');
+  if(srcReady){ if(_fabTiles.size>=4) _fabTiles.delete(_fabTiles.keys().next().value); _fabTiles.set(key,_fabTilePat); }
   return _fabTilePat;
 }
 
 function renderRealistic() {
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.clearRect(0,0,COLS*CELL+1,ROWS*CELL+1);
   const fab = hexToRgb(fabricColorHex);
   const fr=fab.r, fg=fab.g, fb=fab.b;
-  const W=canvas.width, H=canvas.height;
+  const W=COLS*CELL+1, H=ROWS*CELL+1;
   const SMALL = CELL < 4;
 
   // ── AIDA FABRIC ──────────────────────────────────────────────
@@ -11100,7 +11187,7 @@ function renderRealistic() {
   }
 
   // ── STITCHES ─────────────────────────────────────────────────
-  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+  for(let r=_edVR0();r<_edVR1();r++) for(let c=_edVC0();c<_edVC1();c++){
     const [ci,_sgRaw]=lyCellAt(r,c); if(ci===null) continue;
     const col=activePalette()[ci];
     const _x=c*CELL, _y=r*CELL;
@@ -15971,6 +16058,7 @@ function _edPinchStart(e){
   const fx=Math.min(1,Math.max(0,(mx-cr.left)/(cr.width||1)));
   const fy=Math.min(1,Math.max(0,(my-cr.top)/(cr.height||1)));
   _edPinch={dist, mx, my, fx, fy, startCell:(cr.width/COLS)||CELL, ratio:1};
+  try{ edHiHide(); }catch(_e){}
   canvas.style.transformOrigin=(fx*cr.width)+'px '+(fy*cr.height)+'px';
   e.preventDefault(); e.stopPropagation();
 }
@@ -16003,6 +16091,9 @@ canvasArea.addEventListener('touchstart', _edPinchStart, {capture:true, passive:
 canvasArea.addEventListener('touchmove', _edPinchMove, {capture:true, passive:false});
 canvasArea.addEventListener('touchend', _edPinchEnd, {capture:true, passive:false});
 canvasArea.addEventListener('touchcancel', _edPinchEnd, {capture:true, passive:false});
+// v696: re-draw the sharp visible part once scrolling stops or the window changes size
+canvasArea.addEventListener('scroll', ()=>edHiSoon(120), {passive:true});
+window.addEventListener('resize', ()=>edHiSoon(200));
 
 
 // ─────────────────────────────────────────────────────────────
@@ -16130,8 +16221,8 @@ function drawHighlightOverlay(){
   const pal=activePalette();
   ctx.save();
   ctx.fillStyle='rgba(12,20,32,0.72)';
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+  ctx.fillRect(0,0,COLS*CELL+1,ROWS*CELL+1);
+  for(let r=_edVR0();r<_edVR1();r++)for(let c=_edVC0();c<_edVC1();c++){
     const ci=grid[r][c];
     if(ci===null||!wpHighlight.has(ci)) continue;
     const col=pal[ci]; if(!col) continue;
@@ -16162,10 +16253,10 @@ function drawConfettiScope(){
   ctx.save();
   // Dark veil over the full canvas
   ctx.fillStyle='rgba(12,20,32,0.62)';
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillRect(0,0,COLS*CELL+1,ROWS*CELL+1);
   // Markers: at low zoom a cell can be 2-3px, so enforce a minimum marker size
   const m = Math.max(CELL, 3.5);
-  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+  for(let r=_edVR0();r<_edVR1();r++) for(let c=_edVC0();c<_edVC1();c++){
     const ci=grid[r][c]; if(ci===null) continue;
     total++;
     const n4=[grid[r-1]?.[c],grid[r+1]?.[c],grid[r]?.[c-1],grid[r]?.[c+1]];
@@ -19106,8 +19197,8 @@ function applySymbolOverlay(bwMode){
     ctx.fillStyle = '#111';
   }
 
-  for(let r=0;r<ROWS;r++){
-    for(let c=0;c<COLS;c++){
+  for(let r=_edVR0();r<_edVR1();r++){
+    for(let c=_edVC0();c<_edVC1();c++){
       const ci = grid[r][c];
       if(ci === null) continue;
       const sym = xpSymbolAt(uPalette.indexOf(ci),'symbols');
