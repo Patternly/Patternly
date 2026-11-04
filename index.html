@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v687';
+window.PATTERNLY_BUILD='v693';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -38596,7 +38596,7 @@ body.dark #ped-menu hr{border-color:#37303f}
     dock.addEventListener('click',function(e){
       var b=e.target.closest('button'); if(!b) return; var a=b.getAttribute('data-a');
       if(a==='colours') later(function(){ sheet('palette'); });
-      else if(a==='settings') later(function(){ railAction('sidebar'); sync(); });   // v680: Pattern settings from the dock
+      else if(a==='settings') later(function(){ railAction('sidebar'); sync(); });   // v693: Tools opens the Pattern settings page (tools + settings cards)
       else tool(a);
     });
     rec.addEventListener('click',function(e){ var b=e.target.closest('button[data-ci]'); if(b){ try{ setActiveColor(+b.getAttribute('data-ci')); }catch(_){} } });
@@ -38613,7 +38613,7 @@ body.dark #ped-menu hr{border-color:#37303f}
       +'<button data-a="export" id="ped-export">'+svg(IC.exp)+esc(tx('pe.export'))+'</button>'
       +'<button data-a="more" aria-label="'+esc(tx('pe.more'))+'">'+svg(IC.more)+'</button>';
     function db(a,ic,k){ return '<button data-a="'+a+'">'+svg(IC[ic])+'<span>'+esc(tx(k))+'</span></button>'; }
-    dock.innerHTML=db('pan','pan','pe.move')+db('draw','draw','pe.draw')+db('erase','erase','pe.erase')+db('more','tools','pe.tools')+db('settings','set','pe.setshort')
+    dock.innerHTML=db('pan','pan','pe.move')+db('draw','draw','pe.draw')+db('erase','erase','pe.erase')+db('settings','tools','pe.tools')
       +'<button data-a="colours"><span class="sw" id="ped-sw"></span><span>'+esc(tx('pe.colours'))+'</span></button>';
     function mi(a,ic,k,cls){ return '<button data-a="'+a+'"'+(cls?' class="'+cls+'"':'')+'>'+svg(IC[ic])+esc(tx(k))+'</button>'; }
     menu.innerHTML=mi('hist','hist','pe.history')+mi('size','size','pe.size')+mi('layers','layers','pe.layers')+mi('lib','lib','pe.library')+mi('check','check','pe.check')+mi('set','set','pe.settings')
@@ -38651,7 +38651,7 @@ body.dark #ped-menu hr{border-color:#37303f}
       var t=(typeof activeTool!=='undefined')?activeTool:'';
       var main={pan:1,draw:1,erase:1};
       var sbOpen=!!($('sidebar')&&$('sidebar').classList.contains('open'));
-      dock.querySelectorAll('button[data-a]').forEach(function(b){ var a=b.getAttribute('data-a'); b.classList.toggle('on', a==='settings' ? sbOpen : (a===t || (a==='more' && t && !main[t]))); });
+      dock.querySelectorAll('button[data-a]').forEach(function(b){ var a=b.getAttribute('data-a'); b.classList.toggle('on', a==='settings' ? (sbOpen || !!(t && !main[t])) : a===t); });
       selectInTools();
       var sw=$('ped-sw'), ci=(typeof activeColorIdx!=='undefined')?activeColorIdx:null, pal=palette();
       if(sw){
@@ -40266,12 +40266,19 @@ body.pdd-on #sidebar[data-pdr-g="pattern"]>[data-pdr="pattern"].pdr-flex{display
 .pps-head{display:none}
 @media (max-width:820px){
 body.pps-on #sidebar{background:#f7f2f3}
-body.pps-on #sidebar #tools-section{background:none;border:0;box-shadow:none;padding:0 14px;margin:0}
-body.pps-on #sidebar #tools-section>div:first-child,body.pps-on #sidebar #active-tool-label{display:none!important}
+body.pps-on #sidebar #active-tool-label{display:none!important}
+body.pps-on #sidebar .pps-twrap{display:block!important}body.pps-on #sidebar .pps-tgrid{background:none!important;padding:0!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important;min-width:0}
+body.pps-on #sidebar #tools-section .ct-btn{display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:4px;height:auto!important;min-height:64px;width:auto!important;padding:8px 2px!important;border-radius:12px!important;background:#faf5f6!important;border:1px solid #f0e3e6!important;color:#3a2a2e!important}
+body.pps-on #sidebar #tools-section .ct-btn svg{width:22px;height:22px}
+body.pps-on #sidebar #tools-section .ct-btn.active{background:#fdf1f4!important;border-color:#8B1A2B!important;color:#8B1A2B!important}
+body.pps-on #sidebar #tools-section .pps-tl{font-size:.66rem;font-weight:600;line-height:1.15;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.pps-on #sidebar #tools-section .pps-view{padding:12px 0 0}
+.pps-tl{display:none}
+body.pps-on #sidebar .pps-tl{display:block}
 body.pps-on #sidebar .pps-view{padding:4px 14px 10px;margin:0}
 body.pps-on #sidebar .pps-view #view-btn{width:100%!important;height:40px!important;border-radius:11px!important;background:#fff!important;border:1px solid #ecdde1!important;color:#8B1A2B!important;font-weight:700;font-size:.85rem;font-family:inherit;box-shadow:none!important}
-body.pps-on #sidebar .pps-card{background:#fff;border:1px solid #ecdde1;border-radius:14px;margin:0 14px 10px;padding:0 14px;box-shadow:0 1px 2px rgba(60,20,30,.04)}
-body.pps-on #sidebar .pps-card.pps-open{padding-bottom:14px}
+body.pps-on #sidebar .pps-card{background:#fff;border:1px solid #ecdde1;border-radius:14px;margin:0 14px 10px;padding:0 14px!important;box-shadow:0 1px 2px rgba(60,20,30,.04)}
+body.pps-on #sidebar .pps-card.pps-open{padding-bottom:14px!important}
 body.pps-on #sidebar .pps-card>h3{display:none}
 body.pps-on #sidebar .pps-card:not(.pps-open)>*:not(.pps-head){display:none!important}
 body.pps-on #sidebar .pps-head{display:flex;align-items:center;gap:12px;width:calc(100% + 28px);margin:0 -14px;padding:13px 14px;background:none;border:0;text-align:left;font-family:inherit;cursor:pointer;color:inherit;-webkit-tap-highlight-color:transparent}
@@ -40289,14 +40296,14 @@ body.pps-on #sidebar .pps-card .row-label{font-size:.72rem;color:#8a7a7e;margin:
 (function(){
   if(window._ppsInit) return; window._ppsInit=1;
   var S={
-    en:{"pps.size":"Pattern size","pps.photo":"Photo to pattern","pps.fabric":"Fabric","pps.threads":"Buy threads","pps.st":"{w} × {h} stitches","pps.nophoto":"Add a photo to turn it into stitches","pps.hasphoto":"Photo added","pps.buy":"Order the threads for this pattern"},
-    fr:{"pps.size":"Taille de la grille","pps.photo":"Photo en grille","pps.fabric":"Toile","pps.threads":"Acheter les fils","pps.st":"{w} × {h} points","pps.nophoto":"Ajoutez une photo pour la transformer en points","pps.hasphoto":"Photo ajoutée","pps.buy":"Commander les fils de cette grille"},
-    de:{"pps.size":"Mustergröße","pps.photo":"Foto zu Muster","pps.fabric":"Stoff","pps.threads":"Garne kaufen","pps.st":"{w} × {h} Stiche","pps.nophoto":"Foto hinzufügen und in Stiche umwandeln","pps.hasphoto":"Foto hinzugefügt","pps.buy":"Garne für dieses Muster bestellen"},
-    nl:{"pps.size":"Patroongrootte","pps.photo":"Foto naar patroon","pps.fabric":"Stof","pps.threads":"Garen kopen","pps.st":"{w} × {h} steken","pps.nophoto":"Voeg een foto toe om er steken van te maken","pps.hasphoto":"Foto toegevoegd","pps.buy":"Bestel de garens voor dit patroon"},
-    ru:{"pps.size":"Размер схемы","pps.photo":"Фото в схему","pps.fabric":"Канва","pps.threads":"Купить нитки","pps.st":"{w} × {h} крестиков","pps.nophoto":"Добавьте фото, чтобы превратить его в крестики","pps.hasphoto":"Фото добавлено","pps.buy":"Заказать нитки для этой схемы"},
-    uk:{"pps.size":"Розмір схеми","pps.photo":"Фото в схему","pps.fabric":"Канва","pps.threads":"Купити нитки","pps.st":"{w} × {h} хрестиків","pps.nophoto":"Додайте фото, щоб перетворити його на хрестики","pps.hasphoto":"Фото додано","pps.buy":"Замовити нитки для цієї схеми"},
-    es:{"pps.size":"Tamaño del patrón","pps.photo":"Foto a patrón","pps.fabric":"Tela","pps.threads":"Comprar hilos","pps.st":"{w} × {h} puntadas","pps.nophoto":"Añade una foto para convertirla en puntadas","pps.hasphoto":"Foto añadida","pps.buy":"Pedir los hilos de este patrón"},
-    it:{"pps.size":"Dimensione schema","pps.photo":"Da foto a schema","pps.fabric":"Tessuto","pps.threads":"Compra i fili","pps.st":"{w} × {h} punti","pps.nophoto":"Aggiungi una foto per trasformarla in punti","pps.hasphoto":"Foto aggiunta","pps.buy":"Ordina i fili per questo schema"}
+    en:{"pps.tools":"Tools","pps.now":"Now: {t}","pps.size":"Pattern size","pps.photo":"Photo to pattern","pps.fabric":"Fabric","pps.threads":"Buy threads","pps.st":"{w} × {h} stitches","pps.nophoto":"Add a photo to turn it into stitches","pps.hasphoto":"Photo added","pps.buy":"Order the threads for this pattern"},
+    fr:{"pps.tools":"Outils","pps.now":"Actuel : {t}","pps.size":"Taille de la grille","pps.photo":"Photo en grille","pps.fabric":"Toile","pps.threads":"Acheter les fils","pps.st":"{w} × {h} points","pps.nophoto":"Ajoutez une photo pour la transformer en points","pps.hasphoto":"Photo ajoutée","pps.buy":"Commander les fils de cette grille"},
+    de:{"pps.tools":"Werkzeuge","pps.now":"Aktuell: {t}","pps.size":"Mustergröße","pps.photo":"Foto zu Muster","pps.fabric":"Stoff","pps.threads":"Garne kaufen","pps.st":"{w} × {h} Stiche","pps.nophoto":"Foto hinzufügen und in Stiche umwandeln","pps.hasphoto":"Foto hinzugefügt","pps.buy":"Garne für dieses Muster bestellen"},
+    nl:{"pps.tools":"Gereedschap","pps.now":"Nu: {t}","pps.size":"Patroongrootte","pps.photo":"Foto naar patroon","pps.fabric":"Stof","pps.threads":"Garen kopen","pps.st":"{w} × {h} steken","pps.nophoto":"Voeg een foto toe om er steken van te maken","pps.hasphoto":"Foto toegevoegd","pps.buy":"Bestel de garens voor dit patroon"},
+    ru:{"pps.tools":"Инструменты","pps.now":"Сейчас: {t}","pps.size":"Размер схемы","pps.photo":"Фото в схему","pps.fabric":"Канва","pps.threads":"Купить нитки","pps.st":"{w} × {h} крестиков","pps.nophoto":"Добавьте фото, чтобы превратить его в крестики","pps.hasphoto":"Фото добавлено","pps.buy":"Заказать нитки для этой схемы"},
+    uk:{"pps.tools":"Інструменти","pps.now":"Зараз: {t}","pps.size":"Розмір схеми","pps.photo":"Фото в схему","pps.fabric":"Канва","pps.threads":"Купити нитки","pps.st":"{w} × {h} хрестиків","pps.nophoto":"Додайте фото, щоб перетворити його на хрестики","pps.hasphoto":"Фото додано","pps.buy":"Замовити нитки для цієї схеми"},
+    es:{"pps.tools":"Herramientas","pps.now":"Ahora: {t}","pps.size":"Tamaño del patrón","pps.photo":"Foto a patrón","pps.fabric":"Tela","pps.threads":"Comprar hilos","pps.st":"{w} × {h} puntadas","pps.nophoto":"Añade una foto para convertirla en puntadas","pps.hasphoto":"Foto añadida","pps.buy":"Pedir los hilos de este patrón"},
+    it:{"pps.tools":"Strumenti","pps.now":"Ora: {t}","pps.size":"Dimensione schema","pps.photo":"Da foto a schema","pps.fabric":"Tessuto","pps.threads":"Compra i fili","pps.st":"{w} × {h} punti","pps.nophoto":"Aggiungi una foto per trasformarla in punti","pps.hasphoto":"Foto aggiunta","pps.buy":"Ordina i fili per questo schema"}
   };
   try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
   function tx(k,v){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; if(v) for(var n in v) s=s.split('{'+n+'}').join(v[n]); return s; }
@@ -40306,18 +40313,35 @@ body.pps-on #sidebar .pps-card .row-label{font-size:.72rem;color:#8a7a7e;margin:
     size:'<path d="M4 9V4h5M20 15v5h-5M4 4l6 6M20 20l-6-6"/>',
     photo:'<rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="M21 16l-5-5-8 8"/>',
     fabric:'<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16"/>',
+    tools:'<path d="M14.5 5.5l4 4M4 20l1-4L15.5 5.5a2.1 2.1 0 0 1 3 3L8 19z"/><path d="M4 4l5 5"/><path d="M3 7l4-4"/>',
     threads:'<path d="M5 7h14l-1.3 10.5a2 2 0 0 1-2 1.5H8.3a2 2 0 0 1-2-1.5z"/><path d="M9 7a3 3 0 0 1 6 0"/>'
   };
   var CHEV='<svg class="pps-chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
-  var cards=[], openKey='size', built=false;
+  var cards=[], openKey='tools', built=false;
   function sumFor(k){
     try{
       if(k==='size') return tx('pps.st',{w:(typeof COLS!=='undefined'?COLS:'?'),h:(typeof ROWS!=='undefined'?ROWS:'?')});
       if(k==='photo'){ var c=$('clear-image-section'); return (c && c.style.display!=='none') ? tx('pps.hasphoto') : tx('pps.nophoto'); }
       if(k==='fabric'){ var a=($('fabric-label')||{}).textContent||''; var b=($('fabric-trigger-text')||{}).textContent||''; b=b.split('—')[0].trim(); return [a.trim(),b].filter(Boolean).join(' · '); }
       if(k==='threads') return tx('pps.buy');
+      if(k==='tools'){ var t=(typeof activeTool!=='undefined')?activeTool:''; return tx('pps.now',{t:toolName(t)}); }
     }catch(e){}
     return '';
+  }
+  // Tool names: from the Tools sheet (translated) when it has them, else the button title without its shortcut.
+  function toolName(t){
+    var b=document.querySelector('#td-tool-list .td-btn[data-tool="'+t+'"]');
+    var n=''; if(b) [].forEach.call(b.childNodes,function(c){ if(c.nodeType===3) n+=c.textContent; }); n=n.trim();
+    if(!n){ var c=document.querySelector('#tools-section .ct-btn[data-tool="'+t+'"]'); n=c?(c.getAttribute('title')||'').replace(/\s*\(.*\)\s*$/,''):''; }
+    if(t==='select') n=tx('pe.selecttool')||n; if(t==='pan') n=tx('pe.move')||n;
+    return n||t;
+  }
+  function labelTools(sec){
+    var f=sec.querySelector('.ct-btn[data-tool]'); if(f && f.parentNode){ f.parentNode.classList.add('pps-tgrid'); if(f.parentNode.parentNode!==sec) f.parentNode.parentNode.classList.add('pps-twrap'); }
+    sec.querySelectorAll('.ct-btn[data-tool]').forEach(function(b){
+      var l=b.querySelector('.pps-tl'); if(!l){ l=document.createElement('span'); l.className='pps-tl'; b.appendChild(l); }
+      var n=toolName(b.getAttribute('data-tool')); if(l.textContent!==n) l.textContent=n;
+    });
   }
   function head(k){
     var h=document.createElement('button'); h.type='button'; h.className='pps-head';
@@ -40335,14 +40359,29 @@ body.pps-on #sidebar .pps-card .row-label{font-size:.72rem;color:#8a7a7e;margin:
     // Fabric count joins the Fabric card
     if(aida){ var cnt=aida.closest('.sidebar-section'); if(cnt && cnt!==fab){ while(cnt.firstChild) fab.appendChild(cnt.firstChild); cnt.style.display='none'; cnt.classList.add('pps-gone'); } }
     var thr=cart?cart.closest('.sidebar-section'):null;
-    [['size',size],['photo',photo],['fabric',fab],['threads',thr]].forEach(function(p){
+    var tools=$('tools-section');
+    if(tools){
+      var vb0=$('view-btn'); if(vb0 && vb0.parentNode && vb0.parentNode!==tools){ vb0.parentNode.classList.add('pps-view'); tools.appendChild(vb0.parentNode); }
+      labelTools(tools);
+      tools.addEventListener('click',function(e){
+        var b=e.target.closest && e.target.closest('.ct-btn[data-tool]'); if(!b || !on()) return;
+        // Pick a tool and go back to the pattern, unless the tool shows its own options here (strands, wraps, brush)
+        setTimeout(function(){
+          var opt=['strand-selector','wraps-selector','brush-selector'].some(function(id){ var x=$(id); return x && x.offsetHeight>0; });
+          if(!opt){ try{ if(typeof closeSidebar==='function') closeSidebar(); }catch(err){} }
+          apply();
+        },250);
+      });
+    }
+    [['tools',tools],['size',size],['photo',photo],['fabric',fab],['threads',thr]].forEach(function(p){
       if(!p[1]) return; p[1].classList.add('pps-card'); var h=head(p[0]); p[1].insertBefore(h,p[1].firstChild); cards.push({k:p[0],el:p[1],h:h});
     });
-    var vb=$('view-btn'); if(vb && vb.parentNode) vb.parentNode.classList.add('pps-view');
+    var vb=$('view-btn'); if(vb && vb.parentNode && vb.parentNode!==tools) vb.parentNode.classList.add('pps-view');
     built=true; return true;
   }
   function apply(){
     if(!built) return;
+    var ts=$('tools-section'); if(ts) labelTools(ts);
     cards.forEach(function(c){
       c.el.classList.toggle('pps-open', c.k===openKey);
       c.h.setAttribute('aria-expanded', c.k===openKey?'true':'false');
