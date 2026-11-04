@@ -5472,7 +5472,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v669';
+window.PATTERNLY_BUILD='v670';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -39423,6 +39423,100 @@ body.dark.ptly-appui #trk-fspanel.pst .pst-more>button.pst-danger{color:#f08a8a!
       };
       w._pst=1; window.trkFsPanel=w;
     }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
+  else setTimeout(init,0);
+})();
+</script>
+<style id="psh-style">
+/* v670 – app editor bottom sheets can be dragged with a finger: up to grow to full height (stops under
+   the top bar), down to shrink or close. Swiping the content up also grows the sheet. App only, ≤820px. */
+.psh-grab{display:none}
+@media (max-width:820px){
+  body.ptly-appui.app-mode .psh-grab{display:block;position:absolute;top:0;left:0;right:0;height:24px;z-index:6;touch-action:none;cursor:grab}
+  body.ptly-appui.app-mode .psh-grab::after{content:'';position:absolute;top:8px;left:50%;width:44px;height:5px;margin-left:-22px;border-radius:3px;background:#d9cbd0}
+  body.ptly-appui.app-mode #right-panel::before{display:none!important}
+  body.ptly-appui.app-mode #right-panel{padding-top:22px!important;transition:transform .25s ease,height .25s ease!important}
+  body.ptly-appui.app-mode #right-panel.psh-full{height:calc(100vh - var(--psh-top,64px))!important;border-radius:16px 16px 0 0}
+  body.ptly-appui.app-mode .psh-drag{transition:none!important}
+}
+</style>
+<script id="psh-src">
+(function(){
+  function app(){ return document.body.classList.contains('ptly-appui') && document.body.classList.contains('app-mode') && window.innerWidth<=820; }
+  function topEdge(){
+    var t=document.getElementById('ped-top'), b=t?t.getBoundingClientRect().bottom:0;
+    var v=Math.max(56,Math.round(b||0)+4);
+    document.documentElement.style.setProperty('--psh-top',v+'px');
+    return v;
+  }
+  function scrollerOf(el,sheet){
+    while(el && el!==sheet){
+      if(el.nodeType===1){ var cs=getComputedStyle(el); if(/(auto|scroll)/.test(cs.overflowY) && el.scrollHeight>el.clientHeight+1) return el; }
+      el=el.parentNode;
+    }
+    return null;
+  }
+  function setImp(el,p,v){ if(v==null) el.style.removeProperty(p); else el.style.setProperty(p,v,'important'); }
+  // Make a bottom sheet draggable. opts: isOpen(), close(), canFull (grow to full height), zones (selectors that always drag).
+  function attach(sheet,opts){
+    if(!sheet || sheet._psh) return; sheet._psh=1;
+    var grab=document.createElement('div'); grab.className='psh-grab'; sheet.insertBefore(grab,sheet.firstChild);
+    var y0=0,x0=0,startH=0,normH=0,fullH=0,mode=null,lastDy=0,scr=null,wasFull=false,onZone=false;
+    function inZone(t){ if(grab.contains(t)) return true; var z=opts.zones||[]; for(var i=0;i<z.length;i++){ var e=t.closest&&t.closest(z[i]); if(e&&sheet.contains(e)) return true; } return false; }
+    sheet.addEventListener('touchstart',function(e){
+      mode=null; if(!app()||!opts.isOpen()||e.touches.length!==1) return;
+      var t=e.target; if(t.closest&&t.closest('input,select,textarea,canvas,[contenteditable]')&&!grab.contains(t)) { mode='skip'; return; }
+      y0=e.touches[0].clientY; x0=e.touches[0].clientX; lastDy=0;
+      wasFull=sheet.classList.contains('psh-full');
+      startH=sheet.getBoundingClientRect().height;
+      fullH=window.innerHeight-topEdge();
+      if(wasFull) normH=sheet._pshNorm||Math.min(startH,Math.round(window.innerHeight*0.7)); else normH=sheet._pshNorm=startH;
+      scr=scrollerOf(t,sheet); onZone=inZone(t);
+    },{passive:true});
+    sheet.addEventListener('touchmove',function(e){
+      if(mode==='skip'||mode==='scroll'||!app()) return;
+      var dy=e.touches[0].clientY-y0, dx=e.touches[0].clientX-x0;
+      if(mode===null){
+        if(Math.abs(dy)<4 && Math.abs(dx)<4) return;
+        if(Math.abs(dx)>Math.abs(dy) && !onZone){ mode='scroll'; return; }
+        if(onZone) mode='drag';
+        else if(dy<0 && opts.canFull && !wasFull) mode='drag';        // swipe up on the content grows the sheet first
+        else if(dy>0 && (!scr || scr.scrollTop<=0)) mode='drag';     // pull down at the top of the list shrinks it
+        else { mode='scroll'; return; }
+        sheet.classList.add('psh-drag');
+      }
+      if(e.cancelable) e.preventDefault();
+      lastDy=dy;
+      var h=startH-dy, maxH=opts.canFull?fullH:normH;
+      if(h>=normH){ setImp(sheet,'height',Math.min(h,maxH)+'px'); setImp(sheet,'transform','translateY(0)'); }
+      else { setImp(sheet,'height',normH+'px'); setImp(sheet,'transform','translateY('+(normH-h)+'px)'); }
+    },{passive:false});
+    function settle(){
+      if(mode!=='drag'){ mode=null; return; }
+      mode=null; sheet.classList.remove('psh-drag');
+      var h=startH-lastDy;
+      setImp(sheet,'height',null); setImp(sheet,'transform',null);
+      if(h<normH*0.72){ sheet.classList.remove('psh-full'); try{ opts.close(); }catch(e){} return; }
+      var full=opts.canFull && (wasFull ? h>fullH-(fullH-normH)*0.5 : h>normH+(fullH-normH)*0.25);
+      sheet.classList.toggle('psh-full',!!full);
+    }
+    sheet.addEventListener('touchend',settle,{passive:true});
+    sheet.addEventListener('touchcancel',settle,{passive:true});
+    // Leaving the sheet open at full height next time would be surprising: reset when it closes.
+    new MutationObserver(function(){ if(!opts.isOpen() && sheet.classList.contains('psh-full')) sheet.classList.remove('psh-full'); }).observe(sheet,{attributes:true,attributeFilter:['class']});
+  }
+  window.pshAttach=attach;
+  function init(){
+    if(!document.body.classList.contains('ptly-appui')){
+      if(!init._mo){ init._mo=new MutationObserver(function(){ if(document.body.classList.contains('ptly-appui')){ init._mo.disconnect(); init(); } }); init._mo.observe(document.body,{attributes:true,attributeFilter:['class']}); }
+      return;
+    }
+    var rp=document.getElementById('right-panel');
+    attach(rp,{canFull:true,zones:['.rp-tabs','.rp-tab'],
+      isOpen:function(){ return rp.classList.contains('mobile-open'); },
+      close:function(){ if(typeof closeRightPanelMobile==='function') closeRightPanelMobile(); }});
+    window.addEventListener('resize',topEdge);
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
   else setTimeout(init,0);
