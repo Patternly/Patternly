@@ -15,7 +15,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v107";
+const MW_VERSION = "v108";
 
 // v107: the help sheet the in-app AI assistant answers from (/help/chat). Keep it
 // to facts that are true in the live app; update it when a feature changes.
@@ -26,6 +26,7 @@ How to answer
 - Only answer from the facts below. If you are not sure, or the question needs a person (refunds, billing problems, a missing purchase, deleting an account, a bug you cannot solve, a wholesale or brand enquiry), say so honestly and tell them to tap "Send to the team" below the chat; the team reads every message.
 - Never ask for or accept passwords, card numbers or access codes in the chat. Never promise refunds, release dates or new features.
 - Stay on Patternly and cross stitch. Politely decline anything unrelated.
+- When a chart, PDF or screen would help, suggest attaching it with the 📎 button next to the message box (PDF or photo, up to 10 MB); the team sees attached files.
 - If they share an idea or wish, thank them and suggest tapping "Send to the team" so it reaches the people who plan new versions.
 
 What Patternly is
@@ -60,6 +61,61 @@ Common fixes
 - Something looks stuck or out of date: close and reopen the app, or refresh the website; check the internet connection.
 - Progress or designs missing on a new device: make sure you are signed in with the same account as before.
 - A PDF will not upload or looks wrong: photo-scanned PDFs are not read as charts by Upload; use Scan Your Pattern instead.`;
+
+
+// v108: help chat files + saved chats (see /help/upload and /help/chat).
+const FB_FILE_MAX = 10 * 1048576;
+const FB_FILE_TYPES = { "application/pdf": 1, "image/jpeg": 1, "image/png": 1, "image/webp": 1, "image/heic": 1, "image/heif": 1, "image/gif": 1 };
+async function fbWho(request, auth) {
+  const ip = auth.proxied
+    ? String(request.headers.get("x-forwarded-for") || "").split(",")[0].trim()
+    : String(request.headers.get("cf-connecting-ip") || "").trim();
+  return auth.loggedIn && auth.customerId ? "c" + auth.customerId : (ip ? "i" + await sha256b64(ip) : "anon");
+}
+// A file reference sent back by the page: must be a key /help/upload made for this chat.
+function fbFileOk(f, conv) {
+  if (!f || typeof f !== "object" || !conv) return null;
+  const k = String(f.k || "");
+  if (!/^fbf\/\d{4}-\d{2}-\d{2}\/[a-z0-9]{6,20}\/[A-Za-z0-9]{6}-[\w.\- ]{1,60}$/.test(k) || k.split("/")[2] !== conv) return null;
+  const t = String(f.t || "");
+  if (!FB_FILE_TYPES[t]) return null;
+  return { k, n: String(f.n || "file").replace(/[\u0000-\u001F\u007F<>]/g, "").slice(0, 80), s: Math.max(0, Math.min(FB_FILE_MAX, +f.s || 0)), t };
+}
+function b64FromBuf(buf) {
+  const u = new Uint8Array(buf); let bin = "";
+  for (let i = 0; i < u.length; i += 0x8000) bin += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+// One feedback record per AI chat, "fb:<chat start ts>:<last 6 of the chat id>", rewritten
+// after every answer with the whole conversation (first question + latest turns, ≤6,000 chars).
+async function fbChatSave(env, conv, p) {
+  const now = Date.now();
+  let t = parseInt(conv.slice(0, 8), 36);
+  if (!(t > now - 2 * 86400000 && t < now + 3600000)) t = now;
+  const id = String(t).padStart(13, "0") + ":" + conv.slice(-6).toUpperCase().padStart(6, "X");
+  const key = "fb:" + id;
+  let rec = null; try { rec = JSON.parse((await env.ENTITLEMENTS.get(key)) || "null"); } catch (e) {}
+  if (!rec) {
+    if (!p.hist) return;                                   // an outcome for a chat that was never saved
+    let total = 0; try { total = +((await env.ENTITLEMENTS.get("fbcount")) || 0) || 0; } catch (e) {}
+    if (total >= 5000) return;
+    try { await env.ENTITLEMENTS.put("fbcount", String(total + 1)); } catch (e) {}
+    rec = { id, ts: t, status: "new", chat: true, conv };
+  }
+  if (p.hist) {
+    const lines = p.hist.map((m) => (m.role === "user" ? "Customer: " : "Assistant: ") + m.content);
+    let text = lines.join("\n\n");
+    if (text.length > 6000) { const head = lines[0].slice(0, 1000); text = head + "\n\n…\n" + text.slice(-(6000 - head.length - 4)); }
+    rec.text = text;
+    rec.turns = p.hist.filter((m) => m.role === "user").length;
+    for (const f of ["kind", "lang", "platform", "where", "app"]) if (p[f]) rec[f] = p[f];
+    if (p.name) rec.name = p.name;
+  }
+  if (p.file) { rec.files = rec.files || []; if (!rec.files.some((x) => x.k === p.file.k) && rec.files.length < 10) rec.files.push(p.file); }
+  if (p.outcome) rec.outcome = p.outcome;
+  rec.updated = now;
+  await env.ENTITLEMENTS.put(key, JSON.stringify(rec), { metadata: { kind: rec.kind, status: rec.status, ts: rec.ts } });
+}
 
 const enc = new TextEncoder();
 
@@ -2013,10 +2069,18 @@ async function handlePartnerApi(request, url, env) {
       if (sub === "admin/feedback/summary") {
         const days = Math.max(1, Math.min(90, +(url.searchParams.get("days") || 7) || 7));
         const since = Date.now() - days * 86400000;
-        items = items.filter(r => r.ts >= since || r.status === "new").map(r => { const { email, name, ...rest } = r; return { ...rest, contact: !!email }; });
+        items = items.filter(r => (r.updated || r.ts) >= since || r.status === "new").map(r => { const { email, name, files, ...rest } = r; return { ...rest, contact: !!email, files: (files || []).length }; });
         return partnerJson(200, { ok:true, days, since, items });
       }
       return partnerJson(200, { ok:true, items });
+    }
+    // v108: GET admin/feedback/file?k=fbf/... -> the attached file itself (owner only)
+    if (sub === "admin/feedback/file" && request.method === "GET") {
+      const k = String(url.searchParams.get("k") || "");
+      if (!/^fbf\//.test(k) || k.indexOf("..") >= 0 || !env.PATTERNS) return partnerJson(400, { ok:false, error:"bad file" });
+      const obj = await env.PATTERNS.get(k);
+      if (!obj) return partnerJson(404, { ok:false, error:"file not found" });
+      return new Response(obj.body, { headers: { "content-type": (obj.httpMetadata && obj.httpMetadata.contentType) || "application/octet-stream", "cache-control": "no-store", "x-content-type-options": "nosniff" } });
     }
     if (sub === "admin/feedback/update" && request.method === "POST") {
       let b; try { b = await request.json(); } catch (e) { return partnerJson(400, { ok:false, error:"bad json" }); }
@@ -2027,6 +2091,7 @@ async function handlePartnerApi(request, url, env) {
       if (!rec) return partnerJson(404, { ok:false, error:"not found" });
       if (b.delete === true) {
         await env.ENTITLEMENTS.delete(k);
+        for (const f of (rec.files || [])) { try { if (env.PATTERNS && /^fbf\//.test(f.k)) await env.PATTERNS.delete(f.k); } catch (e) {} }   // v108
         try { const n = +((await env.ENTITLEMENTS.get("fbcount")) || 0) || 0; await env.ENTITLEMENTS.put("fbcount", String(Math.max(0, n - 1))); } catch (e) {}
         return partnerJson(200, { ok:true, deleted:true });
       }
@@ -4187,12 +4252,51 @@ async function handleRequest(context) {
     return new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
   }
 
+  // v108: POST /help/upload?conv=<chat id>&name=<file name>  (body = the file, content-type = its type)
+  // A PDF or photo attached in the help chat, kept privately in R2 PATTERNS under
+  // "fbf/<day>/<conv>/<rand>-<name>" for the team (Studio → Feedback opens it).
+  // -> {ok, file:{k, n, s, t}}. Limits: 10 MB, PDF/JPEG/PNG/WebP/HEIC, 10 files a day per
+  // account or IP, 3,000 files stored. Deleting the chat in Studio deletes its files.
+  if (url.pathname.endsWith("/help/upload") && url.pathname.indexOf("/partner/") < 0) {
+    const h = { "content-type": "application/json", "cache-control": "no-store" };
+    const out = (obj) => new Response(JSON.stringify(obj), { status: 200, headers: h });
+    if (request.method !== "POST") return out({ ok: false, error: "method not allowed" });
+    if (!env.PATTERNS || !env.ENTITLEMENTS) return out({ ok: false, error: "not available right now" });
+    const conv = String(url.searchParams.get("conv") || "").replace(/[^a-z0-9]/gi, "").slice(0, 20);
+    if (conv.length < 6) return out({ ok: false, error: "no chat" });
+    const type = String(request.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+    if (!FB_FILE_TYPES[type]) return out({ ok: false, error: "type", type: true });
+    const len = +(request.headers.get("content-length") || 0) || 0;
+    if (len > FB_FILE_MAX) return out({ ok: false, error: "too big", big: true });
+    const who = await fbWho(request, auth);
+    const day = new Date().toISOString().slice(0, 10);
+    const rk = "rlup:" + day + ":" + who;
+    let n = 0; try { n = +((await env.ENTITLEMENTS.get(rk)) || 0) || 0; } catch (e) {}
+    if (n >= 10) return out({ ok: false, error: "limit", limit: true });
+    let total = 0; try { total = +((await env.ENTITLEMENTS.get("fbfcount")) || 0) || 0; } catch (e) {}
+    if (total >= 3000) return out({ ok: false, error: "storage full" });
+    let buf; try { buf = await request.arrayBuffer(); } catch (e) { return out({ ok: false, error: "upload failed" }); }
+    if (!buf || buf.byteLength < 20) return out({ ok: false, error: "empty" });
+    if (buf.byteLength > FB_FILE_MAX) return out({ ok: false, error: "too big", big: true });
+    let name = String(url.searchParams.get("name") || "file").replace(/[\u0000-\u001F\u007F\/\\<>"]/g, "").replace(/\s+/g, " ").trim().slice(0, 80) || "file";
+    const safe = name.replace(/[^\w.\- ]/g, "_").replace(/\s+/g, "_").slice(0, 60);
+    const k = "fbf/" + day + "/" + conv + "/" + randAlpha(6) + "-" + safe;
+    await env.PATTERNS.put(k, buf, { httpMetadata: { contentType: type, contentDisposition: "inline" }, customMetadata: { name, conv } });
+    try { await env.ENTITLEMENTS.put(rk, String(n + 1), { expirationTtl: 90000 }); } catch (e) {}
+    try { await env.ENTITLEMENTS.put("fbfcount", String(total + 1)); } catch (e) {}
+    return out({ ok: true, file: { k, n: name, s: buf.byteLength, t: type } });
+  }
+
   // v107: /help/chat — instant AI answers inside the help chat (Claude Haiku 5.5).
   // GET  -> {ok, ai}  (ai = the ANTHROPIC_API_KEY secret is set; without it the chat
   //         simply forwards messages to the team like before)
-  // POST {messages:[{role:"user"|"assistant", content}], lang, platform, where, kind}
-  //      -> {ok:true, text} | {ok:false, error, off?, limit?}
-  // Privacy: nothing is stored (no chat text, no IP); only per-hour/day counters.
+  // POST {messages:[{role:"user"|"assistant", content}], lang, platform, where, kind,
+  //       conv, name, app, attach?:{k,n,s,t}} -> {ok:true, text} | {ok:false, error, off?, limit?}
+  // POST {conv, outcome:"helped"|"team"} only marks how a saved chat ended.
+  // v108: every AI chat is saved (Cristian: people leave without pressing anything) as one
+  // record per chat in the feedback inbox ("fb:<chat start ts>:<chat tag>", chat:true),
+  // updated after each answer; the chat says so. An attached PDF/photo is shown to the AI
+  // on the turn it was sent (≤5 MB, not HEIC) and kept for the team.
   // Limits: 20 messages an hour and 60 a day per account or IP, 3,000 a day for
   // everyone together, 10 questions per chat, 1,000 characters per message.
   if (url.pathname.endsWith("/help/chat") && url.pathname.indexOf("/partner/") < 0) {
@@ -4201,9 +4305,14 @@ async function handleRequest(context) {
     const aiOn = !!env.ANTHROPIC_API_KEY;
     if (request.method === "GET") return out({ ok: true, ai: aiOn });
     if (request.method !== "POST") return out({ ok: false, error: "method not allowed" });
-    if (!aiOn) return out({ ok: false, error: "off", off: true });
     let b; try { b = await request.json(); } catch (e) { return out({ ok: false, error: "bad json" }); }
     if (b && b.hp) return out({ ok: false, error: "off", off: true });
+    const conv = String((b && b.conv) || "").replace(/[^a-z0-9]/gi, "").slice(0, 20);
+    if (b && (b.outcome === "helped" || b.outcome === "team") && !Array.isArray(b.messages)) {
+      if (conv && env.ENTITLEMENTS) await fbChatSave(env, conv, { outcome: b.outcome });
+      return out({ ok: true });
+    }
+    if (!aiOn) return out({ ok: false, error: "off", off: true });
     const all = Array.isArray(b && b.messages) ? b.messages : [];
     if (all.length > 40 || all.filter((m) => m && m.role !== "assistant").length > 10) return out({ ok: false, error: "long chat", long: true });
     const raw = all.slice(-20);
@@ -4218,10 +4327,7 @@ async function handleRequest(context) {
     while (msgs.length && msgs[0].role !== "user") msgs.shift();
     if (!msgs.length || msgs[msgs.length - 1].role !== "user") return out({ ok: false, error: "no question" });
     if (msgs.filter((m) => m.role === "user").length > 10) return out({ ok: false, error: "long chat", long: true });
-    const ip = auth.proxied
-      ? String(request.headers.get("x-forwarded-for") || "").split(",")[0].trim()
-      : String(request.headers.get("cf-connecting-ip") || "").trim();
-    const who = auth.loggedIn && auth.customerId ? "c" + auth.customerId : (ip ? "i" + await sha256b64(ip) : "anon");
+    const who = await fbWho(request, auth);
     const now = new Date(), day = now.toISOString().slice(0, 10), hour = now.toISOString().slice(0, 13);
     if (env.ENTITLEMENTS) {
       const keys = [["rlai:h:" + hour + ":" + who, 20, 4000], ["rlai:d:" + day + ":" + who, 60, 90000], ["rlai:g:" + day, 3000, 90000]];
@@ -4232,15 +4338,31 @@ async function handleRequest(context) {
     }
     const LANGN = { en: "English", fr: "French", de: "German", nl: "Dutch", ru: "Russian", uk: "Ukrainian", es: "Spanish", it: "Italian" };
     const lang = LANGN[String((b && b.lang) || "").slice(0, 2)] ? String(b.lang).slice(0, 2) : "en";
-    const plat = { ios: "the iPhone/iPad app", android: "the Android app", web: "the website" }[String((b && b.platform) || "")] || "the website";
+    const platKey = ["ios", "android", "web"].includes(String((b && b.platform) || "")) ? String(b.platform) : "web";
+    const plat = { ios: "the iPhone/iPad app", android: "the Android app", web: "the website" }[platKey];
     const where = String((b && b.where) || "").replace(/[^\w\-]/g, "").slice(0, 30);
-    const kind = String((b && b.kind) || "").replace(/[^a-z]/g, "").slice(0, 12);
+    const kind = ["problem", "idea", "question", "account", "other"].includes(String((b && b.kind) || "")) ? String(b.kind) : "other";
+    // An attachment from /help/upload: only a key of this chat; shown to the AI if it can read it.
+    const att = fbFileOk(b && b.attach, conv);
+    let attNote = "";
+    if (att && env.PATTERNS) {
+      const AI_TYPES = { "application/pdf": "document", "image/jpeg": "image", "image/png": "image", "image/webp": "image", "image/gif": "image" };
+      let obj = null; try { obj = (AI_TYPES[att.t] && att.s <= 5 * 1048576) ? await env.PATTERNS.get(att.k) : null; } catch (e) {}
+      const last = msgs[msgs.length - 1];
+      if (obj) {
+        const data = b64FromBuf(await obj.arrayBuffer());
+        last.content = [{ type: AI_TYPES[att.t], source: { type: "base64", media_type: att.t, data } }, { type: "text", text: last.content }];
+        attNote = " The user attached the file \"" + att.n + "\" (shown above their message). Look at it to help; the team can also see it.";
+      } else {
+        attNote = " The user attached the file \"" + att.n + "\", which you cannot open; the team will look at it.";
+      }
+    }
     const system = HELP_SHEET + "\n\nThis user is on " + plat + ". The app language is " + LANGN[lang] +
       "; answer in the language the user writes in (default " + LANGN[lang] + ")." +
-      (kind ? " They picked the reason \"" + kind + "\"." : "") + (where ? " They opened the chat from: " + where + "." : "");
+      " They picked the reason \"" + kind + "\"." + (where ? " They opened the chat from: " + where + "." : "") + attNote;
     let r, j;
     try {
-      const ac = new AbortController(); const tm = setTimeout(() => ac.abort(), 25000);
+      const ac = new AbortController(); const tm = setTimeout(() => ac.abort(), att ? 45000 : 25000);
       r = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST", signal: ac.signal,
         headers: { "content-type": "application/json", "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2026-10-21" },
@@ -4253,6 +4375,16 @@ async function handleRequest(context) {
     if (j.stop_reason === "refusal") return out({ ok: false, error: "refusal" });
     const text = (j.content || []).filter((c) => c && c.type === "text").map((c) => c.text).join("\n").trim().slice(0, 3000);
     if (!text) return out({ ok: false, error: "busy" });
+    if (conv && env.ENTITLEMENTS) {
+      const hist = all.map((m) => ({ role: m && m.role === "assistant" ? "assistant" : "user", content: String((m && m.content) || "").slice(0, 1000) }));
+      hist.push({ role: "assistant", content: text });
+      try {
+        await fbChatSave(env, conv, { hist, kind, lang, platform: platKey, where,
+          app: String((b && b.app) || "").replace(/[^\w.\-]/g, "").slice(0, 20),
+          name: String((b && b.name) || "").replace(/[\u0000-\u001F\u007F<>]/g, "").replace(/\s+/g, " ").trim().slice(0, 40),
+          file: att || null });
+      } catch (e) { console.log("help/chat save failed", e && e.message); }
+    }
     return out({ ok: true, text });
   }
 
@@ -4297,6 +4429,8 @@ async function handleRequest(context) {
     if (name) rec.name = name;
     if (conv) rec.conv = conv;
     if (b.contact === true && auth.loggedIn && auth.email) rec.email = String(auth.email).slice(0, 200);
+    const files = (Array.isArray(b.files) ? b.files : []).slice(0, 5).map((f) => fbFileOk(f, conv)).filter(Boolean);   // v108
+    if (files.length) rec.files = files;
     await env.ENTITLEMENTS.put("fb:" + id, JSON.stringify(rec), { metadata: { kind, status: "new", ts } });
     try { await env.ENTITLEMENTS.put("fbcount", String(total + 1)); } catch (e) {}
     return out(200, { ok: true });

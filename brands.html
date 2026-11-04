@@ -4099,11 +4099,21 @@ $('aov-refresh').onclick=loadAdminOverview;
 // ===== v41: push notifications (owner only) =====
 let PN_BOUND=false, PN_BUSY=false;
 const pnEsc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-/* v54: Feedback tab (owner only). Text from the public is shown with textContent-safe escaping only. */
+/* v54: Feedback tab (owner only). Text from the public is shown with textContent-safe escaping only.
+   v55: saved AI chats (chat:true, turns, outcome) and attached files (📎 opens via admin/feedback/file). */
 let FB_ITEMS=[], FB_BOUND=false;
 const FB_STATUS={new:'New',planned:'Planned',done:'Done',notnow:'Not now'};
 const FB_PLAT={ios:'iPhone app',android:'Android app',web:'Website'};
 const FB_KIND={problem:'🐞 Problem',idea:'💡 Idea',question:'❓ Question',account:'👤 Account or Plus',other:'💬 Something else'};
+const FB_END={helped:'ended: helped ✓',team:'ended: sent to the team'};
+const fbSize=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round((n||0)/1024))+' KB';
+async function fbOpenFile(k,btn){
+  const w=window.open('','_blank'); const old=btn.textContent; btn.textContent='Opening…';
+  try{ const r=await fetch(API+'admin/feedback/file?k='+encodeURIComponent(k),{headers:adminHeaders()});
+    if(!r.ok||/json/.test(r.headers.get('content-type')||'')){ if(w) w.close(); alertMsg('Could not open the file'); return; }
+    const u=URL.createObjectURL(await r.blob()); if(w) w.location=u; else location.href=u; setTimeout(()=>URL.revokeObjectURL(u),120000);
+  }catch(e){ if(w) w.close(); alertMsg('Could not open the file'); } finally{ btn.textContent=old; }
+}
 function fbBind(){
   if(FB_BOUND) return; FB_BOUND=true;
   $('fb-refresh').onclick=fbLoad; $('fb-f-kind').onchange=fbRender; $('fb-f-status').onchange=fbRender;
@@ -4124,7 +4134,7 @@ function fbRender(){
   if(!list.length){ $('fb-box').innerHTML='<div class="note">Nothing here yet.</div>'; return; }
   $('fb-box').innerHTML=list.map(x=>{
     const d=new Date(x.ts); const when=d.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'})+' '+d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
-    const meta=[FB_KIND[x.kind]||x.kind, x.name?('from '+x.name):'', x.conv?('chat '+x.conv.slice(-4)):'', FB_PLAT[x.platform]||x.platform, (x.lang||'').toUpperCase(), x.app, x.where?('via '+x.where):'' ].filter(Boolean).map(pnEsc).join(' · ');
+    const meta=[FB_KIND[x.kind]||x.kind, x.chat?('🤖 AI chat, '+(x.turns||1)+' question'+((x.turns||1)>1?'s':'')+', '+(FB_END[x.outcome]||'left without saying')):'', x.name?('from '+x.name):'', x.conv?('chat '+x.conv.slice(-4)):'', FB_PLAT[x.platform]||x.platform, (x.lang||'').toUpperCase(), x.app, x.where?('via '+x.where):'' ].filter(Boolean).map(pnEsc).join(' · ');
     const opts=Object.keys(FB_STATUS).map(v=>'<option value="'+v+'"'+(v===x.status?' selected':'')+'>'+FB_STATUS[v]+'</option>').join('');
     const mail=x.email?'<a href="mailto:'+pnEsc(encodeURIComponent(x.email).replace(/%40/g,'@'))+'" style="color:var(--red);font-weight:700">'+pnEsc(x.email)+'</a>':'';
     return '<div style="border-top:1px solid var(--border);padding:.75rem 0">'
@@ -4132,9 +4142,11 @@ function fbRender(){
       +'<span style="margin-left:auto;display:inline-flex;gap:.4rem;align-items:center"><select data-fbid="'+pnEsc(x.id)+'" class="fb-st">'+opts+'</select>'
       +'<button class="ghost fb-del" data-fbid="'+pnEsc(x.id)+'" style="padding:.25rem .6rem;font-size:.74rem">Delete</button></span></div>'
       +'<div style="white-space:pre-wrap;word-break:break-word;font-size:.9rem;margin:.35rem 0 0;color:var(--ink)">'+pnEsc(x.text)+'</div>'
+      +((x.files&&x.files.length)?'<div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.4rem">'+x.files.map(f=>'<button class="ghost fb-file" data-k="'+pnEsc(f.k)+'" style="padding:.3rem .65rem;font-size:.78rem">📎 '+pnEsc(f.n)+' · '+pnEsc(fbSize(f.s))+'</button>').join('')+'</div>':'')
       +(mail?'<div class="note" style="margin-top:.3rem">Reply to: '+mail+'</div>':'')
       +'</div>';
   }).join('');
+  document.querySelectorAll('#fb-box .fb-file').forEach(b=>{ b.onclick=()=>fbOpenFile(b.dataset.k,b); });
   document.querySelectorAll('#fb-box .fb-st').forEach(sel=>{ sel.onchange=()=>fbUpdate(sel.dataset.fbid,{status:sel.value}); });
   document.querySelectorAll('#fb-box .fb-del').forEach(b=>{ b.onclick=()=>{ if(b.dataset.armed){ fbUpdate(b.dataset.fbid,{delete:true}); } else { b.dataset.armed='1'; b.textContent='Delete?'; setTimeout(()=>{ delete b.dataset.armed; b.textContent='Delete'; },3000); } }; });
 }
