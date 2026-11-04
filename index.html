@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v699';
+window.PATTERNLY_BUILD='v702';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -38954,7 +38954,7 @@ body.dark .fb-m.me{color:#1d1420}
 .fb-chip:active{background:var(--fb-chip)}
 .fb-bar{display:flex;align-items:flex-end;gap:.45rem;padding:.55rem .65rem calc(.6rem + var(--sa-bottom,0px));border-top:1px solid var(--fb-line)}
 .fb-bar.off{display:none}
-.fb-in{flex:1;min-width:0;max-height:120px;resize:none;border:1.5px solid var(--fb-line);border-radius:20px;background:var(--fb-bg);color:var(--fb-ink);font:inherit;font-size:16px;line-height:1.35;padding:.55rem .85rem;outline:none}
+.fb-in{flex:1;min-width:0;max-height:120px;resize:none;border:1.5px solid var(--fb-line);border-radius:20px;background:var(--fb-bg);color:var(--fb-ink);font:inherit;font-size:16px;line-height:1.35;padding:.55rem .85rem;outline:none;overflow-y:hidden;scrollbar-width:thin}
 .fb-in:focus{border-color:var(--fb-acc)}
 .fb-in::placeholder{color:var(--fb-mute)}
 .fb-go{flex:none;width:42px;height:42px;border-radius:50%;border:none;background:var(--fb-acc);color:#fff;display:flex;align-items:center;justify-content:center}
@@ -39023,7 +39023,8 @@ body.ptly-appui #plfb-fab{bottom:calc(84px + var(--sa-bottom,0px))}
     if(on){ var i=$('fb-in'); i.placeholder=ph||tx('fb.msgPh'); i.maxLength=max||2000; i.value=''; grow();
       setTimeout(function(){ try{ if(!(window.matchMedia&&matchMedia('(pointer:coarse)').matches)) i.focus(); }catch(e){} },40); }
   }
-  function grow(){ var i=$('fb-in'); i.style.height='auto'; i.style.height=Math.min(120,i.scrollHeight)+'px'; $('fb-go').disabled=!i.value.trim(); }
+  // v702: border-box textarea, so add the borders to scrollHeight (without them the box was 3px short and showed a scrollbar)
+  function grow(){ var i=$('fb-in'); i.style.height='auto'; var bd=i.offsetHeight-i.clientHeight, h=i.scrollHeight+bd; i.style.height=Math.min(120,h)+'px'; i.style.overflowY=h>120?'auto':'hidden'; $('fb-go').disabled=!i.value.trim(); }
   function useAi(){ return aiOn && S && S.mode!=='team' && S.reason!=='idea'; }
   function setStatus(){ var e=document.querySelector('#plfb .fb-hd em'); if(e) e.textContent=tx(aiOn?'fb.statusAi':'fb.status'); var p=$('fb-ainote'); if(p) p.style.display=aiOn?'':'none'; }
   function reasonChips(){ chips(REASONS.map(function(r){ return [tx('fb.r.'+r), function(){ pick(r); }]; })); }
