@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v721';
+window.PATTERNLY_BUILD='v722';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -41811,7 +41811,10 @@ body.dark #trk-guide-banner.compact::before{background-color:#2a2238}
     if(!frag) return;
     if(last<t.length) out.appendChild(document.createTextNode(t.slice(last)));
     // keep "icon + words" one piece, so flex rows lay it out exactly like the old emoji text
-    if(p.childNodes.length>1 || getComputedStyle(p).display.indexOf('flex')>=0 || getComputedStyle(p).display.indexOf('grid')>=0){
+    // v722: only when words share the text node; a lone icon stays a direct child like the emoji was
+    // (some bars hide every <span> inside their buttons to show icons only)
+    var words=t.replace(RE,'').trim();
+    if(words && (p.childNodes.length>1 || getComputedStyle(p).display.indexOf('flex')>=0 || getComputedStyle(p).display.indexOf('grid')>=0)){
       var w=document.createElement('span'); w.className='pli-lbl'; w.appendChild(out); out=w;
     }
     p.replaceChild(out,node);
