@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v718';
+window.PATTERNLY_BUILD='v719';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -39763,6 +39763,9 @@ body.dark #trk-fspanel .pst-seg,body.dark.ptly-appui #trk-fspanel.pst #trk-zoomg
 body.dark #trk-fspanel .pst-seg button{color:#b3a8bd}
 body.dark #trk-fspanel .pst-seg button.on,body.dark.ptly-appui #trk-fspanel.pst #trk-zoomgroup button{background:#3a3048!important;color:#f1e9f3}
 body.dark.ptly-appui #trk-fspanel.pst #trk-grid-pop input[type=checkbox]:not(#tg-lightup):not(#tg-widget-pin){background:#3a3048}
+/* v719: switches that are on stay red in dark mode too (the dark rule above used to win) */
+body.dark.ptly-appui #trk-fspanel.pst #trk-grid-pop input[type=checkbox]:not(#tg-lightup):not(#tg-widget-pin):checked{background:#8B1A2B}
+body.dark.ptly-appui #trk-fspanel.pst .trk-lu-switch input:not(:checked)+.trk-lu-slider{background:#3a3048}
 body.dark.ptly-appui #trk-fspanel.pst .pst-more>button.pst-danger{color:#f08a8a!important}
 </style>
 <script id="pst-src">
