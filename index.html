@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v720';
+window.PATTERNLY_BUILD='v721';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -41673,6 +41673,174 @@ body.ptly-appui #acct-stash-web{display:none}
     });
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',accountRow); else accountRow();
+})();
+</script>
+<style id="pli-style">
+/* v721: Patternly's own fine-line icons replace the phone emojis everywhere (app + website).
+   One icon set (drawn for Patternly), swapped in by pli-src wherever an emoji is shown. */
+svg.pli{width:1.12em;height:1.12em;vertical-align:-.2em;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none;overflow:visible;display:inline-block}
+#trk-fsbar svg.pli,#trk-modebar svg.pli{width:1.25em;height:1.25em}
+.pli-lbl{display:inline}
+.trk-card-icon svg.pli,.frow .ico svg.pli{width:1em;height:1em;vertical-align:-.12em;stroke-width:1.6}
+.trk-streak .ts-fire svg.pli{color:#c8432b;stroke-width:1.6}
+.trk-streak.cold .ts-fire{filter:none}
+/* CSS-drawn emojis (theme / notification knobs, guide banner) */
+.theme-switch .ts-knob::before,.theme-switch .ts-knob.pn::before{content:'';width:12px;height:12px;background:#8B1A2B;-webkit-mask:var(--pli-moon) center/contain no-repeat;mask:var(--pli-moon) center/contain no-repeat}
+body.dark .theme-switch .ts-knob::before{-webkit-mask-image:var(--pli-sun);mask-image:var(--pli-sun)}
+.theme-switch .ts-knob.pn::before{-webkit-mask-image:var(--pli-belloff);mask-image:var(--pli-belloff)}
+.theme-switch.pn-on .ts-knob.pn::before{-webkit-mask-image:var(--pli-bell);mask-image:var(--pli-bell)}
+#trk-guide-banner.compact::before{content:'';background:#fff var(--pli-book-red) center/20px no-repeat}
+body.dark #trk-guide-banner.compact::before{background-color:#2a2238}
+</style>
+<script id="pli-src">
+/* v721: fine-line icons instead of emojis. Every emoji the app shows in buttons, rows,
+   headings, toasts and help text is swapped for an inline SVG drawn for Patternly.
+   Chart symbols (⚙ ☀ ✏ … in SYMBOLS) are never touched: a plain symbol is only swapped
+   when it sits next to words, never when it stands alone in its own cell. */
+(function(){
+  var I={
+    thread:'<path d="M6.5 4h11M6.5 20h11"/><path d="M8 4v16M16 4v16"/><path d="M8 7.5l8 3M8 11.5l8 3M8 15.5l8 2.5"/>',
+    yarn:'<circle cx="12" cy="12" r="8"/><path d="M6 7.5c4 1 8 4 10.5 9.5M5 11.5c3.5 0 7 2 9 7M9.5 4.4c3.5 2 6.3 5.6 7.7 10.4"/>',
+    tips:'<path d="M9.5 18h5M10.5 21h3"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z"/>',
+    lock:'<rect x="5" y="11" width="14" height="9.5" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+    unlock:'<rect x="5" y="11" width="14" height="9.5" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.6-1.8"/>',
+    gear:'<circle cx="12" cy="12" r="2.8"/><circle cx="12" cy="12" r="6.3"/><path d="M12 2.8v2.9M12 18.3v2.9M2.8 12h2.9M18.3 12h2.9M5.5 5.5l2 2M16.5 16.5l2 2M5.5 18.5l2-2M16.5 7.5l2-2"/>',
+    eye:'<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
+    check:'<circle cx="12" cy="12" r="9"/><path d="M8 12.4l2.8 2.8 5.2-5.6"/>',
+    search:'<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5.5 5.5"/>',
+    heart:'<path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.4 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z"/>',
+    sparkle:'<path d="M11 3.5l1.7 5L17.5 10l-4.8 1.6L11 16.5l-1.7-4.9L4.5 10l4.8-1.5z"/><path d="M18 14.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/>',
+    clip:'<path d="M16.5 7.5l-7.6 7.6a2 2 0 0 0 2.8 2.8l8-8a4 4 0 0 0-5.7-5.7l-8 8a6 6 0 0 0 8.5 8.5l6.2-6.2"/>',
+    camera:'<path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.3l1.5-2h5.4l1.5 2h2.3A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.3"/>',
+    download:'<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5"/><path d="M5 20h14"/>',
+    upload:'<path d="M12 16V5M7.5 9.5L12 5l4.5 4.5"/><path d="M5 20h14"/>',
+    flame:'<path d="M12 21a6 6 0 0 0 6-6c0-3.5-2.5-5.5-3.5-8.5-1.5 2-2 3.5-2 5-1-1-1.5-2.3-1.5-3.5C8.5 9.5 6 12 6 15a6 6 0 0 0 6 6z"/>',
+    pencil:'<path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/>',
+    hand:'<path d="M8 13V6.5a1.5 1.5 0 0 1 3 0V11M11 11V5a1.5 1.5 0 0 1 3 0v6M14 11V6.5a1.5 1.5 0 0 1 3 0V14a7 7 0 0 1-7 7 6 6 0 0 1-5-2.7L3.6 15.6a1.5 1.5 0 0 1 2.4-1.8L8 16"/>',
+    bug:'<rect x="7.5" y="8" width="9" height="12" rx="4.5"/><path d="M12 11v9M9.5 8a2.5 2.5 0 0 1 5 0M7.5 13H4M20 13h-3.5M7.6 17l-3 1.5M16.4 17l3 1.5M7.8 10L5 8M16.2 10L19 8"/>',
+    question:'<circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.5 2.5 0 1 1 3.6 2.2c-.8.4-1.2 1-1.2 1.8v.5M12 17h.01"/>',
+    user:'<circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>',
+    chat:'<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 3.5V17A2.5 2.5 0 0 1 4 14.5z"/>',
+    thumb:'<path d="M7 10.5V20H4.5v-9.5z"/><path d="M7 10.5l4-7c1.4 0 2.4 1.2 2.1 2.6l-.6 3.4h5.3a2 2 0 0 1 2 2.4l-1.3 6.5a2 2 0 0 1-2 1.6H7"/>',
+    send:'<path d="M3.5 11.5l17-7.5-5 16-3.8-6.2z"/><path d="M11.7 13.8L20.5 4"/>',
+    trash:'<path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v5.5M14 11v5.5"/>',
+    palette:'<path d="M12 4a8 8 0 1 0 0 16c1.1 0 1.6-.7 1.6-1.5 0-1.2-1-1.6-1-2.6 0-.8.7-1.4 1.6-1.4H16a4 4 0 0 0 4-4C20 6.9 16.4 4 12 4z"/><circle cx="8" cy="11" r="1"/><circle cx="11" cy="7.8" r="1"/><circle cx="15.2" cy="8.4" r="1"/>',
+    warning:'<path d="M12 4L2.8 19.5h18.4z"/><path d="M12 10v4.5M12 17.2h.01"/>',
+    plus:'<path d="M12 5v14M5 12h14"/>',
+    minus:'<path d="M5 12h14"/>',
+    clipboard:'<rect x="5.5" y="5" width="13" height="16" rx="2"/><path d="M9 5V3.5h6V5M9 10.5h6M9 14h6M9 17.5h3.5"/>',
+    save:'<path d="M5 4h11.5L20 7.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M8 4v5h7V4M7.5 20v-6h9v6"/>',
+    eraser:'<path d="M9 20h11"/><path d="M4.4 14.6l8.2-8.2a2 2 0 0 1 2.8 0l3.2 3.2a2 2 0 0 1 0 2.8L12 19H8.8z"/><path d="M8.5 10.5l5 5"/>',
+    receipt:'<path d="M6 3h12v18l-2.5-1.6L13 21l-2.5-1.6L8 21l-2-1.3z"/><path d="M9 8h6M9 12h6M9 16h3.5"/>',
+    ruler:'<path d="M4 20V4l16 16z"/><path d="M8 13v3h3M4 8h2M4 12h2M4 16h2"/>',
+    doc:'<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>',
+    move:'<path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/>',
+    dropper:'<path d="M13 7l4 4"/><path d="M15 9l-8.5 8.5L4 20"/><path d="M14.6 5.4l1.7-1.7a2.1 2.1 0 0 1 3 3l-1.7 1.7"/>',
+    brush:'<path d="M14.5 4.5l5 5-7 7-5-5z"/><path d="M7.5 11.5c-2 .5-3 2-3 4 0 2-1 3-2 3.5 3 .8 6.5 0 7.5-2.5"/>',
+    moon:'<path d="M19.5 14.5A8 8 0 1 1 9.5 4.5a6.5 6.5 0 0 0 10 10z"/>',
+    sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
+    dot:'<circle cx="12" cy="12" r="5.5"/>',
+    refresh:'<path d="M19.5 8.5A8 8 0 0 0 5 9M4.5 15.5A8 8 0 0 0 19 15"/><path d="M19.5 4v4.5H15M4.5 20v-4.5H9"/>',
+    image:'<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M3.5 16l5-4.5 4 3.5 3-2.5 5 4"/><circle cx="15.5" cy="9.5" r="1.4"/>',
+    pin:'<path d="M9 3.5h6l-1 5 3.5 3.5h-11L10 8.5z"/><path d="M12 12v8.5"/>',
+    bucket:'<path d="M5 9.5l6.5-6L18 10l-6.5 6.5z"/><path d="M5 9.5h13M19.5 13.5s1.5 2.2 1.5 3.3a1.5 1.5 0 0 1-3 0c0-1.1 1.5-3.3 1.5-3.3z"/>',
+    book:'<path d="M12 6.5C10 5 7 4.5 3.5 5v13.5c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5zM12 6.5V20"/>',
+    bell:'<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+    belloff:'<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0M4 4l16 16"/>',
+    key:'<circle cx="8" cy="15" r="4"/><path d="M11 12l8.5-8.5M16.5 6.5l2.5 2.5M14 9l2 2"/>',
+    folder:'<path d="M3.5 6.5A1.5 1.5 0 0 1 5 5h4.5l2 2.5H19a1.5 1.5 0 0 1 1.5 1.5v8.5A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z"/>',
+    globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.7 5.6 3.7 9s-1.2 6.4-3.7 9c-2.5-2.6-3.7-5.6-3.7-9S9.5 5.6 12 3z"/>',
+    inbox:'<path d="M12 3.5v10M8 9.5l4 4 4-4"/><path d="M3.5 14.5h5l1 2h5l1-2h5V19a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1z"/>',
+    cart:'<path d="M3 4h2.5l2.2 11h10.6l2-8H6.6"/><circle cx="9" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/>',
+    drop:'<path d="M12 3.5s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
+    thermo:'<path d="M10 14.5V5a2 2 0 0 1 4 0v9.5a4 4 0 1 1-4 0z"/><path d="M12 9v7.5"/>',
+    highlight:'<path d="M9 14.5l-4 4.5h4l1.5-1.5"/><path d="M9 14.5l7.5-9.5 3 3L10.5 17.5z"/>',
+    box:'<path d="M12 3l8 4v10l-8 4-8-4V7z"/><path d="M4 7l8 4 8-4M12 11v10"/>',
+    square:'<rect x="4.5" y="4.5" width="15" height="15" rx="2"/>',
+    calendar:'<rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>',
+    link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+    contrast:'<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/>'
+  };
+  var M={'🧵':'thread','🧶':'yarn','💡':'tips','🔒':'lock','🔓':'unlock','⚙':'gear','👁':'eye','✅':'check','🔍':'search','🔎':'search',
+    '❤':'heart','🎉':'sparkle','✨':'sparkle','🧹':'sparkle','📎':'clip','📷':'camera','⬇':'download','⬆':'upload','🔥':'flame',
+    '✏':'pencil','✍':'pencil','👋':'hand','🐞':'bug','❓':'question','👤':'user','💬':'chat','👍':'thumb','📨':'send','🗑':'trash',
+    '🎨':'palette','⚠':'warning','➕':'plus','➖':'minus','📋':'clipboard','💾':'save','🧽':'eraser','🧾':'receipt','📐':'ruler',
+    '📄':'doc','✋':'move','🎯':'dropper','🎭':'brush','🌙':'moon','☀':'sun','🔴':'dot','⚪':'dot','🔄':'refresh','🔁':'refresh',
+    '🖼':'image','📌':'pin','🪣':'bucket','📖':'book','🔕':'belloff','🔔':'bell','🔑':'key','📁':'folder','🌐':'globe','📥':'inbox',
+    '🛒':'cart','💧':'drop','🌡':'thermo','🔦':'highlight','📦':'box','🔲':'square','📅':'calendar','🔗':'link','🌗':'contrast'};
+  var keys=Object.keys(M).sort(function(a,b){return b.length-a.length;});
+  var RE=new RegExp('('+keys.map(function(k){return k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}).join('|')+')(\\uFE0F)?','g');
+  var NS='http://www.w3.org/2000/svg';
+  function svgStr(n){ return '<svg xmlns="'+NS+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+I[n]+'</svg>'; }
+  function el(n){ var s=document.createElementNS(NS,'svg'); s.setAttribute('viewBox','0 0 24 24'); s.setAttribute('class','pli pli-'+n); s.setAttribute('aria-hidden','true'); s.innerHTML=I[n]; return s; }
+  window.plIcon=function(n){ return I[n]?'<svg class="pli pli-'+n+'" viewBox="0 0 24 24" aria-hidden="true">'+I[n]+'</svg>':''; };
+  // CSS-drawn emojis use these as masks
+  try{ var R=document.documentElement.style;
+    ['moon','sun','bell','belloff'].forEach(function(n){ R.setProperty('--pli-'+n,'url("data:image/svg+xml,'+encodeURIComponent(svgStr(n))+'")'); });
+    R.setProperty('--pli-book-red','url("data:image/svg+xml,'+encodeURIComponent(svgStr('book').replace('currentColor','#8B1A2B'))+'")');
+  }catch(e){}
+  var SKIP='script,style,textarea,input,select,option,svg,canvas,code,pre,[contenteditable],.fb-m.me,.pli-skip,[class*="sym"],[id*="sym"]';
+  var ICONBOX='.ico,.trk-card-icon,.ac-icon,.ts-fire,.ic,.icon,.cam,#trk-grid-btn,#trk-tips,#plcam-torch,.ly-eye,.ly-lock';
+  function bmp(ch){ return ch.charCodeAt(0)<0xD800; }
+  // a plain symbol (no emoji marker) is swapped only next to words, or in a known icon box
+  function okPlain(node,m){
+    var t=node.nodeValue;
+    var rest=(t.slice(0,m.index)+t.slice(m.index+m[0].length)).trim();
+    if(rest) return true;
+    var p=node.parentNode; if(!p||p.nodeType!==1) return false;
+    if(p.closest(ICONBOX)) return true;
+    return (p.textContent||'').trim()!==m[0].trim();
+  }
+  function fix(node){
+    var t=node.nodeValue; if(!t) return;
+    RE.lastIndex=0; if(!RE.test(t)) return;
+    var p=node.parentNode; if(!p||p.nodeType!==1) return;
+    if(p.closest(SKIP)){
+      var o=p.closest('option'); if(o) node.nodeValue=t.replace(RE,'').replace(/^\s+/,'');
+      return;
+    }
+    RE.lastIndex=0; var m, last=0, frag=null, out=document.createDocumentFragment();
+    while((m=RE.exec(t))){
+      var ch=m[1];
+      if(bmp(ch) && !m[2] && !okPlain(node,m)) continue;
+      frag=1;
+      if(m.index>last) out.appendChild(document.createTextNode(t.slice(last,m.index)));
+      out.appendChild(el(M[ch]));
+      last=m.index+m[0].length;
+    }
+    if(!frag) return;
+    if(last<t.length) out.appendChild(document.createTextNode(t.slice(last)));
+    // keep "icon + words" one piece, so flex rows lay it out exactly like the old emoji text
+    if(p.childNodes.length>1 || getComputedStyle(p).display.indexOf('flex')>=0 || getComputedStyle(p).display.indexOf('grid')>=0){
+      var w=document.createElement('span'); w.className='pli-lbl'; w.appendChild(out); out=w;
+    }
+    p.replaceChild(out,node);
+  }
+  function stripPh(e){ var v=e.getAttribute('placeholder'); if(v){ RE.lastIndex=0; if(RE.test(v)) e.setAttribute('placeholder',v.replace(RE,'').replace(/^\s+/,'')); } }
+  function scan(root){
+    if(!root) return;
+    if(root.nodeType===3){ fix(root); return; }
+    if(root.nodeType!==1) return;
+    if(root.hasAttribute && root.hasAttribute('placeholder')) stripPh(root);
+    if(root.querySelectorAll) Array.prototype.forEach.call(root.querySelectorAll('[placeholder]'),stripPh);
+    var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null), list=[], n;
+    while((n=w.nextNode())){ var v=n.nodeValue; if(v && v.length<4000){ RE.lastIndex=0; if(RE.test(v)) list.push(n); } }
+    list.forEach(fix);
+  }
+  var q=[], sched=false;
+  function flush(){ sched=false; var a=q; q=[]; a.forEach(function(x){ if(x.isConnected) scan(x); }); }
+  function push(x){ q.push(x); if(!sched){ sched=true; (window.requestAnimationFrame||setTimeout)(flush); } }
+  function start(){
+    scan(document.body);
+    try{ new MutationObserver(function(ms){
+      for(var i=0;i<ms.length;i++){ var r=ms[i];
+        if(r.type==='characterData') push(r.target);
+        else if(r.type==='attributes') { if(r.target.nodeType===1) stripPh(r.target); }
+        else for(var j=0;j<r.addedNodes.length;j++) push(r.addedNodes[j]);
+      }
+    }).observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['placeholder']}); }catch(e){}
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start); else start();
 })();
 </script>
 </body>
