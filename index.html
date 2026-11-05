@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v723';
+window.PATTERNLY_BUILD='v724';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -41687,6 +41687,7 @@ body.ptly-appui #acct-stash-web{display:none}
 svg.pli{width:1.12em;height:1.12em;vertical-align:-.2em;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none;overflow:visible;display:inline-block}
 #trk-fsbar svg.pli,#trk-modebar svg.pli{width:1.25em;height:1.25em}
 .pli-lbl{display:inline}
+.pli-lbl>svg.pli:first-child{margin-right:.3em}   /* v724: a steady gap between icon and words */
 .trk-card-icon svg.pli,.frow .ico svg.pli{width:1em;height:1em;vertical-align:-.12em;stroke-width:1.6}
 .trk-streak .ts-fire svg.pli{color:#c8432b;stroke-width:1.6}
 .trk-streak.cold .ts-fire{filter:none}
@@ -41710,7 +41711,7 @@ body.dark #trk-guide-banner.compact::before{background-color:#2a2238}
     tips:'<path d="M9.5 18h5M10.5 21h3"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z"/>',
     lock:'<rect x="5" y="11" width="14" height="9.5" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
     unlock:'<rect x="5" y="11" width="14" height="9.5" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.6-1.8"/>',
-    gear:'<circle cx="12" cy="12" r="2.8"/><circle cx="12" cy="12" r="6.3"/><path d="M12 2.8v2.9M12 18.3v2.9M2.8 12h2.9M18.3 12h2.9M5.5 5.5l2 2M16.5 16.5l2 2M5.5 18.5l2-2M16.5 7.5l2-2"/>',
+    gear:'<path d="M10.4 3h3.2l.5 2.5 1.7 1 2.4-.9 1.6 2.8-1.9 1.7v1.8l1.9 1.7-1.6 2.8-2.4-.9-1.7 1-.5 2.5h-3.2l-.5-2.5-1.7-1-2.4.9-1.6-2.8 1.9-1.7v-1.8L4.2 8.4l1.6-2.8 2.4.9 1.7-1z"/><circle cx="12" cy="12" r="2.8"/>',   // v724: a cog with teeth (read like a sun before)
     eye:'<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
     check:'<circle cx="12" cy="12" r="9"/><path d="M8 12.4l2.8 2.8 5.2-5.6"/>',
     search:'<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5.5 5.5"/>',
