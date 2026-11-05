@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v728';
+window.PATTERNLY_BUILD='v729';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -38995,10 +38995,9 @@ body.dark #ped-menu hr{border-color:#37303f}
 <style id="pmo-style">
 /* v664 – app More tab: your card + stitching numbers, then Settings / Tools / Help, account links at the bottom.
    App only (body.ptly-appui); the website account page is unchanged. */
-#pmo{display:none}
-body.ptly-appui #pmo{display:block;max-width:640px;margin:0 auto}
+#pmo{display:block;max-width:640px;margin:0 auto}   /* v729: website too */
 body.ptly-appui #account-page .calc-container{padding:calc(var(--sa-top,0px) + 18px) 16px 104px!important;max-width:640px}
-body.ptly-appui #account-page .calc-title,body.ptly-appui #account-page .calc-sub,body.ptly-appui #acct-hub-lang,body.ptly-appui #acct-status,body.ptly-appui #acct-hub-appearance,body.ptly-appui #acct-plus-strip,body.ptly-appui #acct-hub,body.ptly-appui #acct-hub-legal{display:none!important}
+#account-page .calc-title,#account-page .calc-sub,#acct-hub-lang,#acct-status,#acct-hub-appearance,#acct-plus-strip,#acct-hub,#acct-hub-legal{display:none!important}
 #pmo h1{font-family:'DM Serif Display',serif;font-size:1.75rem;color:#2b2226;margin:0 0 14px;font-weight:400}
 #pmo .card{background:#fff;border:1px solid #eee2e5;border-radius:18px;padding:16px;margin-bottom:18px}
 #pmo .who{display:flex;align-items:center;gap:12px}
@@ -39039,6 +39038,12 @@ body.dark #pmo .list>.acct-hub-row,body.dark #pmo .row{color:#ece4ef;border-colo
 body.dark #pmo .row .ic,body.dark #pmo .acct-hub-row .ic{background:#2f2638;color:#f0b3c0}
 body.dark #pmo .cta.ghost{background:#3a2028;color:#f0b3c0}
 body.dark #pmo .row.danger{color:#f08a8a}body.dark #pmo .row.danger .ic{background:#3a2020;color:#f08a8a}
+/* v729 – website: a little more room on a computer; the Settings list keeps the header's dark-mode switch too */
+body:not(.ptly-appui) #account-page #pmo{padding:1.6rem 0 0}
+#account-page #acct-stash-web{display:none!important}   /* My threads is a row in Tools now */
+@media (min-width:821px){ body:not(.ptly-appui) #pmo h1{font-size:2.2rem} }
+body:not(.ptly-appui) #pmo .row:hover,body:not(.ptly-appui) #pmo .list>.acct-hub-row:hover{background:#fbf6f7}
+body.dark:not(.ptly-appui) #pmo .row:hover{background:#2a2338}
 </style>
 <script id="pmo-src">
 (function(){
@@ -39086,7 +39091,13 @@ body.dark #pmo .row.danger{color:#f08a8a}body.dark #pmo .row.danger .ic{backgrou
   function fmt(n){ try{ return Number(n).toLocaleString((window.PL_LANG||document.documentElement.lang||'en')); }catch(e){ return String(n); } }
   function go(w){
     try{
-      if(w==='signin') acctOpenLogin();
+      if(w==='signin'){
+        // v729: on patternly.design accounts only work on the Luca-S site (same as the old sign-in card)
+        var au={}; try{ au=lucasAuth()||{}; }catch(_){}
+        var inApp=false; try{ inApp=plIsApp(); }catch(_){}
+        if(!au.proxied && !inApp && !app()){ location.href='https://luca-s.com/apps/patternly'; return; }
+        acctOpenLogin();
+      }
       else if(w==='try') openPricing();
       else if(w==='threads') openThreads();
       else if(w==='stash') window.plStashOpen();   // v714: My threads
@@ -39114,7 +39125,7 @@ body.dark #pmo .row.danger{color:#f08a8a}body.dark #pmo .row.danger .ic{backgrou
     });
   }
   function render(){
-    if(!built || !app()) return;
+    if(!built) return;
     var a={}; try{ a=lucasAuth()||{}; }catch(e){}
     var s=stats(), em=a.email?String(a.email):'';
     // Keep the moved live controls (language, dark mode, notifications, in-app Plus) before rebuilding.
@@ -39128,7 +39139,8 @@ body.dark #pmo .row.danger{color:#f08a8a}body.dark #pmo .row.danger .ic{backgrou
       +'</div>';
     var st='<div class="stats"><div><b>'+fmt(s.st)+'</b><span>'+esc(tx('mo.stitches'))+'</span></div><div><b>'+fmt(s.fin)+'</b><span>'+esc(tx('mo.finished'))+'</span></div><div><b>'+fmt(s.best)+'</b><span>'+esc(tx('mo.streak'))+'</span></div></div>';
     var hasAsk=(typeof window.plFeedbackOpen==='function');
-    box.innerHTML='<h1>'+esc(tx('mo.title'))+'</h1>'
+    var h1=app()?tx('mo.title'):((window.plT&&plT('acct.title')!=='acct.title'&&plT('acct.title'))||'My Account');   // v729: the website calls it My Account
+    box.innerHTML='<h1>'+esc(h1)+'</h1>'
       +'<div class="card">'+who+st+'</div>'
       +'<div id="pmo-iap"></div>'
       +'<p class="grp">'+esc(tx('mo.settings'))+'</p><div class="list" id="pmo-set">'
@@ -39149,10 +39161,6 @@ body.dark #pmo .row.danger{color:#f08a8a}body.dark #pmo .row.danger .ic{backgrou
     var lab=r.querySelector('[data-i18n="acct.darkmode"],[data-i18n="acct.notifications"]'); if(lab) lab.textContent=tx(k);
   }
   function init(){
-    if(!app()){
-      if(!init._mo){ init._mo=new MutationObserver(function(){ if(app()){ init._mo.disconnect(); init(); } }); init._mo.observe(document.body,{attributes:true,attributeFilter:['class']}); }
-      return;
-    }
     build();
     if(typeof window.acctRenderPage==='function' && !window.acctRenderPage._pmo){
       var rp=window.acctRenderPage; window.acctRenderPage=function(){ var r=rp.apply(this,arguments); try{ render(); }catch(e){} return r; }; window.acctRenderPage._pmo=1;
