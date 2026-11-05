@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v719';
+window.PATTERNLY_BUILD='v720';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -40994,6 +40994,7 @@ body.dark #ppc-card .ppc-key i.l1{background:#4a2633}body.dark #ppc-card .ppc-ke
 })();
 </script>
 <style id="ppk-style">
+#trk-fspanel-body #trk-grid-pop label.tg-hide,#trk-grid-pop .tg-hide{display:none!important}
 /* v708: "Next stitch" + parking marks pill over the tracker chart */
 #ppk-pill{position:absolute;z-index:30;display:none;color:#fff;align-items:center;gap:6px;padding:5px;border-radius:999px;background:rgba(43,34,38,.92);box-shadow:0 8px 24px rgba(43,34,38,.3);transform:translateX(-50%);white-space:nowrap;-webkit-user-select:none;user-select:none}
 #ppk-pill.on{display:flex}
@@ -41308,7 +41309,7 @@ body.dark .ppk-ring{box-shadow:0 0 0 3px #1f1a2b,0 0 0 6px #f0b3c0}
       return l.querySelector('input');
     }
     var a=mk('tg-ppk','pk.set','pk.setsub'), b=mk('tg-ppkmark','pk.mark','pk.marksub');
-    function sync(){ var p=prefs(); a.checked=p.on; b.checked=p.mark; $('tg-ppkmark-row').style.display=p.on?'':'none'; }
+    function sync(){ var p=prefs(); a.checked=p.on; b.checked=p.mark; $('tg-ppkmark-row').classList.toggle('tg-hide',!p.on); } // v720: a class, because the sheet forces its labels to display:flex
     a.addEventListener('change',function(){ prefsSet('on',a.checked); if(!a.checked){ armed=false; cur=null; var r=document.querySelector('.ppk-ring'); if(r) r.remove(); } sync(); try{ renderTracker(); }catch(e){} place(true); });
     b.addEventListener('change',function(){ prefsSet('mark',b.checked); sync(); try{ renderTracker(); }catch(e){} });
     sync();
