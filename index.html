@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v722';
+window.PATTERNLY_BUILD='v723';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -39713,10 +39713,11 @@ body.dark.ptly-appui #pj-grid .pj-card{background:#221c30;border-color:#37303f}
 })();
 </script>
 <style id="pst-style">
+/* v723: the same Settings design on the website too (full-screen panel, and switches in the ⚙ menu) */
 /* v669 – app stitching Settings sheet, restructured: Chart (colour / symbols, zoom, pages),
    Show on chart (switches), Grid style (folds open), More (rows). Same live controls, new layout. App only. */
-body.ptly-appui #trk-fspanel.pst #trk-fspanel-body{padding:4px 14px calc(18px + var(--sa-bottom,0px))!important;background:#faf6f7}
-body.ptly-appui #trk-fspanel.pst #trk-fspanel-title{font-family:'DM Serif Display',serif;font-weight:400;font-size:1.2rem}
+#trk-fspanel.pst #trk-fspanel-body{padding:4px 14px calc(18px + var(--sa-bottom,0px))!important;background:#faf6f7}
+#trk-fspanel.pst #trk-fspanel-title{font-family:'DM Serif Display',serif;font-weight:400;font-size:1.2rem}
 #trk-fspanel .pst-lbl{font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9a8890;margin:16px 4px 7px}
 #trk-fspanel .pst-card{background:#fff;border:1px solid #eee2e5;border-radius:16px;padding:4px 14px}
 #trk-fspanel .pst-row{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;border-bottom:1px solid #f3e9ec;font-size:.9rem;color:#2b2226}
@@ -39725,48 +39726,53 @@ body.ptly-appui #trk-fspanel.pst #trk-fspanel-title{font-family:'DM Serif Displa
 #trk-fspanel .pst-seg button{border:0;background:none;border-radius:9px;padding:7px 12px;font:inherit;font-size:.8rem;font-weight:600;color:#6a5a62;cursor:pointer}
 #trk-fspanel .pst-seg button.on{background:#fff;color:#2b2226;box-shadow:0 1px 4px rgba(0,0,0,.12)}
 /* zoom + pages borrowed nodes */
-body.ptly-appui #trk-fspanel.pst #trk-zoomgroup{display:inline-flex!important;align-items:center;gap:2px;background:#f3ecef;border:0!important;border-radius:11px;padding:3px;box-shadow:none!important;height:auto!important}
-body.ptly-appui #trk-fspanel.pst #trk-zoomgroup button{width:34px;height:32px;border:0!important;background:#fff!important;border-radius:9px!important;font-size:1.1rem;color:#2b2226}
-body.ptly-appui #trk-fspanel.pst #trk-zoom-label{min-width:48px;text-align:center;font-size:.82rem;font-weight:700}
-body.ptly-appui #trk-fspanel.pst #trk-fs-pages-wrap{margin:0!important;padding:10px 0!important;border:0!important}
-body.ptly-appui #trk-fspanel.pst #trk-fs-pages-wrap>div:first-child{display:none}
+#trk-fspanel.pst #trk-zoomgroup{display:inline-flex!important;align-items:center;gap:2px;background:#f3ecef;border:0!important;border-radius:11px;padding:3px;box-shadow:none!important;height:auto!important}
+#trk-fspanel.pst #trk-zoomgroup button{width:34px;height:32px;border:0!important;background:#fff!important;border-radius:9px!important;font-size:1.1rem;color:#2b2226}
+#trk-fspanel.pst #trk-zoom-label{min-width:48px;text-align:center;font-size:.82rem;font-weight:700}
+#trk-fspanel.pst #trk-fs-pages-wrap{margin:0!important;padding:10px 0!important;border:0!important}
+#trk-fspanel.pst #trk-fs-pages-wrap>div:first-child{display:none}
 /* the shared grid popover, laid out as rows */
-body.ptly-appui #trk-fspanel.pst #trk-grid-pop{background:none!important;font-size:.9rem}
-body.ptly-appui #trk-fspanel.pst #trk-grid-pop .tg-row{display:flex;align-items:center;justify-content:space-between;min-height:46px;margin:0;padding:0;border-bottom:1px solid #f3e9ec;font-size:.9rem;color:#2b2226}
-body.ptly-appui #trk-fspanel.pst #trk-grid-pop .tg-row>span:first-child{font-weight:500}
-body.ptly-appui #trk-fspanel.pst #tg-lightup-row{margin:0!important;padding:10px 0!important;border-bottom:1px solid #f3e9ec!important}
-body.ptly-appui #trk-fspanel.pst #tg-lightup-row>span{font-size:.9rem!important;font-weight:500!important}
-body.ptly-appui #trk-fspanel.pst #tg-lightup-row>span>span{font-size:.72rem!important}
-body.ptly-appui #trk-fspanel.pst #tg-done-rows{margin:0!important;padding:4px 0 10px!important}
-body.ptly-appui #trk-fspanel.pst #trk-grid-pop input[type=checkbox]:not(#tg-lightup):not(#tg-widget-pin){-webkit-appearance:none;appearance:none;width:46px;height:28px;border-radius:14px;background:#ddd2d6;position:relative;cursor:pointer;transition:background .2s;flex:none;margin:0}
-body.ptly-appui #trk-fspanel.pst #trk-grid-pop input[type=checkbox]:not(#tg-lightup):not(#tg-widget-pin)::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
-body.ptly-appui #trk-fspanel.pst #trk-grid-pop input[type=checkbox]:not(#tg-lightup):not(#tg-widget-pin):checked{background:#8B1A2B}
-body.ptly-appui #trk-fspanel.pst #trk-grid-pop input[type=checkbox]:not(#tg-lightup):not(#tg-widget-pin):checked::after{transform:translateX(18px)}
-body.ptly-appui #trk-fspanel.pst #trk-grid-pop input[type=range]{width:100%;margin:2px 0 10px}
-body.ptly-appui #trk-fspanel.pst #tg-block{margin:0 0 10px}
-body.ptly-appui #trk-fspanel.pst .tg-color-row{margin:0 0 10px}
+#trk-fspanel.pst #trk-grid-pop{background:none!important;font-size:.9rem}
+#trk-fspanel.pst #trk-grid-pop .tg-row{display:flex;align-items:center;justify-content:space-between;min-height:46px;margin:0;padding:0;border-bottom:1px solid #f3e9ec;font-size:.9rem;color:#2b2226}
+#trk-fspanel.pst #trk-grid-pop .tg-row>span:first-child{font-weight:500}
+#trk-fspanel.pst #tg-lightup-row{margin:0!important;padding:10px 0!important;border-bottom:1px solid #f3e9ec!important}
+#trk-fspanel.pst #tg-lightup-row>span{font-size:.9rem!important;font-weight:500!important}
+#trk-fspanel.pst #tg-lightup-row>span>span{font-size:.72rem!important}
+#trk-fspanel.pst #tg-done-rows{margin:0!important;padding:4px 0 10px!important}
+#trk-grid-pop input[type=checkbox]:not(#tg-lightup):not(#tg-widget-pin){-webkit-appearance:none;appearance:none;width:46px;height:28px;border-radius:14px;background:#ddd2d6;position:relative;cursor:pointer;transition:background .2s;flex:none;margin:0}
+#trk-grid-pop input[type=checkbox]:not(#tg-lightup):not(#tg-widget-pin)::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+#trk-grid-pop input[type=checkbox]:not(#tg-lightup):not(#tg-widget-pin):checked{background:#8B1A2B}
+#trk-grid-pop input[type=checkbox]:not(#tg-lightup):not(#tg-widget-pin):checked::after{transform:translateX(18px)}
+#trk-fspanel.pst #trk-grid-pop input[type=range]{width:100%;margin:2px 0 10px}
+#trk-fspanel.pst #tg-block{margin:0 0 10px}
+#trk-fspanel.pst .tg-color-row{margin:0 0 10px}
 #pst-gridhd{display:none}
-body.ptly-appui #trk-fspanel.pst #pst-gridhd{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:48px;border:0;border-top:1px solid #f3e9ec;background:none;font:inherit;font-size:.9rem;color:#2b2226;cursor:pointer;padding:0}
+#trk-fspanel.pst #pst-gridhd{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:48px;border:0;border-top:1px solid #f3e9ec;background:none;font:inherit;font-size:.9rem;color:#2b2226;cursor:pointer;padding:0}
 #pst-gridhd i{font-style:normal;color:#9a8890;transition:transform .2s}
 body.pst-gridopen #pst-gridhd i{transform:rotate(90deg)}
-body.ptly-appui:not(.pst-gridopen) #trk-fspanel.pst #trk-grid-pop .pst-g{display:none!important}
+body:not(.pst-gridopen) #trk-fspanel.pst #trk-grid-pop .pst-g{display:none!important}
 /* More: the generated action buttons become list rows */
-body.ptly-appui #trk-fspanel.pst .pst-more{margin:0!important;padding:4px 14px!important;border:1px solid #eee2e5!important;border-radius:16px;background:#fff;gap:0!important}
-body.ptly-appui #trk-fspanel.pst .pst-more>button{display:flex!important;align-items:center;justify-content:space-between;min-height:48px;padding:0!important;border:0!important;border-bottom:1px solid #f3e9ec!important;border-radius:0!important;background:none!important;font-weight:500!important;font-size:.9rem!important;text-align:left;color:#2b2226!important}
-body.ptly-appui #trk-fspanel.pst .pst-more>button::after{content:'›';color:#c3b3b9;font-size:1.2rem}
-body.ptly-appui #trk-fspanel.pst .pst-more>button:last-child{border-bottom:0!important}
-body.ptly-appui #trk-fspanel.pst .pst-more>button.pst-danger{color:#b23b3b!important}
-body.dark.ptly-appui #trk-fspanel.pst #trk-fspanel-body{background:#1a1524}
-body.dark #trk-fspanel .pst-card,body.dark.ptly-appui #trk-fspanel.pst .pst-more{background:#221c30;border-color:#37303f!important}
-body.dark #trk-fspanel .pst-row,body.dark.ptly-appui #trk-fspanel.pst #trk-grid-pop .tg-row,body.dark.ptly-appui #trk-fspanel.pst #tg-lightup-row,body.dark.ptly-appui #trk-fspanel.pst #pst-gridhd,body.dark.ptly-appui #trk-fspanel.pst .pst-more>button{color:#ece4ef!important;border-color:#302839!important}
-body.dark #trk-fspanel .pst-seg,body.dark.ptly-appui #trk-fspanel.pst #trk-zoomgroup{background:#2c2438}
+#trk-fspanel.pst .pst-more{margin:0!important;padding:4px 14px!important;border:1px solid #eee2e5!important;border-radius:16px;background:#fff;gap:0!important}
+#trk-fspanel.pst .pst-more>button{display:flex!important;align-items:center;justify-content:space-between;min-height:48px;padding:0!important;border:0!important;border-bottom:1px solid #f3e9ec!important;border-radius:0!important;background:none!important;font-weight:500!important;font-size:.9rem!important;text-align:left;color:#2b2226!important}
+#trk-fspanel.pst .pst-more>button::after{content:'›';color:#c3b3b9;font-size:1.2rem}
+#trk-fspanel.pst .pst-more>button:last-child{border-bottom:0!important}
+#trk-fspanel.pst .pst-more>button.pst-danger{color:#b23b3b!important}
+body.dark #trk-fspanel.pst #trk-fspanel-body{background:#1a1524}
+body.dark #trk-fspanel .pst-card,body.dark #trk-fspanel.pst .pst-more{background:#221c30;border-color:#37303f!important}
+body.dark #trk-fspanel .pst-row,body.dark #trk-fspanel.pst #trk-grid-pop .tg-row,body.dark #trk-fspanel.pst #tg-lightup-row,body.dark #trk-fspanel.pst #pst-gridhd,body.dark #trk-fspanel.pst .pst-more>button{color:#ece4ef!important;border-color:#302839!important}
+body.dark #trk-fspanel .pst-seg,body.dark #trk-fspanel.pst #trk-zoomgroup{background:#2c2438}
 body.dark #trk-fspanel .pst-seg button{color:#b3a8bd}
-body.dark #trk-fspanel .pst-seg button.on,body.dark.ptly-appui #trk-fspanel.pst #trk-zoomgroup button{background:#3a3048!important;color:#f1e9f3}
-body.dark.ptly-appui #trk-fspanel.pst #trk-grid-pop input[type=checkbox]:not(#tg-lightup):not(#tg-widget-pin){background:#3a3048}
+body.dark #trk-fspanel .pst-seg button.on,body.dark #trk-fspanel.pst #trk-zoomgroup button{background:#3a3048!important;color:#f1e9f3}
+body.dark #trk-grid-pop input[type=checkbox]:not(#tg-lightup):not(#tg-widget-pin){background:#3a3048}
 /* v719: switches that are on stay red in dark mode too (the dark rule above used to win) */
-body.dark.ptly-appui #trk-fspanel.pst #trk-grid-pop input[type=checkbox]:not(#tg-lightup):not(#tg-widget-pin):checked{background:#8B1A2B}
-body.dark.ptly-appui #trk-fspanel.pst .trk-lu-switch input:not(:checked)+.trk-lu-slider{background:#3a3048}
-body.dark.ptly-appui #trk-fspanel.pst .pst-more>button.pst-danger{color:#f08a8a!important}
+body.dark #trk-grid-pop input[type=checkbox]:not(#tg-lightup):not(#tg-widget-pin):checked{background:#8B1A2B}
+body.dark #trk-fspanel.pst .trk-lu-switch input:not(:checked)+.trk-lu-slider{background:#3a3048}
+body.dark #trk-fspanel.pst .pst-more>button.pst-danger{color:#f08a8a!important}
+
+/* v723: ⚙ menu on the website uses the same switches */
+#trk-grid-pop .tg-row{gap:10px}
+#trk-fspanel.pst #trk-zoomgroup #trk-fit{width:auto;padding:0 10px;font-size:.8rem;font-weight:700}
+#trk-grid-pop .tg-row small{display:block;font-weight:400}
 </style>
 <script id="pst-src">
 (function(){
@@ -39835,7 +39841,7 @@ body.dark.ptly-appui #trk-fspanel.pst .pst-more>button.pst-danger{color:#f08a8a!
     }
   }
   function init(){
-    if(!app()){
+    if(false){
       if(!init._mo){ init._mo=new MutationObserver(function(){ if(app()){ init._mo.disconnect(); init(); } }); init._mo.observe(document.body,{attributes:true,attributeFilter:['class']}); }
       return;
     }
@@ -39845,7 +39851,7 @@ body.dark.ptly-appui #trk-fspanel.pst .pst-more>button.pst-danger{color:#f08a8a!
         var r=f.apply(this,arguments);
         try{
           var p=$('trk-fspanel');
-          if(kind==='settings' && app()) build();
+          if(kind==='settings') build();   // v723: website too
           else if(p) p.classList.remove('pst');
         }catch(e){ console.warn('[pst]',e); }
         return r;
