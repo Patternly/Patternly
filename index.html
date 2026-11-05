@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v713';
+window.PATTERNLY_BUILD='v714';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -39011,7 +39011,8 @@ body.dark #pmo .row.danger{color:#f08a8a}body.dark #pmo .row.danger .ic{backgrou
     star:'<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
     tag:'<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="8" cy="8" r="1.4"/>',
     lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
-    out:'<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"/>'
+    out:'<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"/>',
+    spool:'<rect x="6" y="3" width="12" height="3" rx="1"/><rect x="6" y="18" width="12" height="3" rx="1"/><path d="M8 6v12M16 6v12M8 9l8 2M8 13l8 2"/>'
   };
   function ic(n){ return '<span class="ic"><svg viewBox="0 0 24 24">'+IC[n]+'</svg></span>'; }
   function row(go,icn,k,cls){ return '<button type="button" class="row'+(cls?' '+cls:'')+'" data-go="'+go+'">'+ic(icn)+'<span class="t">'+esc(tx(k))+'</span><i>&rsaquo;</i></button>'; }
@@ -39028,6 +39029,7 @@ body.dark #pmo .row.danger{color:#f08a8a}body.dark #pmo .row.danger .ic{backgrou
       if(w==='signin') acctOpenLogin();
       else if(w==='try') openPricing();
       else if(w==='threads') openThreads();
+      else if(w==='stash') window.plStashOpen();   // v714: My threads
       else if(w==='calc') openCalculators();
       else if(w==='conv') openFileConverter();
       else if(w==='guide') openGuide();
@@ -39072,7 +39074,7 @@ body.dark #pmo .row.danger{color:#f08a8a}body.dark #pmo .row.danger .ic{backgrou
       +'<p class="grp">'+esc(tx('mo.settings'))+'</p><div class="list" id="pmo-set">'
       +  '<div class="row" data-go="lang">'+ic('globe')+'<span class="t">'+esc(tx('mo.lang'))+'</span><span id="pmo-lang"></span></div>'
       +'</div>'
-      +'<p class="grp">'+esc(tx('mo.tools'))+'</p><div class="list">'+row('threads','thread','mo.threads')+row('calc','calc','mo.calc')+row('conv','conv','mo.conv')+'</div>'
+      +'<p class="grp">'+esc(tx('mo.tools'))+'</p><div class="list">'+row('threads','thread','mo.threads')+(typeof window.plStashOpen==='function'?row('stash','spool','sk.open'):'')+row('calc','calc','mo.calc')+row('conv','conv','mo.conv')+'</div>'
       +'<p class="grp">'+esc(tx('mo.help'))+'</p><div class="list">'+row('guide','book','mo.guide')+(hasAsk?row('ask','chat','mo.ask'):'')+row('about','info','mo.about')+'</div>'
       +'<p class="grp">'+esc(tx('mo.account'))+'</p><div class="list">'+row('sub','star','mo.sub')+row('pricing','tag','mo.pricing')+row('privacy','lock','mo.privacy')+(a.loggedIn?row('out','out','mo.out','danger'):'')+'</div>';
     var set=$('pmo-set');
@@ -41273,6 +41275,17 @@ body.dark #pstash{--st-bg:#221a2e;--st-line:#3a2f47;--st-ink:#f2ecf4;--st-mute:#
 #pstash .st-foot{display:grid;grid-template-columns:repeat(3,1fr);gap:.45rem;padding:.75rem 1.1rem calc(.85rem + var(--sa-bottom,0px));border-top:1px solid var(--st-line)}
 #pstash .st-foot button{border:1.5px solid var(--st-line);border-radius:10px;background:var(--st-bg);color:var(--st-ink);font-weight:700;font-size:.8rem;padding:.6rem .3rem;cursor:pointer}
 #pstash .st-note{padding:0 1.1rem .5rem;font-size:.7rem;color:var(--st-mute);line-height:1.4}
+/* v714: website My Account entry (the app has its own row on the More page) */
+#acct-stash-web{max-width:860px;margin:1rem auto 0;border:1.5px solid #f0e4e8;border-radius:14px;background:#fff;overflow:hidden}
+#acct-stash-web .acct-hub-row{display:flex;align-items:center;justify-content:space-between;width:100%;padding:.95rem 1.3rem;border:0;background:none;font:inherit;font-size:.95rem;font-weight:700;color:#2b2226;text-align:left;cursor:pointer}
+#acct-stash-web .acct-hub-row small{display:block;font-size:.74rem;font-weight:500;color:#7d6b72;margin-top:.15rem}
+#acct-stash-web .acct-hub-row i{color:#c9b9c0;font-style:normal;font-size:1.25rem}
+#acct-stash-web .acct-hub-row:hover{background:#fbf6f7}
+body.dark #acct-stash-web{background:#221b2e;border-color:#3a3048}
+body.dark #acct-stash-web .acct-hub-row{color:#f2ecf4}
+body.dark #acct-stash-web .acct-hub-row small{color:#a596ab}
+body.dark #acct-stash-web .acct-hub-row:hover{background:#2a2238}
+body.ptly-appui #acct-stash-web{display:none}
 @media (max-width:640px){#pstash{padding:0;align-items:flex-end}#pstash .st-card{border-radius:18px 18px 0 0;max-height:92vh}}
 </style>
 <div id="pstash" role="dialog" aria-modal="true" aria-labelledby="st-title">
@@ -41307,6 +41320,9 @@ body.dark #pstash{--st-bg:#221a2e;--st-line:#3a2f47;--st-ink:#f2ecf4;--st-mute:#
     es:{"sk.title":"Mis hilos","sk.sub":"{n} hilos · {s} madejas contadas","sk.sub0":"Los hilos que ya tienes","sk.ph":"Números de hilo, p. ej. 310, 321, 3865","sk.add":"Añadir","sk.added":"{n} añadido(s)","sk.nf":"No encontrado: {c}","sk.find":"Buscar en mis hilos","sk.empty":"Aún no hay hilos. Escribe los números de las madejas que tienes o importa una lista. Así las listas de compra solo te pedirán lo que falta.","sk.import":"Importar lista","sk.copy":"Copiar","sk.copied":"Lista copiada","sk.note":"Se guarda en este dispositivo. La lista de compra de cada patrón la usa: los hilos de los que tienes suficiente aparecen marcados y en el resto ves cuántos comprar.","sk.count":"{n} madejas","sk.count1":"1 madeja","sk.have":"lo tienes, sin contar","sk.open":"Mis hilos"},
     it:{"sk.title":"I miei fili","sk.sub":"{n} fili · {s} matassine contate","sk.sub0":"I fili che hai già","sk.ph":"Numeri dei fili, es. 310, 321, 3865","sk.add":"Aggiungi","sk.added":"{n} aggiunti","sk.nf":"Non trovato: {c}","sk.find":"Cerca nei miei fili","sk.empty":"Ancora nessun filo. Scrivi i numeri delle matassine che hai o importa un elenco. Così le liste della spesa chiederanno solo quello che manca.","sk.import":"Importa elenco","sk.copy":"Copia","sk.copied":"Elenco copiato","sk.note":"Salvato su questo dispositivo. La lista della spesa di ogni schema lo usa: i fili sufficienti sono spuntati, per gli altri vedi quanti comprarne.","sk.count":"{n} matassine","sk.count1":"1 matassina","sk.have":"presente, non contato","sk.open":"I miei fili"}
   };
+  // v714: subtitle of the My Account entry on the website
+  var W={en:"The threads you already own, for every shopping list",fr:"Les fils que vous possédez déjà, pour chaque liste d'achats",de:"Die Garne, die du schon hast, für jede Einkaufsliste",nl:"De garens die je al hebt, voor elke boodschappenlijst",ru:"Нитки, которые у вас уже есть, для каждого списка покупок",uk:"Нитки, які у вас уже є, для кожного списку покупок",es:"Los hilos que ya tienes, para cada lista de compra",it:"I fili che hai già, per ogni lista della spesa"};
+  for(var wl in W){ if(S[wl]) S[wl]["sk.websub"]=W[wl]; }
   try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
   function tx(k,v){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; if(v) for(var n in v) s=s.split('{'+n+'}').join(String(v[n])); return s; }
   function $(id){ return document.getElementById(id); }
@@ -41446,6 +41462,22 @@ body.dark #pstash{--st-bg:#221a2e;--st-line:#3a2f47;--st-ink:#f2ecf4;--st-mute:#
     b.innerHTML='<span data-i18n="sk.open">'+esc(tx('sk.open'))+'</span><i>&rsaquo;</i>';
     b.addEventListener('click',function(){ window.plStashOpen(); });
     if(th && th.nextSibling) hub.insertBefore(b,th.nextSibling); else hub.appendChild(b);
+    // v714: the "More" list above is app-only, so the website's My Account page
+    // gets its own row under the account card, and every footer "Product"
+    // column gets a link next to Thread Colours.
+    var st=$('acct-status');
+    if(st && !$('acct-stash-web')){
+      var w=document.createElement('div'); w.id='acct-stash-web';
+      w.innerHTML='<button type="button" class="acct-hub-row"><span><span aria-hidden="true">🧵</span> <span data-i18n="sk.open">'+esc(tx('sk.open'))+'</span><small data-i18n="sk.websub">'+esc(tx('sk.websub'))+'</small></span><i>&rsaquo;</i></button>';
+      w.firstChild.addEventListener('click',function(){ window.plStashOpen(); });
+      st.parentNode.insertBefore(w,st.nextSibling);
+    }
+    [].forEach.call(document.querySelectorAll('.lp-footer-col a[onclick^="openThreads()"]'),function(a){
+      if(a.nextElementSibling && a.nextElementSibling.classList.contains('pstash-foot')) return;
+      var l=document.createElement('a'); l.href='#'; l.className='pstash-foot'; l.setAttribute('data-i18n','sk.open'); l.textContent=tx('sk.open');
+      l.addEventListener('click',function(e){ e.preventDefault(); window.plStashOpen(); });
+      a.parentNode.insertBefore(l,a.nextSibling);
+    });
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',accountRow); else accountRow();
 })();
