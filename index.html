@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v724';
+window.PATTERNLY_BUILD='v725';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -25963,7 +25963,7 @@ let trkGridCfg={on:true, op:50, block:10, bw:2, lw:0.25, color:'#000000', blockC
 try{ Object.assign(trkGridCfg, JSON.parse(localStorage.getItem('patternly_trk_grid')||'{}')); }catch(e){}
 function trkGridSave(){ try{ localStorage.setItem('patternly_trk_grid', JSON.stringify(trkGridCfg)); }catch(e){} }
 // Full-view colour sheet: 'grid' (chips) or 'list' (rows). Toggled from its header.
-let trkCbView='grid'; try{ trkCbView=localStorage.getItem('patternly_trk_cbview')||'grid'; }catch(e){}
+let trkCbView='list'; try{ trkCbView=localStorage.getItem('patternly_trk_cbview')||'list'; }catch(e){}   // v725: list (the app design) first
 function trkViewport(){
   if(!trkPageMode || !trackerGrid) return trackerGrid?{r0:0,c0:0,nr:trackerGrid.rows,nc:trackerGrid.cols}:null;
   const N=trkPageCells;
@@ -39409,14 +39409,14 @@ body.ptly-appui #plfb-fab{bottom:calc(84px + var(--sa-bottom,0px))}
 <style id="pcl-style">
 /* v666 – app stitching colour sheet as in the approved picture: rows with a colour tile + symbol,
    name, progress bar and "N left" / "Done ✓"; sort chips and Hide finished. App only. */
-body.ptly-appui.trk-fs.trk-cbopen #trk-colorbar{max-height:min(64vh,560px)}
-body.ptly-appui.trk-fs.trk-cbopen.cb-exp #trk-colorbar{max-height:88vh}
+body.trk-fs.trk-cbopen #trk-colorbar{max-height:min(64vh,560px)}
+body.trk-fs.trk-cbopen.cb-exp #trk-colorbar{max-height:88vh}
 body.ptly-appui #trk-cb-viewtog{display:none!important}
-body.ptly-appui #trk-cb-head{flex-wrap:wrap;padding:.8rem 14px .6rem;border-bottom:0}
-body.ptly-appui #trk-cb-head .cb-title{font-family:'DM Serif Display',serif;font-weight:400;font-size:1.2rem;margin-top:6px}
-body.ptly-appui #trk-cb-head .cb-title .n{font-family:'DM Sans',system-ui,sans-serif;font-size:.8rem;color:#9a8890;margin-left:6px;font-weight:600}
+#trk-cb-head{flex-wrap:wrap;padding:.8rem 14px .6rem;border-bottom:0}
+#trk-cb-head .cb-title{font-family:'DM Serif Display',serif;font-weight:400;font-size:1.2rem;margin-top:6px}
+#trk-cb-head .cb-title .n{font-family:'DM Sans',system-ui,sans-serif;font-size:.8rem;color:#9a8890;margin-left:6px;font-weight:600}
 #pcl-chips{display:none}
-body.ptly-appui #pcl-chips{display:flex;gap:6px;flex-basis:100%;order:5;margin-top:8px;overflow-x:auto;scrollbar-width:none}
+body.cb-list #pcl-chips{display:flex;gap:6px;flex-basis:100%;order:5;margin-top:8px;overflow-x:auto;scrollbar-width:none}
 #pcl-chips button{flex:none;border:1.5px solid #eadde1;background:#fff;color:#5a4a52;border-radius:999px;padding:5px 12px;font:inherit;font-size:.78rem;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent}
 #pcl-chips button.on{background:#2b2226;border-color:#2b2226;color:#fff}
 /* v676 – one Sort dropdown (Kit order / Colour number / Stitches) styled as a chip, then Most left and Hide finished */
@@ -39428,30 +39428,42 @@ body.ptly-appui #pcl-chips{display:flex;gap:6px;flex-basis:100%;order:5;margin-t
 #pcl-chips .pcl-sel select option{color:#2b2226}
 body.dark #pcl-chips .pcl-sel{background:#221c30;border-color:#37303f;color:#d9cfe0}
 body.dark #pcl-chips .pcl-sel.on{background:#f1e9f3;border-color:#f1e9f3;color:#1a1524}
-body.ptly-appui #trk-cb-body{padding:4px 10px calc(.8rem + var(--sa-bottom,0px));gap:2px}
-body.ptly-appui .cbrow.pcl{display:flex;align-items:center;gap:12px;padding:8px 8px;border:0;border-radius:12px;background:transparent;width:100%}
-body.ptly-appui .cbrow.pcl.sel{background:#fdedf0}
-body.ptly-appui .cbrow.pcl .tile{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
-body.ptly-appui .cbrow.pcl .tile .sycell{width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.88);font-size:14px}
-body.ptly-appui .cbrow.pcl .mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
-body.ptly-appui .cbrow.pcl .nm{font-size:.86rem;font-weight:700;color:#2b2226;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-body.ptly-appui .cbrow.pcl .nm small{font-weight:500;color:#9a8890;margin-left:6px}
-body.ptly-appui .cbrow.pcl .bar{height:4px;border-radius:2px;background:#efe4e8;overflow:hidden}
-body.ptly-appui .cbrow.pcl .bar i{display:block;height:100%;border-radius:2px;background:#8B1A2B}
-body.ptly-appui .cbrow.pcl .lf{flex:none;font-size:.76rem;color:#7a6a72;font-variant-numeric:tabular-nums;min-width:58px;text-align:right}
-body.ptly-appui .cbrow.pcl.done{opacity:1!important}
-body.ptly-appui .cbrow.pcl.done .nm{color:#9a8890;font-weight:600}
-body.ptly-appui .cbrow.pcl.done .bar i{background:#c79aa4}
-body.ptly-appui .cbrow.pcl.done .lf{color:#2E7D32}
-body.ptly-appui.pcl-hide .cbrow.pcl.done{display:none!important}
+body.cb-list #trk-cb-body{padding:4px 10px calc(.8rem + var(--sa-bottom,0px));gap:2px}
+#trk-cb-body .cbrow.pcl{display:flex;align-items:center;gap:12px;padding:8px 8px;border:0;border-radius:12px;background:transparent;width:100%}
+#trk-cb-body .cbrow.pcl.sel{background:#fdedf0}
+#trk-cb-body .cbrow.pcl .tile{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+#trk-cb-body .cbrow.pcl .tile .sycell{width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.88);font-size:14px}
+#trk-cb-body .cbrow.pcl .mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+#trk-cb-body .cbrow.pcl .nm{font-size:.86rem;font-weight:700;color:#2b2226;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#trk-cb-body .cbrow.pcl .nm small{font-weight:500;color:#9a8890;margin-left:6px}
+#trk-cb-body .cbrow.pcl .bar{height:4px;border-radius:2px;background:#efe4e8;overflow:hidden}
+#trk-cb-body .cbrow.pcl .bar i{display:block;height:100%;border-radius:2px;background:#8B1A2B}
+#trk-cb-body .cbrow.pcl .lf{flex:none;font-size:.76rem;color:#7a6a72;font-variant-numeric:tabular-nums;min-width:58px;text-align:right}
+#trk-cb-body .cbrow.pcl.done{opacity:1!important}
+#trk-cb-body .cbrow.pcl.done .nm{color:#9a8890;font-weight:600}
+#trk-cb-body .cbrow.pcl.done .bar i{background:#c79aa4}
+#trk-cb-body .cbrow.pcl.done .lf{color:#2E7D32}
+body.pcl-hide.cb-list #trk-cb-body .cbrow.pcl.done{display:none!important}
 body.dark #pcl-chips button{background:#221c30;border-color:#37303f;color:#d9cfe0}
 body.dark #pcl-chips button.on{background:#f1e9f3;border-color:#f1e9f3;color:#1a1524}
-body.dark.ptly-appui .cbrow.pcl.sel{background:#3a2028}
-body.dark.ptly-appui .cbrow.pcl .nm{color:#f1e9f3}
-body.dark.ptly-appui .cbrow.pcl .bar{background:#342b3f}
-body.dark.ptly-appui .cbrow.pcl .bar i{background:#e0697f}
-body.dark.ptly-appui .cbrow.pcl .lf{color:#b3a8bd}
-body.dark.ptly-appui .cbrow.pcl.done .lf{color:#7cc47f}
+body.dark #trk-cb-body .cbrow.pcl.sel{background:#3a2028}
+body.dark #trk-cb-body .cbrow.pcl .nm{color:#f1e9f3}
+body.dark #trk-cb-body .cbrow.pcl .bar{background:#342b3f}
+body.dark #trk-cb-body .cbrow.pcl .bar i{background:#e0697f}
+body.dark #trk-cb-body .cbrow.pcl .lf{color:#b3a8bd}
+body.dark #trk-cb-body .cbrow.pcl.done .lf{color:#7cc47f}
+body.dark #trk-cb-viewtog button.on{background:var(--lp-red,#8B1A2B);color:#fff}
+/* v725 – website: same colour rows, sort row and tool names as the app. On a computer the
+   colour list is a card on the right so the chart and the tools stay in view. */
+body.trk-fs:not(.ptly-appui) #trk-fsbar button{width:auto;min-width:58px;height:52px;padding:0 10px;border-radius:16px;border:0;flex-direction:column;gap:3px;font-size:1.1rem}
+body.trk-fs:not(.ptly-appui) #trk-fsbar button span{display:block;font-size:.68rem;font-weight:700;color:inherit}
+@media (min-width:821px){
+  body.trk-fs.trk-cbopen:not(.ptly-appui) #trk-colorbar{left:auto;right:70px;top:calc(max(.7rem,var(--sa-top)) + 1.2rem);bottom:16px;width:400px;max-height:none;height:auto;border:1.5px solid #e6d9dd;border-radius:18px;box-shadow:0 14px 40px rgba(43,34,38,.22);transform:none!important}
+  body.dark.trk-fs.trk-cbopen:not(.ptly-appui) #trk-colorbar{border-color:#4a3d55}
+  body.trk-fs.trk-cbopen:not(.ptly-appui) #trk-cb-head .cb-grab{display:none}
+  body.trk-fs.trk-cbopen:not(.ptly-appui) #trk-fsbar{display:flex;left:calc((100vw - 470px) / 2)}
+  body.trk-fs.trk-cbopen:not(.ptly-appui) #trk-fszoom{display:flex}
+}
 </style>
 <script id="pcl-src">
 (function(){
@@ -39506,7 +39518,7 @@ body.dark.ptly-appui .cbrow.pcl.done .lf{color:#7cc47f}
   }
   // Turn the plain list rows into the picture's rows (the click handler on each row is kept).
   function apply(){
-    if(!app()) return;
+    if(!app() && !document.body.classList.contains('cb-list')) return;   // v725: the website list view gets the same rows
     var body=document.getElementById('trk-cb-body'); if(!body) return;
     chips();
     var rows=[].slice.call(body.querySelectorAll(':scope > .cbrow[data-sym]')), n=0;
@@ -39546,7 +39558,7 @@ body.dark.ptly-appui .cbrow.pcl.done .lf{color:#7cc47f}
     if(tt){ var nEl=tt.querySelector('.n'); if(!nEl){ nEl=document.createElement('span'); nEl.className='n'; tt.appendChild(nEl); } if(nEl.textContent!==String(n)) nEl.textContent=String(n); }
   }
   function init(){
-    if(!app()){
+    if(false){   // v725: website too
       if(!init._mo){ init._mo=new MutationObserver(function(){ if(app()){ init._mo.disconnect(); init(); } }); init._mo.observe(document.body,{attributes:true,attributeFilter:['class']}); }
       return;
     }
@@ -39554,7 +39566,7 @@ body.dark.ptly-appui .cbrow.pcl.done .lf{color:#7cc47f}
     if(typeof f==='function' && !f._pcl){
       var w=function(){
         // The app always shows the list form of the colour sheet.
-        try{ if(typeof trkCbView!=='undefined' && trkCbView!=='list') trkCbView='list'; }catch(e){}
+        try{ if(app() && typeof trkCbView!=='undefined' && trkCbView!=='list') trkCbView='list'; }catch(e){}
         var r=f.apply(this,arguments); try{ apply(); }catch(e){} return r;
       };
       for(var k in f){ try{ w[k]=f[k]; }catch(e){} }
