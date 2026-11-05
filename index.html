@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v725';
+window.PATTERNLY_BUILD='v726';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -38301,15 +38301,15 @@ body.dark #plsx-map{border-color:#211a2b}
      buttons are the existing ones, untouched. The website keeps its layout. ═══ -->
 <style id="pltl-style">
 #pltl-head,#pltl-foot,#pltl-empty,#pltl-sheet,#pltl-scrim{display:none}
-body.ptly-appui.pltl-home #pltl-head{display:flex}
-body.ptly-appui.pltl-home #pltl-foot{display:block}
-body.ptly-appui.pltl-home.pltl-none #pltl-empty{display:flex}
-body.ptly-appui.pltl-home #tracker-page .calc-title,
-body.ptly-appui.pltl-home #tracker-page .calc-sub,
-body.ptly-appui.pltl-home #trk-newpat,
-body.ptly-appui.pltl-home #trk-guide-banner,
-body.ptly-appui.pltl-home .trk-viewtog,
-body.ptly-appui.pltl-home .trk-slide-arrow{display:none!important}
+body.pltl-home #pltl-head{display:flex}
+body.pltl-home #pltl-foot{display:block}
+body.pltl-home.pltl-none #pltl-empty{display:flex}
+body.pltl-home #tracker-page .calc-title,
+body.pltl-home #tracker-page .calc-sub,
+body.pltl-home #trk-newpat,
+body.pltl-home #trk-guide-banner,
+body.pltl-home .trk-viewtog,
+body.pltl-home .trk-slide-arrow{display:none!important}
 #pltl-head{flex-direction:column;gap:12px;max-width:640px;margin:.4rem auto 14px;font-family:'DM Sans',system-ui,sans-serif}
 #pltl-head .r1{display:flex;align-items:center;justify-content:space-between;gap:10px}
 #pltl-head h1{font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:1.75rem;margin:0;color:var(--lp-ink,#1a1520);line-height:1.1}
@@ -38321,19 +38321,19 @@ body.dark #pltl-chips button{background:#221b2d}
 #pltl-chips button[aria-pressed="true"]{background:var(--lp-ink,#1a1520);color:var(--lp-paper,#fdf9f5);border-color:var(--lp-ink,#1a1520)}
 body.dark #pltl-chips button[aria-pressed="true"]{background:#efe9f3;color:#171220;border-color:#efe9f3}
 /* cards as full-width rows */
-body.ptly-appui.pltl-home #trk-projects{max-width:640px;margin:0 auto}
-body.ptly-appui.pltl-home .trk-cardgrid{display:flex!important;flex-direction:column;gap:10px;overflow:visible;padding:0 0 .6rem;margin:0}
-body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard{flex:0 0 auto;display:flex;align-items:center;border-radius:16px;cursor:pointer;width:auto!important}
-body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .thumb{width:84px;height:84px;flex:0 0 84px;margin:8px 0 8px 8px;border-radius:10px;object-fit:cover}
-body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .body{flex:1;min-width:0;padding:10px 12px}
-body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .body h4{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .body > .meta + .trk-pbar + .meta{display:none!important}
-body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .row{margin-top:8px}
-body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard.pltl-off{display:none!important}
-body.ptly-appui.pltl-home .trk-sec-head{max-width:none!important;margin:6px 0 8px!important}
-body.ptly-appui.pltl-home .trk-sec-head h2{font-size:.78rem!important;font-family:'DM Sans',system-ui,sans-serif!important;letter-spacing:.08em;text-transform:uppercase;color:var(--lp-muted,#5a5268)!important}
-body.ptly-appui.pltl-home #trk-uploads-head a{font-size:.7rem!important;text-transform:none;letter-spacing:0}
-body.ptly-appui.pltl-home #trk-streak{max-width:none;margin:0 0 14px;padding:.55rem .8rem;border-radius:14px}
+body.pltl-home #trk-projects{max-width:640px;margin:0 auto}
+body.pltl-home .trk-cardgrid{display:flex!important;flex-direction:column;gap:10px;overflow:visible;padding:0 0 .6rem;margin:0}
+body.pltl-home .trk-cardgrid > .trk-pcard{flex:0 0 auto;display:flex;align-items:center;border-radius:16px;cursor:pointer;width:auto!important}
+body.pltl-home .trk-cardgrid > .trk-pcard .thumb{width:84px;height:84px;flex:0 0 84px;margin:8px 0 8px 8px;border-radius:10px;object-fit:cover}
+body.pltl-home .trk-cardgrid > .trk-pcard .body{flex:1;min-width:0;padding:10px 12px}
+body.pltl-home .trk-cardgrid > .trk-pcard .body h4{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.pltl-home .trk-cardgrid > .trk-pcard .body > .meta + .trk-pbar + .meta{display:none!important}
+body.pltl-home .trk-cardgrid > .trk-pcard .row{margin-top:8px}
+body.pltl-home .trk-cardgrid > .trk-pcard.pltl-off{display:none!important}
+body.pltl-home .trk-sec-head{max-width:none!important;margin:6px 0 8px!important}
+body.pltl-home .trk-sec-head h2{font-size:.78rem!important;font-family:'DM Sans',system-ui,sans-serif!important;letter-spacing:.08em;text-transform:uppercase;color:var(--lp-muted,#5a5268)!important}
+body.pltl-home #trk-uploads-head a{font-size:.7rem!important;text-transform:none;letter-spacing:0}
+body.pltl-home #trk-streak{max-width:none;margin:0 0 14px;padding:.55rem .8rem;border-radius:14px}
 #pltl-empty{flex-direction:column;align-items:center;gap:8px;text-align:center;padding:26px 18px;margin:0 0 14px;border:1.5px dashed var(--lp-border,#e8e4f0);border-radius:16px;color:var(--lp-muted,#5a5268);font-size:.9rem}
 #pltl-empty b{color:var(--lp-ink,#1a1520);font-size:1rem}
 #pltl-foot{text-align:center;font-size:.85rem;color:var(--lp-muted,#5a5268);margin:12px 0 22px}
@@ -38356,16 +38356,28 @@ body.pltl-sheet #pltl-sheet{display:flex}
 #pltl-sheet .ic.r{background:#fdedf0;color:#8B1A2B}#pltl-sheet .ic.p{background:#f0ebfc;color:#6b4fb0}#pltl-sheet .ic.g{background:#fef6e4;color:#a86a00}
 body.dark #pltl-sheet .ic.r{background:#3a2028;color:#e0a9b4}body.dark #pltl-sheet .ic.p{background:#2b2338;color:#c4b0f0}body.dark #pltl-sheet .ic.g{background:#31281a;color:#e0a64a}
 #pltl-chips button[hidden],#pltl-hideall[hidden]{display:none!important}
-body.ptly-appui.pltl-home .pltl-secoff{display:none!important}
+body.pltl-home .pltl-secoff{display:none!important}
 #pltl-hideall{align-self:flex-start;border:0;background:none;padding:0;font:inherit;font-size:.82rem;font-weight:700;color:var(--lp-red,#8B1A2B);cursor:pointer}
 body.dark #pltl-hideall{color:#e0a9b4}
 .pltl-hide{display:none}
-body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard{position:relative}
-body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .body h4{padding-right:74px}
-body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard > .pltl-hide{display:inline-flex;align-items:center;gap:4px;position:absolute;top:9px;right:9px;border:1px solid var(--lp-border,#e8e4f0);background:#fff;color:var(--lp-muted,#5a5268);border-radius:999px;padding:.26rem .55rem;font:inherit;font-size:.72rem;font-weight:600;cursor:pointer;z-index:2}
-body.dark.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard > .pltl-hide{background:#221b2d;border-color:#3a3146;color:#c9bfd3}
+body.pltl-home .trk-cardgrid > .trk-pcard{position:relative}
+body.pltl-home .trk-cardgrid > .trk-pcard .body h4{padding-right:74px}
+body.pltl-home .trk-cardgrid > .trk-pcard > .pltl-hide{display:inline-flex;align-items:center;gap:4px;position:absolute;top:9px;right:9px;border:1px solid var(--lp-border,#e8e4f0);background:#fff;color:var(--lp-muted,#5a5268);border-radius:999px;padding:.26rem .55rem;font:inherit;font-size:.72rem;font-weight:600;cursor:pointer;z-index:2}
+body.dark.pltl-home .trk-cardgrid > .trk-pcard > .pltl-hide{background:#221b2d;border-color:#3a3146;color:#c9bfd3}
 .pltl-hide svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 #pltl-sheet .beta{font-size:.6rem;font-weight:700;color:#6b4fb0;background:#f0ebfc;border-radius:6px;padding:1px 5px;margin-left:5px;vertical-align:2px}
+/* v726 – website: the same list header, filters and Hidden folder. The add sheet sits at the
+   bottom on phones (no app tab bar under it) and is a centred card on computers. */
+body:not(.ptly-appui) #pltl-sheet{padding-bottom:calc(18px + var(--sa-bottom,0px))}
+@media (min-width:821px){
+  body.pltl-home:not(.ptly-appui) #pltl-head,body.pltl-home:not(.ptly-appui) #trk-projects{max-width:760px}
+  body.pltl-home:not(.ptly-appui) #pltl-head{margin-top:1.4rem}
+  body.pltl-home:not(.ptly-appui) #pltl-head h1{font-size:2.2rem}
+  body:not(.ptly-appui) #pltl-sheet{top:50%;bottom:auto;left:50%;right:auto;transform:translate(-50%,-50%);width:460px;max-width:calc(100vw - 32px);border-radius:20px;padding:18px 18px 14px}
+  body:not(.ptly-appui) #pltl-sheet .grab{display:none}
+  body:not(.ptly-appui) #pltl-sheet button.r:hover{background:var(--lp-red-light,#fdedf0)}
+  body.dark:not(.ptly-appui) #pltl-sheet button.r:hover{background:#2b2338}
+}
 </style>
 <script id="pltl-src">
 (function(){
@@ -38462,7 +38474,7 @@ body.dark.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard > .pltl-hide{backgroun
   }
   function state(){
     var b=document.body.classList, ws=document.getElementById('trk-workspace'), pr=document.getElementById('trk-projects');
-    var on=app() && b.contains('tracker-mode') && !b.contains('trk-fs') && ws && ws.style.display==='none' && pr && pr.style.display!=='none';
+    var on=b.contains('tracker-mode') && !b.contains('trk-fs') && ws && ws.style.display==='none' && pr && pr.style.display!=='none';
     if(b.contains('pltl-home')!==on) b.toggle('pltl-home',on);
     if(!on) sheet(false); else apply();
   }
@@ -38472,7 +38484,7 @@ body.dark.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard > .pltl-hide{backgroun
     try{ trkChooseSource(kind); }catch(e){}
   }
   function init(){
-    if(!app()) return;
+    // v725: the website uses the same list (was app only)
     var up=document.getElementById('trk-upload'), pr=document.getElementById('trk-projects'); if(!up||!pr) return;
     head=document.createElement('div'); head.id='pltl-head';
     head.innerHTML='<div class="r1"><h1></h1><button type="button" id="pltl-add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span></span></button></div>'
@@ -39584,20 +39596,20 @@ body.trk-fs:not(.ptly-appui) #trk-fsbar button span{display:block;font-size:.68r
 /* v667 – app pattern cards as in the approved pictures. Tracker list: picture, name, size line, progress bar,
    "N% done"; the whole card opens, Rename/Delete move into a ⋯ menu. My designs: padded cards with a rounded
    picture, "Saved designs · N" row with Select. App only. */
-body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard{position:relative;align-items:center;gap:0;border:1px solid #eee2e5;border-radius:18px;box-shadow:none;padding:0}
-body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .thumb{width:72px;height:72px;flex:0 0 72px;margin:10px 0 10px 10px;border-radius:12px;object-fit:cover;background:#fff;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
-body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .body{padding:10px 44px 10px 12px}
-body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .body h4{font-size:.95rem;margin:0 0 2px}
-body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .body > .meta:first-of-type{margin-bottom:8px;font-size:.74rem}
-body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .trk-pbar{height:5px;border-radius:3px}
-body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .row{display:none!important}
-body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .trk-pbar ~ .meta{display:none!important}
+body.pltl-home .trk-cardgrid > .trk-pcard{position:relative;align-items:center;gap:0;border:1px solid #eee2e5;border-radius:18px;box-shadow:none;padding:0}
+body.pltl-home .trk-cardgrid > .trk-pcard .thumb{width:72px;height:72px;flex:0 0 72px;margin:10px 0 10px 10px;border-radius:12px;object-fit:cover;background:#fff;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+body.pltl-home .trk-cardgrid > .trk-pcard .body{padding:10px 44px 10px 12px}
+body.pltl-home .trk-cardgrid > .trk-pcard .body h4{font-size:.95rem;margin:0 0 2px}
+body.pltl-home .trk-cardgrid > .trk-pcard .body > .meta:first-of-type{margin-bottom:8px;font-size:.74rem}
+body.pltl-home .trk-cardgrid > .trk-pcard .trk-pbar{height:5px;border-radius:3px}
+body.pltl-home .trk-cardgrid > .trk-pcard .row{display:none!important}
+body.pltl-home .trk-cardgrid > .trk-pcard .trk-pbar ~ .meta{display:none!important}
 body.ptly-appui #pj-selbar{left:12px;right:12px;transform:none;max-width:none;gap:10px}
 body.ptly-appui #pj-selbar .pj-selbar-info{flex:1;min-width:0}
 body.ptly-appui #pj-selbar .pj-selbar-del{white-space:nowrap}
-body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .pcd-pct{display:block;font-size:.74rem;color:#8a7a82;margin-top:6px}
+body.pltl-home .trk-cardgrid > .trk-pcard .pcd-pct{display:block;font-size:.74rem;color:#8a7a82;margin-top:6px}
 .pcd-pct,.pcd-more{display:none}
-body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .pcd-more{display:grid;place-items:center;position:absolute;top:8px;right:6px;width:34px;height:34px;border:0;border-radius:10px;background:none;color:#8a7a82;cursor:pointer;-webkit-tap-highlight-color:transparent}
+body.pltl-home .trk-cardgrid > .trk-pcard .pcd-more{display:grid;place-items:center;position:absolute;top:8px;right:6px;width:34px;height:34px;border:0;border-radius:10px;background:none;color:#8a7a82;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .pcd-more svg{width:18px;height:18px;fill:currentColor}
 #pcd-menu{display:none;position:fixed;z-index:9600;min-width:180px;background:#fff;border:1px solid #eee2e5;border-radius:14px;box-shadow:0 14px 40px rgba(43,34,38,.22);padding:6px}
 #pcd-menu.open{display:block}
@@ -39605,9 +39617,9 @@ body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .pcd-more{display:grid;plac
 #pcd-menu button.danger{color:#b23b3b}
 #pcd-scrim{display:none;position:fixed;inset:0;z-index:9599}
 #pcd-scrim.open{display:block}
-body.dark.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard{border-color:#37303f}
-body.dark.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .trk-pbar{background:#342b3f}
-body.dark.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .pcd-pct,body.dark .pcd-more{color:#a99fb2}
+body.dark.pltl-home .trk-cardgrid > .trk-pcard{border-color:#37303f}
+body.dark.pltl-home .trk-cardgrid > .trk-pcard .trk-pbar{background:#342b3f}
+body.dark.pltl-home .trk-cardgrid > .trk-pcard .pcd-pct,body.dark .pcd-more{color:#a99fb2}
 body.dark #pcd-menu{background:#221c30;border-color:#37303f}
 body.dark #pcd-menu button{color:#ece4ef}body.dark #pcd-menu button.danger{color:#f08a8a}
 /* My designs */
@@ -39664,7 +39676,6 @@ body.dark.ptly-appui #pj-grid .pj-card{background:#221c30;border-color:#37303f}
     menu.classList.add('open'); scrim.classList.add('open');
   }
   function trackerCards(){
-    if(!app()) return;
     var cards=document.querySelectorAll('#trk-projects .trk-cardgrid > .trk-pcard:not(.new)');
     for(var i=0;i<cards.length;i++){
       var c=cards[i], body=c.querySelector('.body'); if(!body) continue;
@@ -39705,10 +39716,7 @@ body.dark.ptly-appui #pj-grid .pj-card{background:#221c30;border-color:#37303f}
     b.disabled=!!(sb&&sb.disabled); saved.style.display=n?'':'none';
   }
   function init(){
-    if(!app()){
-      if(!init._mo){ init._mo=new MutationObserver(function(){ if(app()){ init._mo.disconnect(); init(); } }); init._mo.observe(document.body,{attributes:true,attributeFilter:['class']}); }
-      return;
-    }
+    // v726: tracker cards on the website too; My designs (designs()) stays app only
     var pr=document.getElementById('trk-projects');
     if(pr) new MutationObserver(function(){ try{ trackerCards(); }catch(e){} }).observe(pr,{childList:true,subtree:true});
     var g=document.getElementById('pj-grid');
