@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v726';
+window.PATTERNLY_BUILD='v727';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -38057,13 +38057,13 @@ body.ptly-appui:not(.pl-site) #pl-apphome{padding-bottom:calc(1.6rem + 84px)}
      the website keep the old layout. ═══ -->
 <style id="plsx-style">
 #plsx-top,#plsx-col,#plsx-map{display:none}
-body.ptly-appui.trk-fs #trk-fsutil,body.ptly-appui.trk-fs #trk-fszoom{display:none!important}
-body.ptly-appui.trk-fs #plsx-top{display:flex}
-body.ptly-appui.trk-fs #trk-canvas-wrap{padding-top:calc(var(--sa-top,0px) + 66px);padding-bottom:calc(var(--sa-bottom,0px) + 80px)}
-body.ptly-appui.trk-fs #plsx-col{display:flex}
-body.ptly-appui.trk-fs #plsx-map.on{display:block}
-body.ptly-appui.trk-fs.trk-cbopen #plsx-col,body.ptly-appui.trk-fs.trk-setopen #plsx-col,
-body.ptly-appui.trk-fs.trk-cbopen #plsx-map,body.ptly-appui.trk-fs.trk-setopen #plsx-map{display:none!important}
+body.plsx-on.trk-fs #trk-fsutil,body.plsx-on.trk-fs #trk-fszoom{display:none!important}
+body.plsx-on.trk-fs #plsx-top{display:flex}
+body.plsx-on.trk-fs #trk-canvas-wrap{padding-top:calc(var(--sa-top,0px) + 66px);padding-bottom:calc(var(--sa-bottom,0px) + 80px)}
+body.plsx-on.trk-fs #plsx-col{display:flex}
+body.plsx-on.trk-fs #plsx-map.on{display:block}
+body.plsx-on.trk-fs.trk-cbopen #plsx-col,body.plsx-on.trk-fs.trk-setopen #plsx-col,
+body.plsx-on.trk-fs.trk-cbopen #plsx-map,body.plsx-on.trk-fs.trk-setopen #plsx-map{display:none!important}
 #plsx-top{position:fixed;left:10px;right:10px;top:calc(var(--sa-top,env(safe-area-inset-top,0px)) + 8px);z-index:9460;align-items:center;gap:8px;
   background:rgba(255,255,255,.94);border:1px solid #e8e4f0;border-radius:16px;padding:6px 8px;box-shadow:0 4px 18px rgba(43,34,38,.14);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
   transition:transform .28s ease,opacity .28s ease;font-family:'DM Sans',system-ui,sans-serif;color:#1a1520}
@@ -38080,10 +38080,10 @@ body.dark #plsx-top small{color:#b6abc2}
 body.dark #plsx-ring .bg{stroke:#37303f}body.dark #plsx-ring .fg{stroke:#c8566a}
 #plsx-ring text{fill:currentColor;font:700 10px 'DM Sans',system-ui,sans-serif}
 /* the four modes keep their names; the pill sits bottom-left, the colour circle bottom-right */
-body.ptly-appui.trk-fs #trk-fsbar{left:max(10px,calc(50% - 139px));right:auto;transform:none;bottom:calc(max(.7rem,var(--sa-bottom)) + 4px);gap:4px;padding:5px;background:rgba(43,34,38,.92)}
-body.ptly-appui.trk-fs #trk-fsbar button{width:auto;min-width:54px;height:52px;padding:0 8px;border-radius:16px;border:0;flex-direction:column;gap:2px;font-size:1.1rem}
-body.ptly-appui.trk-fs #trk-fsbar button span{display:block;font-size:.66rem;font-weight:700;color:inherit}
-body.ptly-appui.fsbar-hidden #trk-fsbar{transform:translateY(180%)}
+body.plsx-on.trk-fs #trk-fsbar{left:max(10px,calc(50% - 139px));right:auto;transform:none;bottom:calc(max(.7rem,var(--sa-bottom)) + 4px);gap:4px;padding:5px;background:rgba(43,34,38,.92)}
+body.plsx-on.trk-fs #trk-fsbar button{width:auto;min-width:54px;height:52px;padding:0 8px;border-radius:16px;border:0;flex-direction:column;gap:2px;font-size:1.1rem}
+body.plsx-on.trk-fs #trk-fsbar button span{display:block;font-size:.66rem;font-weight:700;color:inherit}
+body.plsx-on.fsbar-hidden #trk-fsbar{transform:translateY(180%)}
 /* v668: tools sit toward the centre (Cristian), kept clear of the colour circle on the right */
 #plsx-col{position:fixed;right:12px;bottom:calc(max(.7rem,var(--sa-bottom)) + 4px);z-index:9450;width:62px;height:62px;border-radius:50%;border:3px solid #fff;
   box-shadow:0 0 0 1px rgba(0,0,0,.12),0 8px 22px rgba(43,34,38,.3);align-items:center;justify-content:center;cursor:pointer;padding:0;background:#2b2226;color:#fff;font-family:'DM Sans',system-ui,sans-serif;transition:transform .15s}
@@ -38115,7 +38115,10 @@ body.dark #plsx-map{border-color:#211a2b}
   try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
   function tx(k,v){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; if(v) for(var n in v) s=s.split('{'+n+'}').join(v[n]); return s; }
   function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-  function app(){ return document.body.classList.contains('ptly-appui'); }
+  // v727: phones on the website get the same stitching screen as the app (computers keep the old full view)
+  var narrow=window.matchMedia?window.matchMedia('(max-width:820px)'):null;
+  function app(){ return document.body.classList.contains('ptly-appui') || !!(narrow&&narrow.matches); }
+  function mark(){ var on=app(); if(document.body.classList.contains('plsx-on')!==on) document.body.classList.toggle('plsx-on',on); }
   function fs(){ return document.body.classList.contains('trk-fs'); }
   var top,col,map,mapCv,mapBox,mapKey='',wake=null,leaving=false;
 
@@ -38250,12 +38253,12 @@ body.dark #plsx-map{border-color:#211a2b}
 
   function refresh(){ if(!app()||!fs()) return; updTop(); updCol(); drawMap(); }
   function init(){
-    if(!app()) return;
-    build();
+    build(); mark();
+    if(narrow){ try{ narrow.addEventListener('change',function(){ mark(); if(fs()) refresh(); }); }catch(e){ try{ narrow.addListener(function(){ mark(); }); }catch(_){} } }
     var ws=document.getElementById('trk-workspace');
     // An opened pattern goes straight into the stitching screen.
     function maybeEnter(){
-      if(leaving||!ws) return;
+      if(leaving||!ws||!app()) return;
       var open=ws.style.display!=='none' && document.body.classList.contains('tracker-mode');
       if(open && !fs()){ try{ trkToggleFullscreen(true); }catch(e){} }
     }
