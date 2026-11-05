@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v715';
+window.PATTERNLY_BUILD='v716';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -41326,7 +41326,10 @@ body.dark #pstash{--st-bg:#221a2e;--st-line:#3a2f47;--st-ink:#f2ecf4;--st-mute:#
 #pstash .st-head p{margin:.2rem 0 0;font-size:.78rem;color:var(--st-mute)}
 #pstash .st-x{margin-left:auto;flex:none;width:34px;height:34px;border-radius:50%;border:none;background:var(--st-chip);color:var(--st-ink);font-size:1rem;cursor:pointer}
 #pstash .st-add{padding:.75rem 1.1rem .5rem;display:grid;grid-template-columns:auto 1fr auto;gap:.45rem}
-#pstash .st-add select,#pstash .st-add textarea{border:1.5px solid var(--st-line);border-radius:10px;background:var(--st-bg);color:var(--st-ink);font-size:.86rem;padding:.5rem .6rem}
+#pstash #st-obrand{grid-column:1/-1;order:-1}
+#pstash .st-grp{font-size:.68rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--st-mute);padding:.8rem 0 .2rem}
+#pstash .st-sw.o{background:repeating-linear-gradient(45deg,var(--st-chip),var(--st-chip) 4px,var(--st-line) 4px,var(--st-line) 8px)!important}
+#pstash .st-add select,#pstash .st-add input,#pstash .st-add textarea{border:1.5px solid var(--st-line);border-radius:10px;background:var(--st-bg);color:var(--st-ink);font-size:.86rem;padding:.5rem .6rem}
 #pstash .st-add textarea{resize:none;height:42px;line-height:1.3}
 #pstash .st-add button{border:none;border-radius:10px;background:var(--st-acc);color:#fff;font-weight:700;font-size:.84rem;padding:0 1rem;cursor:pointer}
 #pstash .st-msg{grid-column:1/-1;font-size:.74rem;color:var(--st-mute);min-height:1em}
@@ -41364,6 +41367,7 @@ body.ptly-appui #acct-stash-web{display:none}
     <div class="st-head"><div><h3 id="st-title"></h3><p id="st-sub"></p></div><button type="button" class="st-x" id="st-x" aria-label="Close">✕</button></div>
     <div class="st-add">
       <select id="st-brand" aria-label="Brand"></select>
+      <input type="text" id="st-obrand" autocomplete="off" maxlength="40" style="display:none">
       <textarea id="st-codes" rows="1" spellcheck="false" autocomplete="off"></textarea>
       <button type="button" id="st-addbtn"></button>
       <div class="st-msg" id="st-msg"></div>
@@ -41394,6 +41398,15 @@ body.ptly-appui #acct-stash-web{display:none}
   // v714: subtitle of the My Account entry on the website
   var W={en:"The threads you already own, for every shopping list",fr:"Les fils que vous possédez déjà, pour chaque liste d'achats",de:"Die Garne, die du schon hast, für jede Einkaufsliste",nl:"De garens die je al hebt, voor elke boodschappenlijst",ru:"Нитки, которые у вас уже есть, для каждого списка покупок",uk:"Нитки, які у вас уже є, для кожного списку покупок",es:"Los hilos que ya tienes, para cada lista de compra",it:"I fili che hai già, per ogni lista della spesa"};
   for(var wl in W){ if(S[wl]) S[wl]["sk.websub"]=W[wl]; }
+  // v716: any brand, account sync
+  if(S.en){ S.en["sk.other"]="Other brand…"; S.en["sk.obrand"]="Brand name, e.g. Gamma"; S.en["sk.needbrand"]="Type the brand name first"; S.en["sk.noteacct"]="Saved to your Luca-S account, the same on every device. Every pattern's shopping list uses it: threads you have enough of are ticked, and short ones show how many more to buy."; }
+  if(S.fr){ S.fr["sk.other"]="Autre marque…"; S.fr["sk.obrand"]="Nom de la marque, ex. Gamma"; S.fr["sk.needbrand"]="Indiquez d'abord le nom de la marque"; S.fr["sk.noteacct"]="Enregistré dans votre compte Luca-S, identique sur tous vos appareils. La liste d'achats de chaque modèle l'utilise : les fils suffisants sont cochés, et pour les autres elle indique combien en acheter."; }
+  if(S.de){ S.de["sk.other"]="Andere Marke…"; S.de["sk.obrand"]="Markenname, z. B. Gamma"; S.de["sk.needbrand"]="Bitte zuerst den Markennamen eingeben"; S.de["sk.noteacct"]="In deinem Luca-S-Konto gespeichert, auf jedem Gerät gleich. Die Einkaufsliste jedes Musters nutzt sie: Garne, von denen du genug hast, sind abgehakt, bei anderen steht, wie viele noch fehlen."; }
+  if(S.nl){ S.nl["sk.other"]="Ander merk…"; S.nl["sk.obrand"]="Merknaam, bv. Gamma"; S.nl["sk.needbrand"]="Typ eerst de merknaam"; S.nl["sk.noteacct"]="Bewaard in je Luca-S-account, op elk apparaat hetzelfde. De boodschappenlijst van elk patroon gebruikt dit: garens waarvan je genoeg hebt zijn afgevinkt, bij de rest staat hoeveel je nog moet kopen."; }
+  if(S.ru){ S.ru["sk.other"]="Другой бренд…"; S.ru["sk.obrand"]="Название бренда, напр. Гамма"; S.ru["sk.needbrand"]="Сначала введите название бренда"; S.ru["sk.noteacct"]="Хранится в вашем аккаунте Luca-S и одинаково на всех устройствах. Список покупок каждой схемы использует его: нитки, которых хватает, отмечены, для остальных указано, сколько докупить."; }
+  if(S.uk){ S.uk["sk.other"]="Інший бренд…"; S.uk["sk.obrand"]="Назва бренду, напр. Гамма"; S.uk["sk.needbrand"]="Спочатку введіть назву бренду"; S.uk["sk.noteacct"]="Зберігається у вашому акаунті Luca-S і однаково на всіх пристроях. Список покупок кожної схеми використовує його: нитки, яких вистачає, позначені, для інших указано, скільки докупити."; }
+  if(S.es){ S.es["sk.other"]="Otra marca…"; S.es["sk.obrand"]="Nombre de la marca, p. ej. Gamma"; S.es["sk.needbrand"]="Escribe primero el nombre de la marca"; S.es["sk.noteacct"]="Se guarda en tu cuenta de Luca-S, igual en todos tus dispositivos. La lista de compra de cada patrón la usa: los hilos de los que tienes suficiente aparecen marcados y en el resto ves cuántos comprar."; }
+  if(S.it){ S.it["sk.other"]="Altra marca…"; S.it["sk.obrand"]="Nome della marca, es. Gamma"; S.it["sk.needbrand"]="Scrivi prima il nome della marca"; S.it["sk.noteacct"]="Salvato nel tuo account Luca-S, uguale su ogni dispositivo. La lista della spesa di ogni schema lo usa: i fili sufficienti sono spuntati, per gli altri vedi quanti comprarne."; }
   try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
   function tx(k,v){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; if(v) for(var n in v) s=s.split('{'+n+'}').join(String(v[n])); return s; }
   function $(id){ return document.getElementById(id); }
@@ -41424,21 +41437,24 @@ body.ptly-appui #acct-stash-web{display:none}
   function info(k,o){
     var m=o.m[k], i=index().byKey[k];
     if(i) return i;
-    if(m) return {label:m.l,r:m.r,g:m.g,b:m.b};
+    if(m) return {label:m.l,r:m.r,g:m.g,b:m.b,br:m.br,o:m.o};
     return {label:k,r:200,g:200,b:200};
   }
   var find='';
   function paint(){
     var o=load(), keys=Object.keys(o.h).concat(Object.keys(o.c).filter(function(k){ return !o.h[k]; }));
-    var rows=keys.map(function(k){ var i=info(k,o); return {k:k,label:i.label,r:i.r,g:i.g,b:i.b,c:o.c[k]}; })
-      .sort(function(a,b){ return String(a.label).localeCompare(String(b.label),undefined,{numeric:true}); });
+    var rows=keys.map(function(k){ var i=info(k,o), br=i.brand&&PALETTES[i.brand]?PALETTES[i.brand].name:(i.br||''); return {k:k,label:i.label,r:i.r,g:i.g,b:i.b,o:i.o,br:br,c:o.c[k]}; })
+      .sort(function(a,b){ return String(a.br).localeCompare(String(b.br))||String(a.label).localeCompare(String(b.label),undefined,{numeric:true}); });
     var counted=rows.reduce(function(s,r){ return s+(r.c>0?+r.c:0); },0);
     $('st-sub').textContent=rows.length?tx('sk.sub',{n:rows.length,s:counted}):tx('sk.sub0');
     var q=find.trim().toLowerCase(), show=q?rows.filter(function(r){ return String(r.label).toLowerCase().indexOf(q)>=0; }):rows;
     $('st-find').style.display=rows.length>8?'':'none';
+    var brands={}; rows.forEach(function(r){ brands[r.br]=(brands[r.br]||0)+1; });
+    var many=Object.keys(brands).length>1, lastBr=null;
     $('st-list').innerHTML=show.length?show.map(function(r){
       var sub=r.c>0?(+r.c===1?tx('sk.count1'):tx('sk.count',{n:r.c})):tx('sk.have');
-      return '<div class="st-row" data-k="'+esc(r.k)+'"><span class="st-sw" style="background:rgb('+r.r+','+r.g+','+r.b+')"></span><span class="st-txt"><b>'+esc(r.label)+'</b><span>'+esc(sub)+'</span></span>'+
+      var hd=(many && r.br!==lastBr)?'<div class="st-grp">'+esc(r.br||'—')+' · '+brands[r.br]+'</div>':''; lastBr=r.br;
+      return hd+'<div class="st-row" data-k="'+esc(r.k)+'"><span class="st-sw'+(r.o?' o':'')+'" style="background:rgb('+r.r+','+r.g+','+r.b+')"></span><span class="st-txt"><b>'+esc(r.label)+'</b><span>'+esc(sub)+'</span></span>'+
         '<span class="st-step"><button type="button" data-d="-1" aria-label="−">−</button><b>'+(r.c>0?r.c:'✓')+'</b><button type="button" data-d="1" aria-label="+">+</button></span></div>';
     }).join(''):'<div class="st-empty">'+esc(rows.length?'—':tx('sk.empty'))+'</div>';
   }
@@ -41454,7 +41470,14 @@ body.ptly-appui #acct-stash-web{display:none}
   // so a CSV saved from here imports back as it was.
   function addCodes(text,fileMode){
     var b=$('st-brand').value, I=index(), o=load(), added=0, nf=[];
-    var P=PALETTES[b]||{name:''};
+    // v716: a brand the app has no colour card for: keep the numbers as typed
+    var ob=''; if(b==='_other'){
+      ob=String($('st-obrand').value||'').trim().replace(/\s+/g,' ');
+      if(!ob){ var m0=$('st-msg'); m0.className='st-msg err'; m0.textContent=tx('sk.needbrand'); $('st-obrand').focus(); return false; }
+      try{ localStorage.setItem('patternly_stash_obrand',ob); }catch(e){}
+      Object.keys(PALETTES).forEach(function(bb){ if(norm(PALETTES[bb].name)===norm(ob)){ b=bb; ob=''; } });
+    }
+    var P=PALETTES[b]||{name:ob};
     var items=[];
     if(fileMode) String(text||'').split(/\r?\n/).forEach(function(line){
       var cells=line.split(/[,;\t]/).map(function(x){ return x.replace(/^\s*"|"\s*$/g,'').trim(); }).filter(Boolean);
@@ -41463,15 +41486,23 @@ body.ptly-appui #acct-stash-web{display:none}
       items.push({s:cells[0],n:n});
     });
     else String(text||'').split(/[\n,;\t]+|\s+/).forEach(function(x){ if(x.trim()) items.push({s:x.trim(),n:null}); });
+    var base=I.byCode[b]||{};
     var pres={}; Object.keys(I.byCode).forEach(function(bb){ pres[bb]=new RegExp('^'+String(PALETTES[bb].name).replace(/[^A-Za-z0-9]/g,'[^A-Za-z0-9]?')+'[^A-Za-z0-9]+','i'); });
     items.forEach(function(it){
-      var codes=I.byCode[b]||{}, pre=pres[b]||/^$/;
+      var codes=base, pre=pres[b]||/^$/;
       // a line that names its brand ("Anchor 403") uses that brand's numbers
       Object.keys(pres).forEach(function(bb){ if(pres[bb].test(it.s)){ codes=I.byCode[bb]; pre=pres[bb]; } });
       var tok=it.s.replace(pre,'').split(/[\s·:]+/).filter(Boolean)[0]||'';
       if(!tok || /^(brand|thread|threads|sku|code|number|colour|color|skeins|have)$/i.test(tok)) return;
       if(!fileMode && new RegExp('^'+String(P.name).replace(/[^A-Za-z0-9]/g,'[^A-Za-z0-9]?')+'$','i').test(tok)) return;   // a bare brand word typed between numbers
       var k=codes[norm('X'+tok).slice(1)];
+      if(!k && ob && codes===base && norm(tok)){
+        k=norm(ob+tok);
+        if(!o.h[k]) added++;
+        o.h[k]=1; if(it.n!=null && it.n>0) o.c[k]=it.n; else if(o.c[k]==null) o.c[k]=1;
+        o.m[k]={l:ob+' '+tok,r:230,g:225,b:228,br:ob,o:1};
+        return;
+      }
       if(!k){ nf.push(tok); return; }
       if(!o.h[k]){ added++; }
       o.h[k]=1; if(it.n!=null && it.n>0) o.c[k]=it.n; else if(o.c[k]==null) o.c[k]=1;
@@ -41490,21 +41521,27 @@ body.ptly-appui #acct-stash-web{display:none}
     var sel=$('st-brand'); if(sel.options.length) return;
     var last='dmc'; try{ last=localStorage.getItem(BK)||'dmc'; }catch(e){}
     try{ Object.keys(PALETTES).forEach(function(b){ var op=document.createElement('option'); op.value=b; op.textContent=PALETTES[b].name; sel.appendChild(op); }); }catch(e){}
-    sel.value=PALETTES[last]?last:'dmc';
+    var ot=document.createElement('option'); ot.value='_other'; ot.textContent=tx('sk.other'); sel.appendChild(ot);
+    sel.value=(PALETTES[last]||last==='_other')?last:'dmc';
+    try{ $('st-obrand').value=localStorage.getItem('patternly_stash_obrand')||''; }catch(e){}
+    obSync();
   }
+  function obSync(){ $('st-obrand').style.display=$('st-brand').value==='_other'?'':'none'; }
   function labels(){
     $('st-title').textContent=tx('sk.title'); $('st-codes').placeholder=tx('sk.ph'); $('st-addbtn').textContent=tx('sk.add');
-    $('st-find').placeholder=tx('sk.find'); $('st-import').textContent=tx('sk.import'); $('st-copy').textContent=tx('sk.copy'); $('st-note').textContent=tx('sk.note');
+    $('st-find').placeholder=tx('sk.find'); $('st-import').textContent=tx('sk.import'); $('st-copy').textContent=tx('sk.copy'); $('st-note').textContent=tx(signedIn()?'sk.noteacct':'sk.note');
+    $('st-obrand').placeholder=tx('sk.obrand'); var so=$('st-brand').querySelector('option[value="_other"]'); if(so) so.textContent=tx('sk.other');
   }
   function close(){ root.classList.remove('on'); document.removeEventListener('keydown',onKey,true); }
   function onKey(e){ if(e.key==='Escape'){ e.stopPropagation(); close(); } }
   window.plStashOpen=function(){
     brandSel(); labels(); find=''; $('st-find').value=''; $('st-msg').textContent=''; paint();
     root.classList.add('on'); document.addEventListener('keydown',onKey,true);
+    pull();
   };
   $('st-x').addEventListener('click',close);
   root.addEventListener('click',function(e){ if(e.target===root) close(); });
-  $('st-brand').addEventListener('change',function(){ try{ localStorage.setItem(BK,this.value); }catch(e){} });
+  $('st-brand').addEventListener('change',function(){ try{ localStorage.setItem(BK,this.value); }catch(e){} obSync(); if(this.value==='_other' && !$('st-obrand').value) $('st-obrand').focus(); });
   $('st-addbtn').addEventListener('click',function(){ var t=$('st-codes'); if(addCodes(t.value)) t.value=''; });
   $('st-codes').addEventListener('keydown',function(e){ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); $('st-addbtn').click(); } });
   $('st-find').addEventListener('input',function(){ find=this.value; paint(); });
@@ -41525,6 +41562,76 @@ body.ptly-appui #acct-stash-web{display:none}
     if(typeof rawDownload==='function') rawDownload(blob,'My threads.csv');
     else { var u=URL.createObjectURL(blob), a=document.createElement('a'); a.href=u; a.download='My threads.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(u); },1500); }
   });
+  // ── v716: My threads follow the Luca-S account ─────────────────────────
+  // The store stays in localStorage (works signed out and offline). When
+  // signed in it is merged with the account copy (/stash) per thread: every
+  // change is stamped (patternly_shop_sync.u), the newest change wins, and a
+  // removal is kept as a stamp so it does not come back from another device.
+  var SY='patternly_shop_sync', applying=false, pushT=null, pulling=null;
+  function signedIn(){
+    try{ if(typeof plSessQS==='function' && plSessQS()) return true; }catch(e){}
+    try{ var a=lucasAuth(); return !!(a && a.loggedIn); }catch(e){ return false; }
+  }
+  function stashUrl(){ try{ return TRK_KITS_BASE.replace(/\/patterns$/,'')+'/stash'+(typeof plSessQS==='function'?plSessQS():''); }catch(e){ return null; } }
+  function syncSt(){ try{ var o=JSON.parse(localStorage.getItem(SY)||'{}')||{}; return {u:o.u||{},s:o.s||{}}; }catch(e){ return {u:{},s:{}}; } }
+  function syncPut(st){ try{ localStorage.setItem(SY,JSON.stringify(st)); }catch(e){} }
+  function sig(o,k){ return (o.h[k]||o.c[k]!=null)?((o.h[k]?1:0)+':'+(o.c[k]!=null?o.c[k]:'')):''; }
+  function keysOf(){ var a={}; for(var i=0;i<arguments.length;i++){ var x=arguments[i]; if(x) Object.keys(x).forEach(function(k){ a[k]=1; }); } return Object.keys(a); }
+  // first run on this device: what is already here counts as "old" (stamp 0)
+  (function(){ var o=load(), st=syncSt(), ch=false; keysOf(o.h,o.c).forEach(function(k){ if(st.s[k]==null){ st.s[k]=sig(o,k); st.u[k]=st.u[k]||0; ch=true; } }); if(ch) syncPut(st); })();
+  function stamp(){
+    if(applying) return;
+    var o=load(), st=syncSt(), now=Date.now(), ch=false;
+    keysOf(o.h,o.c,st.s).forEach(function(k){ var g=sig(o,k); if((st.s[k]||'')!==g){ st.s[k]=g; st.u[k]=now; ch=true; } });
+    if(ch){ syncPut(st); push(); }
+  }
+  window.addEventListener('pl-stash',stamp);
+  function push(){
+    if(!signedIn()) return;
+    clearTimeout(pushT); pushT=setTimeout(function(){
+      var url=stashUrl(); if(!url) return;
+      var o=load(), st=syncSt(), m={};
+      keysOf(o.h,o.c).forEach(function(k){ if(o.m[k]) m[k]=o.m[k]; });
+      fetch(url,{method:'PUT',credentials:'include',headers:{'content-type':'application/json'},body:JSON.stringify({data:{h:o.h,c:o.c,m:m,u:st.u}})}).catch(function(){});
+    },1200);
+  }
+  function merge(R){
+    R=R||{}; ['h','c','m','u'].forEach(function(p){ if(!R[p]||typeof R[p]!=='object') R[p]={}; });
+    var o=load(), st=syncSt(), changed=false, need=false;
+    keysOf(o.h,o.c,st.u,R.h,R.c,R.u).forEach(function(k){
+      var lu=+st.u[k]||0, ru=+R.u[k]||0, ls=sig(o,k), rs=sig(R,k);
+      var takeRemote = ru>lu || (ru===lu && rs!==ls && (ls==='' || (rs!=='' && (+R.c[k]||0)>(+o.c[k]||0))));
+      if(takeRemote){
+        if(rs!==ls){
+          if(R.h[k]) o.h[k]=1; else delete o.h[k];
+          if(R.c[k]!=null) o.c[k]=R.c[k]; else delete o.c[k];
+          if(rs && R.m[k]) o.m[k]=R.m[k];
+          changed=true;
+        }
+        st.u[k]=ru; st.s[k]=rs;
+      } else if(lu>ru || rs!==ls){ need=true; st.s[k]=ls; }
+    });
+    syncPut(st);
+    if(changed){ applying=true; try{ save(o); }finally{ applying=false; } if(root.classList.contains('on')) paint(); }
+    if(need) push();
+  }
+  function pull(){
+    if(!signedIn() || pulling) return pulling;
+    var url=stashUrl(); if(!url) return null;
+    pulling=fetch(url,{credentials:'include',cache:'no-cache'}).then(function(r){ return r.ok?r.json():null; })
+      .then(function(j){ if(j) merge(j.data); }).catch(function(){}).then(function(){ pulling=null; });
+    return pulling;
+  }
+  window.plStashPull=pull;
+  // the shopping list reads the same store: bring the account copy in when it opens
+  (function hookShop(){
+    if(typeof window.plShopOpen!=='function'){ setTimeout(hookShop,500); return; }
+    if(window.plShopOpen._stash) return;
+    var so=window.plShopOpen; window.plShopOpen=function(){ var r=so.apply(this,arguments); pull(); return r; }; window.plShopOpen._stash=1;
+  })();
+  setTimeout(pull,2500);
+  document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') pull(); });
+
   // Entry in My Account › More, under Thread Colours
   function accountRow(){
     var hub=$('acct-hub'); if(!hub || $('acct-stash-row')) return;

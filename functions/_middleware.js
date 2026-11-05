@@ -15,7 +15,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v108";
+const MW_VERSION = "v109";
 
 // v107: the help sheet the in-app AI assistant answers from (/help/chat). Keep it
 // to facts that are true in the live app; update it when a feature changes.
@@ -4765,6 +4765,66 @@ async function handleRequest(context) {
     }
 
     return new Response("method not allowed", { status: 405 });
+  }
+
+  // ── /stash: "My threads" that follow the account (v109) ─────────────────
+  // The threads a stitcher owns, shared by every shopping list. One small JSON
+  // record per account in KV: {h: have, c: skeins counted, m: label/colour,
+  // u: per-thread change time}. The app merges per thread (newest change wins),
+  // so removing a thread on one device removes it everywhere.
+  //   GET /stash  -> {data:{h,c,m,u}|null, ts}
+  //   PUT /stash  <- {data:{h,c,m,u}}
+  if (url.pathname === "/stash" || url.pathname.endsWith("/stash")) {
+    const json = (obj, code) => new Response(JSON.stringify(obj), {
+      status: code || 200, headers: { "content-type": "application/json", "cache-control": "no-store" }
+    });
+    if (!auth.loggedIn || !auth.customerId) return json({ error: "signin" }, 401);
+    if (!env.ENTITLEMENTS) return json({ error: "storage not configured" }, 500);
+    const key = "stash:" + auth.customerId;
+    if (request.method === "GET") {
+      const raw = await env.ENTITLEMENTS.get(key);
+      if (!raw) return json({ data: null, ts: 0 });
+      try { const rec = JSON.parse(raw); return json({ data: rec.data || null, ts: rec.ts || 0 }); }
+      catch (e) { return json({ data: null, ts: 0 }); }
+    }
+    if (request.method === "PUT" || request.method === "POST") {
+      const text = await request.text();
+      if (text.length > 300000) return json({ error: "too big" }, 413);
+      let body;
+      try { body = JSON.parse(text); } catch (e) { return json({ error: "bad body" }, 400); }
+      const d = body && body.data;
+      const isObj = (x) => x && typeof x === "object" && !Array.isArray(x);
+      if (!isObj(d)) return json({ error: "bad data" }, 400);
+      // Keep only the four known maps, with short keys and plain values.
+      const clean = { h: {}, c: {}, m: {}, u: {} };
+      let n = 0;
+      const okKey = (k) => typeof k === "string" && k.length > 0 && k.length <= 60;
+      for (const part of ["h", "c", "m", "u"]) {
+        if (!isObj(d[part])) continue;
+        for (const k of Object.keys(d[part])) {
+          if (!okKey(k) || ++n > 20000) continue;
+          const v = d[part][k];
+          if (part === "m") {
+            if (!isObj(v)) continue;
+            clean.m[k] = { l: String(v.l == null ? "" : v.l).slice(0, 80), r: v.r | 0, g: v.g | 0, b: v.b | 0 };
+            if (v.br) clean.m[k].br = String(v.br).slice(0, 40);
+            if (v.o) clean.m[k].o = 1;
+          } else if (part === "u") {
+            clean.u[k] = Math.max(0, Math.min(Number(v) || 0, Date.now() + 86400000));
+          } else {
+            clean[part][k] = Math.max(0, Math.min(v | 0, 9999));
+          }
+        }
+      }
+      const ts = Date.now();
+      await env.ENTITLEMENTS.put(key, JSON.stringify({ data: clean, ts }));
+      return json({ ok: true, ts });
+    }
+    if (request.method === "DELETE") {
+      await env.ENTITLEMENTS.delete(key);
+      return json({ ok: true });
+    }
+    return json({ error: "method" }, 405);
   }
 
   // ── /progress: stitch progress that follows the account ──────────────────
