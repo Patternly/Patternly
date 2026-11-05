@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v717';
+window.PATTERNLY_BUILD='v718';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -41365,6 +41365,13 @@ body.dark #acct-stash-web .acct-hub-row small{color:#a596ab}
 body.dark #acct-stash-web .acct-hub-row:hover{background:#2a2238}
 body.ptly-appui #acct-stash-web{display:none}
 @media (max-width:640px){#pstash{padding:0;align-items:flex-end}#pstash .st-card{border-radius:18px 18px 0 0;max-height:92vh}}
+/* v718: in the app My threads is a full page, like the other More pages */
+@media (max-width:820px){
+  body.ptly-appui #pstash{padding:0;align-items:stretch;background:var(--st-bg)}
+  body.ptly-appui #pstash .st-card{width:100%;height:100%;max-height:none;border-radius:0;box-shadow:none}
+  body.ptly-appui #pstash .st-head{padding-top:calc(1rem + var(--sa-top,env(safe-area-inset-top,0px)));align-items:center}
+  body.ptly-appui #pstash .st-head h3{font-size:1.35rem}
+}
 </style>
 <div id="pstash" role="dialog" aria-modal="true" aria-labelledby="st-title">
   <div class="st-card">
