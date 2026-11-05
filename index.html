@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v716';
+window.PATTERNLY_BUILD='v717';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -41284,6 +41284,10 @@ body.dark .ppk-ring{box-shadow:0 0 0 3px #1f1a2b,0 0 0 6px #f0b3c0}
     window.addEventListener('resize',function(){ setTimeout(place,60); });
     // the full-view mode bar slides in; settle above it once it has arrived
     document.addEventListener('transitionend',function(e){ if(e.target && e.target.id==='trk-fsbar') place(); });
+    // v717: the mode bar hides and comes back through body classes (colour picker, settings,
+    // auto-hide) with no transition; follow every body class change so the pill never sits under it
+    try{ new MutationObserver(function(){ var p=$('ppk-pill'); if(p&&p.classList.contains('on')){ requestAnimationFrame(place); setTimeout(place,350); } })
+      .observe(document.body,{attributes:true,attributeFilter:['class']}); }catch(e){}
     // v715: opening or closing a sheet (Settings, Colours) moves the mode bar; settle again
     var fp=window.trkFsPanel;
     if(typeof fp==='function' && !fp._ppk){ window.trkFsPanel=function(){ var o=fp.apply(this,arguments); setTimeout(place,60); setTimeout(place,400); return o; }; window.trkFsPanel._ppk=1; }
