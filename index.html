@@ -5478,7 +5478,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v722';
+window.PATTERNLY_BUILD='v731';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -41844,6 +41844,316 @@ body.dark #trk-guide-banner.compact::before{background-color:#2a2238}
     }).observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['placeholder']}); }catch(e){}
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start); else start();
+})();
+</script>
+<!-- ═══ v731: WINTER / CHRISTMAS SEASON LOOK ═════════════════════════════════
+     A layer on top of whatever the current design is. It only adds classes to
+     <body> and a few decorations, so later design changes are picked up
+     automatically. Switches itself on and off by the device date:
+       1 Dec – 6 Jan   body.pl-winter.pl-xmas  (baubles, fairy lights, "Happy holidays")
+       7 Jan – 28 Feb  body.pl-winter.pl-wint  (snowflakes, "Cosy winter stitching")
+     Everything else in the year: nothing changes. Dates live in SEASON below.
+     Preview any day: add ?winter=xmas (or ?winter=1), ?winter=jan, ?winter=0 to the URL
+     (kept for the browser tab). Users can turn it off in More › Settings › Winter look
+     (remembered for that season only). Snow falls only on home screens, never in the
+     Editor, Tracker or converter, and not at all with "reduce motion". Charts, chart
+     symbols and sync are not touched. -->
+<style id="plw-style">
+#plw-snow{position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:90;display:none}
+#plw-snow.on{display:block}
+#plw-hang,.plw-banner,.plw-chip,#plw-row{display:none}
+/* App header: hanging baubles (Christmas) or snowflakes (winter), right of the logo */
+body.pl-winter.ptly-appui #ptly-appheader{position:relative}
+body.pl-winter.ptly-appui #plw-hang{display:block;position:absolute;right:12px;top:env(safe-area-inset-top,0px);width:132px;height:72px;pointer-events:none}
+#plw-hang svg,.plw-banner svg.plw-deco{overflow:visible;display:block;width:100%;height:100%}
+.plw-g{transform-box:view-box;animation:plw-swing 5.5s ease-in-out infinite}
+.plw-g:nth-child(2){animation-duration:6.6s;animation-delay:-2s}
+.plw-g:nth-child(3){animation-duration:4.8s;animation-delay:-1s}
+@keyframes plw-swing{0%,100%{transform:rotate(-2.5deg)}50%{transform:rotate(2.5deg)}}
+.plw-str{stroke:#b9a9ae;stroke-width:1}
+.plw-o{fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.plw-r{stroke:#c13a4e}.plw-y{stroke:#c4932f}.plw-n{stroke:#2f7a57}.plw-b{stroke:#6d8fb5}
+.plw-fr{fill:#c13a4e}.plw-fy{fill:#c4932f}.plw-fn{fill:#2f7a57}
+body.dark .plw-str{stroke:#5c5066}
+body.dark .plw-r{stroke:#e27a8a}body.dark .plw-y{stroke:#e5b95c}body.dark .plw-n{stroke:#6cc39a}body.dark .plw-b{stroke:#a9c6e6}
+body.dark .plw-fr{fill:#e27a8a}body.dark .plw-fy{fill:#e5b95c}body.dark .plw-fn{fill:#6cc39a}
+/* App home: frosty top, greeting card */
+body.pl-winter.ptly-appui:not(.pl-site):not([class*="-mode"]) #ptly-appheader{background:#eaf1f7}
+body.pl-winter.ptly-appui:not(.pl-site):not([class*="-mode"])::before{background:#eaf1f7}
+body.pl-winter.ptly-appui:not(.pl-site) #landing-page{background:linear-gradient(180deg,#eaf1f7 0,#f5f4f2 300px,#fdf9f5 560px)}
+body.dark.pl-winter.ptly-appui:not(.pl-site):not([class*="-mode"]) #ptly-appheader,
+body.dark.pl-winter.ptly-appui:not(.pl-site):not([class*="-mode"])::before{background:#141a2e}
+body.dark.pl-winter.ptly-appui:not(.pl-site) #landing-page{background:linear-gradient(180deg,#141a2e 0,#171220 460px)}
+body.pl-winter #pl-apphome .plw-banner{display:block;position:relative;overflow:hidden;border-radius:18px;padding:15px 112px 15px 16px;margin:.15rem 0 1.1rem;color:#fff;min-height:74px;
+  background:radial-gradient(rgba(255,255,255,.16) 1px,transparent 1.7px) 0 0/17px 17px,linear-gradient(135deg,#8B1A2B 0%,#5f1120 100%);box-shadow:0 1px 2px rgba(40,20,30,.08),0 8px 20px rgba(139,26,43,.18)}
+body.pl-wint #pl-apphome .plw-banner{background:radial-gradient(rgba(255,255,255,.18) 1px,transparent 1.7px) 0 0/17px 17px,linear-gradient(135deg,#2b4a72 0%,#182c49 100%);box-shadow:0 1px 2px rgba(20,30,50,.08),0 8px 20px rgba(30,60,100,.2)}
+body.dark.pl-xmas #pl-apphome .plw-banner{background:radial-gradient(rgba(255,255,255,.12) 1px,transparent 1.7px) 0 0/17px 17px,linear-gradient(135deg,#6a1626 0%,#3c0c17 100%);box-shadow:none}
+body.dark.pl-wint #pl-apphome .plw-banner{background:radial-gradient(rgba(255,255,255,.12) 1px,transparent 1.7px) 0 0/17px 17px,linear-gradient(135deg,#2d5080 0%,#1a2f52 100%);box-shadow:none}
+.plw-banner b{display:block;font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:1.22rem;line-height:1.2}
+.plw-banner small{display:block;font-size:.82rem;opacity:.86;margin-top:4px;line-height:1.3}
+.plw-banner .plw-dw{position:absolute;right:6px;top:0;bottom:0;width:120px;pointer-events:none}
+.plw-banner .plw-str{stroke:rgba(255,255,255,.45)}
+.plw-banner .plw-r{stroke:#ffd6dc}.plw-banner .plw-y{stroke:#f3cf7a}.plw-banner .plw-n{stroke:#bfe8d2}.plw-banner .plw-b{stroke:#dcebfa}
+.plw-banner .plw-fy{fill:#f3cf7a}
+/* Website: fairy lights under the top menu (Christmas) and a seasonal chip in the hero */
+body.pl-xmas #lp-nav::after{content:'';position:absolute;left:0;right:0;bottom:-12px;height:14px;pointer-events:none;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='14' viewBox='0 0 96 14'%3E%3Cpath d='M0 2Q24 9 48 2T96 2' fill='none' stroke='%237d8f83' stroke-width='1'/%3E%3Cg stroke-width='1.3' fill-opacity='.9'%3E%3Cellipse cx='13' cy='8.3' rx='2.4' ry='3.3' fill='%23d9485e' stroke='%23a8283c'/%3E%3Cellipse cx='37' cy='8.3' rx='2.4' ry='3.3' fill='%23f0bf4f' stroke='%23b88a1e'/%3E%3Cellipse cx='61' cy='8.3' rx='2.4' ry='3.3' fill='%2342a173' stroke='%23246e4b'/%3E%3Cellipse cx='85' cy='8.3' rx='2.4' ry='3.3' fill='%236fa1d6' stroke='%23416f9f'/%3E%3C/g%3E%3C/svg%3E") repeat-x 0 0/96px 14px}
+body.pl-winter #lp-hero .plw-chip{display:inline-flex;align-items:center;gap:.4rem;font-size:.75rem;font-weight:600;padding:.35rem .8rem;border-radius:99px;margin:0 .5rem .6rem 0;background:#e8f3ed;color:#1f6b47;border:1px solid #c6e2d2;vertical-align:top}
+body.pl-wint #lp-hero .plw-chip{background:#eaf1f8;color:#27456b;border-color:#cfdeee}
+body.dark.pl-winter #lp-hero .plw-chip{background:#1d3328;color:#9fd8b9;border-color:#2f5442}
+body.dark.pl-wint #lp-hero .plw-chip{background:#1c2a3d;color:#a9c6e6;border-color:#2c4260}
+.plw-chip svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round}
+/* More › Settings: Winter look switch (shown only during the season) */
+body.pl-season #pmo #plw-row{display:flex}
+#plw-row .theme-switch.plw-sw .ts-knob.plw-k::before{-webkit-mask-image:var(--plw-flake);mask-image:var(--plw-flake);background:#8B1A2B}
+#plw-row .theme-switch.plw-sw{background:#f3eaec;border-color:#e6d9dd}
+#plw-row .theme-switch.plw-sw .ts-knob{left:2px;background:#fff}
+#plw-row .theme-switch.plw-sw.pn-on{background:#8B1A2B;border-color:#6d1522}
+#plw-row .theme-switch.plw-sw.pn-on .ts-knob{left:calc(100% - 22px);background:#fdf6f0}
+body.dark #plw-row .theme-switch.plw-sw:not(.pn-on){background:#3a3142;border-color:#4a4052}
+:root{--plw-flake:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M12 2.5v19M3.8 7.3l16.4 9.5M3.8 16.8l16.4-9.6M10 4.2l2 2.3 2-2.3M10 19.8l2-2.3 2 2.3'/%3E%3C/svg%3E")}
+@media (prefers-reduced-motion:reduce){.plw-g{animation:none}}
+</style>
+<script id="plw-src">
+(function(){
+  // Season dates [month, day], inclusive. Change here to move the season.
+  var SEASON={start:[12,1], xmasEnd:[1,6], end:[2,28]};
+  var S={
+    en:{"w.xmas":"Happy holidays from Patternly","w.xmassub":"Time to stitch something cosy","w.winter":"Cosy winter stitching","w.wintersub":"Perfect weather for a new kit","w.set":"Winter look","w.setsub":"Snow and festive touches"},
+    fr:{"w.xmas":"Joyeuses fêtes de la part de Patternly","w.xmassub":"Le moment de broder quelque chose de douillet","w.winter":"Un hiver douillet à broder","w.wintersub":"Le temps idéal pour un nouveau kit","w.set":"Décor d’hiver","w.setsub":"Neige et touches festives"},
+    de:{"w.xmas":"Frohe Festtage von Patternly","w.xmassub":"Zeit, etwas Gemütliches zu sticken","w.winter":"Gemütliches Wintersticken","w.wintersub":"Perfektes Wetter für eine neue Packung","w.set":"Winterlook","w.setsub":"Schnee und festliche Details"},
+    nl:{"w.xmas":"Fijne feestdagen van Patternly","w.xmassub":"Tijd om iets gezelligs te borduren","w.winter":"Gezellig winterborduren","w.wintersub":"Perfect weer voor een nieuw pakket","w.set":"Winterlook","w.setsub":"Sneeuw en feestelijke details"},
+    ru:{"w.xmas":"С праздниками от Patternly","w.xmassub":"Самое время вышить что-то уютное","w.winter":"Уютной зимней вышивки","w.wintersub":"Идеальная погода для нового набора","w.set":"Зимнее оформление","w.setsub":"Снег и праздничные детали"},
+    uk:{"w.xmas":"Зі святами від Patternly","w.xmassub":"Саме час вишити щось затишне","w.winter":"Затишної зимової вишивки","w.wintersub":"Ідеальна погода для нового набору","w.set":"Зимове оформлення","w.setsub":"Сніг і святкові деталі"},
+    es:{"w.xmas":"Felices fiestas de parte de Patternly","w.xmassub":"Es momento de bordar algo acogedor","w.winter":"Bordado acogedor de invierno","w.wintersub":"El tiempo perfecto para un kit nuevo","w.set":"Decoración de invierno","w.setsub":"Nieve y toques festivos"},
+    it:{"w.xmas":"Buone feste da Patternly","w.xmassub":"È il momento di ricamare qualcosa di accogliente","w.winter":"Ricamo invernale al calduccio","w.wintersub":"Il tempo perfetto per un nuovo kit","w.set":"Look invernale","w.setsub":"Neve e tocchi festivi"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k){ var s=(window.plT?plT(k):null); if(!s||s===k){ var L=(window.PL_LANG||document.documentElement.lang||'en').slice(0,2); s=(S[L]&&S[L][k])||S.en[k]||k; } return s; }
+  function ls(k,v){ try{ if(v===undefined) return localStorage.getItem(k); if(v===null) localStorage.removeItem(k); else localStorage.setItem(k,v); }catch(e){ return null; } }
+  function ss(k,v){ try{ if(v===undefined) return sessionStorage.getItem(k); sessionStorage.setItem(k,v); }catch(e){ return null; } }
+
+  // ── which part of the season is it? '' | 'xmas' | 'winter' ──
+  function md(m,d){ return m*100+d; }
+  function datePhase(now){
+    var x=md(now.getMonth()+1, now.getDate());
+    var st=md(SEASON.start[0],SEASON.start[1]), xe=md(SEASON.xmasEnd[0],SEASON.xmasEnd[1]), en=md(SEASON.end[0],SEASON.end[1]);
+    if(x>=st || x<=xe) return 'xmas';
+    if(x<=en) return 'winter';
+    return '';
+  }
+  // Preview from the URL (?winter=xmas|1|jan|winter|0|off), kept for this browser tab.
+  (function(){
+    try{
+      var q=new URLSearchParams(location.search).get('winter'); if(q==null) return;
+      q=String(q).toLowerCase();
+      ss('pl_winter_preview', (q==='0'||q==='off'||q==='no')?'off':((q==='jan'||q==='winter'||q==='feb')?'winter':'xmas'));
+    }catch(e){}
+  })();
+  function seasonPhase(){
+    var p=ss('pl_winter_preview');
+    if(p==='off') return '';
+    if(p==='xmas'||p==='winter') return p;
+    return datePhase(new Date());
+  }
+  // A "turn off" lasts for the current season only (season id = year it started).
+  function seasonId(){ var n=new Date(); return String(n.getMonth()>=6 ? n.getFullYear() : n.getFullYear()-1); }
+  function userOff(){ return ls('pl_winter_off')===seasonId(); }
+
+  var cur='';
+  function apply(){
+    var season=seasonPhase(), ph=(season && !userOff())?season:'';
+    var c=document.body.classList;
+    c.toggle('pl-season', !!season);
+    c.toggle('pl-winter', !!ph); c.toggle('pl-xmas', ph==='xmas'); c.toggle('pl-wint', ph==='winter');
+    window.plWinter={phase:ph, season:season, off:userOff()};
+    if(ph!==cur){ cur=ph; paint(); }
+    syncRow(); snowCheck();
+  }
+
+  // ── drawings (line style, same family as the app icons) ──
+  var FLAKE='M12 12V2.5M12 6.5l2-2.3M12 6.5l-2-2.3M12 12L3.8 7.3M7.2 9.2l-1-2.8M7.2 9.2l-3 .6M12 12l-8.2 4.8M7.2 14.8l-3-.6M7.2 14.8l-1 2.8M12 12v9.5M12 17.5l-2 2.3M12 17.5l2 2.3M12 12l8.2 4.8M16.8 14.8l1 2.8M16.8 14.8l3-.6M12 12l8.2-4.8M16.8 9.2l3 .6M16.8 9.2l1-2.8';
+  function bauble(x,y,r,col){
+    var cy=y+4+r;
+    return '<rect class="plw-o '+col+'" x="'+(x-3)+'" y="'+y+'" width="6" height="4" rx="1"/>'
+      +'<circle class="plw-o '+col+'" cx="'+x+'" cy="'+cy+'" r="'+r+'"/>'
+      +'<path class="plw-o '+col+'" d="M'+(x-r*0.55)+' '+(cy-r*0.15)+'a'+(r*0.6)+' '+(r*0.6)+' 0 0 1 '+(r*0.42)+' '+(-r*0.45)+'"/>'
+      +'<path class="plw-o '+col+'" d="M'+(x-r)+' '+(cy+r*0.25)+'q'+(r/2)+' '+(r*0.35)+' '+r+' 0t'+r+' 0"/>';
+  }
+  function flake(x,y,r,col){
+    var s=r/9.5;
+    return '<path class="plw-o '+col+'" style="stroke-width:'+(1.6/s).toFixed(2)+'" transform="translate('+(x-12*s)+' '+(y-12*s)+') scale('+s+')" d="'+FLAKE+'"/>';
+  }
+  function sparkle(x,y,r,cls){ return '<path class="'+cls+'" d="M'+x+' '+(y-r)+'Q'+x+' '+y+' '+(x+r)+' '+y+'Q'+x+' '+y+' '+x+' '+(y+r)+'Q'+x+' '+y+' '+(x-r)+' '+y+'Q'+x+' '+y+' '+x+' '+(y-r)+'z"/>'; }
+  // Three hanging ornaments. xmas: baubles red/gold/green; winter: snowflakes.
+  function hanging(ph){
+    var H=[[26,20,9,'plw-r'],[68,36,11,'plw-y'],[108,12,8,'plw-n']], h='';
+    H.forEach(function(o){
+      var x=o[0], len=o[1], r=o[2], col=ph==='xmas'?o[3]:'plw-b';
+      h+='<g class="plw-g" style="transform-origin:'+x+'px -40px"><path class="plw-str" d="M'+x+' -40V'+len+'"/>'
+        +(ph==='xmas'?bauble(x,len,r,col):flake(x,len+r+1,r+1,col))+'</g>';
+    });
+    if(ph==='xmas') h+=sparkle(47,14,4,'plw-fy')+sparkle(90,52,3.2,'plw-fy')+sparkle(10,50,2.6,'plw-fr');
+    else h+=sparkle(47,16,3,'plw-fy')+sparkle(90,54,2.6,'plw-fy');
+    return '<svg viewBox="0 0 132 72" aria-hidden="true">'+h+'</svg>';
+  }
+
+  // ── app header ornaments, app home card, website hero chip ──
+  function paint(){
+    var hdr=document.getElementById('ptly-appheader'), hg=document.getElementById('plw-hang');
+    if(cur && hdr){ if(!hg){ hg=document.createElement('span'); hg.id='plw-hang'; hdr.appendChild(hg); } hg.innerHTML=hanging(cur); }
+    else if(hg) hg.remove();
+    bannerCheck(); chipCheck();
+  }
+  // Card art: one big ornament and a small one, hanging from the card's top edge.
+  function bannerArt(ph){
+    var h='';
+    if(ph==='xmas'){
+      h+='<g class="plw-g" style="transform-origin:78px -10px"><path class="plw-str" d="M78 -10V14"/>'+bauble(78,14,21,'plw-y')+'</g>';
+      h+='<g class="plw-g" style="transform-origin:30px -10px"><path class="plw-str" d="M30 -10V6"/>'+bauble(30,6,10,'plw-r')+'</g>';
+      h+=sparkle(108,22,4,'plw-fy')+sparkle(46,58,3,'plw-fy');
+    }else{
+      h+=flake(80,40,24,'plw-b')+flake(30,22,9,'plw-b');
+      h+=sparkle(110,18,3.4,'plw-fy')+sparkle(40,60,2.6,'plw-fy');
+    }
+    return '<svg class="plw-deco" viewBox="0 0 120 80" preserveAspectRatio="xMidYMin meet" aria-hidden="true">'+h+'</svg>';
+  }
+  function bannerHTML(){
+    return '<b></b><small></small><span class="plw-dw">'+bannerArt(cur)+'</span>';
+  }
+  function bannerCheck(){
+    var root=document.getElementById('pl-apphome'); if(!root) return;
+    var b=root.querySelector('.plw-banner');
+    if(!cur){ if(b) b.remove(); return; }
+    if(!b || b.getAttribute('data-ph')!==cur){
+      if(b) b.remove();
+      b=document.createElement('div'); b.className='plw-banner'; b.setAttribute('data-ph',cur); b.innerHTML=bannerHTML();
+      root.insertBefore(b, root.firstChild);
+    }
+    var bt=b.querySelector('b'), sm=b.querySelector('small');
+    var t=cur==='xmas'?tx('w.xmas'):tx('w.winter'), s=cur==='xmas'?tx('w.xmassub'):tx('w.wintersub');
+    if(bt.textContent!==t) bt.textContent=t;
+    if(sm.textContent!==s) sm.textContent=s;
+  }
+  function chipCheck(){
+    var badge=document.querySelector('#lp-hero .lp-hero-badge'); if(!badge) return;
+    var ch=document.getElementById('plw-chip');
+    if(!cur){ if(ch) ch.remove(); return; }
+    if(!ch){ ch=document.createElement('span'); ch.id='plw-chip'; ch.className='plw-chip'; badge.parentNode.insertBefore(ch, badge); }
+    ch.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="'+FLAKE+'"/></svg><span></span>';
+    ch.lastChild.textContent=cur==='xmas'?tx('w.xmas'):tx('w.winter');
+  }
+
+  // ── More › Settings › Winter look ──
+  function syncRow(){
+    var set=document.getElementById('pmo-set'), row=document.getElementById('plw-row');
+    if(!seasonPhase()){ if(row) row.remove(); return; }
+    if(!set) return;
+    if(!row){
+      row=document.createElement('div'); row.className='acct-hub-row'; row.id='plw-row'; row.style.cursor='default';
+      row.innerHTML='<span class="ic"><svg viewBox="0 0 24 24"><path d="'+FLAKE+'"/></svg></span><span><span class="plw-lbl"></span><small class="plw-sub"></small></span>'
+        +'<button type="button" class="theme-switch plw-sw" role="switch"><span class="ts-knob plw-k"></span></button>';
+      row.querySelector('button').addEventListener('click', function(e){
+        e.stopPropagation();
+        if(userOff()) ls('pl_winter_off', null); else ls('pl_winter_off', seasonId());
+        try{ var H=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.Haptics; H&&H.impact&&H.impact({style:'Light'}); }catch(_e){}
+        apply();
+      });
+    }
+    if(row.parentNode!==set){
+      var dark=document.getElementById('acct-dark-row');
+      if(dark && dark.parentNode===set) set.insertBefore(row, dark.nextSibling); else set.appendChild(row);
+    }
+    var lb=row.querySelector('.plw-lbl'), sb=row.querySelector('.plw-sub'), sw=row.querySelector('button');
+    if(lb.textContent!==tx('w.set')) lb.textContent=tx('w.set');
+    if(sb.textContent!==tx('w.setsub')) sb.textContent=tx('w.setsub');
+    var on=!userOff();
+    sw.classList.toggle('pn-on', on); sw.setAttribute('aria-checked', on?'true':'false'); sw.setAttribute('aria-label', tx('w.set'));
+  }
+
+  // ── gentle snowfall on home screens only ──
+  var cv=null, cx=null, flakes=[], raf=0, last=0, W=0, H=0, DPR=1, sprite={};
+  function reduced(){ try{ return window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){ return false; } }
+  function homeLike(){
+    var c=document.body.className;
+    return !/(^|\s)[a-z-]+-mode(\s|$)/.test(c) && !document.body.classList.contains('cv-open');
+  }
+  function makeSprite(r, dark){
+    var key=r+(dark?'d':'l'); if(sprite[key]) return sprite[key];
+    var s=document.createElement('canvas'), px=Math.ceil((r*2+4)*DPR); s.width=s.height=px;
+    var g=s.getContext('2d'); g.scale(DPR,DPR); g.translate(r+2,r+2);
+    g.strokeStyle=dark?'#ffffff':'#7f9fc4'; g.lineWidth=r>5?1.2:1; g.lineCap='round';
+    for(var i=0;i<6;i++){
+      g.beginPath(); g.moveTo(0,0); g.lineTo(0,-r);
+      if(r>4){ g.moveTo(0,-r*0.58); g.lineTo(r*0.22,-r*0.82); g.moveTo(0,-r*0.58); g.lineTo(-r*0.22,-r*0.82); }
+      g.stroke(); g.rotate(Math.PI/3);
+    }
+    sprite[key]=s; return s;
+  }
+  function resize(){
+    if(!cv) return;
+    DPR=Math.min(2, window.devicePixelRatio||1); W=window.innerWidth; H=window.innerHeight;
+    cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR); sprite={};
+    var n=Math.max(14, Math.min(W<700?34:60, Math.round(W*H/11000)));
+    flakes=[]; for(var i=0;i<n;i++) flakes.push(newFlake(true));
+  }
+  function newFlake(anywhere){
+    var r=Math.random()<0.35 ? 5+Math.random()*4 : 1.4+Math.random()*2.2;
+    return {x:Math.random()*W, y:anywhere?Math.random()*H:-12, r:r, vy:8+r*3.2+Math.random()*8, ph:Math.random()*6.28, sw:6+Math.random()*14, rot:Math.random()*6.28, vr:(Math.random()-.5)*0.6, a:0.45+Math.random()*0.4};
+  }
+  function frame(t){
+    raf=0; if(!snowOn()) return;
+    raf=requestAnimationFrame(frame);
+    if(t-last<32) return;   // ~30 fps is plenty for snow
+    var dt=Math.min(0.1,(t-(last||t))/1000); last=t;
+    var dark=document.body.classList.contains('dark');
+    cx.setTransform(DPR,0,0,DPR,0,0); cx.clearRect(0,0,W,H);
+    for(var i=0;i<flakes.length;i++){
+      var f=flakes[i];
+      f.y+=f.vy*dt; f.ph+=dt*0.8; f.rot+=f.vr*dt;
+      var x=f.x+Math.sin(f.ph)*f.sw;
+      if(f.y>H+12){ flakes[i]=newFlake(false); continue; }
+      cx.globalAlpha=f.a*(dark?0.75:0.62);
+      if(f.r>4){
+        var sp=makeSprite(Math.round(f.r), dark), half=Math.round(f.r)+2;
+        cx.save(); cx.translate(x,f.y); cx.rotate(f.rot); cx.drawImage(sp,-half,-half,half*2,half*2); cx.restore();
+      }else{
+        cx.fillStyle=dark?'#ffffff':'#a9c0db'; cx.beginPath(); cx.arc(x,f.y,f.r,0,6.283); cx.fill();
+      }
+    }
+    cx.globalAlpha=1;
+  }
+  function snowOn(){ return !!cur && !reduced() && !document.hidden && homeLike(); }
+  function snowCheck(){
+    var want=snowOn();
+    if(want && !cv){
+      cv=document.createElement('canvas'); cv.id='plw-snow'; cv.setAttribute('aria-hidden','true');
+      document.body.appendChild(cv); cx=cv.getContext('2d'); resize();
+    }
+    if(!cv) return;
+    cv.classList.toggle('on', want);
+    if(want && !raf){ last=0; raf=requestAnimationFrame(frame); }
+    if(!want && cx){ cx.setTransform(1,0,0,1,0,0); cx.clearRect(0,0,cv.width,cv.height); }
+  }
+
+  function init(){
+    apply();
+    var mo;
+    try{
+      mo=new MutationObserver(function(){ snowCheck(); if(cur){ bannerCheck(); if(!document.getElementById('plw-hang') && document.getElementById('ptly-appheader')) paint(); } syncRow(); });
+      mo.observe(document.body,{attributes:true,attributeFilter:['class']});
+      var home=document.getElementById('pl-apphome'); if(home) new MutationObserver(function(){ if(cur) bannerCheck(); }).observe(home,{childList:true});
+      var acct=document.getElementById('account-page'); if(acct) new MutationObserver(function(){ var r=document.getElementById('plw-row'), s=document.getElementById('pmo-set'); if(s && (!r || r.parentNode!==s)) syncRow(); }).observe(acct,{childList:true,subtree:true});
+    }catch(e){}
+    if(typeof window.plApplyLang==='function' && !window.plApplyLang._plw){
+      var al=window.plApplyLang; window.plApplyLang=function(){ var r=al.apply(this,arguments); try{ if(cur){ bannerCheck(); chipCheck(); } syncRow(); }catch(e){} return r; }; window.plApplyLang._plw=1;
+    }
+    window.addEventListener('resize', function(){ if(cv) resize(); });
+    document.addEventListener('visibilitychange', function(){ if(!document.hidden) apply(); else snowCheck(); });
+    setInterval(apply, 3600000);   // an app left open over the last night of the season switches back
+  }
+  // The app header and home are built on DOMContentLoaded; run after them.
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(init,30); });
+  else setTimeout(init,30);
 })();
 </script>
 </body>
