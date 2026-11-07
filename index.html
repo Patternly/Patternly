@@ -5490,7 +5490,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v733';
+window.PATTERNLY_BUILD='v734';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -20538,12 +20538,37 @@ function trkRenameProject(id, currentName){
     }
   });
 }
+// v734: delete dialogs in all 8 languages and say plainly what a delete touches.
+function trkDelTx(k, en, vars){ let s=(typeof trkT==='function')?trkT(k, vars):k; if(!s||s===k){ s=en; if(vars) for(const v in vars) s=s.split('{'+v+'}').join(String(vars[v])); } return s; }
+function trkDelName(n){ return '<b>\u201c'+String(n||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')+'\u201d</b>'; }
 function trkDeleteProject(id, name){
+  const rec0=(typeof trkIndex==='function'?trkIndex():[]).find(p=>p.id===id) || {};
+  // v734: a Luca-S kit is a purchase. Deleting it here only removes the downloaded
+  // chart from this device: the kit and its synced progress stay on the account,
+  // and nothing in the account's uploaded-pattern store is touched (that store
+  // never holds kits, and its name+size match could otherwise hit an upload).
+  if(rec0.sku){
+    pjShowModal({
+      title:trkDelTx('dl.kitTitle','Remove this kit from this device?'),
+      body:trkDelTx('dl.kitBody','{name} will be removed from this device only. Your stitching progress stays saved on your Luca-S account and comes back when you open the kit again.',{name:trkDelName(name)}),
+      confirmLabel:trkDelTx('dl.kitBtn','Remove'), danger:true,
+      onConfirm(){
+        trkBlobDel(id);
+        localStorage.removeItem('patternly_tracker_'+id);
+        try{ localStorage.removeItem('patternly_trk_checknotice_'+String(id).replace(/[^A-Za-z0-9_]/g,'_')); }catch(_e){}
+        trkIndexWrite(trkIndex().filter(p=>p.id!==id));
+        trkShowHome();
+        if(typeof toast==='function') toast(trkDelTx('dl.kitDone','Removed from this device'));
+      }
+    });
+    return;
+  }
   pjShowModal({
-    title:'Delete tracked pattern?',
-    body:`<b>"${name}"</b> and all of its stitching progress will be permanently removed from this browser. This can't be undone.`,
-    requireCheck:'Yes, permanently delete this pattern and its progress',
-    confirmLabel:'Delete', danger:true,
+    title:trkDelTx('dl.title','Delete this pattern?'),
+    body:trkDelTx('dl.body','{name} and its stitching progress will be deleted from this device and from your Luca-S account, so it stops syncing to your other devices. This can\u2019t be undone.',{name:trkDelName(name)})
+      +'<br><br><span style="opacity:.8">'+trkDelTx('dl.tip','Only want it out of the way? Use Hide instead: nothing is deleted.')+'</span>',
+    requireCheck:trkDelTx('dl.check','Yes, delete it everywhere'),
+    confirmLabel:trkDelTx('dl.btn','Delete'), danger:true,
     onConfirm(){
       // Resolve EVERY id this pattern could be stored under on the account, so the
       // delete can't miss the record (id schemes drifted across builds: a stable
@@ -20580,8 +20605,8 @@ function trkDeleteProject(id, name){
         try{
           const res=await trkUserPatternDeleteConfirmed(candIds, meta);
           if(res && res.cleaned===false && typeof toast==='function'){
-            toast('\u26a0 Couldn\u2019t confirm this was removed from your account \u2014 check your connection and try deleting again.');
-          }
+            toast(trkDelTx('dl.fail','Couldn\u2019t confirm it was deleted from your account. Check your connection and try again.'), 6000);
+          } else if(typeof toast==='function') toast(trkDelTx('dl.done','Pattern deleted'));
         }catch(e){}
       })();
     }
@@ -21663,10 +21688,11 @@ function trkRenameUserPattern(it, card){
 // Remove an account pattern (frees a cap slot). Also clears any local copy.
 function trkDeleteUserPattern(it, card){
   pjShowModal({
-    title:'Remove pattern from your account?',
-    body:`<b>"${String(it.name||'this pattern').replace(/</g,'&lt;')}"</b> will be removed from your account and stop syncing across devices. Any copy already on this device stays until you delete it there.`,
-    requireCheck:'Yes, remove it from my account',
-    confirmLabel:'Remove', danger:true,
+    title:trkDelTx('dl.title','Delete this pattern?'),
+    body:trkDelTx('dl.body','{name} and its stitching progress will be deleted from this device and from your Luca-S account, so it stops syncing to your other devices. This can\u2019t be undone.',{name:trkDelName(it.name||'My pattern')})
+      +'<br><br><span style="opacity:.8">'+trkDelTx('dl.tip','Only want it out of the way? Use Hide instead: nothing is deleted.')+'</span>',
+    requireCheck:trkDelTx('dl.check','Yes, delete it everywhere'),
+    confirmLabel:trkDelTx('dl.btn','Delete'), danger:true,
     async onConfirm(){
       // it.id is the server's actual stored id (from the account list), so this
       // targets the right record. Use the confirmed delete so we verify it's gone
@@ -21682,7 +21708,7 @@ function trkDeleteUserPattern(it, card){
             trkIndexWrite(trkIndex().filter(x=>x.id!==p.id));
           } } }
       }catch(e){}
-      if(!cleaned && typeof toast==='function') toast('\u26a0 Couldn\u2019t confirm removal from your account \u2014 check your connection and try again.');
+      if(typeof toast==='function') toast(cleaned ? trkDelTx('dl.done','Pattern deleted') : trkDelTx('dl.fail','Couldn\u2019t confirm it was deleted from your account. Check your connection and try again.'), cleaned?undefined:6000);
       trkShowHome();
     }
   });
@@ -38505,8 +38531,9 @@ body.ptly-appui.pltl-home .pltl-secoff{display:none!important}
 body.dark #pltl-hideall{color:#e0a9b4}
 .pltl-hide{display:none}
 body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard{position:relative}
-body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .body h4{padding-right:74px}
-body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard > .pltl-hide{display:inline-flex;align-items:center;gap:4px;position:absolute;top:9px;right:9px;border:1px solid var(--lp-border,#e8e4f0);background:#fff;color:var(--lp-muted,#5a5268);border-radius:999px;padding:.26rem .55rem;font:inherit;font-size:.72rem;font-weight:600;cursor:pointer;z-index:2}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .body h4{padding-right:6px}
+/* v734: Hide sits bottom-right; top-right belongs to the ⋯ menu (Rename / Delete), which it used to cover */
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard > .pltl-hide{display:inline-flex;align-items:center;gap:4px;position:absolute;bottom:9px;right:9px;border:1px solid var(--lp-border,#e8e4f0);background:#fff;color:var(--lp-muted,#5a5268);border-radius:999px;padding:.26rem .55rem;font:inherit;font-size:.72rem;font-weight:600;cursor:pointer;z-index:2}
 body.dark.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard > .pltl-hide{background:#221b2d;border-color:#3a3146;color:#c9bfd3}
 .pltl-hide svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 #pltl-sheet .beta{font-size:.6rem;font-weight:700;color:#6b4fb0;background:#f0ebfc;border-radius:6px;padding:1px 5px;margin-left:5px;vertical-align:2px}
@@ -39734,8 +39761,11 @@ body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .pcd-more{display:grid;plac
 .pcd-more svg{width:18px;height:18px;fill:currentColor}
 #pcd-menu{display:none;position:fixed;z-index:9600;min-width:180px;background:#fff;border:1px solid #eee2e5;border-radius:14px;box-shadow:0 14px 40px rgba(43,34,38,.22);padding:6px}
 #pcd-menu.open{display:block}
-#pcd-menu button{display:block;width:100%;text-align:left;padding:11px 12px;border:0;background:none;border-radius:10px;font:inherit;font-size:.9rem;color:#2b2226;cursor:pointer}
+#pcd-menu button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:11px 12px;border:0;background:none;border-radius:10px;font:inherit;font-size:.9rem;color:#2b2226;cursor:pointer}
 #pcd-menu button.danger{color:#b23b3b}
+#pcd-menu svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+body.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .pcd-more{border:1px solid var(--lp-border,#e8e4f0)!important;background:#fff!important;border-radius:50%!important;width:32px!important;height:32px!important;top:9px!important;right:9px!important;z-index:2}
+body.dark.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard .pcd-more{background:#221b2d!important;border-color:#3a3146!important}
 #pcd-scrim{display:none;position:fixed;inset:0;z-index:9599}
 #pcd-scrim.open{display:block}
 body.dark.ptly-appui.pltl-home .trk-cardgrid > .trk-pcard{border-color:#37303f}
@@ -39762,14 +39792,14 @@ body.dark.ptly-appui #pj-grid .pj-card{background:#221c30;border-color:#37303f}
 <script id="pcd-src">
 (function(){
   var S={
-    en:{"cd.pct":"{p}% done","cd.done":"Finished ✓","cd.rename":"Rename","cd.delete":"Delete","cd.saved":"Saved designs","cd.select":"Select","cd.of":"{n} of {c}"},
-    fr:{"cd.pct":"{p} % fait","cd.done":"Terminé ✓","cd.rename":"Renommer","cd.delete":"Supprimer","cd.saved":"Créations enregistrées","cd.select":"Choisir","cd.of":"{n} sur {c}"},
-    de:{"cd.pct":"{p} % fertig","cd.done":"Fertig ✓","cd.rename":"Umbenennen","cd.delete":"Löschen","cd.saved":"Gespeicherte Designs","cd.select":"Auswählen","cd.of":"{n} von {c}"},
-    nl:{"cd.pct":"{p}% klaar","cd.done":"Klaar ✓","cd.rename":"Hernoemen","cd.delete":"Verwijderen","cd.saved":"Opgeslagen ontwerpen","cd.select":"Selecteren","cd.of":"{n} van {c}"},
-    ru:{"cd.pct":"Готово {p}%","cd.done":"Завершено ✓","cd.rename":"Переименовать","cd.delete":"Удалить","cd.saved":"Сохранённые дизайны","cd.select":"Выбрать","cd.of":"{n} из {c}"},
-    uk:{"cd.pct":"Готово {p}%","cd.done":"Завершено ✓","cd.rename":"Перейменувати","cd.delete":"Видалити","cd.saved":"Збережені дизайни","cd.select":"Вибрати","cd.of":"{n} з {c}"},
-    es:{"cd.pct":"{p}% hecho","cd.done":"Terminado ✓","cd.rename":"Renombrar","cd.delete":"Eliminar","cd.saved":"Diseños guardados","cd.select":"Elegir","cd.of":"{n} de {c}"},
-    it:{"cd.pct":"{p}% fatto","cd.done":"Finito ✓","cd.rename":"Rinomina","cd.delete":"Elimina","cd.saved":"Design salvati","cd.select":"Seleziona","cd.of":"{n} di {c}"}
+    en:{"cd.pct":"{p}% done","cd.done":"Finished ✓","cd.rename":"Rename","cd.delete":"Delete","cd.saved":"Saved designs","cd.select":"Select","cd.of":"{n} of {c}","dl.title":"Delete this pattern?","dl.body":"{name} and its stitching progress will be deleted from this device and from your Luca-S account, so it stops syncing to your other devices. This can’t be undone.","dl.tip":"Only want it out of the way? Use Hide instead: nothing is deleted.","dl.check":"Yes, delete it everywhere","dl.btn":"Delete","dl.done":"Pattern deleted","dl.fail":"Couldn’t confirm it was deleted from your account. Check your connection and try again.","dl.kitTitle":"Remove this kit from this device?","dl.kitBody":"{name} will be removed from this device only. Your stitching progress stays saved on your Luca-S account and comes back when you open the kit again.","dl.kitBtn":"Remove","dl.kitDone":"Removed from this device","dl.kitMenu":"Remove from this device"},
+    fr:{"cd.pct":"{p} % fait","cd.done":"Terminé ✓","cd.rename":"Renommer","cd.delete":"Supprimer","cd.saved":"Créations enregistrées","cd.select":"Choisir","cd.of":"{n} sur {c}","dl.title":"Supprimer cette grille ?","dl.body":"{name} et sa progression seront supprimés de cet appareil et de votre compte Luca-S : la grille ne sera plus synchronisée sur vos autres appareils. Action irréversible.","dl.tip":"Vous voulez juste la ranger ? Utilisez plutôt Masquer : rien n’est supprimé.","dl.check":"Oui, la supprimer partout","dl.btn":"Supprimer","dl.done":"Grille supprimée","dl.fail":"Impossible de confirmer la suppression sur votre compte. Vérifiez votre connexion et réessayez.","dl.kitTitle":"Retirer ce kit de cet appareil ?","dl.kitBody":"{name} sera retiré de cet appareil uniquement. Votre progression reste enregistrée sur votre compte Luca-S et revient quand vous rouvrez le kit.","dl.kitBtn":"Retirer","dl.kitDone":"Retiré de cet appareil","dl.kitMenu":"Retirer de cet appareil"},
+    de:{"cd.pct":"{p} % fertig","cd.done":"Fertig ✓","cd.rename":"Umbenennen","cd.delete":"Löschen","cd.saved":"Gespeicherte Designs","cd.select":"Auswählen","cd.of":"{n} von {c}","dl.title":"Dieses Muster löschen?","dl.body":"{name} und dein Stickfortschritt werden von diesem Gerät und aus deinem Luca-S-Konto gelöscht und nicht mehr mit deinen anderen Geräten synchronisiert. Das kann nicht rückgängig gemacht werden.","dl.tip":"Soll es nur aus dem Weg? Nutze stattdessen Ausblenden: Dabei wird nichts gelöscht.","dl.check":"Ja, überall löschen","dl.btn":"Löschen","dl.done":"Muster gelöscht","dl.fail":"Löschen im Konto konnte nicht bestätigt werden. Prüfe deine Verbindung und versuche es erneut.","dl.kitTitle":"Diese Packung von diesem Gerät entfernen?","dl.kitBody":"{name} wird nur von diesem Gerät entfernt. Dein Stickfortschritt bleibt in deinem Luca-S-Konto gespeichert und ist wieder da, wenn du die Packung erneut öffnest.","dl.kitBtn":"Entfernen","dl.kitDone":"Von diesem Gerät entfernt","dl.kitMenu":"Von diesem Gerät entfernen"},
+    nl:{"cd.pct":"{p}% klaar","cd.done":"Klaar ✓","cd.rename":"Hernoemen","cd.delete":"Verwijderen","cd.saved":"Opgeslagen ontwerpen","cd.select":"Selecteren","cd.of":"{n} van {c}","dl.title":"Dit patroon verwijderen?","dl.body":"{name} en je borduurvoortgang worden van dit apparaat en uit je Luca-S-account verwijderd en synchroniseren niet meer met je andere apparaten. Dit kan niet ongedaan worden gemaakt.","dl.tip":"Wil je het alleen uit beeld? Gebruik dan Verbergen: er wordt niets verwijderd.","dl.check":"Ja, overal verwijderen","dl.btn":"Verwijderen","dl.done":"Patroon verwijderd","dl.fail":"Kon niet bevestigen dat het uit je account is verwijderd. Controleer je verbinding en probeer het opnieuw.","dl.kitTitle":"Dit pakket van dit apparaat verwijderen?","dl.kitBody":"{name} wordt alleen van dit apparaat verwijderd. Je borduurvoortgang blijft bewaard in je Luca-S-account en komt terug als je het pakket weer opent.","dl.kitBtn":"Verwijderen","dl.kitDone":"Van dit apparaat verwijderd","dl.kitMenu":"Van dit apparaat verwijderen"},
+    ru:{"cd.pct":"Готово {p}%","cd.done":"Завершено ✓","cd.rename":"Переименовать","cd.delete":"Удалить","cd.saved":"Сохранённые дизайны","cd.select":"Выбрать","cd.of":"{n} из {c}","dl.title":"Удалить эту схему?","dl.body":"{name} и прогресс вышивки будут удалены с этого устройства и из вашего аккаунта Luca-S, синхронизация с другими устройствами прекратится. Это нельзя отменить.","dl.tip":"Хотите просто убрать её из списка? Нажмите «Скрыть» — ничего не удалится.","dl.check":"Да, удалить везде","dl.btn":"Удалить","dl.done":"Схема удалена","dl.fail":"Не удалось подтвердить удаление из аккаунта. Проверьте подключение и попробуйте снова.","dl.kitTitle":"Убрать этот набор с устройства?","dl.kitBody":"{name} будет убран только с этого устройства. Прогресс вышивки остаётся в вашем аккаунте Luca-S и вернётся, когда вы снова откроете набор.","dl.kitBtn":"Убрать","dl.kitDone":"Убрано с этого устройства","dl.kitMenu":"Убрать с этого устройства"},
+    uk:{"cd.pct":"Готово {p}%","cd.done":"Завершено ✓","cd.rename":"Перейменувати","cd.delete":"Видалити","cd.saved":"Збережені дизайни","cd.select":"Вибрати","cd.of":"{n} з {c}","dl.title":"Видалити цю схему?","dl.body":"{name} і прогрес вишивки буде видалено з цього пристрою та з вашого акаунта Luca-S, синхронізація з іншими пристроями припиниться. Це не можна скасувати.","dl.tip":"Хочете просто прибрати її зі списку? Натисніть «Приховати» — нічого не видалиться.","dl.check":"Так, видалити всюди","dl.btn":"Видалити","dl.done":"Схему видалено","dl.fail":"Не вдалося підтвердити видалення з акаунта. Перевірте з’єднання і спробуйте ще раз.","dl.kitTitle":"Прибрати цей набір з пристрою?","dl.kitBody":"{name} буде прибрано лише з цього пристрою. Прогрес вишивки залишається у вашому акаунті Luca-S і повернеться, коли ви знову відкриєте набір.","dl.kitBtn":"Прибрати","dl.kitDone":"Прибрано з цього пристрою","dl.kitMenu":"Прибрати з цього пристрою"},
+    es:{"cd.pct":"{p}% hecho","cd.done":"Terminado ✓","cd.rename":"Renombrar","cd.delete":"Eliminar","cd.saved":"Diseños guardados","cd.select":"Elegir","cd.of":"{n} de {c}","dl.title":"¿Eliminar este patrón?","dl.body":"{name} y tu progreso se eliminarán de este dispositivo y de tu cuenta Luca-S, y dejará de sincronizarse con tus otros dispositivos. No se puede deshacer.","dl.tip":"¿Solo quieres apartarlo? Usa Ocultar: no se elimina nada.","dl.check":"Sí, eliminarlo en todas partes","dl.btn":"Eliminar","dl.done":"Patrón eliminado","dl.fail":"No se pudo confirmar que se eliminó de tu cuenta. Revisa tu conexión e inténtalo de nuevo.","dl.kitTitle":"¿Quitar este kit de este dispositivo?","dl.kitBody":"{name} se quitará solo de este dispositivo. Tu progreso sigue guardado en tu cuenta Luca-S y vuelve cuando abras el kit de nuevo.","dl.kitBtn":"Quitar","dl.kitDone":"Quitado de este dispositivo","dl.kitMenu":"Quitar de este dispositivo"},
+    it:{"cd.pct":"{p}% fatto","cd.done":"Finito ✓","cd.rename":"Rinomina","cd.delete":"Elimina","cd.saved":"Design salvati","cd.select":"Seleziona","cd.of":"{n} di {c}","dl.title":"Eliminare questo schema?","dl.body":"{name} e i tuoi progressi verranno eliminati da questo dispositivo e dal tuo account Luca-S, e non sarà più sincronizzato sugli altri dispositivi. Non si può annullare.","dl.tip":"Vuoi solo toglierlo di mezzo? Usa Nascondi: non si elimina nulla.","dl.check":"Sì, eliminalo ovunque","dl.btn":"Elimina","dl.done":"Schema eliminato","dl.fail":"Impossibile confermare l’eliminazione dal tuo account. Controlla la connessione e riprova.","dl.kitTitle":"Rimuovere questo kit da questo dispositivo?","dl.kitBody":"{name} verrà rimosso solo da questo dispositivo. I tuoi progressi restano salvati nel tuo account Luca-S e tornano quando riapri il kit.","dl.kitBtn":"Rimuovi","dl.kitDone":"Rimosso da questo dispositivo","dl.kitMenu":"Rimuovi da questo dispositivo"}
   };
   try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
   function tx(k){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; return s; }
@@ -39787,9 +39817,11 @@ body.dark.ptly-appui #pj-grid .pj-card{background:#221c30;border-color:#37303f}
         var t=c.querySelector('.row .'+(a==='ren'?'ren':'del')); if(t) t.click();
       });
     }
-    var h='';
-    if(card.querySelector('.row .ren')) h+='<button data-a="ren">'+esc(tx('cd.rename'))+'</button>';
-    if(card.querySelector('.row .del')) h+='<button data-a="del" class="danger">'+esc(tx('cd.delete'))+'</button>';
+    var h='', kit=!!card.dataset.sku;
+    var PEN='<svg viewBox="0 0 24 24"><path d="M4 20h4L18 10a2 2 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>';
+    var BIN='<svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7"/><path d="M6 7l1 12.2A1.8 1.8 0 0 0 8.8 21h6.4a1.8 1.8 0 0 0 1.8-1.8L18 7"/><path d="M10 11v6M14 11v6"/></svg>';
+    if(card.querySelector('.row .ren')) h+='<button data-a="ren">'+PEN+'<span>'+esc(tx('cd.rename'))+'</span></button>';
+    if(card.querySelector('.row .del')) h+='<button data-a="del" class="danger">'+BIN+'<span>'+esc(tx(kit?'dl.kitMenu':'cd.delete'))+'</span></button>';
     if(!h) return;
     menu.innerHTML=h; menuCard=card;
     var r=btn.getBoundingClientRect();
