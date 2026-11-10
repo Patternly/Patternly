@@ -15,7 +15,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v110";
+const MW_VERSION = "v113";
 
 // v107: the help sheet the in-app AI assistant answers from (/help/chat). Keep it
 // to facts that are true in the live app; update it when a feature changes.
@@ -34,7 +34,7 @@ Patternly works on the website (luca-s.com/apps/patternly) and in the iPhone/iPa
 1. Editor: draw a cross-stitch chart or convert a photo into a pattern, choose thread brand (DMC, Anchor, Luca-S and more), fabric count and colours, then export a PDF chart with symbol key. Backstitch outlines, blended threads and a thread shopping list are included.
 2. Stitch Tracker: work a chart on screen and tap stitches as you finish them; progress is saved.
 3. Scan Your Pattern (BETA): photograph or scan a paper chart and its colour key, and Patternly turns it into a Tracker project.
-In the apps the bottom bar has Home, Editor, Tracker and More (account, settings, help). On the website the same parts are in the menu.
+In the apps the bottom bar has Home, Editor, Tracker and More (account, settings, help). On the website on a computer the top menu has Home, Features (Stitch Tracker, photo to pattern, new pattern, import, QR code), Thread Colours, File Converter, Calculators, Pricing and Guide; on a phone it is the menu button (three lines) at the top left. Do not invent other menu names.
 
 Turning a photo into a pattern
 On the home page tap "Upload Image" (or open the Editor and upload a picture). Pick the photo, choose size, number of colours and thread brand, check the preview, then open it in the Editor, download the PDF, or send it straight to the Tracker.
@@ -43,6 +43,7 @@ Stitch Tracker
 - Open Tracker, then "New Pattern". Four ways in: Kit Patterns (Luca-S and partner kits), Scan Your Pattern (BETA), Upload, and Restore Backup.
 - Upload accepts a PDF chart (vector PDFs made by pattern software work best; the colour key/legend should be in the PDF), and pattern files .ptly, .oxs and .pat.
 - Kits bought on luca-s.com: sign in with the same email used for the order and the kit patterns appear automatically. Kits from a shop or a gift: scan the QR code on the insert card with the phone camera, or open Tracker, Kit Patterns, find the pattern and type the access code from the card once.
+- The Stitch Tracker is part of Patternly Plus. If someone scans a kit QR code or opens a kit and sees "The Stitch Tracker is part of Plus", that is expected, not a fault: the kit's printed chart is in the box, and following the chart on screen needs Plus or its free trial. Say this plainly and kindly in your first answer instead of sending them through menus to look for the chart, and mention that the printed chart in the kit works as normal.
 - Marking: modes Pan (move around), Mark (tap a stitch to mark it done), Erase (unmark) and Pick (choose a colour from the chart). Pinch or use + and - to zoom, tap the percentage to fit. Press and hold a colour to highlight it. Use the colour list to work one colour at a time; it shows stitches left and roughly how much thread you need.
 - Full view hides everything except the chart. Settings (in full view or the tracker tools) control the tint colour of finished stitches, grid lines, centre lines, backstitch, page mode and pattern info.
 - Progress saves on the device and, when signed in, to the account, so it continues on another device after signing in with the same account. You can also download a backup file from the tracker and restore it later with Restore Backup.
@@ -53,7 +54,7 @@ Tracker, New Pattern, Scan Your Pattern. First photograph the colour key and tap
 Account, Plus and prices
 - Sign in with a Luca-S account (email) or with Apple. Signing in keeps designs and tracker progress synced.
 - Free: full editor, photo to pattern, thread tools and calculators, PDF export with a monthly download limit, a limited number of saved designs.
-- Patternly Plus: adds the Stitch Tracker, unlimited downloads, more saved designs, progress synced across devices and priority support. There is a free trial. Prices depend on country and store; the Pricing page in the app shows the current price.
+- Patternly Plus: adds the Stitch Tracker, unlimited downloads, more saved designs, progress synced across devices and priority support. The free trial lasts 14 days, then Plus is billed unless it is cancelled. Patternly itself (editor, photo to pattern, thread tools) stays free with no time limit: if someone asks whether the app only works for 14 days, say no, only the Plus trial is 14 days. Prices depend on country and store; the Pricing page in the app shows the current price.
 - In the apps Plus is bought and managed through the App Store or Google Play (manage or cancel in the phone's subscription settings; "Restore purchases" is on the subscription page). On the website it is managed through the Luca-S account.
 - Anything about charges, refunds or a subscription that does not show: ask them to tap "Send to the team".
 
@@ -3769,6 +3770,34 @@ async function deliver(key, env) {
   return new Response(obj.body, { headers });
 }
 
+// v111: free kits by QR in countries where Plus cannot be paid for.
+// env FREE_KIT_COUNTRIES = comma list (default "RU,UA"), "none" = off.
+function freeKitCountries(env) {
+  return String(env.FREE_KIT_COUNTRIES == null ? "RU,UA" : env.FREE_KIT_COUNTRIES)
+    .toUpperCase().split(/[\s,]+/).filter(Boolean);
+}
+function visitorCountry(request) {
+  try {
+    const cc = (request.cf && request.cf.country) || request.headers.get("cf-ipcountry") || "";
+    return (cc && cc !== "XX" && cc !== "T1") ? String(cc).toUpperCase() : "";
+  } catch (e) { return ""; }
+}
+// A signed-in customer who opens a kit while it is free in their country keeps
+// that kit free if the country list later changes (Cristian, 10 Nov 2026).
+async function freeKitLatch(auth, request, env, sku) {
+  try {
+    if (!auth || !auth.customerId || !env.ENTITLEMENTS || !sku) return;
+    const cc = visitorCountry(request);
+    if (!cc || freeKitCountries(env).indexOf(cc) === -1) return;
+    const k = "freekit:" + auth.customerId;
+    const cur = JSON.parse((await env.ENTITLEMENTS.get(k)) || "[]");
+    const s = String(sku).toUpperCase();
+    if (cur.indexOf(s) !== -1) return;
+    cur.push(s);
+    await env.ENTITLEMENTS.put(k, JSON.stringify(cur.slice(-500)));
+  } catch (e) { console.warn("freekit latch failed:", e.message); }
+}
+
 async function servePattern(key, auth, request, url, env) {
   if (!env.PATTERNS) {
     return new Response("pattern storage not bound", { status: 500 });
@@ -3797,7 +3826,7 @@ async function servePattern(key, auth, request, url, env) {
       console.warn("entitlement lookup failed for " + sku + ":", e.message);
     }
     if (owns === true) {
-      return deliver(key, env);                 // bought it — no code needed
+      { await freeKitLatch(auth, request, env, sku); return deliver(key, env); }                 // bought it — no code needed
     }
     // Ownership is the FIRST question, always. An access-code check placed
     // ahead of this returns 401 to a genuine buyer before anyone asks whether
@@ -3812,7 +3841,7 @@ async function servePattern(key, auth, request, url, env) {
         });
       }
       if (auth && auth.customerId) { try { await latchSkus(auth.customerId, new Set([sku]), env); } catch (e) {} }
-      return deliver(key, env);
+      { await freeKitLatch(auth, request, env, sku); return deliver(key, env); }
     }
     if (owns === false || owns === "anon") {
       // Not a buyer (or not signed in): the access code is the remaining route.
@@ -3845,7 +3874,7 @@ async function servePattern(key, auth, request, url, env) {
         try { await latchSkus(auth.customerId, new Set([sku]), env); }
         catch (e) { console.warn("latch on code failed:", e.message); }
       }
-      return deliver(key, env);
+      { await freeKitLatch(auth, request, env, sku); return deliver(key, env); }
     }
   }
 
@@ -4393,9 +4422,14 @@ async function handleRequest(context) {
         attNote = " The user attached the file \"" + att.n + "\", which you cannot open; the team will look at it.";
       }
     }
+    // v113: same country check as /whoami (v111 free kits by QR), so the assistant does not
+    // tell a Russian or Ukrainian kit owner that they need Plus.
+    let helpFreeKits = false;
+    try { const cc = String((request.cf && request.cf.country) || request.headers.get("cf-ipcountry") || "").toUpperCase(); helpFreeKits = !!cc && freeKitCountries(env).indexOf(cc) !== -1; } catch (e) {}
     const system = HELP_SHEET + "\n\nThis user is on " + plat + ". The app language is " + LANGN[lang] +
       "; answer in the language the user writes in (default " + LANGN[lang] + ")." +
-      " They picked the reason \"" + kind + "\"." + (where ? " They opened the chat from: " + where + "." : "") + attNote;
+      " They picked the reason \"" + kind + "\"." + (where ? " They opened the chat from: " + where + "." : "") + attNote +
+      (helpFreeKits ? " In this user's country a Luca-S kit opened with its QR code or access code opens free in the Tracker without Plus; scanning, uploads and other Plus features still need Plus." : "");
     let r, j;
     try {
       const ac = new AbortController(); const tm = setTimeout(() => ac.abort(), att ? 45000 : 25000);
@@ -4555,6 +4589,21 @@ async function handleRequest(context) {
       const cc = (request.cf && request.cf.country)
               || request.headers.get("cf-ipcountry") || null;
       if (cc && cc !== "XX" && cc !== "T1") body.country = String(cc).toUpperCase();
+    } catch (e) {}
+    // v111: free kits by QR in countries where Plus cannot be paid for (Russian
+    // cards are refused by Apple, Google and Shopify; Ukraine gets the same so it
+    // is never charged for what Russia gets free). Only the kit itself opens free
+    // in the Tracker; every other Plus feature stays paid. The kit files are still
+    // gated by purchase or access code below, so this flag unlocks nothing alone.
+    // Switch: env FREE_KIT_COUNTRIES (see freeKitCountries).
+    // A signed-in customer also gets freeKitSkus: kits they opened while free,
+    // which stay free for them if the list changes (see freeKitLatch).
+    try {
+      body.freeKits = !!(body.country && freeKitCountries(env).indexOf(body.country) !== -1);
+      if (auth.loggedIn && auth.customerId && env.ENTITLEMENTS) {
+        const kept = JSON.parse((await env.ENTITLEMENTS.get("freekit:" + auth.customerId)) || "[]");
+        if (kept && kept.length) body.freeKitSkus = kept;
+      }
     } catch (e) {}
 
     // A signed-in customer gets their own email and the SKUs they own, so the
