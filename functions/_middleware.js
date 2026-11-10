@@ -15,7 +15,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v110";
+const MW_VERSION = "v111";
 
 // v107: the help sheet the in-app AI assistant answers from (/help/chat). Keep it
 // to facts that are true in the live app; update it when a feature changes.
@@ -4555,6 +4555,17 @@ async function handleRequest(context) {
       const cc = (request.cf && request.cf.country)
               || request.headers.get("cf-ipcountry") || null;
       if (cc && cc !== "XX" && cc !== "T1") body.country = String(cc).toUpperCase();
+    } catch (e) {}
+    // v111: free kits by QR in countries where Plus cannot be paid for (Russian
+    // cards are refused by Apple, Google and Shopify; Ukraine gets the same so it
+    // is never charged for what Russia gets free). Only the kit itself opens free
+    // in the Tracker; every other Plus feature stays paid. The kit files are still
+    // gated by purchase or access code below, so this flag unlocks nothing alone.
+    // Switch: env FREE_KIT_COUNTRIES = comma list (default "RU,UA"), "none" = off.
+    try {
+      const fk = String(env.FREE_KIT_COUNTRIES == null ? "RU,UA" : env.FREE_KIT_COUNTRIES)
+        .toUpperCase().split(/[\s,]+/).filter(Boolean);
+      body.freeKits = !!(body.country && fk.indexOf(body.country) !== -1);
     } catch (e) {}
 
     // A signed-in customer gets their own email and the SKUs they own, so the

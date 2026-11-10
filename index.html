@@ -5490,7 +5490,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v735';
+window.PATTERNLY_BUILD='v737';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -20285,6 +20285,13 @@ async function trkRecoverMissingBlob(id){
   return null;
 }
 async function trkOpenProject(id){
+  // v737: in free-kit countries only kit projects open without Plus.
+  if(trkFreeKitMode()){ const _p=(trkIndex()||[]).find(x=>x && x.id===id); if(!(_p && _p.sku) && trkFreeKitBlock()) return; }
+  window._trkKitLoading=(window._trkKitLoading||0)+1;
+  try{ return await trkOpenProjectRun(id); }
+  finally{ window._trkKitLoading=Math.max(0,(window._trkKitLoading||1)-1); }
+}
+async function trkOpenProjectRun(id){
   // Ownership first: a cached kit that has been refunded should not open.
   if(!(await trkCheckStillOwned(id))) return;
   // Blobs live in IndexedDB now — ensure the in-memory mirror is populated before
@@ -20489,6 +20496,7 @@ function trkNewPatChoices(open){
   if(src)  src.style.display = open?'':'none';
 }
 function trkImportPick(){
+  if(trkFreeKitBlock()) return;   // v737
   const inp=document.createElement('input');
   inp.type='file'; inp.accept='.json,application/json';
   inp.onchange=()=>{ if(inp.files && inp.files[0]) trkImportBackup(inp.files[0]); };
@@ -20673,6 +20681,7 @@ function trkRenderSaved(show){
 }
 // Reveal either the upload cards or the Luca-S catalogue.
 async function trkChooseSource(kind){
+  if(kind!=='lucas' && trkFreeKitBlock()) return;   // v737
   // Only an upload starts a project with no SKU. Clearing it inside the legend
   // handler wiped the value trkOpenKit had just set, so catalogue kits never
   // synced at all.
@@ -20954,6 +20963,7 @@ async function trkOpenFromLink(sku, code){
       if(r.ok){ window.__LUCAS_AUTH__=await r.json(); plus=trkPlusOk(); }
     }catch(e){ plus=false; }
   }
+  if(!plus && trkFreeKitMode()) plus=true;   // v737: the kit itself opens free here
   if(!plus){
     // Tracker is Plus-only. Show the gate; after they subscribe and return,
     // trkResumePendingLink() picks this up again.
@@ -20961,7 +20971,8 @@ async function trkOpenFromLink(sku, code){
     return;
   }
 
-  if(typeof openTracker==='function') openTracker();
+  if(typeof openTracker==='function') await openTracker({kit:true});
+  if(!document.body.classList.contains('tracker-mode')) return;
   await trkKitsLoad(true);
   let kit = (trkKitList||[]).find(k=>String(k.sku).toUpperCase()===sku);
   if(!kit){
@@ -21148,7 +21159,13 @@ function trkKitBusy(show, label){
   const t=document.getElementById('trk-kit-busy-t');
   if(t) t.textContent=label||'Opening\u2026';
 }
+// v737: a kit is loading, so the free-kit gate on the chart loaders lets it through.
 async function trkOpenKit(kit){
+  window._trkKitLoading=(window._trkKitLoading||0)+1;
+  try{ return await trkOpenKitRun(kit); }
+  finally{ window._trkKitLoading=Math.max(0,(window._trkKitLoading||1)-1); }
+}
+async function trkOpenKitRun(kit){
   const st=document.getElementById('trk-kits-status');
   st.style.color=''; st.textContent='';
   trkKitBusy(true, 'Opening '+(kit.title||kit.sku)+'\u2026');
@@ -22127,7 +22144,7 @@ function trackerNav(guarded){
   if(ov) ov.addEventListener('click', e=>{ if(e.target===ov) hideTrackerSoon(); });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') hideTrackerSoon(); });
 })();
-async function openTracker(){
+async function openTracker(opts){
   // Plus gate. Placed here because every route into the tracker comes through
   // this function, so there is one door rather than four to keep in step.
   //
@@ -22143,6 +22160,9 @@ async function openTracker(){
       const r=await fetch(base+'/whoami'+plSessQS(),{credentials:'include',cache:'no-store'});
       if(r.ok){ window.__LUCAS_AUTH__=await r.json(); ok=trkPlusOk(); }
     }catch(e){ ok=true; }   // cannot reach the server: do not block a payer
+    // v737: free-kit countries get in to open a kit (QR / catalogue) or to come
+    // back to kits they already have; everything else inside stays gated.
+    if(!ok && trkFreeKitMode() && ((opts && opts.kit) || trkHasKits())) ok=true;
     if(!ok){ trkPlusGate(); return; }
   }
   document.body.classList.remove('subs-mode','pricing-mode','app-mode','guide-mode','trackerguide-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode');
@@ -28540,6 +28560,7 @@ async function trkHandleLegend(file){
 
 const TRK_OXS_SYMBOLS='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz0123456789+*#%&@=?!<>';
 async function trkHandleChartOxs(file, preText){
+  if(trkFreeKitBlock()) return;   // v737: only kits load free
   const st=document.getElementById('trk-chart-status'), card=document.getElementById('trk-chart-card');
   st.textContent=preText?'Reading Patternly file…':'Reading OXS…'; st.style.color='';
   try{
@@ -28971,6 +28992,7 @@ async function ptlyConvertFiles(fileList){
 })();
 
 async function trkHandleChartPatternly(file){
+  if(trkFreeKitBlock()) return;   // v737: only kits load free
   const st=document.getElementById('trk-chart-status'), card=document.getElementById('trk-chart-card');
   st.textContent='Reading Patternly file…'; st.style.color='';
   try{
@@ -30439,7 +30461,7 @@ async function acctRenderPatterns(){
                              :`<div style="width:100%;aspect-ratio:1;background:#f6f1f2"></div>`)
       +`<div style="padding:.5rem .6rem"><div class="acct-pat-title" style="font-weight:700;font-size:.78rem;line-height:1.3">${esc(kit.title||kit.sku)}</div>`
       +`<div style="font-size:.7rem;color:var(--lp-muted,#6a626f);margin-top:.15rem">${esc(kit.sku)}</div></div>`;
-    card.onclick=()=>{ openTracker(); setTimeout(()=>trkOpenKit(kit), 60); };
+    card.onclick=async ()=>{ await openTracker({kit:true}); if(document.body.classList.contains('tracker-mode')) setTimeout(()=>trkOpenKit(kit), 60); };
     grid.appendChild(card);
   }
   if(unpublished.length){
@@ -32274,6 +32296,30 @@ function prGuessCurrency(){
 // Every route into the tracker passes through openTracker(), so the check sits
 // there rather than being repeated at each entry point — nav link, landing
 // card, #tracker deep link, and the account page all land in the same place.
+// v737: free kits in Russia and Ukraine (whoami.freeKits, set by the server
+// from the visitor's country; switch FREE_KIT_COUNTRIES). A non-Plus visitor
+// there can open Luca-S / partner kits in the Tracker - the kit files are still
+// gated by purchase or access code - but uploads, Scan Your Pattern, backups,
+// editor/photo hand-offs and non-kit saved patterns keep the Plus gate.
+function trkFreeKitMode(){
+  const a=(typeof lucasAuth==='function')?lucasAuth():{};
+  return !!(a.proxied && !a.plus && a.freeKits);
+}
+function trkHasKits(){
+  try{
+    if((trkIndex()||[]).some(p=>p && p.sku)) return true;
+    if(trkRememberedSkus().length) return true;
+    const a=lucasAuth(); if(a && a.ownedSkus && a.ownedSkus.length) return true;
+  }catch(e){}
+  return false;
+}
+// True when a free-kit visitor is about to load something that is not a kit:
+// shows the Plus gate and tells the caller to stop.
+function trkFreeKitBlock(){
+  if(!trkFreeKitMode() || window._trkKitLoading) return false;
+  try{ trkPlusGate(); }catch(e){}
+  return true;
+}
 function trkPlusOk(){
   const a=(typeof lucasAuth==='function')?lucasAuth():{};
   // Not signed in through the shop: we genuinely cannot tell, so let them in
@@ -38090,12 +38136,12 @@ body.ptly-appui:not(.pl-site) #pl-apphome{padding-bottom:calc(1.6rem + 84px)}
   }
 
   // ── actions (all existing entry points; nothing new touches sync) ──
-  async function toTracker(){ if(typeof openTracker==='function') await openTracker(); return document.body.classList.contains('tracker-mode'); }
+  async function toTracker(o){ if(typeof openTracker==='function') await openTracker(o); return document.body.classList.contains('tracker-mode'); }
   var ACT={
     trk:async function(id){ if(await toTracker() && typeof trkOpenProject==='function') trkOpenProject(id); },
     pj:function(id){ if(typeof pjOpenProject==='function') pjOpenProject(id); },
     track:function(){ toTracker(); },
-    kit:async function(){ if(await toTracker() && typeof trkChooseSource==='function') trkChooseSource('lucas'); },
+    kit:async function(){ if(await toTracker({kit:true}) && typeof trkChooseSource==='function') trkChooseSource('lucas'); },
     scan:async function(){ if(await toTracker() && typeof trkChooseSource==='function') trkChooseSource('scan'); },
     photo:function(){ if(typeof startWithPhoto==='function') startWithPhoto(); },
     blank:function(){ if(typeof pjNewPattern==='function') pjNewPattern(); },
