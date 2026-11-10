@@ -359,7 +359,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 - [x] (v733) merged to `main` and patternly-app `www/` together with v734 on 7 Nov 2026 (Cristian: "push the new version to both apps and web").
 - [ ] (v734/v735) Cristian to try ⋯ → Hide / Delete on a Tracker card in the app (iOS 1.7 TestFlight / Android 1.7 internal testing).
 - [x] App 1.7: iOS submitted for review, Android 1.7 (11) in production (8 Nov 2026).
-- [ ] Watch iOS 1.7 review (appStoreVersion ab5fdc3e-…); it goes live automatically when approved. Apps only get it with the next store build (iOS + Android), not started. "My Uploaded Patterns" still waits for the account list when there are no local uploads (not changed in this build).
+- [x] iOS 1.7 approved and LIVE on the App Store (READY_FOR_SALE, checked 10 Nov 2026 05:39Z). Apps only get it with the next store build (iOS + Android), not started. "My Uploaded Patterns" still waits for the account list when there are no local uploads (not changed in this build).
 
 - [ ] (v731) Merged + on the website (switches on by itself 1 Dec) and in patternly-app `www/`. Still needed: an iOS + Android store build with www v731 that is LIVE before 1 Dec (iOS 1.6 live has no winter look; Android 1.6 not started); start on Cristian's go, leave ~1 week for review. Live check: luca-s.com/apps/patternly?winter=xmas
 - [ ] (v716) Signed in on two devices, add threads in My threads on one and open My threads (or a shopping list) on the other: the same threads appear; remove one and it disappears on the other. Check middleware v109 /stash works through luca-s.com after merge
