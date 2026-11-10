@@ -15,7 +15,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v109";
+const MW_VERSION = "v110";
 
 // v107: the help sheet the in-app AI assistant answers from (/help/chat). Keep it
 // to facts that are true in the live app; update it when a feature changes.
@@ -115,6 +115,41 @@ async function fbChatSave(env, conv, p) {
   if (p.outcome) rec.outcome = p.outcome;
   rec.updated = now;
   await env.ENTITLEMENTS.put(key, JSON.stringify(rec), { metadata: { kind: rec.kind, status: rec.status, ts: rec.ts } });
+}
+
+// v110: help chats, messages and their files are kept 90 days, then deleted (Cristian chose
+// "Yes, after 90 days" on 10 Nov 2026). Age = last update (a chat's last answer), else sent time.
+// Runs whenever the inbox is read: the weekly summary job and Studio → Feedback.
+const FB_KEEP_DAYS = 90;
+async function fbPurgeOld(env, items, nowMs) {
+  const cut = (nowMs || Date.now()) - FB_KEEP_DAYS * 86400000;
+  const keep = []; const kept = new Set(); let gone = 0, files = 0;
+  for (const r of items) {
+    if (!r || !r.id || !((r.updated || r.ts) < cut)) {
+      keep.push(r); for (const f of ((r && r.files) || [])) if (f && f.k) kept.add(f.k);
+      continue;
+    }
+    try { await env.ENTITLEMENTS.delete("fb:" + r.id); gone++; } catch (e) { keep.push(r); continue; }
+    for (const f of (r.files || [])) { try { if (env.PATTERNS && f && /^fbf\//.test(f.k)) { await env.PATTERNS.delete(f.k); files++; } } catch (e) {} }
+  }
+  // Files uploaded but never kept in a chat record ("fbf/<upload day>/..."); keys sort by day.
+  if (env.PATTERNS) {
+    const cutDay = new Date(cut).toISOString().slice(0, 10);
+    let cursor;
+    outer: for (let page = 0; page < 5; page++) {
+      let l; try { l = await env.PATTERNS.list({ prefix: "fbf/", limit: 1000, cursor }); } catch (e) { break; }
+      for (const o of (l.objects || [])) {
+        if (o.key.slice(4, 14) >= cutDay) break outer;
+        if (kept.has(o.key)) continue;
+        try { await env.PATTERNS.delete(o.key); files++; } catch (e) {}
+      }
+      if (l.truncated) cursor = l.cursor; else break;
+    }
+  }
+  // Free the room in the inbox / file caps.
+  if (gone) { try { const n = +((await env.ENTITLEMENTS.get("fbcount")) || 0) || 0; await env.ENTITLEMENTS.put("fbcount", String(Math.max(0, n - gone))); } catch (e) {} }
+  if (files) { try { const n = +((await env.ENTITLEMENTS.get("fbfcount")) || 0) || 0; await env.ENTITLEMENTS.put("fbfcount", String(Math.max(0, n - files))); } catch (e) {} }
+  return { keep, gone, files };
 }
 
 const enc = new TextEncoder();
@@ -2065,12 +2100,13 @@ async function handlePartnerApi(request, url, env) {
       return (await kvJsonMany(env, names.slice(0, 2000))).filter(Boolean);
     };
     if ((sub === "admin/feedback" || sub === "admin/feedback/summary") && request.method === "GET") {
-      let items = await loadAll();
+      const purge = await fbPurgeOld(env, await loadAll());   // v110: 90-day clean-up
+      let items = purge.keep;
       if (sub === "admin/feedback/summary") {
         const days = Math.max(1, Math.min(90, +(url.searchParams.get("days") || 7) || 7));
         const since = Date.now() - days * 86400000;
         items = items.filter(r => (r.updated || r.ts) >= since || r.status === "new").map(r => { const { email, name, files, ...rest } = r; return { ...rest, contact: !!email, files: (files || []).length }; });
-        return partnerJson(200, { ok:true, days, since, items });
+        return partnerJson(200, { ok:true, days, since, items, purged: { chats: purge.gone, files: purge.files, keepDays: FB_KEEP_DAYS } });
       }
       return partnerJson(200, { ok:true, items });
     }
