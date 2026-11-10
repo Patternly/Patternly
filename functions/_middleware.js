@@ -3769,6 +3769,34 @@ async function deliver(key, env) {
   return new Response(obj.body, { headers });
 }
 
+// v111: free kits by QR in countries where Plus cannot be paid for.
+// env FREE_KIT_COUNTRIES = comma list (default "RU,UA"), "none" = off.
+function freeKitCountries(env) {
+  return String(env.FREE_KIT_COUNTRIES == null ? "RU,UA" : env.FREE_KIT_COUNTRIES)
+    .toUpperCase().split(/[\s,]+/).filter(Boolean);
+}
+function visitorCountry(request) {
+  try {
+    const cc = (request.cf && request.cf.country) || request.headers.get("cf-ipcountry") || "";
+    return (cc && cc !== "XX" && cc !== "T1") ? String(cc).toUpperCase() : "";
+  } catch (e) { return ""; }
+}
+// A signed-in customer who opens a kit while it is free in their country keeps
+// that kit free if the country list later changes (Cristian, 10 Nov 2026).
+async function freeKitLatch(auth, request, env, sku) {
+  try {
+    if (!auth || !auth.customerId || !env.ENTITLEMENTS || !sku) return;
+    const cc = visitorCountry(request);
+    if (!cc || freeKitCountries(env).indexOf(cc) === -1) return;
+    const k = "freekit:" + auth.customerId;
+    const cur = JSON.parse((await env.ENTITLEMENTS.get(k)) || "[]");
+    const s = String(sku).toUpperCase();
+    if (cur.indexOf(s) !== -1) return;
+    cur.push(s);
+    await env.ENTITLEMENTS.put(k, JSON.stringify(cur.slice(-500)));
+  } catch (e) { console.warn("freekit latch failed:", e.message); }
+}
+
 async function servePattern(key, auth, request, url, env) {
   if (!env.PATTERNS) {
     return new Response("pattern storage not bound", { status: 500 });
@@ -3797,7 +3825,7 @@ async function servePattern(key, auth, request, url, env) {
       console.warn("entitlement lookup failed for " + sku + ":", e.message);
     }
     if (owns === true) {
-      return deliver(key, env);                 // bought it — no code needed
+      { await freeKitLatch(auth, request, env, sku); return deliver(key, env); }                 // bought it — no code needed
     }
     // Ownership is the FIRST question, always. An access-code check placed
     // ahead of this returns 401 to a genuine buyer before anyone asks whether
@@ -3812,7 +3840,7 @@ async function servePattern(key, auth, request, url, env) {
         });
       }
       if (auth && auth.customerId) { try { await latchSkus(auth.customerId, new Set([sku]), env); } catch (e) {} }
-      return deliver(key, env);
+      { await freeKitLatch(auth, request, env, sku); return deliver(key, env); }
     }
     if (owns === false || owns === "anon") {
       // Not a buyer (or not signed in): the access code is the remaining route.
@@ -3845,7 +3873,7 @@ async function servePattern(key, auth, request, url, env) {
         try { await latchSkus(auth.customerId, new Set([sku]), env); }
         catch (e) { console.warn("latch on code failed:", e.message); }
       }
-      return deliver(key, env);
+      { await freeKitLatch(auth, request, env, sku); return deliver(key, env); }
     }
   }
 
@@ -4561,11 +4589,15 @@ async function handleRequest(context) {
     // is never charged for what Russia gets free). Only the kit itself opens free
     // in the Tracker; every other Plus feature stays paid. The kit files are still
     // gated by purchase or access code below, so this flag unlocks nothing alone.
-    // Switch: env FREE_KIT_COUNTRIES = comma list (default "RU,UA"), "none" = off.
+    // Switch: env FREE_KIT_COUNTRIES (see freeKitCountries).
+    // A signed-in customer also gets freeKitSkus: kits they opened while free,
+    // which stay free for them if the list changes (see freeKitLatch).
     try {
-      const fk = String(env.FREE_KIT_COUNTRIES == null ? "RU,UA" : env.FREE_KIT_COUNTRIES)
-        .toUpperCase().split(/[\s,]+/).filter(Boolean);
-      body.freeKits = !!(body.country && fk.indexOf(body.country) !== -1);
+      body.freeKits = !!(body.country && freeKitCountries(env).indexOf(body.country) !== -1);
+      if (auth.loggedIn && auth.customerId && env.ENTITLEMENTS) {
+        const kept = JSON.parse((await env.ENTITLEMENTS.get("freekit:" + auth.customerId)) || "[]");
+        if (kept && kept.length) body.freeKitSkus = kept;
+      }
     } catch (e) {}
 
     // A signed-in customer gets their own email and the SKUs they own, so the

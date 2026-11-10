@@ -20286,7 +20286,7 @@ async function trkRecoverMissingBlob(id){
 }
 async function trkOpenProject(id){
   // v737: in free-kit countries only kit projects open without Plus.
-  if(trkFreeKitMode()){ const _p=(trkIndex()||[]).find(x=>x && x.id===id); if(!(_p && _p.sku) && trkFreeKitBlock()) return; }
+  if(trkFreeKitMode() || trkKeptKitMode()){ const _p=(trkIndex()||[]).find(x=>x && x.id===id); if(!(_p && _p.sku && trkKitFreeFor(_p.sku))){ try{ trkPlusGate(); }catch(e){} return; } }
   window._trkKitLoading=(window._trkKitLoading||0)+1;
   try{ return await trkOpenProjectRun(id); }
   finally{ window._trkKitLoading=Math.max(0,(window._trkKitLoading||1)-1); }
@@ -20963,7 +20963,7 @@ async function trkOpenFromLink(sku, code){
       if(r.ok){ window.__LUCAS_AUTH__=await r.json(); plus=trkPlusOk(); }
     }catch(e){ plus=false; }
   }
-  if(!plus && trkFreeKitMode()) plus=true;   // v737: the kit itself opens free here
+  if(!plus && trkKitFreeFor(sku)) plus=true;   // v737: the kit itself opens free here
   if(!plus){
     // Tracker is Plus-only. Show the gate; after they subscribe and return,
     // trkResumePendingLink() picks this up again.
@@ -21161,6 +21161,11 @@ function trkKitBusy(show, label){
 }
 // v737: a kit is loading, so the free-kit gate on the chart loaders lets it through.
 async function trkOpenKit(kit){
+  // v737: without Plus, only kits that are free here (or kept) open.
+  if(kit && typeof trkPlusOk==='function' && !trkPlusOk() && (trkFreeKitMode() || trkKeptKitMode())){
+    if(!trkKitFreeFor(kit.sku)){ try{ trkPlusGate(); }catch(e){} return; }
+    if(trkFreeKitMode()) trkKeepKit(kit.sku);
+  }
   window._trkKitLoading=(window._trkKitLoading||0)+1;
   try{ return await trkOpenKitRun(kit); }
   finally{ window._trkKitLoading=Math.max(0,(window._trkKitLoading||1)-1); }
@@ -22163,6 +22168,7 @@ async function openTracker(opts){
     // v737: free-kit countries get in to open a kit (QR / catalogue) or to come
     // back to kits they already have; everything else inside stays gated.
     if(!ok && trkFreeKitMode() && ((opts && opts.kit) || trkHasKits())) ok=true;
+    if(!ok && trkKeptKitMode()) ok=true;   // kits kept from a free period; others stay gated
     if(!ok){ trkPlusGate(); return; }
   }
   document.body.classList.remove('subs-mode','pricing-mode','app-mode','guide-mode','trackerguide-mode','projects-mode','calc-mode','tracker-mode','threads-mode','convert-mode','account-mode');
@@ -32305,6 +32311,33 @@ function trkFreeKitMode(){
   const a=(typeof lucasAuth==='function')?lucasAuth():{};
   return !!(a.proxied && !a.plus && a.freeKits);
 }
+// Kits opened while they were free stay free for that person if the country
+// list changes later (Cristian, 10 Nov 2026): this device's list plus, when
+// signed in, the account's list from the server (whoami.freeKitSkus).
+const TRK_FREEKIT_KEY='patternly_freekit_skus';
+function trkKeptKits(){
+  const out=new Set();
+  try{ (JSON.parse(localStorage.getItem(TRK_FREEKIT_KEY)||'[]')||[]).forEach(x=>out.add(String(x).toUpperCase())); }catch(e){}
+  try{ const a=lucasAuth(); (a.freeKitSkus||[]).forEach(x=>out.add(String(x).toUpperCase())); }catch(e){}
+  return out;
+}
+function trkKeepKit(sku){
+  try{
+    sku=String(sku||'').toUpperCase(); if(!sku) return;
+    const l=JSON.parse(localStorage.getItem(TRK_FREEKIT_KEY)||'[]')||[];
+    if(l.indexOf(sku)===-1){ l.push(sku); localStorage.setItem(TRK_FREEKIT_KEY, JSON.stringify(l.slice(-500))); }
+  }catch(e){}
+}
+// Not Plus and not in a free country, but has kits kept from before.
+function trkKeptKitMode(){
+  const a=(typeof lucasAuth==='function')?lucasAuth():{};
+  return !!(a.proxied && !a.plus && !a.freeKits && trkKeptKits().size);
+}
+// May this non-Plus visitor open this kit without Plus?
+function trkKitFreeFor(sku){
+  if(trkFreeKitMode()) return true;
+  return trkKeptKitMode() && trkKeptKits().has(String(sku||'').toUpperCase());
+}
 function trkHasKits(){
   try{
     if((trkIndex()||[]).some(p=>p && p.sku)) return true;
@@ -32316,7 +32349,7 @@ function trkHasKits(){
 // True when a free-kit visitor is about to load something that is not a kit:
 // shows the Plus gate and tells the caller to stop.
 function trkFreeKitBlock(){
-  if(!trkFreeKitMode() || window._trkKitLoading) return false;
+  if(!(trkFreeKitMode() || trkKeptKitMode()) || window._trkKitLoading) return false;
   try{ trkPlusGate(); }catch(e){}
   return true;
 }
