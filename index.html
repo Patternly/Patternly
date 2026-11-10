@@ -5497,7 +5497,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v745';
+window.PATTERNLY_BUILD='v746';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -42668,6 +42668,46 @@ body.dark #pwn .pwn-ic{background:#2f2638;color:#f0b3c0}
    nothing to tell, and nobody sees anything. */
 (function(){
   var NOTES=[
+    {id:'v746', notes:[
+      {icon:'gift',
+       t:{en:"Black Friday: 50% off Plus",fr:"Black Friday : -50 % sur Plus",de:"Black Friday: 50 % auf Plus",nl:"Black Friday: 50% korting op Plus",ru:"Чёрная пятница: −50% на Plus",uk:"Чорна п’ятниця: −50% на Plus",es:"Black Friday: 50 % en Plus",it:"Black Friday: 50% su Plus"},
+       d:{en:"From 23 to 30 November, your first year of Plus yearly is half price.",fr:"Du 23 au 30 novembre, la première année de Plus annuel est à moitié prix.",de:"Vom 23. bis 30. November kostet dein erstes Jahr Plus jährlich nur die Hälfte.",nl:"Van 23 tot 30 november is je eerste jaar Plus per jaar voor de halve prijs.",ru:"С 23 по 30 ноября первый год годовой подписки Plus стоит вдвое дешевле.",uk:"З 23 по 30 листопада перший рік річної підписки Plus коштує вдвічі менше.",es:"Del 23 al 30 de noviembre, tu primer año de Plus anual cuesta la mitad.",it:"Dal 23 al 30 novembre il primo anno di Plus annuale costa la metà."}},
+      {icon:'sparkle',
+       t:{en:"Mark a whole block",fr:"Marquer un bloc entier",de:"Einen ganzen Block markieren",nl:"Een heel blok markeren",ru:"Отметить целый блок",uk:"Позначити цілий блок",es:"Marcar un bloque entero",it:"Segna un blocco intero"},
+       d:{en:"In the Tracker, double-tap a stitch in Mark mode to mark its whole block at once.",fr:"Dans le Tracker, touchez deux fois un point en mode Marquer pour marquer tout son bloc.",de:"Tippe im Tracker im Markieren-Modus zweimal auf einen Stich, um seinen ganzen Block zu markieren.",nl:"Tik in de Tracker in de markeermodus twee keer op een steek om het hele blok te markeren.",ru:"В трекере в режиме отметки дважды коснитесь стежка, чтобы отметить весь его блок.",uk:"У трекері в режимі позначення двічі торкніться стібка, щоб позначити весь його блок.",es:"En el Tracker, toca dos veces una puntada en modo Marcar para marcar todo su bloque.",it:"Nel Tracker, tocca due volte un punto in modalità Segna per segnare tutto il suo blocco."}},
+      {icon:'fix',
+       t:{en:"Realistic thread amounts",fr:"Quantités de fil réalistes",de:"Realistische Garnmengen",nl:"Realistische garenhoeveelheden",ru:"Точный расход ниток",uk:"Точна витрата ниток",es:"Cantidades de hilo realistas",it:"Quantità di filo realistiche"},
+       d:{en:"The PDF colour key and the Thread calculator now estimate skeins the way stitchers really use them.",fr:"La légende des couleurs du PDF et le calculateur de fil estiment désormais les échevettes comme on les utilise vraiment.",de:"Die Farblegende im PDF und der Garnrechner schätzen Docken jetzt so, wie man sie wirklich verbraucht.",nl:"De kleurenlegenda in de pdf en de garencalculator schatten strengen nu zoals je ze echt gebruikt.",ru:"Легенда цветов в PDF и калькулятор ниток теперь считают мотки так, как их реально расходуют.",uk:"Легенда кольорів у PDF і калькулятор ниток тепер рахують мотки так, як їх справді витрачають.",es:"La leyenda de colores del PDF y la calculadora de hilo estiman ahora las madejas como se usan de verdad.",it:"La legenda colori del PDF e il calcolatore del filo ora stimano le matassine come si usano davvero."}},
+      {icon:'sparkle',
+       t:{en:"Colour key on every PDF page",fr:"Légende sur chaque page du PDF",de:"Farblegende auf jeder PDF-Seite",nl:"Kleurenlegenda op elke pdf-pagina",ru:"Легенда на каждой странице PDF",uk:"Легенда на кожній сторінці PDF",es:"Leyenda en cada página del PDF",it:"Legenda su ogni pagina del PDF"},
+       d:{en:"Each chart page of a downloaded PDF lists the threads used on that page. You can switch it off in Download.",fr:"Chaque page de grille du PDF liste les fils utilisés sur cette page. Désactivable dans Télécharger.",de:"Jede Diagrammseite im PDF listet die Garne dieser Seite auf. Abschaltbar unter Herunterladen.",nl:"Elke patroonpagina in de pdf toont de garens van die pagina. Uit te zetten bij Downloaden.",ru:"На каждой странице схемы в PDF перечислены нитки этой страницы. Отключается в разделе Скачать.",uk:"На кожній сторінці схеми в PDF перелічено нитки цієї сторінки. Вимикається в розділі Завантажити.",es:"Cada página del gráfico en el PDF muestra los hilos de esa página. Puedes desactivarlo en Descargar.",it:"Ogni pagina dello schema nel PDF elenca i fili di quella pagina. Puoi disattivarlo in Scarica."}},
+      {icon:'speed',
+       t:{en:"Smoother start",fr:"Démarrage plus fluide",de:"Sanfterer Start",nl:"Soepelere start",ru:"Плавный запуск",uk:"Плавний запуск",es:"Inicio más fluido",it:"Avvio più fluido"},
+       d:{en:"The app now opens straight to its start animation, with no flash of the website first.",fr:"L'app s'ouvre directement sur son animation, sans afficher le site web une fraction de seconde.",de:"Die App startet direkt mit ihrer Animation, ohne dass vorher kurz die Website aufblitzt.",nl:"De app opent meteen met de startanimatie, zonder dat eerst even de website verschijnt.",ru:"Приложение сразу открывается с анимации, без мелькания сайта.",uk:"Застосунок одразу відкривається з анімації, без миготіння сайту.",es:"La app abre directamente con su animación, sin que aparezca antes la web un instante.",it:"L'app si apre subito con la sua animazione, senza mostrare prima per un attimo il sito."}},
+      {icon:'sparkle',
+       t:{en:"Plus explained in your language",fr:"Plus expliqué dans votre langue",de:"Plus in deiner Sprache erklärt",nl:"Plus uitgelegd in jouw taal",ru:"Plus на вашем языке",uk:"Plus вашою мовою",es:"Plus explicado en tu idioma",it:"Plus spiegato nella tua lingua"},
+       d:{en:"The Tracker's Plus screen is now in all 8 languages, with clearer wording about the free trial.",fr:"L'écran Plus du Tracker existe maintenant dans les 8 langues, avec un texte plus clair sur l'essai gratuit.",de:"Der Plus-Bildschirm im Tracker gibt es jetzt in allen 8 Sprachen, mit klarerem Text zur Testphase.",nl:"Het Plus-scherm in de Tracker is nu in alle 8 talen, met duidelijkere uitleg over de proefperiode.",ru:"Экран Plus в трекере теперь на всех 8 языках, с более понятным текстом о пробном периоде.",uk:"Екран Plus у трекері тепер усіма 8 мовами, з зрозумілішим текстом про пробний період.",es:"La pantalla Plus del Tracker está ahora en los 8 idiomas, con un texto más claro sobre la prueba gratis.",it:"La schermata Plus del Tracker ora è in tutte le 8 lingue, con un testo più chiaro sulla prova gratuita."}},
+      {icon:'flake',
+       t:{en:"Winter look",fr:"Décor d'hiver",de:"Winterlook",nl:"Winterlook",ru:"Зимнее оформление",uk:"Зимове оформлення",es:"Aspecto de invierno",it:"Look invernale"},
+       d:{en:"From 1 December the app dresses up for the season: baubles until 6 January, then snowflakes until the end of February. Turn it off any time in More › Settings.",
+          fr:"Dès le 1er décembre, l'app se met aux couleurs de la saison : des boules de Noël jusqu'au 6 janvier, puis des flocons jusqu'à fin février. Désactivable à tout moment dans Plus › Réglages.",
+          de:"Ab dem 1. Dezember macht sich die App festlich: Christbaumkugeln bis zum 6. Januar, danach Schneeflocken bis Ende Februar. Jederzeit abschaltbar unter Mehr › Einstellungen.",
+          nl:"Vanaf 1 december kleedt de app zich in feestsfeer: kerstballen tot 6 januari, daarna sneeuwvlokken tot eind februari. Zet het uit wanneer je wilt via Meer › Instellingen.",
+          ru:"С 1 декабря приложение наряжается к праздникам: ёлочные шары до 6 января, затем снежинки до конца февраля. Выключить можно в любой момент: Ещё › Настройки.",
+          uk:"З 1 грудня застосунок вбирається до свят: ялинкові кулі до 6 січня, потім сніжинки до кінця лютого. Вимкнути можна будь-коли: Ще › Налаштування.",
+          es:"Desde el 1 de diciembre la app se viste para la temporada: bolas de Navidad hasta el 6 de enero y después copos de nieve hasta finales de febrero. Puedes desactivarlo en Más › Ajustes.",
+          it:"Dal 1° dicembre l'app si veste a festa: palline di Natale fino al 6 gennaio, poi fiocchi di neve fino a fine febbraio. Puoi disattivarlo quando vuoi in Altro › Impostazioni."}},
+      {icon:'sparkle',
+       t:{en:"What's new after updates",fr:"Nouveautés après chaque mise à jour",de:"Neuigkeiten nach Updates",nl:"Wat is er nieuw na updates",ru:"Что нового после обновлений",uk:"Що нового після оновлень",es:"Novedades tras cada actualización",it:"Novità dopo ogni aggiornamento"},
+       d:{en:"After each update, a short list like this one shows what changed. Open it again any time in More › What's new.",
+          fr:"Après chaque mise à jour, une courte liste comme celle-ci vous montre ce qui a changé. Retrouvez-la dans Plus › Nouveautés.",
+          de:"Nach jedem Update zeigt dir eine kurze Liste wie diese, was neu ist. Du findest sie jederzeit unter Mehr › Neuigkeiten.",
+          nl:"Na elke update laat een korte lijst zoals deze zien wat er veranderd is. Open hem opnieuw via Meer › Wat is er nieuw.",
+          ru:"После каждого обновления такой короткий список покажет, что изменилось. Открыть его снова можно в Ещё › Что нового.",
+          uk:"Після кожного оновлення такий короткий список покаже, що змінилося. Відкрити його знову можна в Ще › Що нового.",
+          es:"Después de cada actualización, una lista breve como esta te muestra qué ha cambiado. Vuelve a abrirla en Más › Novedades.",
+          it:"Dopo ogni aggiornamento, un breve elenco come questo ti mostra cosa è cambiato. Puoi riaprirlo in Altro › Novità."}}
+    ]},
     {id:'v743', notes:[
       {icon:'flake',
        t:{en:"Winter look",fr:"Décor d'hiver",de:"Winterlook",nl:"Winterlook",ru:"Зимнее оформление",uk:"Зимове оформлення",es:"Aspecto de invierno",it:"Look invernale"},
