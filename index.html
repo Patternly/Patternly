@@ -5497,7 +5497,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v744';
+window.PATTERNLY_BUILD='v745';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -7857,6 +7857,8 @@ document.addEventListener('DOMContentLoaded', function(){
         </select>
         <label class="xp-check"><input type="checkbox" id="xp-usage" checked><span>Show thread usage</span></label>
         <div class="xp-desc">Shows estimated thread length needed for each color</div>
+        <label class="xp-check"><input type="checkbox" id="xp-pagekey" checked><span>Colour key on every chart page</span></label>
+        <div class="xp-desc">Each chart page lists the threads used on it, so you don't flip back to the key</div>
         <button id="xp-key-only" style="margin-top:.5rem;width:100%;background:#fff;border:1.5px solid var(--accent);color:var(--accent);border-radius:9px;padding:.45rem .5rem;font-size:.76rem;font-weight:700;font-family:inherit;cursor:pointer">⬇ Download key as separate PDF</button>
         <div class="xp-desc">The thread key on its own — handy for printing, or apps that only want chart pages.</div>
       </div>
@@ -14608,7 +14610,7 @@ const EXP = Object.assign({
   filetype:'pdf', layout:'multi', pagesize:'a4', units:'cm', style:'color',
   tilemode:'cells', cells:40, cellmm:2.5, overlap:3, margins:12,
   major:'normal', majorCol:'#26202a', minor:'normal', minorCol:'#b9adb3',
-  sort:'code', usage:true, instr:true
+  sort:'code', usage:true, instr:true, pagekey:true
 }, (()=>{ try{ return JSON.parse(localStorage.getItem('patternly_export')||'{}'); }catch(e){ return {}; } })());
 function expSave(){ try{ localStorage.setItem('patternly_export', JSON.stringify(EXP)); }catch(e){} }
 // Migration to the A4-referenced model: the old untouched defaults (30 cells,
@@ -14707,7 +14709,8 @@ function expLum(col){ return 0.299*col.r+0.587*col.g+0.114*col.b; }
 // ── Tile geometry from settings ──
 function expLayout(){
   let [pw,ph]=XP_PAGES[EXP.pagesize];
-  const m=EXP.margins, headH=11, footH=26;
+  // v742: the per-page colour key sits in a 15 mm band above the minimap / footer mark
+  const m=EXP.margins, headH=11, keyH=(EXP.pagekey && EXP.filetype!=='png')?15:0, footH=26+keyH;
   if(EXP.layout==='one'){
     // One page means one page. Fit the whole chart on a single sheet — pick the
     // orientation that suits the grid, then scale the cell to fit. Symbols follow
@@ -14716,7 +14719,7 @@ function expLayout(){
     if(COLS >= ROWS*1.15 && ph > pw){ const t=pw; pw=ph; ph=t; }
     const aW=pw-m*2, aH=ph-m*2-headH-footH;
     const cellMM=Math.max(0.3, Math.min(aW/(COLS+1.15), aH/(ROWS+1.15)));
-    return {pw,ph,m,headH,footH,cellMM,tileC:COLS,tileR:ROWS,o:0,stepC:COLS,stepR:ROWS,tilesX:1,tilesY:1};
+    return {pw,ph,m,headH,footH,keyH,cellMM,tileC:COLS,tileR:ROWS,o:0,stepC:COLS,stepR:ROWS,tilesX:1,tilesY:1};
   }
   const availW=pw-m*2, availH=ph-m*2-headH-footH;
   let cellMM;
@@ -14737,7 +14740,51 @@ function expLayout(){
   const stepC=tileC-o, stepR=tileR-o;
   const tilesX=Math.max(1, Math.ceil(Math.max(1,COLS-o)/stepC));
   const tilesY=Math.max(1, Math.ceil(Math.max(1,ROWS-o)/stepR));
-  return {pw,ph,m,headH,footH,cellMM,tileC,tileR,o,stepC,stepR,tilesX,tilesY};
+  return {pw,ph,m,headH,footH,keyH,cellMM,tileC,tileR,o,stepC,stepR,tilesX,tilesY};
+}
+// v742: compact colour key for one chart page: the threads used in that tile,
+// in thread-key order, as swatch (+ symbol) and code, wrapped over 3 lines.
+// What does not fit ends with "+N more · see thread key".
+function expDrawPageKey(pdf, c0, r0, nc, nr, uPalette, keyRows, L, fontOk){
+  if(!L.keyH) return;
+  const {grid}=lyFlatten(), here=new Set();
+  for(let r=r0;r<r0+nr;r++){ const row=grid[r]||[]; for(let c=c0;c<c0+nc;c++){ const ci=row[c]; if(ci!==null && ci!==undefined) here.add(ci); } }
+  const list=keyRows.filter(k=>!k.bs && here.has(k.ci));
+  if(!list.length) return;
+  const x0=L.m, x1=L.pw-L.m, y0=L.ph-L.m-L.footH+3, lineH=4.4, lines=3, sw=3.2;
+  const colour=EXP.style!=='bw', showSym=EXP.style!=='nosym' && fontOk;
+  pdf.setDrawColor(225,215,220); pdf.setLineWidth(0.2); pdf.line(x0, y0-1.6, x1, y0-1.6);
+  pdf.setFontSize(6.4);
+  let x=x0, ln=0, shown=0;
+  const widthOf=k=>sw+1.2+(pdf.getTextWidth?pdf.getTextWidth(String(k.code)):String(k.code).length*1.3)+3.2;
+  for(let i=0;i<list.length;i++){
+    const k=list[i]; pdf.setFont(undefined,'normal'); pdf.setFontSize(6.4);
+    const w=widthOf(k), restW=18;
+    const last=ln===lines-1, needMore=i<list.length-1;
+    if(x+w>x1-(last&&needMore?restW:0)){
+      if(last) break;
+      ln++; x=x0;
+    }
+    const y=y0+ln*lineH;
+    const col=k.col||{r:200,g:200,b:200};
+    if(colour){ pdf.setFillColor(col.r,col.g,col.b); pdf.rect(x, y, sw, sw, 'F'); }
+    pdf.setDrawColor(150,140,146); pdf.setLineWidth(0.15); pdf.rect(x, y, sw, sw);
+    if(showSym && k.sym){
+      const dark=colour && expLum(col)<128;
+      pdf.setFont('PatternlySymbols','normal'); pdf.setFontSize(6.6);
+      if(dark) pdf.setTextColor(255,255,255); else pdf.setTextColor(30,25,32);
+      pdf.text(String(k.sym), x+sw/2, y+sw/2, {align:'center', baseline:'middle'});
+      pdf.setFont(undefined,'normal'); pdf.setFontSize(6.4);
+    }
+    pdf.setTextColor(60,50,56);
+    pdf.text(String(k.code), x+sw+1.2, y+sw/2, {baseline:'middle'});
+    x+=w; shown++;
+  }
+  if(shown<list.length){
+    pdf.setFont(undefined,'bold'); pdf.setFontSize(6.4); pdf.setTextColor(139,26,43);
+    pdf.text('+'+(list.length-shown)+' more · see thread key', x1, y0+(lines-1)*lineH+sw/2, {align:'right', baseline:'middle'});
+  }
+  pdf.setFont(undefined,'normal'); pdf.setTextColor(30,25,32);
 }
 
 // ── Render one chart tile to a canvas (also used for the PNG export) ──
@@ -14880,8 +14927,12 @@ function expKeyRows(uPalette,counts){
   len.forEach((cells,ci)=>{ const col=activePalette()[ci]; if(col) rows.push({ci, col, sym:'', code:(col.sku||col.label||String(ci)), count:0, bs:true, lenM:cells*0.0254/(fabricCount||14)*2.2}); });
   return rows;
 }
+const PL_CM_PER_STITCH_14=1.3;   // v741: thread path per full cross, 2 strands, 14-count
 function expUsageFor(count){
-  const lenM=count*0.025*(14/(fabricCount||14));           // 2.5 cm per stitch @14ct
+  // v741: 1.3 cm of 2-strand thread per full cross on 14-count (incl. travel), the same
+  // figure as the shopping list (0.43 m of skein per 100 stitches = ~1,850 stitches per
+  // skein). The old 2.5 cm said about twice the thread people really use.
+  const lenM=count*PL_CM_PER_STITCH_14/100*(14/(fabricCount||14));
   const skeins=Math.max(0.25, Math.ceil((lenM*1.2/24)*4)/4); // 20% margin, ¼-skein steps, 24 m usable (2 strands)
   return {lenM, skeins};
 }
@@ -15054,6 +15105,7 @@ function expBuildPdf(){
   const newPage=()=>{ if(first){ first=false; return; } pdf.addPage(fmt,orient); };
 
   // Chart tile pages
+  const _pkRows=L.keyH?expKeyRows(uPalette,counts):[];
   let pageNo=0;
   for(let ty=0; ty<L.tilesY; ty++){
     for(let tx=0; tx<L.tilesX; tx++){
@@ -15079,7 +15131,8 @@ function expBuildPdf(){
       }
       // Minimap bottom-left — strictly inside the footer zone (footH), never
       // climbing into the chart: height budget footH−6, width budget 60 mm.
-      const mmc=Math.max(1.2, Math.min(5, (L.footH-6)/Math.max(1,L.tilesY), 60/Math.max(1,L.tilesX)));
+      try{ expDrawPageKey(pdf, c0, r0, nc, nr, uPalette, _pkRows, L, fontOk); }catch(_pk){ console.warn('[pdf] page key', _pk); }   // v742
+      const mmc=Math.max(1.2, Math.min(5, (L.footH-(L.keyH||0)-6)/Math.max(1,L.tilesY), 60/Math.max(1,L.tilesX)));
       const my0=L.ph-L.m-L.tilesY*mmc;
       if(L.tilesX*L.tilesY > 1){
         for(let yy=0; yy<L.tilesY; yy++)for(let xx=0; xx<L.tilesX; xx++){
@@ -15701,7 +15754,7 @@ document.getElementById('download-btn').addEventListener('click', expOpen);
   const sel=document.getElementById('xp-sort'); sel.value=EXP.sort;
   sel.addEventListener('change',()=>{ EXP.sort=sel.value; _xpPage=1e9; expSave(); }); // jump preview to key page
   const chk=(id,key)=>{ const el=document.getElementById(id); el.checked=!!EXP[key]; el.addEventListener('change',()=>{ EXP[key]=el.checked; expSave(); }); };
-  chk('xp-usage','usage'); chk('xp-instr','instr');
+  chk('xp-usage','usage'); chk('xp-instr','instr'); chk('xp-pagekey','pagekey');
   document.getElementById('xp-instr').addEventListener('change',function(){ if(this.checked) _xpPage=1e9; }); // jump to it at the end; chk() already queued a re-render
   document.getElementById('xp-usage').addEventListener('change',()=>{ _xpPage=1e9; }); // show its effect on the key page
   // Accordions
@@ -26844,7 +26897,7 @@ document.getElementById('trk-grid-btn').addEventListener('click',function(){
 })();
 function trkShowTips(){
   pjShowModal({title:trkT('tip.title'), confirmLabel:trkT('tip.ok'),
-    body:'<b>✋ '+trkT('trk.pan')+'</b> — '+trkT('tip.pan')+'<br><b>✏️ '+trkT('trk.mark')+'</b> — '+trkT('tip.mark')+'<br><b>🧽 '+trkT('trk.erase')+'</b> — '+trkT('tip.erase')+' <b>↶ '+trkT('trk.undo')+'</b> '+trkT('tip.undo')+'<br><b>🎯 '+trkT('trk.pick')+'</b> — '+trkT('tip.pick')+'<br><b>Press & hold</b> a stitch (or right-click) — highlight its colour everywhere.<br><b>Pinch</b> or Ctrl+scroll — zoom.'});
+    body:'<b>✋ '+trkT('trk.pan')+'</b> — '+trkT('tip.pan')+'<br><b>✏️ '+trkT('trk.mark')+'</b> — '+trkT('tip.mark')+'<br><b>🧽 '+trkT('trk.erase')+'</b> — '+trkT('tip.erase')+' <b>↶ '+trkT('trk.undo')+'</b> '+trkT('tip.undo')+'<br><b>🎯 '+trkT('trk.pick')+'</b> — '+trkT('tip.pick')+'<br><b>'+trkT('tip.blockh')+'</b> '+trkT('tip.block')+'<br><b>Press & hold</b> a stitch (or right-click) — highlight its colour everywhere.<br><b>Pinch</b> or Ctrl+scroll — zoom.'});
 }
 (function(){ const t=document.getElementById('trk-tips'); if(t) t.addEventListener('click', trkShowTips); })();
 trkApplyMode();
@@ -26863,6 +26916,8 @@ trkCanvas.addEventListener('pointerdown', e=>{
   const cell=trkCellAt(e); if(!cell) return;
   if(trkPickArm){ e.preventDefault(); trkPickAt(cell); return; }
   if(typeof window.plParkTapAt==='function' && window.plParkTapAt(cell,e)){ e.preventDefault(); return; }   // v708: parking mode takes the tap
+  if(trkMode==='mark' && trkBlockTap(cell,e)){ e.preventDefault(); return; }   // v736: double-tap marks the whole block
+  trkDownAt={x:e.clientX, y:e.clientY};
   if(trkMode==='mark' || trkMode==='erase'){
     trkCanvas.setPointerCapture(e.pointerId);
     trkStrokeBegin();
@@ -27000,9 +27055,46 @@ function trkPointerEnd(e){
   // Pan mode never marks — it only navigates (long-press/right-click highlights)
   trkTap=null;
   if(trkMarking!==null){
+    const _tc=trkTapCell, _cell=_tc?{r:_tc.r,c:_tc.c}:(trkStroke&&trkStroke.length===1?{r:trkStroke[0].r,c:trkStroke[0].c}:null);
     if(trkTapCell && e.type==='pointerup'){ trkSetCell(trkTapCell.r,trkTapCell.c,false); renderTracker(); }   // still tap on a marked cell: clear it
+    const _st=trkStroke;
     trkTapCell=null; trkMarking=null; trkStrokeEnd(); updateTrackerProgressUI(); saveTrackerProgress();
+    // v736: remember a still single tap in Mark mode, so a second tap can make it a block
+    trkLastTap=null;
+    if(trkMode==='mark' && e.type==='pointerup' && _cell && trkDownAt && Math.hypot(e.clientX-trkDownAt.x,e.clientY-trkDownAt.y)<=8 && (!_st || _st.length<=1))
+      trkLastTap={r:_cell.r, c:_cell.c, x:e.clientX, y:e.clientY, t:Date.now(), stroke:(_st&&_st.length&&trkUndoStack[trkUndoStack.length-1]===_st)?_st:null};
   }
+}
+// ── v736: double-tap a stitch in Mark mode = mark (or clear) its whole block ──
+// The block is the bold-line square of the chart grid (Settings › Block size,
+// 5/10/20, aligned to the chart's top-left like the paper chart). The first
+// tap's own change is taken back, then every stitch in the block is set to
+// the opposite of "all done": one Undo step, saved and synced like a stroke.
+// Colour focus still protects other threads (trkSetCell skips them).
+let trkLastTap=null, trkDownAt=null;
+function trkBlockTap(cell,e){
+  const L=trkLastTap; trkLastTap=null;
+  if(!L || Date.now()-L.t>400 || L.r!==cell.r || L.c!==cell.c || Math.hypot(e.clientX-L.x,e.clientY-L.y)>24) return false;
+  if(trkBsSelActive()) return false;
+  if(L.stroke && trkUndoStack[trkUndoStack.length-1]===L.stroke){
+    trkUndoStack.pop();
+    for(let i=L.stroke.length-1;i>=0;i--){ const ch=L.stroke[i]; trackerStitched[ch.r][ch.c]=ch.prev; }
+  }
+  const B=Math.max(1,trkGridCfg.block||10), r0=Math.floor(cell.r/B)*B, c0=Math.floor(cell.c/B)*B;
+  const r1=Math.min(trackerGrid.rows,r0+B), c1=Math.min(trackerGrid.cols,c0+B);
+  let all=true, any=false;
+  for(let r=r0;r<r1;r++) for(let c=c0;c<c1;c++){
+    const sym=trackerGrid.cells[r][c]; if(sym===' ' || (trkSelActive() && !trkSelHas(sym))) continue;
+    any=true; if(!trackerStitched[r][c]) all=false;
+  }
+  if(!any){ trkUndoSync(); renderTracker(); return true; }
+  const on=!all;
+  trkStrokeBegin();
+  for(let r=r0;r<r1;r++) for(let c=c0;c<c1;c++) trkSetCell(r,c,on);
+  const n=trkStroke?trkStroke.length:0;
+  trkStrokeEnd(); renderTracker(); updateTrackerProgressUI(); saveTrackerProgress();
+  if(typeof toast==='function') toast(trkT(on?'ts.block':'ts.blockclr',{n}));
+  return true;
 }
 trkCanvas.addEventListener('pointerup', trkPointerEnd);
 trkCanvas.addEventListener('pointercancel', trkPointerEnd);
@@ -31782,7 +31874,7 @@ function ctCompute(){
 }
 
 // ── Thread calculator ──
-// Per-stitch thread path (full cross incl. travel) ≈ 2.5 cm on 14-count,
+// Per-stitch thread path (full cross incl. travel) ≈ 1.3 cm on 14-count (v741, was 2.5),
 // scaling with cell size. One skein splits into floor(6/strands) bundles.
 function cthCompute(){
   const n=Math.max(1,parseInt(document.getElementById('cth-n').value)||0);
@@ -31790,7 +31882,7 @@ function cthCompute(){
   const count=Math.round(parseFloat(document.getElementById('cth-count').value));
   const strands=parseInt(document.getElementById('cth-strands').value);
   document.getElementById('cth-strands-val').textContent=strands;
-  const perStitchCm=2.5*(14/count);
+  const perStitchCm=PL_CM_PER_STITCH_14*(14/count);
   const lenM=n*perStitchCm/100;
   const margM=lenM*1.2;
   const usable=skeinM*Math.floor(6/strands);
@@ -31807,7 +31899,7 @@ function cthCompute(){
   // Dynamic reference table for the chosen brand/strands
   const rows=[[11,'Aida 11 count'],[14,'Aida 14 count'],[16,'Aida 16 count'],[18,'Aida 18 count'],[22,'Aida 22 count'],[14,'Evenweave 28 count (over 2)']];
   document.getElementById('cth-table').innerHTML='<tr><th>Fabric</th><th>Per stitch</th><th>Stitches/skein</th></tr>'+rows.map(([c,name])=>{
-    const ps=2.5*(14/c);
+    const ps=PL_CM_PER_STITCH_14*(14/c);
     const perSkein=Math.round(usable*100/ps);
     return `<tr><td>${name}</td><td>${ps.toFixed(2)} cm / ${(ps/2.54).toFixed(2)}"</td><td>~${perSkein.toLocaleString('en-US')}</td></tr>`;
   }).join('');
@@ -39365,6 +39457,7 @@ body.dark #pmo .row.danger{color:#f08a8a}body.dark #pmo .row.danger .ic{backgrou
     book:'<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/>',
     chat:'<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',
     info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+    sparkle:'<path d="M11 3.5l1.7 5L17.5 10l-4.8 1.6L11 16.5l-1.7-4.9L4.5 10l4.8-1.5z"/><path d="M18 14.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/>',
     star:'<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
     tag:'<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="8" cy="8" r="1.4"/>',
     lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
@@ -39392,6 +39485,7 @@ body.dark #pmo .row.danger{color:#f08a8a}body.dark #pmo .row.danger .ic{backgrou
       else if(w==='guide') openGuide();
       else if(w==='ask') plFeedbackOpen('more');
       else if(w==='about') plAboutSite();
+      else if(w==='whatsnew') window.plWhatsNewOpen();   // v743
       else if(w==='sub') openSubscriptionPage();
       else if(w==='pricing') openPricing();
       else if(w==='privacy') plOpenPrivacy();
@@ -39432,7 +39526,7 @@ body.dark #pmo .row.danger{color:#f08a8a}body.dark #pmo .row.danger .ic{backgrou
       +  '<div class="row" data-go="lang">'+ic('globe')+'<span class="t">'+esc(tx('mo.lang'))+'</span><span id="pmo-lang"></span></div>'
       +'</div>'
       +'<p class="grp">'+esc(tx('mo.tools'))+'</p><div class="list">'+row('threads','thread','mo.threads')+(typeof window.plStashOpen==='function'?row('stash','spool','sk.open'):'')+row('calc','calc','mo.calc')+row('conv','conv','mo.conv')+'</div>'
-      +'<p class="grp">'+esc(tx('mo.help'))+'</p><div class="list">'+row('guide','book','mo.guide')+(hasAsk?row('ask','chat','mo.ask'):'')+row('about','info','mo.about')+'</div>'
+      +'<p class="grp">'+esc(tx('mo.help'))+'</p><div class="list">'+row('guide','book','mo.guide')+(hasAsk?row('ask','chat','mo.ask'):'')+(typeof window.plWhatsNewHas==='function'&&window.plWhatsNewHas()?row('whatsnew','sparkle','wn.more'):'')+row('about','info','mo.about')+'</div>'
       +'<p class="grp">'+esc(tx('mo.account'))+'</p><div class="list">'+row('sub','star','mo.sub')+row('pricing','tag','mo.pricing')+row('privacy','lock','mo.privacy')+(a.loggedIn?row('out','out','mo.out','danger'):'')+'</div>';
     var set=$('pmo-set');
     if(lang) $('pmo-lang').appendChild(lang);
@@ -42521,6 +42615,193 @@ body.dark #plw-row .theme-switch.plw-sw:not(.pn-on){background:#3a3142;border-co
   // The app header and home are built on DOMContentLoaded; run after them.
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(init,30); });
   else setTimeout(init,30);
+})();
+</script>
+<script id="pblk-src">
+/* v736: strings for double-tap block marking in the Tracker (see trkBlockTap) */
+(function(){ var S={"en": {"ts.block": "Block marked · {n} stitches", "ts.blockclr": "Block cleared · {n} stitches", "tip.blockh": "Double-tap", "tip.block": "a stitch in Mark mode to mark its whole block (the bold grid square). Double-tap again to clear it."}, "fr": {"ts.block": "Bloc marqué · {n} points", "ts.blockclr": "Bloc effacé · {n} points", "tip.blockh": "Double-touchez", "tip.block": "un point en mode Marquer pour marquer tout son bloc (le carré du quadrillage épais). Recommencez pour l'effacer."}, "de": {"ts.block": "Block markiert · {n} Stiche", "ts.blockclr": "Block gelöscht · {n} Stiche", "tip.blockh": "Doppeltippen", "tip.block": "auf einen Stich im Modus Markieren markiert den ganzen Block (das Quadrat der dicken Linien). Nochmal doppeltippen löscht ihn."}, "nl": {"ts.block": "Blok gemarkeerd · {n} steken", "ts.blockclr": "Blok gewist · {n} steken", "tip.blockh": "Dubbeltik", "tip.block": "op een steek in Markeren om het hele blok te markeren (het vak van de dikke lijnen). Nog eens dubbeltikken wist het."}, "ru": {"ts.block": "Блок отмечен · {n} крестиков", "ts.blockclr": "Блок очищен · {n} крестиков", "tip.blockh": "Двойное касание", "tip.block": "крестика в режиме «Отметить» отмечает весь блок (квадрат толстой сетки). Повторите, чтобы очистить."}, "uk": {"ts.block": "Блок позначено · {n} хрестиків", "ts.blockclr": "Блок очищено · {n} хрестиків", "tip.blockh": "Подвійний дотик", "tip.block": "до хрестика в режимі «Позначити» позначає весь блок (квадрат товстої сітки). Повторіть, щоб очистити."}, "es": {"ts.block": "Bloque marcado · {n} puntadas", "ts.blockclr": "Bloque borrado · {n} puntadas", "tip.blockh": "Doble toque", "tip.block": "en una puntada en modo Marcar marca todo su bloque (el cuadro de la cuadrícula gruesa). Repite para borrarlo."}, "it": {"ts.block": "Blocco segnato · {n} punti", "ts.blockclr": "Blocco cancellato · {n} punti", "tip.blockh": "Doppio tocco", "tip.block": "su un punto in modalità Segna segna tutto il blocco (il quadrato della griglia spessa). Ripeti per cancellarlo."}}; try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){} })();
+</script>
+<style id="pwn-style">
+/* v743: "What's new" sheet, shown once in the apps after an update (pwn-src). */
+#pwn{position:fixed;inset:0;z-index:100040;display:none;align-items:flex-end;justify-content:center;background:rgba(30,18,24,.42);-webkit-tap-highlight-color:transparent}
+#pwn.on{display:flex;animation:pwn-fade .2s ease-out}
+#pwn .pwn-box{position:relative;width:100%;max-width:460px;max-height:86vh;max-height:86dvh;overflow:auto;-webkit-overflow-scrolling:touch;background:#fdf9f5;border-radius:22px 22px 0 0;padding:22px 20px calc(18px + var(--sa-bottom,env(safe-area-inset-bottom,0px)));box-sizing:border-box;box-shadow:0 -8px 30px rgba(40,20,30,.18);animation:pwn-up .28s cubic-bezier(.2,.8,.25,1)}
+@media (min-width:700px){#pwn{align-items:center}#pwn .pwn-box{border-radius:22px;padding-bottom:20px}}
+#pwn .pwn-x{position:absolute;right:12px;top:12px;width:34px;height:34px;border:0;border-radius:50%;background:#f3eaec;color:#6b5a62;display:grid;place-items:center;cursor:pointer;padding:0}
+#pwn .pwn-x svg{width:16px;height:16px}
+#pwn .pwn-badge{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#8B1A2B,#c4475d);color:#fff;display:grid;place-items:center;margin-bottom:12px}
+#pwn .pwn-badge svg{width:24px;height:24px}
+#pwn h2{font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:1.6rem;line-height:1.15;color:#2b2226;margin:0 44px 2px 0}
+#pwn .pwn-ver{font-size:.8rem;color:#8a7a82;margin:0 0 16px}
+#pwn ul{list-style:none;margin:0 0 18px;padding:0;display:flex;flex-direction:column;gap:10px}
+#pwn li{display:flex;gap:12px;align-items:flex-start;background:#fff;border:1px solid #eee2e5;border-radius:16px;padding:12px 14px}
+#pwn .pwn-ic{width:34px;height:34px;border-radius:10px;background:#f6eef1;color:#8B1A2B;display:grid;place-items:center;flex:none}
+#pwn .pwn-ic svg{width:19px;height:19px}
+#pwn li b{display:block;font-size:.95rem;color:#2b2226;line-height:1.3}
+#pwn li span{display:block;font-size:.84rem;color:#6b5a62;line-height:1.42;margin-top:3px}
+#pwn .pwn-ok{display:block;width:100%;border:0;border-radius:14px;background:#8B1A2B;color:#fff;font:inherit;font-size:1rem;font-weight:700;padding:14px;cursor:pointer}
+#pwn .pwn-ok:focus:not(:focus-visible),#pwn .pwn-x:focus:not(:focus-visible){outline:none}
+#pwn svg{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+body.dark #pwn{background:rgba(0,0,0,.55)}
+body.dark #pwn .pwn-box{background:#1b1626;box-shadow:0 -8px 30px rgba(0,0,0,.5)}
+body.dark #pwn .pwn-x{background:#2f2638;color:#cfc3d6}
+body.dark #pwn h2,body.dark #pwn li b{color:#f1e9f3}
+body.dark #pwn .pwn-ver{color:#a597ad}
+body.dark #pwn li{background:#221c30;border-color:#37303f}
+body.dark #pwn li span{color:#c2b6c9}
+body.dark #pwn .pwn-ic{background:#2f2638;color:#f0b3c0}
+@keyframes pwn-up{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+@keyframes pwn-fade{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){#pwn.on,#pwn .pwn-box{animation:none}}
+</style>
+<script id="pwn-src">
+/* v743: "What's new" after an app update.
+   Shown once, in the iOS / Android app only, the first time the app is opened after an
+   update (never on a fresh install, never on the website). Also opens from More > What's new.
+   Preview anywhere with ?whatsnew=1.
+
+   HOW TO FILL IT IN FOR A RELEASE: add a new entry at the TOP of NOTES before the
+   www copy that goes into the store build. "id" just has to be new (use the editor build
+   number). Never mention that kits open free in Russia / Ukraine (Cristian's rule). Each note has an icon (names in IC below, or any plIcon name), a title "t"
+   and a text "d"; English is required, other languages fall back to English.
+   Everyone who updates sees the newest entry once. Leave NOTES alone for a build with
+   nothing to tell, and nobody sees anything. */
+(function(){
+  var NOTES=[
+    {id:'v743', notes:[
+      {icon:'flake',
+       t:{en:"Winter look",fr:"Décor d'hiver",de:"Winterlook",nl:"Winterlook",ru:"Зимнее оформление",uk:"Зимове оформлення",es:"Aspecto de invierno",it:"Look invernale"},
+       d:{en:"From 1 December the app dresses up for the season: baubles until 6 January, then snowflakes until the end of February. Turn it off any time in More › Settings.",
+          fr:"Dès le 1er décembre, l'app se met aux couleurs de la saison : des boules de Noël jusqu'au 6 janvier, puis des flocons jusqu'à fin février. Désactivable à tout moment dans Plus › Réglages.",
+          de:"Ab dem 1. Dezember macht sich die App festlich: Christbaumkugeln bis zum 6. Januar, danach Schneeflocken bis Ende Februar. Jederzeit abschaltbar unter Mehr › Einstellungen.",
+          nl:"Vanaf 1 december kleedt de app zich in feestsfeer: kerstballen tot 6 januari, daarna sneeuwvlokken tot eind februari. Zet het uit wanneer je wilt via Meer › Instellingen.",
+          ru:"С 1 декабря приложение наряжается к праздникам: ёлочные шары до 6 января, затем снежинки до конца февраля. Выключить можно в любой момент: Ещё › Настройки.",
+          uk:"З 1 грудня застосунок вбирається до свят: ялинкові кулі до 6 січня, потім сніжинки до кінця лютого. Вимкнути можна будь-коли: Ще › Налаштування.",
+          es:"Desde el 1 de diciembre la app se viste para la temporada: bolas de Navidad hasta el 6 de enero y después copos de nieve hasta finales de febrero. Puedes desactivarlo en Más › Ajustes.",
+          it:"Dal 1° dicembre l'app si veste a festa: palline di Natale fino al 6 gennaio, poi fiocchi di neve fino a fine febbraio. Puoi disattivarlo quando vuoi in Altro › Impostazioni."}},
+      {icon:'sparkle',
+       t:{en:"What's new after updates",fr:"Nouveautés après chaque mise à jour",de:"Neuigkeiten nach Updates",nl:"Wat is er nieuw na updates",ru:"Что нового после обновлений",uk:"Що нового після оновлень",es:"Novedades tras cada actualización",it:"Novità dopo ogni aggiornamento"},
+       d:{en:"After each update, a short list like this one shows what changed. Open it again any time in More › What's new.",
+          fr:"Après chaque mise à jour, une courte liste comme celle-ci vous montre ce qui a changé. Retrouvez-la dans Plus › Nouveautés.",
+          de:"Nach jedem Update zeigt dir eine kurze Liste wie diese, was neu ist. Du findest sie jederzeit unter Mehr › Neuigkeiten.",
+          nl:"Na elke update laat een korte lijst zoals deze zien wat er veranderd is. Open hem opnieuw via Meer › Wat is er nieuw.",
+          ru:"После каждого обновления такой короткий список покажет, что изменилось. Открыть его снова можно в Ещё › Что нового.",
+          uk:"Після кожного оновлення такий короткий список покаже, що змінилося. Відкрити його знову можна в Ще › Що нового.",
+          es:"Después de cada actualización, una lista breve como esta te muestra qué ha cambiado. Vuelve a abrirla en Más › Novedades.",
+          it:"Dopo ogni aggiornamento, un breve elenco come questo ti mostra cosa è cambiato. Puoi riaprirlo in Altro › Novità."}}
+    ]}
+  ];
+  var S={
+    en:{"wn.title":"What's new","wn.ver":"Version {v}","wn.ok":"Got it","wn.close":"Close","wn.more":"What's new"},
+    fr:{"wn.title":"Nouveautés","wn.ver":"Version {v}","wn.ok":"Compris","wn.close":"Fermer","wn.more":"Nouveautés"},
+    de:{"wn.title":"Neuigkeiten","wn.ver":"Version {v}","wn.ok":"Alles klar","wn.close":"Schließen","wn.more":"Neuigkeiten"},
+    nl:{"wn.title":"Wat is er nieuw","wn.ver":"Versie {v}","wn.ok":"Begrepen","wn.close":"Sluiten","wn.more":"Wat is er nieuw"},
+    ru:{"wn.title":"Что нового","wn.ver":"Версия {v}","wn.ok":"Понятно","wn.close":"Закрыть","wn.more":"Что нового"},
+    uk:{"wn.title":"Що нового","wn.ver":"Версія {v}","wn.ok":"Зрозуміло","wn.close":"Закрити","wn.more":"Що нового"},
+    es:{"wn.title":"Novedades","wn.ver":"Versión {v}","wn.ok":"Entendido","wn.close":"Cerrar","wn.more":"Novedades"},
+    it:{"wn.title":"Novità","wn.ver":"Versione {v}","wn.ok":"Ho capito","wn.close":"Chiudi","wn.more":"Novità"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  var IC={
+    sparkle:'<path d="M11 3.5l1.7 5L17.5 10l-4.8 1.6L11 16.5l-1.7-4.9L4.5 10l4.8-1.5z"/><path d="M18 14.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/>',
+    flake:'<path d="M12 2.5v19M3.8 7.3l16.4 9.5M3.8 16.8l16.4-9.6M10 4.2l2 2.3 2-2.3M10 19.8l2-2.3 2 2.3"/>',
+    gift:'<rect x="4" y="9" width="16" height="11" rx="1.5"/><path d="M3 9h18M12 9v11M12 9c-1.5-3-5-4-5-1.5S10 9 12 9zM12 9c1.5-3 5-4 5-1.5S14 9 12 9z"/>',
+    fix:'<path d="M14.5 6.5a4 4 0 0 0-5.3 5L4 16.7 7.3 20l5.2-5.2a4 4 0 0 0 5-5.3l-2.4 2.4-2.5-.5-.5-2.5z"/>',
+    speed:'<path d="M4 16a8 8 0 1 1 16 0"/><path d="M12 16l4-5"/><circle cx="12" cy="16" r="1.2"/>',
+    close:'<path d="M6 6l12 12M18 6L6 18"/>'
+  };
+  var KEY='pl_whatsnew', ver='';
+  function lang(){ try{ var s=localStorage.getItem('pl_lang'); if(s) return s; }catch(e){} return 'en'; }
+  function tx(k,v){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; if(v) for(var n in v) s=s.split('{'+n+'}').join(v[n]); return s; }
+  function pick(o){ if(!o) return ''; return o[lang()]||o.en||''; }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function svg(n){ var b=IC[n]; if(!b && typeof window.plIcon==='function'){ var h=window.plIcon(n); if(h) return h; } return '<svg viewBox="0 0 24 24" aria-hidden="true">'+(b||IC.sparkle)+'</svg>'; }
+  function isApp(){ try{ return typeof plIsApp==='function' && plIsApp(); }catch(e){ return false; } }
+  function load(){ try{ return JSON.parse(localStorage.getItem(KEY)||'null'); }catch(e){ return null; } }
+  function save(o){ try{ localStorage.setItem(KEY,JSON.stringify(o)); }catch(e){} }
+  // App version from the native shell (Capacitor App plugin), else the editor build.
+  function appVersion(){
+    var fb=(typeof PATTERNLY_BUILD==='string'?PATTERNLY_BUILD:'');
+    try{
+      var A=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App;
+      if(isApp() && A && typeof A.getInfo==='function'){
+        return Promise.resolve(A.getInfo()).then(function(i){ return (i&&i.version)?String(i.version):fb; },function(){ return fb; });
+      }
+    }catch(e){}
+    return Promise.resolve(fb);
+  }
+  // Someone who used the app before this build (so an update, not a fresh install).
+  function usedBefore(){
+    try{
+      var r=JSON.parse(localStorage.getItem('pl_rate')||'null'); if(r && r.first && Date.now()-r.first>15*60e3) return true;
+      var d=JSON.parse(localStorage.getItem('pl_streak_days')||'[]'); if(d && d.length) return true;
+      if(typeof trkIndex==='function' && (trkIndex()||[]).length) return true;
+      if(typeof pjLoadAll==='function'){ var p=pjLoadAll(); if(p && (p.length)) return true; }
+    }catch(e){}
+    return false;
+  }
+  var box=null;
+  function render(entry){
+    if(!box){
+      box=document.createElement('div'); box.id='pwn'; box.setAttribute('role','dialog'); box.setAttribute('aria-modal','true');
+      document.body.appendChild(box);
+      box.addEventListener('click',function(e){ if(e.target===box || e.target.closest('.pwn-x,.pwn-ok')) close(); });
+    }
+    var items=(entry.notes||[]).map(function(n){
+      return '<li><span class="pwn-ic">'+svg(n.icon)+'</span><div><b>'+esc(pick(n.t))+'</b>'+(n.d?'<span>'+esc(pick(n.d))+'</span>':'')+'</div></li>';
+    }).join('');
+    box.innerHTML='<div class="pwn-box">'
+      +'<button type="button" class="pwn-x" aria-label="'+esc(tx('wn.close'))+'">'+svg('close')+'</button>'
+      +'<div class="pwn-badge">'+svg('sparkle')+'</div>'
+      +'<h2>'+esc(tx('wn.title'))+'</h2>'
+      +'<p class="pwn-ver">'+(ver&&isApp()?esc(tx('wn.ver',{v:ver})):'')+'</p>'
+      +'<ul>'+items+'</ul>'
+      +'<button type="button" class="pwn-ok">'+esc(tx('wn.ok'))+'</button>'
+      +'</div>';
+    box._entry=entry;
+  }
+  function open(entry){
+    entry=entry||NOTES[0]; if(!entry||!entry.notes||!entry.notes.length) return false;
+    render(entry); box.classList.add('on');
+    try{ box.querySelector('.pwn-ok').focus({preventScroll:true}); }catch(e){}
+    return true;
+  }
+  function close(){ if(box) box.classList.remove('on'); }
+  window.plWhatsNewOpen=function(){ return open(NOTES[0]); };
+  window.plWhatsNewHas=function(){ return !!(NOTES[0]&&NOTES[0].notes&&NOTES[0].notes.length); };
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape' && box && box.classList.contains('on')) close(); });
+  if(typeof window.plApplyLang==='function' && !window.plApplyLang._pwn){
+    var al=window.plApplyLang; window.plApplyLang=function(){ var r=al.apply(this,arguments); try{ if(box && box.classList.contains('on')) render(box._entry); }catch(e){} return r; }; window.plApplyLang._pwn=1;
+  }
+  // Wait until the app home (or any calm screen) is showing, so the sheet never lands mid-task.
+  function whenCalm(fn){
+    function calm(){ var c=document.body.className; return !/(^|\s)[a-z]+-mode(\s|$)/.test(c) && !document.body.classList.contains('cv-open') && document.visibilityState==='visible'; }
+    if(calm()) return setTimeout(fn,900);
+    var mo=new MutationObserver(function(){ if(calm()){ mo.disconnect(); setTimeout(fn,900); } });
+    mo.observe(document.body,{attributes:true,attributeFilter:['class']});
+  }
+  function start(){
+    var force=/[?&]whatsnew=1/.test(location.search);
+    appVersion().then(function(v){
+      ver=v||'';
+      if(force){ whenCalm(function(){ open(NOTES[0]); }); return; }
+      if(!isApp()) return;                       // website: never on its own
+      var st=load(), top=NOTES[0]||null, topId=top?top.id:'';
+      if(!st){                                   // first launch with this feature
+        if(!usedBefore()){ save({v:ver,seen:topId}); return; }   // fresh install: nothing to show
+        st={v:'',seen:''};
+      }
+      if(st.v!==ver){ st.v=ver; save(st); }
+      if(!top || top.id===st.seen || !top.notes || !top.notes.length) return;   // already seen, or nothing to tell
+      whenCalm(function(){
+        if(document.querySelector('#pwn.on')) return;
+        var s2=load()||st; if(s2.seen===top.id) return;
+        if(open(top)){ s2.seen=top.id; s2.v=ver; save(s2); }
+      });
+    });
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(start,400); });
+  else setTimeout(start,400);
 })();
 </script>
 </body>
