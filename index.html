@@ -8,6 +8,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
+<script>/* v739: in the store app, hide the page until the app look and its opening animation are on screen,
+   so the website landing page never flashes for a moment before the heart animation. */
+(function(){try{var C=window.Capacitor,n=false;if(C){if(typeof C.isNativePlatform==="function")n=C.isNativePlatform();else if(typeof C.getPlatform==="function")n=C.getPlatform()!=="web";else n=!!C.isNative;}
+if(!n&&location.protocol==="capacitor:")n=true;if(!n&&/[?&]appui=1/.test(location.search))n=true;if(!n)return;
+var h=document.documentElement;h.classList.add("pl-boot");try{if(localStorage.getItem("patternly_theme")==="dark")h.classList.add("pl-boot-dark");}catch(e){}
+window.plBootDone=function(){h.classList.remove("pl-boot","pl-boot-dark");};setTimeout(window.plBootDone,8000);}catch(e){}})();</script>
+<style>html.pl-boot,html.pl-boot body{background:#fbf7f2}html.pl-boot-dark,html.pl-boot-dark body{background:#171220}html.pl-boot body>*:not(#ptly-splash){opacity:0!important;pointer-events:none!important}</style>
 <meta name="color-scheme" content="light">
 <script>
 /* API base for the native app / off-proxy contexts. On the live site Patternly
@@ -5490,7 +5497,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v737';
+window.PATTERNLY_BUILD='v739';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -32855,6 +32862,7 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
     box.appendChild(word);
     ov.appendChild(box);
     document.body.appendChild(ov);
+    try{ if(window.plBootDone) window.plBootDone(); }catch(e){}   // v739: the splash covers the page now, show the rest
     hideNativeSplash();   // hand straight off from the native splash to this animation
     var total=reduce?350:(n*30 + 400 + 300);
     setTimeout(function(){ ov.classList.add('gone'); setTimeout(function(){ if(ov&&ov.parentNode) ov.parentNode.removeChild(ov); }, 480); }, total);
@@ -32863,6 +32871,7 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
     if(!appUiOn() || document.getElementById('ptly-appnav')) return;
     document.body.classList.add('ptly-appui');
     try{ showSplash(); }catch(e){}
+    try{ if(window.plBootDone) window.plBootDone(); }catch(e){}
     try{ setTimeout(hideNativeSplash, 2500); }catch(e){}
     try{ if(typeof rcConfigure==='function') rcConfigure(); }catch(e){}
 
