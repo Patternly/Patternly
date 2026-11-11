@@ -15,7 +15,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v113";
+const MW_VERSION = "v114";
 
 // v107: the help sheet the in-app AI assistant answers from (/help/chat). Keep it
 // to facts that are true in the live app; update it when a feature changes.
@@ -2076,6 +2076,127 @@ async function handlePartnerApi(request, url, env) {
     if (!env.PUSH_CRON_KEY || !ck || !timingSafeEqual(ck, env.PUSH_CRON_KEY)) return partnerJson(401, { ok:false, error:"cron key required" });
     if (!env.ENTITLEMENTS) return partnerJson(500, { ok:false, error:"storage not configured" });
     return partnerJson(200, { ok:true, ...(await pushAutoRun(env)) });
+  }
+  // ── v114: Kit files (Luca-S team only) ─────────────────────────────────────
+  // The design picture and the XSPro exports for a Luca-S kit, kept together
+  // per SKU so legends and covers can be made from them later. Team sign-in
+  // (owner, or a team user with the "patterns" scope); partner brand keys never
+  // reach these routes because adminAuth only accepts the owner key and team
+  // users. R2 PATTERNS layout, outside every public pattern folder:
+  //   kitsrc/<SKU>/kit.json           {sku, name, fields, parsed, files:[{n,k,s,t,role,ts}], created, updated, by}
+  //   kitsrc/<SKU>/<rand>-<file name> the uploaded file itself
+  // Routes (x-admin-key):
+  //   GET  admin/kitsrc                       -> {items:[kit.json…] newest first}
+  //   GET  admin/kitsrc/file?k=kitsrc/…       -> the file
+  //   POST admin/kitsrc/save   {sku, name, fields, parsed}  -> {item}
+  //   POST admin/kitsrc/upload?sku=&role=&name=  body = the file  -> {item}
+  //   POST admin/kitsrc/remove {sku, k}        -> one file out
+  //   POST admin/kitsrc/delete {sku}           -> the kit and all its files
+  if (sub === "admin/kitsrc" || sub.startsWith("admin/kitsrc/")) {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "patterns"); if (d) return d; }
+    if (!env.PATTERNS) return partnerJson(503, { ok:false, error:"pattern store not configured" });
+    const KS_MAX = 25 * 1024 * 1024, KS_FILES = 30;
+    const ksSku = v => { const s = String(v || "").trim().toUpperCase(); return /^[A-Z0-9]{2,24}$/.test(s) ? s : null; };
+    const ksGet = async sku => { try { const o = await env.PATTERNS.get("kitsrc/" + sku + "/kit.json"); return o ? JSON.parse(await o.text()) : null; } catch (e) { return null; } };
+    const ksPut = rec => env.PATTERNS.put("kitsrc/" + rec.sku + "/kit.json", JSON.stringify(rec), { httpMetadata: { contentType: "application/json" } });
+    const ksClean = (v, n) => String(v == null ? "" : v).replace(/[<>]/g, "").trim().slice(0, n);
+    const who = ADM.name || (ADM.master ? "Owner" : "Team");
+    if (sub === "admin/kitsrc" && request.method === "GET") {
+      const names = []; let cursor;
+      for (let page = 0; page < 5; page++) {
+        const listed = await env.PATTERNS.list({ prefix: "kitsrc/", delimiter: "/", cursor });
+        for (const p of (listed.delimitedPrefixes || [])) names.push(p.split("/")[1]);
+        if (listed.truncated) cursor = listed.cursor; else break;
+      }
+      const items = (await Promise.all(names.slice(0, 500).map(ksGet))).filter(Boolean);
+      items.sort((a, b) => (b.updated || 0) - (a.updated || 0));
+      return partnerJson(200, { ok:true, items });
+    }
+    if (sub === "admin/kitsrc/file" && request.method === "GET") {
+      const k = String(url.searchParams.get("k") || "");
+      if (!/^kitsrc\/[A-Z0-9]{2,24}\/[^/]+$/.test(k) || k.indexOf("..") >= 0) return partnerJson(400, { ok:false, error:"bad file" });
+      const obj = await env.PATTERNS.get(k);
+      if (!obj) return partnerJson(404, { ok:false, error:"file not found" });
+      const fname = k.split("/").pop().replace(/^[a-z0-9]{6}-/, "");
+      return new Response(obj.body, { headers: { "content-type": (obj.httpMetadata && obj.httpMetadata.contentType) || "application/octet-stream", "content-disposition": "inline; filename=\"" + fname.replace(/["\\]/g, "") + "\"", "cache-control": "no-store", "x-content-type-options": "nosniff" } });
+    }
+    if (sub === "admin/kitsrc/upload" && request.method === "POST") {
+      const sku = ksSku(url.searchParams.get("sku"));
+      if (!sku) return partnerJson(400, { ok:false, error:"SKU must be 2–24 letters or digits with no dash." });
+      const rec = await ksGet(sku);
+      if (!rec) return partnerJson(404, { ok:false, error:"Save the kit first." });
+      if ((rec.files || []).length >= KS_FILES) return partnerJson(400, { ok:false, error:"This kit already has " + KS_FILES + " files. Remove some first." });
+      const role = String(url.searchParams.get("role") || "other");
+      if (!["picture", "preview", "key", "keycolor", "notes", "chart", "other"].includes(role)) return partnerJson(400, { ok:false, error:"bad file type" });
+      const name = ksClean(url.searchParams.get("name"), 120).replace(/[\/\\?#%"]/g, "_") || "file";
+      const len = +(request.headers.get("content-length") || 0);
+      if (len > KS_MAX) return partnerJson(400, { ok:false, error:"The file is over 25 MB." });
+      const buf = await request.arrayBuffer();
+      if (!buf.byteLength) return partnerJson(400, { ok:false, error:"The file is empty." });
+      if (buf.byteLength > KS_MAX) return partnerJson(400, { ok:false, error:"The file is over 25 MB." });
+      const type = ksClean(request.headers.get("content-type"), 80).split(";")[0] || "application/octet-stream";
+      const k = "kitsrc/" + sku + "/" + randAlpha(6).toLowerCase() + "-" + name;
+      await env.PATTERNS.put(k, buf, { httpMetadata: { contentType: type } });
+      // One design picture per kit: a new one replaces the old.
+      if (role === "picture") {
+        for (const f of (rec.files || [])) if (f.role === "picture") { try { await env.PATTERNS.delete(f.k); } catch (e) {} }
+        rec.files = (rec.files || []).filter(f => f.role !== "picture");
+      }
+      rec.files = (rec.files || []).concat([{ n: name, k, s: buf.byteLength, t: type, role, ts: Date.now() }]);
+      rec.updated = Date.now(); rec.by = who;
+      await ksPut(rec);
+      return partnerJson(200, { ok:true, item: rec });
+    }
+    if (request.method !== "POST") return partnerJson(405, { ok:false, error:"method not allowed" });
+    let b; try { b = await request.json(); } catch (e) { return partnerJson(400, { ok:false, error:"bad json" }); }
+    const sku = ksSku(b && b.sku);
+    if (!sku) return partnerJson(400, { ok:false, error:"SKU must be 2–24 letters or digits with no dash." });
+    if (sub === "admin/kitsrc/save") {
+      const name = ksClean(b.name, 120);
+      if (!name) return partnerJson(400, { ok:false, error:"Type the model name." });
+      const fields = {};
+      for (const [key, n] of [["nameRo", 120], ["nameRu", 120], ["designer", 80], ["skill", 1], ["ean", 14], ["notes", 1000]]) {
+        const v = ksClean(b.fields && b.fields[key], n); if (v) fields[key] = v;
+      }
+      if (fields.skill && !/^[1-5]$/.test(fields.skill)) delete fields.skill;
+      if (fields.ean && !/^\d{8,14}$/.test(fields.ean)) return partnerJson(400, { ok:false, error:"The barcode must be 8 to 14 digits." });
+      let parsed = undefined;
+      if (b.parsed !== undefined) {
+        const js = JSON.stringify(b.parsed || null);
+        if (js.length > 200000) return partnerJson(400, { ok:false, error:"The colour key is too large." });
+        parsed = b.parsed || null;
+      }
+      const old = await ksGet(sku);
+      const rec = old || { sku, files: [], created: Date.now() };
+      rec.name = name; rec.fields = fields;
+      if (parsed !== undefined) rec.parsed = parsed;
+      rec.updated = Date.now(); rec.by = who;
+      await ksPut(rec);
+      return partnerJson(200, { ok:true, item: rec, created: !old });
+    }
+    const rec = await ksGet(sku);
+    if (!rec) return partnerJson(404, { ok:false, error:"not found" });
+    if (sub === "admin/kitsrc/remove") {
+      const k = String(b.k || "");
+      const f = (rec.files || []).find(x => x.k === k);
+      if (!f) return partnerJson(404, { ok:false, error:"file not found" });
+      try { await env.PATTERNS.delete(k); } catch (e) {}
+      rec.files = rec.files.filter(x => x.k !== k);
+      rec.updated = Date.now(); rec.by = who;
+      await ksPut(rec);
+      return partnerJson(200, { ok:true, item: rec });
+    }
+    if (sub === "admin/kitsrc/delete") {
+      let cursor;
+      for (let page = 0; page < 5; page++) {
+        const listed = await env.PATTERNS.list({ prefix: "kitsrc/" + sku + "/", cursor });
+        for (const o of listed.objects) { try { await env.PATTERNS.delete(o.key); } catch (e) {} }
+        if (listed.truncated) cursor = listed.cursor; else break;
+      }
+      return partnerJson(200, { ok:true, deleted:true });
+    }
+    return partnerJson(404, { ok:false, error:"unknown kit files route" });
   }
   // ── v106: feedback inbox (owner only) + weekly summary for the GitHub job ──
   // GET admin/feedback            -> {items:[...newest first]}   (x-admin-key, owner)
