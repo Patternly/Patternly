@@ -4,7 +4,7 @@
   Proprietary software: no part of this code may be copied, modified, reused or
   redistributed without written permission from UK Luca-S LTD.
   Third-party parts keep their own licences (noted where they appear).
-  Studio v63
+  Studio v64
 -->
 <html lang="en">
 <head>
@@ -3362,8 +3362,8 @@ function tabFromHash(){
 window.addEventListener('hashchange',()=>{ if(SESSION){ const t=tabFromHash(); if(t) showTab(t); } });
 const TABS_PARTNER=[['overview','Overview'],['patterns','My Patterns'],['converter','Converter'],['customers','My Customers'],['account','My Account']];
 // v37: third element = scope a team user needs; 'owner' = master key only.
-const TABS_ADMIN=[['aov','Overview',null],['abrands','Brands','brands'],['apatterns','Patterns','patterns'],['akits','Kit files','patterns'],['converter','Converter','converter'],['acustomers','Customers','customers'],['abranding','Branding','branding'],['ausers','Users','owner'],['apush','Notifications','owner'],['afeedback','Feedback','owner']];
-const ALL_SCOPES=['patterns','converter','customers','brands','branding'];
+const TABS_ADMIN=[['aov','Overview',null],['abrands','Brands','brands'],['apatterns','Patterns','patterns'],['akits','Kit files','kitfiles'],['converter','Converter','converter'],['acustomers','Customers','customers'],['abranding','Branding','branding'],['ausers','Users','owner'],['apush','Notifications','notifications'],['afeedback','Feedback','feedback']];
+const ALL_SCOPES=['patterns','kitfiles','converter','customers','brands','branding','notifications','feedback'];
 function hasScope(s){
   if(!SESSION||!SESSION.admin) return false;
   if(SESSION.master) return true;          // owner key: everything
@@ -5890,7 +5890,7 @@ async function loadBrands(){
 $('brands-refresh').onclick=loadBrands;
 // ===== v37: team users (owner only) =====
 let AUSERS_LOADED=false, USERS=[], USER_EDIT=null;
-const SCOPE_LABEL={patterns:'Patterns',converter:'Converter',customers:'Customers',brands:'Brands',branding:'Branding'};
+const SCOPE_LABEL={patterns:'Patterns',kitfiles:'Kit files',converter:'Converter',customers:'Customers',brands:'Brands',branding:'Branding',notifications:'Notifications',feedback:'Feedback'};
 function ufChips(){ return [...$('uf-perms').querySelectorAll('.permchip')]; }
 function ufSelected(){ return ufChips().filter(c=>c.classList.contains('on')).map(c=>c.dataset.scope); }
 function ufBuildChips(selected){

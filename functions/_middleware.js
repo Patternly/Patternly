@@ -15,7 +15,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v118";
+const MW_VERSION = "v119";
 
 // v107: the help sheet the in-app AI assistant answers from (/help/chat). Keep it
 // to facts that are true in the live app; update it when a feature changes.
@@ -647,7 +647,7 @@ function partnerJson(status, obj) {
 // User records never carry a prefix, so the partner sign-in and the Brands
 // listing (both keyed on rec.prefix) ignore them. The "users" scope is never
 // granted to a PU key: only the master key can see or mint keys.
-const USER_SCOPES = ["patterns", "converter", "customers", "brands", "branding"];
+const USER_SCOPES = ["patterns", "kitfiles", "converter", "customers", "brands", "branding", "notifications", "feedback"];   // v119: Kit files, Notifications, Feedback can be given to team users
 const UKEY_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 function randAlpha(n) {
   const b = new Uint8Array(n); crypto.getRandomValues(b);
@@ -2094,7 +2094,7 @@ async function handlePartnerApi(request, url, env) {
   //   POST admin/kitsrc/delete {sku}           -> the kit and all its files
   if (sub === "admin/kitsrc" || sub.startsWith("admin/kitsrc/")) {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
-    { const d = scopeDenied(ADM, "patterns"); if (d) return d; }
+    { const d = scopeDenied(ADM, "kitfiles"); if (d) return d; }
     if (!env.PATTERNS) return partnerJson(503, { ok:false, error:"pattern store not configured" });
     const KS_MAX = 25 * 1024 * 1024, KS_FILES = 30;
     const ksSku = v => { const s = String(v || "").trim().toUpperCase(); return /^[A-Z0-9]{2,24}$/.test(s) ? s : null; };
@@ -2213,7 +2213,7 @@ async function handlePartnerApi(request, url, env) {
     const cronOk = sub === "admin/feedback/summary" && !!env.PUSH_CRON_KEY && !!ck && timingSafeEqual(ck, env.PUSH_CRON_KEY);
     if (!cronOk) {
       if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
-      if (!ADM.master && !ADM.owner) return partnerJson(403, { ok:false, error:"Only the owner can see feedback." });
+      if (!ADM.master && !ADM.owner && !(ADM.scopes || []).includes("feedback")) return partnerJson(403, { ok:false, error:"Your account doesn\u2019t have access to feedback." });
     }
     const loadAll = async () => {
       const names = []; let cursor;
@@ -2268,7 +2268,7 @@ async function handlePartnerApi(request, url, env) {
   // ── v93: push notifications (owner only) ─────────────────────────────────
   if (sub.startsWith("admin/push/")) {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
-    if (!ADM.master) return partnerJson(403, { ok:false, error:"Only the owner can send notifications." });
+    if (!ADM.master && !(ADM.scopes || []).includes("notifications")) return partnerJson(403, { ok:false, error:"Your account doesn\u2019t have access to notifications." });
     if (!env.ENTITLEMENTS) return partnerJson(500, { ok:false, error:"storage not configured" });
     const configured = { ios: !!(env.APNS_KEY_ID && env.APNS_TEAM_ID && env.APNS_KEY_P8), android: !!env.FCM_SA_JSON };
     if (sub === "admin/push/devices" && request.method === "GET") {
@@ -3020,7 +3020,7 @@ async function handlePartnerApi(request, url, env) {
 
   if (sub === "admin/patterns" && request.method === "GET") {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
-    { const d = scopeDenied(ADM, "patterns"); if (d) return d; }
+    { const d = scopeDenied(ADM, "patterns") && scopeDenied(ADM, "kitfiles"); if (d) return d; }   // v119: Kit files reads it for the legend QR
     const list = await partnerManifestRaw(env);
     const out = [];
     for (const e of list) {
