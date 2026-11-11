@@ -4,7 +4,7 @@
   Proprietary software: no part of this code may be copied, modified, reused or
   redistributed without written permission from UK Luca-S LTD.
   Third-party parts keep their own licences (noted where they appear).
-  Studio v66
+  Studio v67
 -->
 <html lang="en">
 <head>
@@ -4559,7 +4559,7 @@ function ksOpen(it){
   $('ks-title').textContent=it?(it.sku+' · '+(it.name||'')):'New kit';
   $('ks-sku').value=it?it.sku:''; $('ks-sku').disabled=!!it; $('ks-name').value=it?it.name||'':'';
   const fl=(it&&it.fields)||{};
-  $('ks-ro').value=fl.nameRo||''; $('ks-ru').value=fl.nameRu||''; $('ks-designer').value=fl.designer||''; $('ks-skill').value=fl.skill||''; $('ks-ean').value=fl.ean||''; $('ks-notes').value=fl.notes||''; if(/^[A-Z]$/.test(fl.layout||'')&&KS_LAYOUTS.some(x=>x[0]===fl.layout)) KS_LAYOUT=fl.layout; if(/^[A-Z]$/.test(fl.cover||'')&&KS_COVERS.some(x=>x[0]===fl.cover)) KS_COVER=fl.cover; if(ksColOk(fl.covcol)) KS_COVCOL=fl.covcol; if(ksColOk(fl.legcol)) KS_LEGCOL=fl.legcol;
+  $('ks-ro').value=fl.nameRo||''; $('ks-ru').value=fl.nameRu||''; $('ks-designer').value=fl.designer||''; $('ks-skill').value=fl.skill||''; $('ks-ean').value=fl.ean||''; $('ks-notes').value=fl.notes||''; if(ksLayOn(fl.layout)) KS_LAYOUT=fl.layout; if(/^[A-Z]$/.test(fl.cover||'')&&KS_COVERS.some(x=>x[0]===fl.cover)) KS_COVER=fl.cover; if(ksColOk(fl.covcol)) KS_COVCOL=fl.covcol; if(ksColOk(fl.legcol)) KS_LEGCOL=fl.legcol;
   $('ks-more').open=!!(fl.nameRo||fl.nameRu||fl.designer||fl.skill||fl.ean||fl.notes);
   $('ks-pic-prev').innerHTML=''; $('ks-xs-list').innerHTML=''; ksMsg('');
   $('ks-del').style.display=it?'':'none'; $('ks-save').textContent=it?'Save changes':'Save kit';
@@ -4635,6 +4635,10 @@ function ksJsPdf(){
 const ksRgb=h=>{ const m=/^#?([0-9a-f]{6})$/i.exec(h||''); if(!m) return [200,200,200]; const n=parseInt(m[1],16); return [n>>16,(n>>8)&255,n&255]; };
 const ksSymCh=c=>c>=128&&c<160?ksDec(0).decode(new Uint8Array([c])):String.fromCharCode(c);
 const ksFmt=n=>Number(n||0).toLocaleString('en-GB');
+// v67: thread length on the legends, rounded up with a margin to the next half metre (Cristian's rule:
+// 0.9–1.3 → 1.5, 1.4–1.8 → 2, 1.9 → 2.5, 2.9 → 3.5, 4.1 → 4.5, 5.2 → 5.5) = ceil((m + 0.2) / 0.5) × 0.5; yards in brackets.
+const ksMRound=v=>{ if(v==null||v===''||isNaN(+v)) return null; const t=Math.round(+v*10)+2; return Math.ceil(t/5)*5/10; };
+const ksMt=(v,short)=>{ const m=ksMRound(v); if(m==null) return ''; const y=(m*1.09361).toFixed(1); return short?m+' ('+y+')':m+' m ('+y+' yd)'; };
 const ksTrim=v=>String(Math.round(v*10)/10);
 async function ksImgData(blob,max){
   try{ const bmp=await createImageBitmap(blob); const sc=Math.min(1,max/Math.max(bmp.width,bmp.height));
@@ -4713,37 +4717,25 @@ async function ksLegendPdf(P,meta){
     const sw=7.6*Math.max(.8,sc), sh=Math.min(5.2,rh-1.2); doc.setFillColor(...ksRgb(o.rgb)); doc.setDrawColor(0,0,0); doc.setLineWidth(.1); doc.roundedRect(x+6,mid-sh/2,sw,sh,.8,.8,'FD');
     let tx=x+6+sw+2.5;
     if(o.sym!=null){ font('CS3','normal',11*Math.max(.8,sc),INK); doc.text(ksSymCh(o.sym),tx+2.6,mid+1.6,{align:'center'}); tx+=7.5; }
-    if(o.line){ doc.setFillColor(...ksRgb(o.line)); const lh=o.strands>1?1.0:.6; doc.roundedRect(x+colW-30,mid-lh/2,14,lh,.3,.3,'F'); }
+    if(o.line){ doc.setFillColor(...ksRgb(o.line)); const lh=o.strands>1?1.0:.6; doc.roundedRect(x+colW-(cols>2?36:44),mid-lh/2,cols>2?9:12,lh,.3,.3,'F'); }
     font('Inter','bold',9*Math.max(.85,sc),INK); doc.text(String(o.thread),tx,mid+1.3);
     if(o.small){ const tw2=doc.getTextWidth(String(o.thread)); font('Inter','normal',6.6,INK2); doc.text(o.small,tx+tw2+2,mid+1.2); }
-    if(o.stitches!=null){ font('Inter','normal',7.6*Math.max(.85,sc),INK2); doc.text(ksFmt(o.stitches),x+colW,mid+1.2,{align:'right'}); }
+    const mt=ksMt(o.metres); if(mt){ font('Inter','normal',6.4*Math.max(.85,sc),INK2); doc.text(cols>2?ksMt(o.metres,true):mt,x+colW,mid+1.2,{align:'right'}); }
+    if(o.stitches!=null){ font('Inter','normal',7.6*Math.max(.85,sc),INK2); doc.text(ksFmt(o.stitches),x+colW-(cols>2?14:21),mid+1.2,{align:'right'}); }
     doc.setDrawColor(...RULE); doc.setLineWidth(.2); doc.line(x,yy+rh,x+colW,yy+rh); };
   let yy=top; sec('Cross stitch · Cruciuliță · Крест',yy+1); yy+=4;
   const per=Math.ceil(nC/cols);
-  P.colours.forEach((c,i)=>{ const ci=Math.floor(i/per), ri=i%per; row(M+ci*(colW+GAP),yy+ri*rh,{nr:i+1,rgb:c.rgb,sym:c.sym,thread:c.thread,stitches:c.stitches}); });
+  P.colours.forEach((c,i)=>{ const ci=Math.floor(i/per), ri=i%per; row(M+ci*(colW+GAP),yy+ri*rh,{nr:i+1,rgb:c.rgb,sym:c.sym,thread:c.thread,stitches:c.stitches,metres:c.metres}); });
   yy+=per*rh+7;
   if(nB){
     sec('Backstitch · Contur · Контур',yy+1); yy+=4; const bh=Math.max(rh,5.4), perB=Math.ceil(nB/cols);
     const rh0=rh; rh=bh;
     P.back.forEach((b,i)=>{ const ci=Math.floor(i/perB), ri=i%perB; const ix=P.colours.findIndex(c=>c.thread===b.thread);
-      row(M+ci*(colW+GAP),yy+ri*bh,{nr:ix>=0?ix+1:'',rgb:b.rgb||(ix>=0?P.colours[ix].rgb:null),thread:b.thread,small:b.strands>1?'2 strands':'1 strand',line:b.line||'#1d1a1f',strands:b.strands,stitches:b.stitches}); });
+      row(M+ci*(colW+GAP),yy+ri*bh,{nr:ix>=0?ix+1:'',rgb:b.rgb||(ix>=0?P.colours[ix].rgb:null),thread:b.thread,small:b.strands>1?'2 strands':'1 strand',line:b.line||'#1d1a1f',strands:b.strands,stitches:b.stitches,metres:b.metres}); });
     rh=rh0;
   }
-  // bottom strip
-  doc.setFillColor(...TINT); doc.roundedRect(M,BY,W-2*M,BH,3,3,'F');
-  const QS=20.5; if(!meta.qr){ doc.setDrawColor(...RULE); doc.setLineWidth(.4); doc.setLineDashPattern([1,1],0); doc.roundedRect(M+3.5,BY+3.75,QS+1,QS+1,1,1,'S'); doc.setLineDashPattern([],0); font('Inter','normal',6,INK2); doc.text('QR',M+4+QS/2,BY+4.25+QS/2+1,{align:'center'}); } else try{ const q=qrcode(0,'M'); q.addData(meta.qr); q.make(); const n=q.getModuleCount(), cell=QS/n;
-    doc.setFillColor(255,255,255); doc.roundedRect(M+3,BY+3.25,QS+2,QS+2,1,1,'F'); doc.setFillColor(...INK);
-    for(let r=0;r<n;r++) for(let c=0;c<n;c++) if(q.isDark(r,c)) doc.rect(M+4+c*cell,BY+4.25+r*cell,cell+.02,cell+.02,'F'); }catch(e){}
-  const LX=M+3+QS+6, LW=W-M-LX-34; let ly=BY+6.6;
-  font('Inter','bold',7.4,INK); const head='Stitch it in Patternly: '; doc.text(head,LX,ly); const hw=doc.getTextWidth(head);
-  font('Inter','normal',7.4,INK2); const l1=doc.splitTextToSize('scan the code to open this chart in the Patternly app and mark your stitches.',LW-hw);
-  doc.text(l1[0],LX+hw,ly); ly+=3.2; if(l1.length>1){ doc.text(doc.splitTextToSize(l1.slice(1).join(' '),LW),LX,ly); ly+=3.2; }
-  font('Inter','normal',6.4,INK2); { const tl=doc.splitTextToSize('Scanați codul pentru schema în Patternly. · Отсканируйте код, чтобы открыть схему в Patternly.',LW); doc.text(tl,LX,ly,{lineHeightFactor:1.25}); ly+=tl.length*2.8+1; }
-  font('Inter','bold',7.2,RED); doc.text('Stitch from the chart, not the cover picture.',LX,ly); ly+=3.1;
-  font('Inter','normal',6.4,INK2); doc.text('Brodați după schemă, nu după poza de copertă. · Вышивайте по схеме, а не по обложке.',LX,ly); ly+=3.2;
-  font('Inter','normal',5.4,[140,132,142]); doc.text(doc.splitTextToSize('This image and pattern is part of our Intellectual Property Office (IPO) and is under the protection of the CRM Regulations and National Competent Authority (NCA).',LW),LX,ly);
-  try{ const lg=await new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=KS_LF.logo; });
-    const lw=22, lh=lw*lg.naturalHeight/lg.naturalWidth; doc.addImage(KS_LF.logo,'PNG',W-M-5-lw,BY+(BH-lh)/2,lw,lh); }catch(e){}
+  // bottom strip: the Icon strip from layout I (v67)
+  ksIconStrip(await ksLegendKit(doc,P,meta),M,BY,BH);
   return doc;
 }
 /* v59: legend layouts A–G. B is ksLegendPdf above; A, C, D, E, F, G are drawn here with the same data,
@@ -4790,7 +4782,7 @@ async function ksLegendKit(doc,P,meta){
   K.on=rgb=>K.lum(rgb)>.6?K.INK:K.WHITE;
   K.str=n=>n===1?'1 strand · 1 fir · 1 нитка':n+' strands · '+n+' fire · '+n+' нитки';
   K.strEn=n=>n===1?'1 strand':n+' strands';
-  K.m=v=>v==null||v===''?'':(Math.round(+v*10)/10).toFixed(1);
+  K.m=v=>ksMt(v,true); K.mt=v=>ksMt(v);
   K.nr=n=>n===''||n==null?'':String(n).padStart(2,'0');
   K.C=P.colours.map((c,i)=>({nr:i+1,rgb:c.rgb,sym:c.sym,thread:c.thread,str:c.strands||2,st:c.stitches,m:c.metres}));
   K.B=P.back.map(b=>{ const ix=P.colours.findIndex(c=>c.thread===b.thread);
@@ -4872,15 +4864,15 @@ function ksLegA(K){
   // table
   const TW=W-2*M-RW-6;
   const byIx={}; K.B.forEach(b=>{ if(b.ix>=0) (byIx[b.ix]=byIx[b.ix]||[]).push(b); });
-  const rows=K.C.map((c,i)=>({...c,back:byIx[i]||[]})).concat(K.B.filter(b=>b.ix<0).map(b=>({nr:'',rgb:b.rgb,thread:b.thread,sym:null,st:null,back:[b]})));
+  const rows=K.C.map((c,i)=>({...c,back:byIx[i]||[]})).concat(K.B.filter(b=>b.ix<0).map(b=>({nr:'',rgb:b.rgb,thread:b.thread,sym:null,st:null,m:null,back:[b]})));
   const avail=FY-top-8; let cols=1, rh=Math.min(6.6,avail/rows.length);
   if(rh<3.3){ cols=2; rh=Math.min(6.6,avail/Math.ceil(rows.length/2)); }
   const GAP=4, cw=(TW-GAP*(cols-1))/cols, per=Math.ceil(rows.length/cols), sc=Math.max(.7,Math.min(1,rh/5.6));
-  const X=cols>1?{nr:0,sw:cw*.08,sym:cw*.22,th:cw*.31,st:cw*.7,bk:cw*.74}:{nr:0,sw:cw*.06,sym:cw*.2,th:cw*.26,st:cw*.58,bk:cw*.62};
+  const X=cols>1?{nr:0,sw:cw*.08,sym:cw*.2,th:cw*.28,st:cw*.54,m:cw*.78,bk:cw*.81}:{nr:0,sw:cw*.06,sym:cw*.18,th:cw*.24,st:cw*.45,m:cw*.62,bk:cw*.65};
   for(let c=0;c<cols;c++){ const x0=M+c*(cw+GAP);
     K.font('Inter','bold',cols>1?4.6:5.4,INK); doc.text('NR',x0+X.nr,top+2.4); if(cols<2) doc.text('COLOUR',x0+X.sw,top+2.4); doc.text(cols>1?'SYM':'SYMBOL',x0+X.sym+2.5,top+2.4,{align:'center'}); doc.text('LUCA-S',x0+X.th,top+2.4);
-    doc.text('STITCHES',x0+X.st,top+2.4,{align:'right'}); doc.text(cols>1?'BACK':'BACKSTITCH',x0+X.bk,top+2.4);
-    if(cols<2){ K.font('Inter','normal',4.6,MUTE); doc.text('Culoare · Цвет',x0+X.sw,top+5); doc.text('Simbol',x0+X.sym+2.5,top+5,{align:'center'}); doc.text('Puncte · Крестики',x0+X.st,top+5,{align:'right'}); doc.text('Contur · Контур',x0+X.bk,top+5); }
+    doc.text('STITCHES',x0+X.st,top+2.4,{align:'right'}); doc.text(cols>1?'M (YD)':'METRES',x0+X.m,top+2.4,{align:'right'}); doc.text(cols>1?'BACK':'BACKSTITCH',x0+X.bk,top+2.4);
+    if(cols<2){ K.font('Inter','normal',4.6,MUTE); doc.text('Culoare · Цвет',x0+X.sw,top+5); doc.text('Simbol',x0+X.sym+2.5,top+5,{align:'center'}); doc.text('Puncte · Крестики',x0+X.st,top+5,{align:'right'}); doc.text('m (yd)',x0+X.m,top+5,{align:'right'}); doc.text('Contur · Контур',x0+X.bk,top+5); }
     doc.setDrawColor(...INK); doc.setLineWidth(.3); doc.line(x0,top+6.6,x0+cw,top+6.6); }
   rows.forEach((r,i)=>{ const c=Math.floor(i/per), ri=i%per, x0=M+c*(cw+GAP), y=top+7.2+ri*rh, mid=y+rh/2;
     if(ri%2===1){ doc.setFillColor(...TINT); doc.rect(x0,y,cw,rh,'F'); }
@@ -4889,9 +4881,10 @@ function ksLegA(K){
     if(r.sym!=null) K.sym(r.sym,x0+X.sym+2.5,mid,10*sc);
     K.font('Inter','bold',8*sc,INK); doc.text(String(r.thread),x0+X.th,mid+K.cy(8*sc));
     if(r.st!=null){ K.font('Inter','normal',6.8*sc,INK2); doc.text(ksFmt(r.st),x0+X.st,mid+K.cy(6.8*sc),{align:'right'}); }
+    if(r.m!=null){ K.font('Inter','normal',(cols>1?5.8:6.4)*sc,INK2); doc.text(cols>1?K.m(r.m):K.mt(r.m),x0+X.m,mid+K.cy(6.4*sc),{align:'right'}); }
     if(cols>1){ r.back.slice(0,3).forEach((b,k)=>K.bar(x0+X.bk+k*4.4,mid,3.6,b.line,b.str)); return; }
     let bx=x0+X.bk; r.back.forEach(b=>{ K.font('Inter','normal',5.6*sc,INK2); doc.text(String(b.str),bx,mid+K.cy(5.6*sc)); K.bar(bx+2.2,mid,7,b.line,b.str);
-      const t=b.st!=null?ksFmt(b.st):''; doc.text(t,bx+10.4,mid+K.cy(5.6*sc)); bx+=12+doc.getTextWidth(t)+2.5; });
+      const t=(b.st!=null?ksFmt(b.st):'')+(b.m!=null?' · '+ksMRound(b.m)+' m':''); doc.text(t,bx+10.4,mid+K.cy(5.6*sc)); bx+=12+doc.getTextWidth(t)+2.5; });
   });
   // footer
   doc.setDrawColor(...RULE); doc.setLineWidth(.3); doc.line(M,FY,W-M,FY);
@@ -4914,7 +4907,7 @@ function ksLegC(K){
   const tiles=K.C.map((c,i)=>({...c,back:byIx[i]||[]})).concat(K.B.filter(b=>b.ix<0).map(b=>({nr:'',rgb:b.rgb,thread:b.thread,sym:null,back:[b]})));
   const hasBack=tiles.some(t=>t.back.length);
   const G=2.4; let cols=6, tw, th, lay;
-  for(cols=6;cols<=14;cols++){ tw=(W-2*M-G*(cols-1))/cols; th=tw*.62+Math.max(5.6,tw*.24)+(hasBack?3:0); if(Math.ceil(tiles.length/cols)*(th+G)<=avail) break; }
+  for(cols=6;cols<=14;cols++){ tw=(W-2*M-G*(cols-1))/cols; th=tw*.62+Math.max(5.6,tw*.24)+3+(hasBack?3:0); if(Math.ceil(tiles.length/cols)*(th+G)<=avail) break; }
   if(Math.ceil(tiles.length/cols)*(th+G)>avail){ th=avail/Math.ceil(tiles.length/cols)-G; }
   const sc=Math.min(1,tw/28);
   tiles.forEach((t,i)=>{ const x=M+(i%cols)*(tw+G), y=top+Math.floor(i/cols)*(th+G), ch=Math.min(tw*.62,th*.66);
@@ -4926,8 +4919,11 @@ function ksLegC(K){
     const ty=y+ch+Math.min(4.4,(th-ch)*.62);
     K.font('Inter','bold',8.4*sc+1,INK); doc.text(String(t.thread),x+1.8,ty);
     if(t.st!=null){ K.font('Inter','normal',5*sc+.6,MUTE); doc.text(ksFmt(t.st),x+tw-1.6,ty,{align:'right'}); }
-    let bx=x+1.8; t.back.forEach(b=>{ K.bar(bx,ty+2.4,Math.min(6,tw*.2),b.line,b.str); bx+=Math.min(6,tw*.2)+1.4; });
-    if(t.back.length&&tw>20){ K.font('Inter','normal',4.6,MUTE); doc.text(t.back.map(b=>ksFmt(b.st||0)).join(' · '),bx+.5,ty+3.1); }
+    if(t.m!=null){ K.font('Inter','normal',4.6*sc+.8,INK2); doc.text(tw>22?K.mt(t.m):K.m(t.m),x+1.8,ty+3.2); }
+    let bx=x+1.8; t.back.forEach(b=>{ K.bar(bx,ty+5.6,Math.min(6,tw*.2),b.line,b.str); bx+=Math.min(6,tw*.2)+1.4; });
+    if(t.back.length&&tw>20){ K.font('Inter','normal',4.6,MUTE); const room=x+tw-1.6-bx-.5;
+      const opts=[t.back.map(b=>ksFmt(b.st||0)+(b.m!=null?' · '+ksMRound(b.m)+' m':'')).join('  '),t.back.map(b=>b.m!=null?ksMRound(b.m)+' m':ksFmt(b.st||0)).join(' · ')];
+      const s=opts.find(o=>doc.getTextWidth(o)<=room); if(s) doc.text(s,bx+.5,ty+6.3); }
   });
   // footer: picture, how to stitch, warning, logo, QR
   const ph=FH, pw=Math.min(36,ph*(K.meta.picture?K.meta.picture.w/K.meta.picture.h:.7)); K.pic(M,FY,pw,ph,1.4);
@@ -4976,13 +4972,13 @@ function ksLegD(K){
     K.serif('normal',10.6*sc,INK,String(o.thread)); doc.text(String(o.thread),tx,mid+K.cy(10.6*sc)*1.1);
     if(o.small){ const w=doc.getTextWidth(String(o.thread)); K.font('Inter','normal',5.2,MUTE); doc.text(o.small,tx+w+2,mid+K.cy(5.2)); }
     if(o.line) K.bar(x+cw-12,mid,12,o.line,o.str);
-    else if(o.st!=null){ K.font('Inter','normal',5.6*Math.max(.85,sc),MUTE); doc.text(ksFmt(o.st),x+cw,mid+K.cy(5.6),{align:'right'}); }
+    else if(o.st!=null){ K.font('Inter','normal',5.6*Math.max(.85,sc),MUTE); doc.text(ksFmt(o.st),x+cw,mid-.6,{align:'right'}); if(o.m!=null){ K.font('Inter','normal',5*Math.max(.85,sc),INK2); doc.text(K.mt(o.m),x+cw,mid+2.1,{align:'right'}); } }
     doc.setDrawColor(...LINE); doc.setLineWidth(.25); doc.setLineDashPattern([.3,.9],0); doc.line(x,y+h,x+cw,y+h); doc.setLineDashPattern([],0); };
   let y=top+3; title(K.T.cross,K.T.crossRR,y); y+=6;
   const per=Math.ceil(nC/cols); K.C.forEach((c,i)=>row(M+Math.floor(i/per)*(cw+GAP),y+(i%per)*rh,c,rh));
   y+=per*rh+9;
   if(nB){ title(K.T.back,K.T.backRR,y); y+=5; const bh=Math.max(rh,5.6), pb=Math.ceil(nB/cols);
-    K.B.forEach((b,i)=>row(M+Math.floor(i/pb)*(cw+GAP),y+(i%pb)*bh,{...b,sym:null,small:K.strEn(b.str)+(b.st!=null?' · '+ksFmt(b.st):'')},bh)); }
+    K.B.forEach((b,i)=>row(M+Math.floor(i/pb)*(cw+GAP),y+(i%pb)*bh,{...b,sym:null,small:K.strEn(b.str)+(b.st!=null?' · '+ksFmt(b.st):'')+(b.m!=null?' · '+K.mt(b.m):'')},bh)); }
   // footer
   doc.setDrawColor(...LINE); doc.setLineWidth(.3); doc.line(M,FY,W-M,FY);
   K.qr(M,FY+5,20,false);
@@ -5019,19 +5015,20 @@ function ksLegE(K){
   const SH=31, SY=H-M-SH, nC=K.C.length, nB=K.B.length;
   const bcols=Math.min(5,Math.max(1,nB)), brows=nB?Math.ceil(nB/bcols):0, bh=11.5, backH=nB?8+brows*(bh+2.5):0;
   const avail=SY-7-y-6-backH; const G=2.2; let cols, tw;
-  for(cols=9;cols<=16;cols++){ tw=(W-2*M-G*(cols-1))/cols; if(Math.ceil(nC/cols)*(tw+7.4)<=avail) break; }
-  let sq=tw; if(Math.ceil(nC/cols)*(sq+7.4)>avail) sq=avail/Math.ceil(nC/cols)-7.4;
+  for(cols=9;cols<=16;cols++){ tw=(W-2*M-G*(cols-1))/cols; if(Math.ceil(nC/cols)*(tw+9.8)<=avail) break; }
+  let sq=tw; if(Math.ceil(nC/cols)*(sq+9.8)>avail) sq=avail/Math.ceil(nC/cols)-9.8;
   head('grid',K.T.cross,K.T.crossRR+' · symbol as on the chart, thread, stitches',y); y+=4;
   const sc=Math.min(1,tw/19);
-  K.C.forEach((c,i)=>{ const x=M+(i%cols)*(tw+G), yy=y+Math.floor(i/cols)*(sq+7.4);
+  K.C.forEach((c,i)=>{ const x=M+(i%cols)*(tw+G), yy=y+Math.floor(i/cols)*(sq+9.8);
     doc.setFillColor(...ksRgb(c.rgb)); doc.roundedRect(x+(tw-sq)/2,yy,sq,sq,1.6,1.6,'F');
     if(c.sym!=null) K.sym(c.sym,x+tw/2,yy+sq/2,sq*1.25,K.on(c.rgb));
     K.font('Inter','bold',7.2*sc+.6,INK); doc.text(String(c.thread),x+tw/2,yy+sq+3.2,{align:'center'});
-    if(c.st!=null){ K.font('Inter','normal',4.8*sc+.4,MUTE); doc.text(ksFmt(c.st),x+tw/2,yy+sq+5.8,{align:'center'}); } });
-  y+=Math.ceil(nC/cols)*(sq+7.4)+5;
+    if(c.st!=null){ K.font('Inter','normal',4.8*sc+.4,MUTE); doc.text(ksFmt(c.st),x+tw/2,yy+sq+5.8,{align:'center'}); }
+    if(c.m!=null){ K.font('Inter','normal',4.4*sc+.4,INK2); doc.text(tw>17?K.mt(c.m):K.m(c.m),x+tw/2,yy+sq+8.3,{align:'center'}); } });
+  y+=Math.ceil(nC/cols)*(sq+9.8)+5;
   if(nB){ head('size',K.T.back,K.T.backRR,y); y+=4; const bw=(W-2*M-(bcols-1)*3)/bcols;
     K.B.forEach((b,i)=>{ const x=M+(i%bcols)*(bw+3), yy=y+Math.floor(i/bcols)*(bh+2.5); doc.setDrawColor(...RULE); doc.setLineWidth(.3); doc.roundedRect(x,yy,bw,bh,2.2,2.2,'S');
-      K.bar(x+2.5,yy+2.6,bw-5,b.line,2); K.font('Inter','bold',7.4,INK); doc.text(String(b.thread),x+2.5,yy+6.8); K.font('Inter','normal',5.4,INK2); doc.text(K.strEn(b.str)+(b.st!=null?' · '+ksFmt(b.st):''),x+2.5,yy+9.8); }); }
+      K.bar(x+2.5,yy+2.6,bw-5,b.line,2); K.font('Inter','bold',7.4,INK); doc.text(String(b.thread),x+2.5,yy+6.8); K.font('Inter','normal',5.4,INK2); doc.text(K.wrap(K.strEn(b.str)+(b.st!=null?' · '+ksFmt(b.st):'')+(b.m!=null?' · '+K.mt(b.m):''),bw-4)[0],x+2.5,yy+9.8); }); }
   // bottom strip
   doc.setFillColor(...TINT); doc.roundedRect(M,SY,W-2*M,SH,3,3,'F');
   K.qr(M+4,SY+4,SH-8);
@@ -5059,7 +5056,8 @@ function ksLegF(K){
     let tx=x+s+3; if(o.sym!=null){ K.sym(o.sym,tx+2,mid,8.4*sc,INK); tx+=6.5; }
     K.font('Inter','normal',7.4*sc,INK); doc.text(String(o.thread),tx,mid+K.cy(7.4*sc));
     if(o.small){ const w=doc.getTextWidth(String(o.thread)); K.font('Inter','normal',5,LIGHT); doc.text(o.small,tx+w+1.8,mid+K.cy(5)); }
-    if(o.line) K.bar(x+cw-11,mid,11,o.line,o.str); else if(o.st!=null){ K.font('Inter','normal',5.6*sc,LIGHT); doc.text(ksFmt(o.st),x+cw,mid+K.cy(5.6*sc),{align:'right'}); } };
+    if(o.line){ K.bar(x+cw-24,mid,9,o.line,o.str); if(o.m!=null){ K.font('Inter','normal',5*sc,SOFT); doc.text(K.m(o.m),x+cw,mid+K.cy(5*sc),{align:'right'}); } }
+    else if(o.st!=null){ K.font('Inter','normal',5.6*sc,LIGHT); doc.text(ksFmt(o.st),x+cw,mid-.5,{align:'right'}); if(o.m!=null){ K.font('Inter','normal',4.8*sc,SOFT); doc.text(K.mt(o.m),x+cw,mid+2.1,{align:'right'}); } } };
   let y=top; K.caps(K.T.cross+' · '+K.T.crossRR,M,y,5.4,LIGHT,.8); y+=4;
   const per=Math.ceil(nC/cols); K.C.forEach((c,i)=>row(M+Math.floor(i/per)*(cw+GAP),y+(i%per)*rh,{...c,lum:K.lum(c.rgb)},rh));
   y+=per*rh+9;
@@ -5105,9 +5103,9 @@ function ksLegG(K){
   if(need(rh)>avail){ tc=3; rh=5.2; while(need(rh)>avail&&rh>2.8) rh-=.1; }
   need(rh);
   const GAP=tc>2?4:6, tw=(W-2*M-GAP*(tc-1))/tc, sc=Math.max(.6,Math.min(1,rh/5.6))*(tc>2?.9:1);
-  const C={no:0,sym:tw*.1,col:tw*.18,th:tw*.34,str:tw*.56,st:tw*.82,m:tw};
+  const C={no:0,sym:tw*.1,col:tw*.18,th:tw*.34,str:tw*.5,st:tw*.7,m:tw};
   const header=(x,yy,first)=>{ const L=[['NO',x+C.no],['SYM',x+C.sym],[first,x+C.col],['LUCA-S',x+C.th],['STR',x+C.str]];
-    const hs=tc>2?4.2:4.8; L.forEach(([t,xx])=>K.caps(t,xx,yy+3.6,hs,MUTE,.5)); K.caps('Stitches',x+C.st,yy+3.6,hs,MUTE,.5,false,'right'); K.caps('M',x+C.m,yy+3.6,hs,MUTE,.5,false,'right');
+    const hs=tc>2?4.2:4.8; L.forEach(([t,xx])=>K.caps(t,xx,yy+3.6,hs,MUTE,.5)); K.caps('Stitches',x+C.st,yy+3.6,hs,MUTE,.5,false,'right'); K.caps('M (yd)',x+C.m,yy+3.6,hs,MUTE,.5,false,'right');
     doc.setDrawColor(...NAVY); doc.setLineWidth(.35); doc.line(x,yy+5.2,x+tw,yy+5.2); };
   const row=(x,yy,o,i)=>{ const mid=yy+rh/2; if(i%2===1){ doc.setFillColor(...TINT); doc.rect(x,yy,tw,rh,'F'); }
     K.font('Inter','normal',5.8*sc,MUTE); doc.text(K.nr(o.nr),x+C.no+.4,mid+K.cy(5.8*sc));
@@ -5122,7 +5120,7 @@ function ksLegG(K){
   y+=per*rh+9;
   if(nB){ sec('03',K.T.back,K.T.backRR,M,y); y+=3; const pb=Math.ceil(nB/bcols);
     for(let c=0;c<bcols;c++){ const x=M+c*(tw+GAP); const L=[['NO',x+C.no],['LINE',x+C.sym],['COLOUR',x+C.col],['LUCA-S',x+C.th],['STR',x+C.str]];
-      const hs=tc>2?4.2:4.8; L.forEach(([t,xx])=>K.caps(t,xx,y+3.6,hs,MUTE,.5)); K.caps('Stitches',x+C.st,y+3.6,hs,MUTE,.5,false,'right'); K.caps('M',x+C.m,y+3.6,hs,MUTE,.5,false,'right');
+      const hs=tc>2?4.2:4.8; L.forEach(([t,xx])=>K.caps(t,xx,y+3.6,hs,MUTE,.5)); K.caps('Stitches',x+C.st,y+3.6,hs,MUTE,.5,false,'right'); K.caps('M (yd)',x+C.m,y+3.6,hs,MUTE,.5,false,'right');
       doc.setDrawColor(...NAVY); doc.setLineWidth(.35); doc.line(x,y+5.2,x+tw,y+5.2); }
     y+=6; K.B.forEach((b,i)=>{ const col=Math.floor(i/pb), ri=i%pb; row(M+col*(tw+GAP),y+ri*rh,b,ri); }); }
   // footer
@@ -5148,9 +5146,9 @@ function ksIconsMore(doc,ic){
 // shared table: mode 'chart' (square with symbol), 'back' (line + colour)
 function ksTable(K,x,y,tw,rows,rh,mode,hs,sc){
   const {doc,INK,INK2,MUTE,TINT}=K, NAVY=[30,37,51];
-  const C=mode==='back'?{no:0,a:tw*.1,b:tw*.24,th:tw*.4,str:tw*.6,st:tw*.84,m:tw}:{no:0,a:tw*.1,th:tw*.3,str:tw*.55,st:tw*.8,m:tw};
+  const C=mode==='back'?{no:0,a:tw*.1,b:tw*.24,th:tw*.4,str:tw*.55,st:tw*.74,m:tw}:{no:0,a:tw*.1,th:tw*.3,str:tw*.5,st:tw*.7,m:tw};
   const H=mode==='back'?[['No',C.no],['Line',C.a],['Colour',C.b],['Luca-S',C.th],['Str',C.str]]:[['No',C.no],['Chart',C.a],['Luca-S',C.th],['Str',C.str]];
-  H.forEach(([t,xx])=>K.caps(t,x+xx,y+3.6,hs,MUTE,.5)); K.caps('Stitches',x+C.st,y+3.6,hs,MUTE,.5,false,'right'); K.caps('M',x+C.m,y+3.6,hs,MUTE,.5,false,'right');
+  H.forEach(([t,xx])=>K.caps(t,x+xx,y+3.6,hs,MUTE,.5)); K.caps('Stitches',x+C.st,y+3.6,hs,MUTE,.5,false,'right'); K.caps('M (yd)',x+C.m,y+3.6,hs,MUTE,.5,false,'right');
   doc.setDrawColor(...NAVY); doc.setLineWidth(.35); doc.line(x,y+5.2,x+tw,y+5.2); y+=5.8;
   rows.forEach((o,i)=>{ const yy=y+i*rh, mid=yy+rh/2; if(i%2===1){ doc.setFillColor(...TINT); doc.rect(x,yy,tw,rh,'F'); }
     K.font('Inter','normal',5.8*sc,MUTE); doc.text(K.nr(o.nr),x+C.no+.4,mid+K.cy(5.8*sc));
@@ -5163,22 +5161,23 @@ function ksTable(K,x,y,tw,rows,rh,mode,hs,sc){
 }
 // E-style chart squares, fitted to (x,y,w,avail); returns the bottom
 function ksSquares(K,x,y,w,avail,minCols){
-  const {doc,INK,MUTE}=K, nC=K.C.length, G=2.2; let cols, tw;
-  for(cols=minCols||9;cols<=18;cols++){ tw=(w-G*(cols-1))/cols; if(Math.ceil(nC/cols)*(tw+7.4)<=avail) break; }
-  let sq=tw; if(Math.ceil(nC/cols)*(sq+7.4)>avail) sq=avail/Math.ceil(nC/cols)-7.4;
+  const {doc,INK,INK2,MUTE}=K, nC=K.C.length, G=2.2; let cols, tw;
+  for(cols=minCols||9;cols<=18;cols++){ tw=(w-G*(cols-1))/cols; if(Math.ceil(nC/cols)*(tw+9.8)<=avail) break; }
+  let sq=tw; if(Math.ceil(nC/cols)*(sq+9.8)>avail) sq=avail/Math.ceil(nC/cols)-9.8;
   const sc=Math.min(1,tw/19);
-  K.C.forEach((c,i)=>{ const xx=x+(i%cols)*(tw+G), yy=y+Math.floor(i/cols)*(sq+7.4);
+  K.C.forEach((c,i)=>{ const xx=x+(i%cols)*(tw+G), yy=y+Math.floor(i/cols)*(sq+9.8);
     doc.setFillColor(...ksRgb(c.rgb)); doc.roundedRect(xx+(tw-sq)/2,yy,sq,sq,1.6,1.6,'F');
     if(K.lum(c.rgb)>.88){ doc.setDrawColor(...K.RULE); doc.setLineWidth(.25); doc.roundedRect(xx+(tw-sq)/2,yy,sq,sq,1.6,1.6,'S'); }
     if(c.sym!=null) K.sym(c.sym,xx+tw/2,yy+sq/2,sq*1.25,K.on(c.rgb));
     K.font('Inter','bold',7.2*sc+.6,INK); doc.text(String(c.thread),xx+tw/2,yy+sq+3.2,{align:'center'});
-    if(c.st!=null){ K.font('Inter','normal',4.8*sc+.4,MUTE); doc.text(ksFmt(c.st),xx+tw/2,yy+sq+5.8,{align:'center'}); } });
-  return y+Math.ceil(nC/cols)*(sq+7.4);
+    if(c.st!=null){ K.font('Inter','normal',4.8*sc+.4,MUTE); doc.text(ksFmt(c.st),xx+tw/2,yy+sq+5.8,{align:'center'}); }
+    if(c.m!=null){ K.font('Inter','normal',4.4*sc+.4,INK2); doc.text(tw>17?K.mt(c.m):K.m(c.m),xx+tw/2,yy+sq+8.3,{align:'center'}); } });
+  return y+Math.ceil(nC/cols)*(sq+9.8);
 }
 function ksBackCards(K,x,y,w,cols){
   const {doc,INK,INK2,RULE}=K, bh=11.5, bw=(w-(cols-1)*3)/cols;
   K.B.forEach((b,i)=>{ const xx=x+(i%cols)*(bw+3), yy=y+Math.floor(i/cols)*(bh+2.5); doc.setDrawColor(...RULE); doc.setLineWidth(.3); doc.roundedRect(xx,yy,bw,bh,2.2,2.2,'S');
-    K.bar(xx+2.5,yy+2.6,bw-5,b.line,2); K.font('Inter','bold',7.4,INK); doc.text(String(b.thread),xx+2.5,yy+6.8); K.font('Inter','normal',5.4,INK2); doc.text(K.wrap(K.strEn(b.str)+(b.st!=null?' · '+ksFmt(b.st):''),bw-4)[0],xx+2.5,yy+9.8); });
+    K.bar(xx+2.5,yy+2.6,bw-5,b.line,2); K.font('Inter','bold',7.4,INK); doc.text(String(b.thread),xx+2.5,yy+6.8); K.font('Inter','normal',5.4,INK2); doc.text(K.wrap(K.strEn(b.str)+(b.st!=null?' · '+ksFmt(b.st):'')+(b.m!=null?' · '+K.mt(b.m):''),bw-4)[0],xx+2.5,yy+9.8); });
   return y+Math.ceil(K.B.length/cols)*(bh+2.5);
 }
 function ksHowCards(K,x,y,w,dark){
@@ -5258,7 +5257,11 @@ function ksLegI(K){
   const per=Math.ceil(nC/tc); let bot=y; for(let c=0;c*per<nC&&c<tc;c++) bot=Math.max(bot,ksTable(K,M+c*(tw+GAP),y,tw,K.C.slice(c*per,(c+1)*per),rh,'chart',hs,sc));
   y=bot+8;
   if(nB){ sec('03','size',K.T.back,K.T.backRR,y); y+=3; const pb=Math.ceil(nB/bcols); for(let c=0;c*pb<nB&&c<bcols;c++) ksTable(K,M+c*(tw+GAP),y,tw,K.B.slice(c*pb,(c+1)*pb),rh,'back',hs,sc); }
-  // Icon bottom strip
+  ksIconStrip(K,M,SY,SH);
+}
+// v67: the Icon bottom strip (QR, 4 steps, warning, IPO line); used by I and, since v67, by B
+function ksIconStrip(K,M,SY,SH){
+  const {doc,W,INK2,MUTE,TINT,RED}=K;
   doc.setFillColor(...TINT); doc.roundedRect(M,SY,W-2*M,SH,3,3,'F');
   K.qr(M+4,SY+4,SH-8);
   const sx=M+SH+2; ksStepsRow(K,sx,SY+3.5,W-M-4-sx);
@@ -5611,10 +5614,14 @@ async function ksCoverRender(){
   }catch(e){ if(tok===KS_COV_BUSY) $('ks-cov-msg').textContent='Could not make the cover: '+(e&&e.message||e); }
 }
 
-let KS_LAYOUT=(()=>{ try{ return localStorage.getItem('ks_layout')||'B'; }catch(e){ return 'B'; } })();
+// v67: legend layouts offered in Studio (Cristian 11 Nov: only B). The others stay in the code; add a key here to show it again.
+const KS_LAYOUTS_ON=['B'];
+const ksLayOn=k=>KS_LAYOUTS_ON.includes(k);
+let KS_LAYOUT=(()=>{ let v='B'; try{ v=localStorage.getItem('ks_layout')||'B'; }catch(e){} return ksLayOn(v)?v:KS_LAYOUTS_ON[0]; })();
 const KS_LAY_SUB={A:'One table, notes on the side',B:'Two columns by stitch type',C:'A coloured tile per thread',D:'Cream paper, serif, round dots',E:'Icons and chart squares',F:'Lots of white, small type',G:'Navy header, full tables',H:'Navy header, chart squares',I:'Icon header, full tables',J:'Navy side panel, tables'};
 function ksLayoutUi(){ if(!$('ks-lay')) return;   // v65: modern dropdown + colour
-  ksDropdown($('ks-lay'),KS_LAYOUTS.map(([k,n])=>[k,n,KS_LAY_SUB[k]]),KS_LAYOUT,k=>{ KS_LAYOUT=k; try{ localStorage.setItem('ks_layout',k); }catch(e){} ksLayoutUi(); ksLegendRender(true); });
+  $('ks-lay').closest('.ks-pick').style.display=KS_LAYOUTS_ON.length<2?'none':'';
+  ksDropdown($('ks-lay'),KS_LAYOUTS.filter(x=>ksLayOn(x[0])).map(([k,n])=>[k,n,KS_LAY_SUB[k]]),KS_LAYOUT,k=>{ KS_LAYOUT=k; try{ localStorage.setItem('ks_layout',k); }catch(e){} ksLayoutUi(); ksLegendRender(true); });
   ksColorPicker($('ks-leg-col'),KS_LEGCOL,v=>{ KS_LEGCOL=v; try{ localStorage.setItem('ks_legcol',v); }catch(e){} ksLayoutUi(); ksLegendRender(true); });
   const c=KS_LAYOUTS.find(x=>x[0]===KS_LAYOUT); $('ks-lay-name').textContent=c?'· '+c[0]+' '+c[1]:'';
 }
