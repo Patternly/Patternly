@@ -4,7 +4,7 @@
   Proprietary software: no part of this code may be copied, modified, reused or
   redistributed without written permission from UK Luca-S LTD.
   Third-party parts keep their own licences (noted where they appear).
-  Studio v62
+  Studio v63
 -->
 <html lang="en">
 <head>
@@ -240,12 +240,10 @@
   .ks-facts span{background:var(--bg);border:1px solid var(--border);border-radius:999px;padding:.25rem .7rem;font-size:.78rem;color:var(--muted)}
   .ks-facts b{color:var(--ink)}
   .ks-legwrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#f2eef0;aspect-ratio:210/297;max-width:760px}
-  .ks-seg{display:flex;flex-wrap:wrap;gap:.35rem;margin:0 0 .7rem}
-  .ks-seg button{border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:999px;padding:.32rem .75rem;font-size:.78rem;font-weight:600;cursor:pointer}
-  .ks-seg button b{color:var(--red);margin-right:.3rem}
-  .ks-seg button.on{background:var(--red);border-color:var(--red);color:#fff}
-  .ks-seg button.on b{color:#fff}
   .ks-covwrap{aspect-ratio:225/310}
+  .ks-pick{display:flex;flex-wrap:wrap;align-items:center;gap:.45rem .6rem;margin:0 0 .7rem}
+  .ks-pick label{margin:0;font-size:.78rem;font-weight:700;color:var(--muted)}
+  .ks-pick select{padding:.45rem .6rem;border:1px solid var(--border);border-radius:8px;font:inherit;font-size:.85rem;background:var(--bg);color:var(--ink);min-width:12rem}
   .ks-legwrap iframe{width:100%;height:100%;border:0;display:block;background:#fff}
   .ks-tbl{border-collapse:collapse;width:100%;font-size:.8rem}
   .ks-tbl th{text-align:left;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:.35rem .5rem;border-bottom:1.5px solid var(--ink)}
@@ -900,7 +898,7 @@
             <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin:.2rem 0 .6rem">
               <h3 style="margin:0;font-size:.95rem">Legend preview <span id="ks-lay-name" style="font-weight:500;color:var(--muted)"></span></h3>
             </div>
-            <div class="ks-seg" id="ks-lay" role="radiogroup" aria-label="Legend layout"></div>
+            <div class="ks-pick"><label for="ks-lay">Layout</label><select id="ks-lay"></select></div>
             <div class="ks-legwrap"><iframe id="ks-leg-frame" title="Legend preview"></iframe></div>
             <div class="note" id="ks-leg-msg" style="margin:.4rem 0 0;word-break:break-all"></div>
             <button class="primary" id="ks-leg-dl" type="button" style="margin-top:.7rem" disabled>Download legend PDF</button>
@@ -909,7 +907,7 @@
             <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin:.2rem 0 .6rem">
               <h3 style="margin:0;font-size:.95rem">Cover preview <span id="ks-cov-name" style="font-weight:500;color:var(--muted)"></span></h3>
             </div>
-            <div class="ks-seg" id="ks-cov-lay" role="radiogroup" aria-label="Cover layout"></div>
+            <div class="ks-pick"><label for="ks-cov-lay">Layout</label><select id="ks-cov-lay"></select><label for="ks-cov-col">Colour</label><select id="ks-cov-col"></select></div>
             <div class="ks-legwrap ks-covwrap"><iframe id="ks-cov-frame" title="Cover preview"></iframe></div>
             <div class="note" id="ks-cov-msg" style="margin:.4rem 0 0">Romanian name, designer, skill level and barcode come from More details.</div>
             <button class="primary" id="ks-cov-dl" type="button" style="margin-top:.7rem" disabled>Download cover PDF</button>
@@ -4533,7 +4531,7 @@ function ksOpen(it){
   $('ks-title').textContent=it?(it.sku+' · '+(it.name||'')):'New kit';
   $('ks-sku').value=it?it.sku:''; $('ks-sku').disabled=!!it; $('ks-name').value=it?it.name||'':'';
   const fl=(it&&it.fields)||{};
-  $('ks-ro').value=fl.nameRo||''; $('ks-ru').value=fl.nameRu||''; $('ks-designer').value=fl.designer||''; $('ks-skill').value=fl.skill||''; $('ks-ean').value=fl.ean||''; $('ks-notes').value=fl.notes||''; if(/^[A-Z]$/.test(fl.layout||'')&&KS_LAYOUTS.some(x=>x[0]===fl.layout)) KS_LAYOUT=fl.layout; if(/^[A-Z]$/.test(fl.cover||'')&&KS_COVERS.some(x=>x[0]===fl.cover)) KS_COVER=fl.cover;
+  $('ks-ro').value=fl.nameRo||''; $('ks-ru').value=fl.nameRu||''; $('ks-designer').value=fl.designer||''; $('ks-skill').value=fl.skill||''; $('ks-ean').value=fl.ean||''; $('ks-notes').value=fl.notes||''; if(/^[A-Z]$/.test(fl.layout||'')&&KS_LAYOUTS.some(x=>x[0]===fl.layout)) KS_LAYOUT=fl.layout; if(/^[A-Z]$/.test(fl.cover||'')&&KS_COVERS.some(x=>x[0]===fl.cover)) KS_COVER=fl.cover; if(KS_COVCOLS.some(x=>x[0]===fl.covcol)) KS_COVCOL=fl.covcol;
   $('ks-more').open=!!(fl.nameRo||fl.nameRu||fl.designer||fl.skill||fl.ean||fl.notes);
   $('ks-pic-prev').innerHTML=''; $('ks-xs-list').innerHTML=''; ksMsg('');
   $('ks-del').style.display=it?'':'none'; $('ks-save').textContent=it?'Save changes':'Save kit';
@@ -4569,7 +4567,7 @@ async function ksSave(){
   if(!name){ ksMsg('Type the model name.','err'); $('ks-name').focus(); return; }
   if(!KS_CUR&&KS_ITEMS.some(x=>x.sku===sku)){ ksMsg('There is already a kit '+ksEsc(sku)+'. Open it from the list to add files.','err'); return; }
   const btn=$('ks-save'); btn.disabled=true;
-  const fields={nameRo:$('ks-ro').value,nameRu:$('ks-ru').value,designer:$('ks-designer').value,skill:$('ks-skill').value,ean:$('ks-ean').value.replace(/\s+/g,''),notes:$('ks-notes').value,layout:KS_LAYOUT,cover:KS_COVER};
+  const fields={nameRo:$('ks-ro').value,nameRu:$('ks-ru').value,designer:$('ks-designer').value,skill:$('ks-skill').value,ean:$('ks-ean').value.replace(/\s+/g,''),notes:$('ks-notes').value,layout:KS_LAYOUT,cover:KS_COVER,covcol:KS_COVCOL};
   const body={sku,name,fields}; if(KS_PARSED&&KS_XS.some(x=>x.raw)) body.parsed=KS_PARSED;
   const up=[]; if(KS_PIC) up.push({blob:KS_PIC,name:KS_PIC.name,type:KS_PIC.type||'application/octet-stream',role:'picture'}); KS_XS.forEach(x=>up.push({blob:x.blob,name:x.name,type:x.type,role:x.role}));
   try{
@@ -5162,8 +5160,8 @@ function ksHowCards(K,x,y,w,dark){
     K.font('Inter','bold',7.4,INK); doc.text(c.t,xx+13,y+5.4); K.font('Inter','normal',5.8,INK2); doc.text(K.wrap(c.s,cw-15)[0],xx+13,y+9); });
   return y+ch;
 }
-function ksStepsRow(K,x,y,w,col){
-  const {doc,INK,RED}=K, ic=K.ic, sw=w/4;
+function ksStepsRow(K,x,y,w,col,ac){
+  const {doc,INK}=K, RED=ac||K.RED, ic=K.ic, sw=w/4;
   [['scan','Scan the code'],['open','Open it in Patternly'],['cross','Mark your stitches'],['size','See your progress']].forEach(([i,t],k)=>{ const cx=x+k*sw+sw/2; ic[i](cx-2,y,4,RED,.4); K.font('Inter','normal',5.8,col||INK); doc.text(t,cx,y+8,{align:'center'}); });
   return y+9;
 }
@@ -5282,7 +5280,7 @@ function ksLegJ(K){
    C Side rail = the first three cover designs; D Professional, E Icon, F Navy panel = the new styles.
    Uses the legend kit (fonts, picture, QR, logo, icons) plus the More details fields (Romanian name,
    designer, skill, EAN). The EAN-13 barcode is drawn as vectors. */
-const KS_COVERS=[['A','Gallery'],['B','Full picture'],['C','Side rail'],['D','Professional'],['E','Icon'],['F','Navy panel']];
+const KS_COVERS=[['A','Gallery'],['C','Side rail'],['D','Professional'],['E','Icon'],['G','Icon frame'],['H','Icon split'],['I','Icon panel']];
 const KS_CE="iVBORw0KGgoAAAANSUhEUgAAASIAAABuCAAAAACmOEHJAAAZEklEQVR42u2dd2BU1bbGf+dMT52ERDpIERRRFLg3kBBK6EUgFOVSNIBwBVQQgQtSRBARRbmA8lSQIiAdpYOUBAgJEYSL9F6kt/RkMuWc98dMksnkTEgZyruP/U/mtH32/s7aa31r7bV3BJmnpeAiPoXgKURPIXoK0VOInkL0FKKnED0tAKjtf7qe9v4v7qQgqrRevgEBZaq1Lc7TdnYdaej0XwyRbLVlpiXdvnMvS1ul6qudigdR75rj/z+Mmeirh87f9q4T1rUYEPV6dsr/F9USczj2WnD4qKcQFVh2/bZXaPzZU4tWQIn4fF/k/oafPIWowPLhrshtrec9hajAMiquztyoIvCihzDe0yQhz7cIaPSkgfTF6u/CB7z5uCCat/ak6ylN3W7dnjCMunUbPPPix48Hoo9/AlALgFUUka2AJeHYrSFPmiDNmbn02g+PA6KffwLQ1A6ArDPPlMZy5p4VSP+xZosnDaOhpWd0X/UYIPoJAONagA/atgI6/QmQuuSJg4gevpM6rn/0Fu109o/YxfNv+rJpH4MEAOupJ9CytZ98q8sjl6IdOb8W7JaCGzJD2tXGJxXA9iRa/1a2j99a9Nh40St1K8hg8IInebqu7ejjIx8bRO+t7Af0HsyytCeZRXYZ8Nu8x8auN5wA3mjHt0820/5no1mPC6JB768SYBncf8K9kW/LRT4miLQAbFxNsyfdYxt+6dvHA5EKAMtRwoQnHKJWrRY8Sogc1kvagxUksB6kp5f9SsITi9E0aXSJeNHqW9fupVlEvW9wxXKtH3h3iv1P8mTDVUhqpbto7iKZ7acm+RS3Czap0LcKgphXaAWNT6nyZTsX/NQ/Fn/uproHBmZ3HjhwyUnbqso9F9q/4Jct++iJlBPjs/XqtivgeoOWk4sF0Y/bDlvt0AgCsmT/lAHhbdsU8K6V/0JnVOaKJVBJcpK5xCiJNVsMd3tx4paEYkA0d+0pQNTpdJpSvlopMyXJajJnAbrw7q3cvmvrIHX9YUp8WqZh8bsXNzfGE7IU3GGCu0svjXirqLpo28L9gN4n+NXn+2Sfiz526s/UDEvWjrjOU9yberF0iMfHSWjoS56g6HcWbOr9nhuIthQVos8XmRAMpRo0d1bQzZrBwujjKZaMZfvfdUO3JLA+DGXS53vJE9Xcnvn7u4pfsPm/i2j0B35vQlu+y54v8pmwqEUfhxlF+cKEGY9W346q5Jl6bLEDFyud7y/8VCSIOm9HCGj8mbKSf23B8Bo60uaOebQYDdJ4qKKUT79UOv3cwaIMtLanEMu/YY81Lzkq13adKOjT572YtMxf0mc9Sohe/zX+AXd4eSl2SDanWfKcMM9NUfj4teOLAFH7U6iqDm0PQM94+HXbUtdbZn+5NNlyIiHkUWI09EhGgZwxuHWT5opXVmw5mJ7nhGUF+TF6fk3hIXrrBKoa40IBGBYPWA70m+9600jjt74DCkLol5mylcANuz9v+z4w/JBNEp+fO/yw75DWRF0yjgl5/bZV1jaZ2DWj0zu0Dqs/RVDLllIbGLZLG+5Gy4VELi2I9VT4wB2DfuONSWtS8mK00n+E610VbJvbFRKiT/YgVp/QwH6w2V6jgrwMEDVvEC00ddfk+5e9AhDi7l+6CnD+rwC9nMS5S4aDrdktpKRwIjNII6dywmR7h4tlXybrmqo0RO0PFTb+J1q5yk+333YjQHpBKDcxFGYL+dWr1f8tJgT9aMKW5TTW5lV63eW+cP3VQkrRrwsRKn3oQGiHYxBbrimYANgxLNgtRFpdxGxgruAD4OM72j7VKFxgq+CPFi/drBDAy3QfZKlz581DysQSv7vCfHqkutXYUxT5hObZELV2DKyZFaBT4Kzpvy1lcNkj4t34u7kns6a6QoT/7UJC9C0E9mrpOGihtfN+dZBS02LGp9uGf11wMCQ7pi/oAKzqyle5ZHj+NMhCCECWwTZ1DFZoJ2ihoTZ9Z/PlbmuM+uVPpffUsc+FzZveSzmVLLxpDJGR8NtIp+GW0vNnl9u8Uwpn9KefQ9fw7VxWKwCIlRorPL37o5uYds1315+sLfXqtaOUA6Gkj+qFjECtezWZcxUqAtp7deo1moOt+qvb4u3DQwbCsgYPL8BwDdMrnNRHAfDlFFlZ/GJ0lxtuBWjlPJEnHXKd+NBlFE6KliBUnJ17uKDlDRP6Skru3+4xN4Dk7/q564/agD7bdZVFrUFlQdbW2jnnXK1nAEHUa/RWbD5dxu7M7fj8CTt3bGrvVjKbtVKYGBTbs+dTVcYVzKvWCfkHmioTbg6pRtDPVMjzCf/HxeNQWQoF0bRkfNo7n9g+9bDtlfFuEYJ7kb8od0fXfBZwzw6S7DsuErCpqwStS+9+DzAbEwCs6R2mb7LlssJJk2b+sH1Jb3cYzYxWkJT4hvfPOrSwu+eks9xy9YwSp+e1aqKtUBCtRyg3LM8ZNxx6+5h7jpefHqvs0op+ABZBBSBrIgFsqtDaK0r3+gqQHLCYaP2DRpdtK6Y1mDH0VMxf7ofagH9L+YNoGIIeTKt8XaMx5tUjHhysyQfR8uv4OA/YsfFJvhFtlOjPEq23g45ZtldVirJJ5j++Qj/EaE74Cq9B/mlDquI3wJBCLcGfDFmClI9KCaV7aWw0m4sNkCXwS9oD572que/oe+vP5WPPMq3VwgOCUbKsBxd0kxa99UBg80EUAwG50K6YcQsSF65o0T0836OLGLnaXkfNqscU2+R1bRG+uiDDxYsEPuet2buX0gNUPrw5I5gUHys29UaEsr30KhpUSM0AfLUQ0S6mtuDT5PUC2jxsuOtosp5sSPNC8fPjeQ8tG4sB0UE01XMONo6zj93MDdFdJ+Z/2GGrvLtFKRvoDEDfj+uAdwuxGuDHW4kwqCZtX2jJ8FQQy/KeN3xypjLwjhH4auMJ8W9NCmpz+zWuxDJzHhUKMSUuZB3Y4yLoJwvxlEvUccP7GAcNzL7a9HKuXqn0dq98LohdigImdsxzescAbctvHqqvVjtdiRw9IKlCRCHcpB35trOf4jf3wbzoNBjq5Nj7y054X5rUz+UT4Lis78gjLj0V1I7fy8EAGHx9vVWAxtdHBej9/eyzeZoXXlRgOLaDRR5ol8ArRzfH5siaQZVpNUcfjMrLjux2VlX2USPER5uu5xOHbuP39JVA266ylHbghEWs3cy07Tx+zV/J2njcBsJzG2mbP7/JdqbIEF1HXdEFAhDLtA5MOJWemfpdXH+ntTjLk+wxmuaPHCKGjnMleepqNA66DfrpAD0SdF16Yzuv7ToBBjS/AOoXoIJCCtjtB77LdaDdQ/OME14OtTxqwruLp0dW9Jf/GOmUYLrFLmFlBj96iF6vm08croPR4ep+S2fEClAB3QR6TSYSEHzhhlKUNrqoEGWi8sv+vcyh/1TVOwFNpuwZ+vcgaclrOQjtBSCwJ4+hfGBwJWF3wdHyrQvxQ9sUeiNC/DbKAoI/3FViJneKCpHF4ZADXMj2I6o6fvRdOq1jaSl7Qm62DOAdHvU4IApxNRHSffC3e8JlXuaKYGSNvXe6zKm/AkKpnJn0vBAlF5kXOaF2Lk9MA4CIiFwCdxLAp1EB0yDjbOne9brBt5kjGA94jWG8WKk/jBerRK05ZLIGRoQDq/70Hg3rj4RFADNMDn9nvLZZI2DftrRqQ2CSBdQvOeVtfr49b86SnAgBDocNFokVOUTXYBPo7v8AIAZAplIjTUWFSIVsdoXIlqjw4Ih1gBjUarL7uhct1QWb1x2ewiL1iIQlah98K5ZfQun+fL5EfDFq+3ajIXHd101hzmXfGl2I3qaOAOZrmjYEmLxEe6sRbB6p9dq84xcWCH6C6opzauvgqXl4kJzq0EUJIcAz98pz3IeKZ0FGLUkgBBCj7N4WdaDpkLLnPBOytbX1Vv7AZJc1oPZ77sMCEMKgrrd3lnY7hImEiFVHjny/dwZqK5wT1IH4+n4U2yl9PXA9WDoIRtEfoJxgn9Q+qPc+CfwgjtpX++p61P5DR478MU/IsyauEJUChBBC+zBSVZm/LlIZsOrrVwKEMJKUyXNRpch43ZotwOckN1K0c9eBa4KvSv9si/5AVGDNWuFuP0BISMLyHq0Ogap8TyBVXfn+4j7HAy1ZgBd110iwUvNa7IF8j54MKbsDOGH8B0N2BWPz6et6x4eDs5wP03IG2g0TjcSyDC1PZSDzuWWLJ4AKEoun9lwhKnvCctVFW0Meur+gVMdrXpLKt7TD03xlJkLpF6q86Ca/O9CWxOqX2Gk5Pgrf8cGa6mfPktLokIRgO2tYHtABDulbpuSzvFu1jcpvWdIbq5d9klx7b5hW2ypP5DOixaY8YpQQEuiIQBtB7MibUFkGHwHRbtA8BFEl5Huu2hpbfG5GR/8OTM0TQKqossk3b0bzUcvZynJs4q3GWLi/g8DxzVXlVOc2auscEFClf6+2hbWAvbqQM1t/dqEOcdp/Mnxfb9Dx/dHABu30qTGiLjhvcPibvc4mSkrGEW8fWpYFOogo83PHsZvav1ORYyAEeAyi6mBa1d0Volzj8d2ZSD5NdVpXOvZXh9a0q5L82lAw0BhEsepA9GzCp8yPm4NqmkDSd6ix949PPuZ6ZdKy4nuqHcFJ+2O/2zZ6yYcAM1f2p8nt0o3D9WrX5ePvfOFivfUmpN1N+hLznZFZF+8C37UfzKYNHoWo56eZGQe6A8TdABAlwJrLuRaqocPi+JZ/awkkHI9LyEloCfhU8QUpop2tixW6AmmyZuDUvRHNzSDp2zTrX2Xbx+u4Ug35HHp7WxwK8LJpKJIVxFSmvPyJEZt3r/x1v+pKjIw3yZj2oy31TJbl9QuktwiwHg+vmxxrA8FY7MzmfLzoxYOmw3YHTQbBr8w5G1hzGOiqW2VhQvSlufN8g9Spd5wiwZrn87MyrPCnV6Q95HdnPw3Qy5l48SKyDUlKZLVg4KCqgtFyPhEv24X9NEBnXlJdCFmVZaxsu5U+7+3y99d0PSbLyBk7vQXX2Gee/A75PvjfRDoJgkabftiK/NdfaG7ZZwNEI9zzEEThB7m/vIdDW3v3HtHkijNEezFv7MC/RifLKS5U1Tt/mqiNIz1upNv1hyyc6I3P2y+KSVS+WwNVJlLmN8uOBHdka8CUMPod3aiyrlpFqVl+pomo61T1fmM087+IfrvrD+OWn9VkoEn+J6oQl+SWza5S5PBA/BsipZ5M9G2ggjS7myQE4MboFx2i97/PSNnQAzgPGEdQ/wrY7uaGk9L3dqDNnRmu41oIzB9KLVM/67pvN3tKWJv6sgWvSs3q1+S1o00JqcGL1xNv1+nwFlWDwuA1wfRMfZuNwJC6WGT1c+oGo6Hfzmd4Pz02Y9jBijRON6N+OW/9gxQ9EFBVnwP8Miboe4CaZnv7lP2P4kBE083WMxs7wDlQV4a6a5110R1M8UAfw7/vZuUJ+OkVshidvBVY5qAM9p4thrcd4b4VAJGR0NkeyXR6Zqlj+iUKlJaxbM3ngRizg/1MmBS5/AJMINGSM9BMxYMo/2xsVx2Ji2D3LfBuAr0MIKc48bO7Y4FusW1L6bN5qS74FW+fNo8+ZuRiOtMgMPtg3YqxPAuxixdvlB1Szi48BVFEY2xn5nAZMA4AXgKyJSYByPxtC8CML9tWCfTz8fYNrNDyk9URQY9+iflml+PUHHoNjmiFymBwdFAMLa4qUvL0+8anpSwbnAjamgD1fgdrtH2dS4jeAnenBjQAmjVj27VEya9SW2DWikeO0AjXFJEMJ4hADTINI217bmSLggchathnrvV2ezX4NAOoL0q53DE4Fbg6eqydxzoZsTceOUQb8nGMHA8kt0yh3w0cAbUkjw00GPUy5hN/IgT0AIgo52T1qwDIl0d8DzEDeZxlTL7Jeykl2wNxsHQBBvb/M1sVFXtNnGKW2pq/3wH09e1H9a5iy4bo7zvtlPmrne3j/hMXWpg3TD1j6NTa8xD9mp+pJoHBETWTZQkEYrdncxKjZ6UIxvgDXn9zQORk9Qc6HDHLgYm/pUcX6g3bYvYc9TxC4/Nb8FxiBDadiE1GpdNrc5hjSaUob+wtMnlGCqnr7Ptp9fnMlEuvO/+UMzGcuc99tU7VBVwWfZ2uLNxZ8TO+PjcHvoxRhY9k4jlAG963T/nPiVt+NqhrZ2YnAIEFpyuvVYhCJ4L/TfvvDrsmcQUathPTtmXTohJCpHGZ7I2SZiWb94YO6Avw0oHcoNrE6Cs5Tbq9pa2bOmWLW1E9GhvQNvz3czD4t7LeC44tOnEhPctgDNwTWw4GyZWOHrF1PRznrSewwGZPUkgnkxJzPBD4mnX/KQ9fQw1LCQeaAyKtq/Lr5zXjnu3GtH09I+DvB5y4+8hxOVMGaTuUIWqaG9y1Y+kMmA+m6HCjCrZU20HHPzet3LkmulOnkB2iP1+Y+3y0cMqKrqX0vZvQoMBmr1aS3OyBJl0cKgr39luShmghyZKtrlNLBpFXvjyCHmVnnMnM2hnXqk2bsO9sDiHr3LdTh8Svkx1jLesPd0HrTLtQf3bUIGSdJ3PtH7Kk7uVYQixo4vERiNZUg5Dzp9s3P7S3ZghWNJzU1SNqRTnQ1GzwABOg1F05ye6BCGLyJrAJqtStEghqq2P+I6NkEBnzpww3aTJhU4o1c92WV6t7p9g2tQe4MOHGO328Z99y2A13CUzBV+xSt9s+YW47fx58GzggMjRO2OYDKaI3aOVMSJczQEAgU9DBFjCnzVgsVp1WQKtXKp2UHdFr/+qSJHJeUxnbtSRr+XKnUgqY/yg8RMFKE5WTGiw5kW41JyRAytJLPlrhuu7urAtfdOkyZo1derM2K0NU6Yoluhlg0AvIZgmNGvTZyYy60PNrAx3RRSlP7qEs2M2PJN/PVJ7zcpTpimpFToVAUId8B/DPoClAz8NR/fvGlMj/yIaonDlewVVv1+7nTacyzBKY4x15vplrjm9i6jqLRqPR+lWvpVxptdis082AjqcMQkb0XU2dWkiqbDRVVVrMfQ7UsgyCYyW/neupZAusMnTQ6aM+LLDRy5RP26VI+mtVd/jp+gvsMrV7r58Wvd1gJJYQosh/X1Bck9mz52/Rh+9kWaw5VlyQ4kIHewfXqFCzh9tKaznUVD+A7nf17aOcP3aDBnOOBRMgJUOKaHTiCf5SCnGjKnTQaF8usM0zFc23TtTuCwsE6cTYPbM//knfiTnn2jUkFavd/7ilx2YpCS8q625roVat2Hno8l+3JFlGSM1S1VoPYb0L5tWvT0o/kXNgzQ0UAEjSrohnz8uEaU9DnFctkGQJZNnMyzG7X9uveQGTacs9tO43FVJaKiMEh3qrwuweiOCNAWRy6ZgQAC91Eq79kVECiKofc39P8+YAcRaRH/fV/gXo9aBa6+5NW9wnJzwrO/NSsy6DZte00GPN896ENwGLLgskvYVBa7bFZFTqS4awZQvGMu4+w7dKuRx+H9vXAOmysOt+ZLwrEWcPiwhGaN8exi8pAUR1oh/kcYUC62v8UqhaW8RmbMmGyGzQO5OuMN8OjE33hvFVY8XQXkCovh6021cGdkw7W3oKNCsFeIUWRYjEKo5VUrkLXWS+gVl2CyA4HJPJJYGo+/exhXBKG31ZuFrfnH33TExTB8G6oHOeuejYEfgMoJdDGF97zR62AP5lf6JHQXXPVUqkErIHlV/erLNqR6Rs/8MRQS6Bp183rhB3F3qr6E4/pixyQBTlYQdWcYlvznIlPyev582Le6esNWXromKXHPcp4tZaD/ZjnI/lPxseSpxo/tUCL/s59y0Vx6IPz0DUppJHu9RHTP6fhwLRA7SJkWx17eBcIoLd/yg5RHQ+s9ODPRlVSb74MHZXWXKx4OsBdojUCGq7EhFR2S1asUtu1PEfKxd5Mjv4g9GZm17s5XGIFvJgKbIenrUX8/bkU5kfBVp2mU6C0NgjENHr65Wve64vHQ8sT/m6jKdTslecd3Mhe06veqBN4MYCjJw4gdcWfM+cwZg7MyKXDKJumxZ7ECImn/39/gR9mGchcrebVw47badNzLclhGzr5iGIeGfomKke7M7yiEvXR02O8CRCa0+7CwTn2LkCd7FdXxyInGOmIX12r/Zkh3ZVFK4PX+lRi+/2yo1+u2FD27aK+zUQP/PVocDqL4vz0ryLbftdjPbouGhxyebV23N7r6wfWtBVXykdMChkwApmC6gNktISLe2Q93MPCrHYar6qi0ch2vGqPmP+GzsfvhABpKYDZGbkL+kWwJqaXlJeBMD4a709itGqDn62398dsd8jlW0+wuMoLhA1GXlmkEfr/3JkRb1pTd8Ptj10IXpUENHt3UOe3SC/9+72gVrTr0PaTdlYwpq2//F4IMo3p/8m3xS4QXbRy/Q9KxMyTCdPMu7Zys/4GIpbTdZmnhCIeNMwvctaj76jcWM+jbuZZU4+coQnrsi2okNE96BpYe/18GxDxrH98NGLWVabLBVz+0vZA/uuywiu+x3Imqyi8aLs8vaxVpMexif79V5GZjEhsmR6AiKVtytEQmjYA3iR8kZh82YsPxr1EP7vXmf+DxY3mxZ+8JVxysBYnhbgfwFKarTiv7/YxgAAAABJRU5ErkJggg==";   // FR packaging recycling mark (Triman), from the current covers
 function ksEan13(doc,x,y,w,h,code,K){
   let d=String(code||'').replace(/\D/g,''); if(d.length===12){ let s=0; for(let i=0;i<12;i++) s+=(+d[i])*(i%2?3:1); d+=String((10-s%10)%10); }
@@ -5298,7 +5296,7 @@ function ksEan13(doc,x,y,w,h,code,K){
 }
 function ksCoverKit(K,f){
   const {doc}=K, P=K.P; K.W=225; K.H=310;
-  K.f=f; K.year=new Date().getFullYear();
+  K.f=f; K.year=new Date().getFullYear(); Object.assign(K,ksCovPalette(K,f.colour,K.meta.picture));
   K.credit='© Luca-S'+(f.designer?' / '+f.designer:'')+' / '+K.year;
   K.fab=String(P.fabric||'Aida').replace(/^\s*\d+\s*count\s*/i,'');
   K.cm=P.sizeCm?ksTrim(P.sizeCm[0])+' × '+ksTrim(P.sizeCm[1])+' cm':''; K.inch=P.sizeIn?P.sizeIn[0]+' × '+P.sizeIn[1]+' in':'';
@@ -5326,7 +5324,7 @@ async function ksCoverPdf(P,meta){
   doc.addFileToVFS('CS3.ttf',KS_CS3_B64); doc.addFont('CS3.ttf','CS3','normal');
   doc.setProperties({title:meta.sku+' cover',creator:'Patternly Studio'});
   const K=ksCoverKit(await ksLegendKit(doc,P,meta),meta.fields||{});
-  ({A:ksCovA,B:ksCovB,C:ksCovC,D:ksCovD,E:ksCovE,F:ksCovF})[meta.layout||'A'](K);
+  ({A:ksCovA,C:ksCovC,D:ksCovD,E:ksCovE,G:ksCovG,H:ksCovH,I:ksCovI})[meta.layout||'E'](K);
   return doc;
 }
 const ksTitle=(K,str,x,y,sz,col,align,maxW)=>{ K.serif('normal',sz,col,str); let s=sz; while(maxW&&K.doc.getTextWidth(str)>maxW&&s>14){ s-=1; K.serif('normal',s,col,str); } K.doc.text(str,x,y,{align:align||'left'}); return s; };
@@ -5349,26 +5347,6 @@ function ksCovA(K){
     K.caps(c[1],cx,y+12.6,5,MUTE,.6,false,'center'); });
   y+=23; K.font('Inter','normal',6.6,INK2); const inside='Inside: Aida fabric · Luca-S mouline · needle · printed chart · chart in the Patternly app';
   doc.text(inside,W/2,y,{align:'center'}); doc.text(K.strands,W/2,y+3.6,{align:'center'});
-  K.foot(M,FY+4);
-}
-
-/* B · Full picture + colour band */
-function ksCovB(K){
-  const {doc,W,H,INK,INK2,MUTE,WHITE,RED,f}=K, M=12;
-  const LW=26, lh=K.logo(M,M-2,LW); K.caps('Cross stitch kit',W-M,M+3,5.6,MUTE,.8,false,'right'); K.font('Inter','bold',12,INK); doc.text(K.meta.sku,W-M,M+9.5,{align:'right'});
-  const top=M+lh+4, FY=H-M-34, bandH=58, ph=FY-6-bandH-top;
-  K.pic(0,top,W,ph,0);
-  // band colour: the picture's darker tone, else brand wine
-  let band=[104,48,30]; try{ const avg=K.meta.picture&&K.meta.picture.avg; if(avg) band=avg; }catch(e){}
-  doc.setFillColor(...band); doc.rect(0,top+ph,W,bandH,'F');
-  let y=top+ph+14; ksTitle(K,K.meta.name||K.meta.sku,M,y,24,WHITE,'left',W-2*M-60);
-  if(f.ro) K.caps(f.ro,M,y+6,5.8,[235,215,205],.8);
-  K.font('Inter','normal',5,[235,215,205]); doc.text(K.credit,W-M,y,{align:'right'});
-  const chips=[['grid',(K.P.count||'')+' count',K.fab],['thread','Mouline','Luca-S standard thread'],['palette',K.C.length+' colours',K.strands.replace('Cross stitch ','Cross ').replace('backstitch','back')],['size',K.cm,K.inch],['heart',null,'Skill level '+(+f.skill||'–')+' of 5']];
-  const cw=(W-2*M-4*3)/5, cy=y+12, chh=bandH-30, light=band.map(v=>Math.round(v+(255-v)*.14));
-  chips.forEach((c,i)=>{ const x=M+i*(cw+3); doc.setFillColor(...light); doc.roundedRect(x,cy,cw,chh,2.5,2.5,'F'); K.ic[c[0]](x+3,cy+3,4,WHITE);
-    if(c[1]==null) K.dots(x+3.8,cy+13,1.1,WHITE,light); else { K.font('Inter','bold',8.4,WHITE); doc.text(K.wrap(c[1],cw-5)[0],x+3,cy+14); }
-    K.font('Inter','normal',5,[235,215,205]); doc.text(K.wrap(c[2],cw-5).slice(0,2),x+3,cy+18,{lineHeightFactor:1.25}); });
   K.foot(M,FY+4);
 }
 
@@ -5420,7 +5398,7 @@ function ksCovD(K){
 
 /* E · Icon: big rounded picture, icon tiles, in the box, grey strip */
 function ksCovE(K){
-  const {doc,W,H,INK,INK2,MUTE,RULE,TINT,RED,WHITE,f}=K, M=14;
+  const {doc,W,H,INK,INK2,MUTE,RULE,WHITE,f}=K, RED=K.AC, TINT=K.TN, M=14;
   const LW=28, lh=K.logo(M,M,LW), X=M+LW+8;
   K.caps('Cross stitch kit · '+K.meta.sku,X,M+4,6,RED,.8,true);
   const name=K.meta.name||K.meta.sku; K.font('Inter','bold',20,INK); let s=20; while(doc.getTextWidth(name)>W-M-X&&s>12){ s-=1; K.font('Inter','bold',s,INK); } doc.text(name,X,M+13.5);
@@ -5436,7 +5414,7 @@ function ksCovE(K){
   // grey strip: QR, steps, address, barcode card
   doc.setFillColor(...TINT); doc.roundedRect(M,SY,W-2*M,SH,3,3,'F');
   K.qr(M+5,SY+5,20); K.font('Inter','bold',5.4,INK); doc.text('Stitch it in Patternly',M+15,SY+31,{align:'center'});
-  const sx=M+30, sw=W-M-48-sx; ksStepsRow(K,sx,SY+5,sw);
+  const sx=M+30, sw=W-M-48-sx; ksStepsRow(K,sx,SY+5,sw,null,RED);
   K.font('Inter','normal',5,INK2); doc.text(K.ADDR.join(' · '),sx,SY+21,{maxWidth:sw}); K.font('Inter','normal',4.6,MUTE); doc.text(K.wrap(K.T.ipo,sw),sx,SY+27,{lineHeightFactor:1.3});
   const bx=W-M-45; doc.setFillColor(...WHITE); doc.roundedRect(bx,SY+3,42,SH-6,2,2,'F');
   try{ doc.addImage('data:image/png;base64,'+KS_CE,'PNG',bx+3,SY+5,24,24*110/290); }catch(e){}
@@ -5444,31 +5422,101 @@ function ksCovE(K){
   K.font('Inter','normal',5.4,MUTE); doc.text(K.LANGS,W/2,H-6,{align:'center'});
 }
 
-/* F · Navy panel: picture on top, navy panel with icon tiles and QR */
-function ksCovF(K){
-  const {doc,W,H,INK,INK2,MUTE,RED,WHITE,f}=K, M=14, NAVY=[30,37,51], PALE=[150,158,175], PINK=[232,160,175];
-  const FY=H-M-30, PNH=74, PY=FY-6-PNH;
-  K.pic(0,0,W,PY,0);
-  doc.setFillColor(...WHITE); const LW=26, lh=K.logoH(LW); doc.roundedRect(M-4,M-4,LW+8,lh+8,3,3,'F'); K.logo(M,M,LW);
-  doc.setFillColor(...NAVY); doc.rect(0,PY,W,PNH,'F');
-  K.font('Inter','normal',5,[200,205,215]); doc.text(K.credit,W-M,PY-2.5,{align:'right'});
-  let y=PY+10; K.caps('Cross stitch kit · '+K.meta.sku,M,y,5.6,PALE,.8); y+=10;
-  const name=K.meta.name||K.meta.sku; K.font('Inter','bold',22,WHITE); let s=22; while(doc.getTextWidth(name)>W-2*M-50&&s>12){ s-=1; K.font('Inter','bold',s,WHITE); } doc.text(name,M,y);
-  if(f.ro){ K.font('Inter','normal',7.6,PALE); doc.text(f.ro,M,y+6); }
-  const QS=30, qx=W-M-QS-4; doc.setFillColor(...WHITE); doc.roundedRect(qx,PY+8,QS+4,QS+12,3,3,'F'); K.qr(qx+2,PY+10,QS,false);
-  K.font('Inter','bold',5.4,INK); doc.text('Stitch it in Patternly',qx+2+QS/2,PY+QS+15.5,{align:'center'});
-  const tiles=[['grid',(K.P.count||'')+' count',K.fab],['palette',K.C.length+' colours','Luca-S mouline'],['size',K.cm,K.inch],['heart',null,'Skill '+(+f.skill||'–')+' of 5']];
-  const ty=PY+36, tw=(qx-6-M-9)/4, th=30; tiles.forEach((t,i)=>{ const x=M+i*(tw+3); doc.setFillColor(44,53,72); doc.roundedRect(x,ty,tw,th,2.5,2.5,'F'); K.ic[t[0]](x+3.5,ty+4,4.6,PINK);
-    if(t[1]==null) K.dots(x+4.3,ty+16.5,1.2,PINK,[44,53,72]); else { K.font('Inter','bold',8.6,WHITE); doc.text(K.wrap(t[1],tw-6)[0],x+3.5,ty+17.5); } K.font('Inter','normal',5.2,[175,182,198]); doc.text(K.wrap(t[2],tw-6)[0],x+3.5,ty+22); });
-  K.foot(M,FY+4,{qr:false});
+
+/* v63: cover colours (light backgrounds, so the logo keeps its own colours) and three more covers in
+   the E Icon style: G Icon frame, H Icon split, I Icon panel. */
+const KS_COVCOLS=[['red','Luca-S red',[139,26,43],[247,243,245]],['rose','Rose',[168,58,86],[251,238,242]],['sage','Sage',[66,104,78],[237,243,236]],
+  ['sand','Sand',[146,92,48],[248,242,233]],['sky','Sky',[46,88,138],[235,242,249]],['plum','Plum',[100,56,108],[244,238,246]],['auto','From the picture',null,null]];
+function ksCovPalette(K,key,pic){
+  let c=KS_COVCOLS.find(x=>x[0]===key)||KS_COVCOLS[0];
+  if(c[0]==='auto'){ const a=pic&&pic.avg; if(!a) c=KS_COVCOLS[0]; else {
+    const l=.299*a[0]+.587*a[1]+.114*a[2], k=Math.min(1.4,70/Math.max(1,l)); const ac=a.map(v=>Math.max(0,Math.min(255,Math.round(v*k))));
+    return {AC:ac,TN:ac.map(v=>Math.round(v+(255-v)*.92))}; } }
+  return {AC:c[2],TN:c[3]};
+}
+function ksCovStrip(K,M,SY,SH){
+  const {doc,W,INK,INK2,MUTE,WHITE,f}=K;
+  doc.setFillColor(...K.TN); doc.roundedRect(M,SY,W-2*M,SH,3,3,'F');
+  K.qr(M+5,SY+5,20); K.font('Inter','bold',5.4,INK); doc.text('Stitch it in Patternly',M+15,SY+31,{align:'center'});
+  const sx=M+30, sw=W-M-48-sx; ksStepsRow(K,sx,SY+5,sw,null,K.AC);
+  K.font('Inter','normal',5,INK2); doc.text(K.ADDR.join(' · '),sx,SY+21,{maxWidth:sw}); K.font('Inter','normal',4.6,MUTE); doc.text(K.wrap(K.T.ipo,sw),sx,SY+27,{lineHeightFactor:1.3});
+  const bx=W-M-45; doc.setFillColor(...WHITE); doc.roundedRect(bx,SY+3,42,SH-6,2,2,'F');
+  try{ doc.addImage('data:image/png;base64,'+KS_CE,'PNG',bx+3,SY+5,24,24*110/290); }catch(e){}
+  K.font('Inter','bold',5.6,INK); doc.text('MADE IN MOLDOVA',bx+3,SY+18); ksEan13(doc,bx+2,SY+19.4,38,12.6,f.ean,K);
+  K.font('Inter','normal',5.4,MUTE); doc.text(K.LANGS,W/2,K.H-6,{align:'center'});
+}
+function ksCovTiles(K,x,y,w,h,bg,n){
+  const {doc,INK,INK2,f}=K, AC=K.AC;
+  const all=[['grid',(K.P.count||'')+' count',K.fab],['thread','Mouline','Luca-S thread'],['palette',K.C.length+' colours',K.strands.replace('Cross stitch ','cross ').replace('backstitch','back')],['size',K.cm,K.inch],['heart',null,'Skill '+(+f.skill||'–')+' of 5']];
+  const tiles=n===4?all.filter(t=>t[0]!=='thread'):all, vert=w<70;
+  const tw=vert?w:(w-(tiles.length-1)*3)/tiles.length, th=vert?(h-(tiles.length-1)*2.5)/tiles.length:h;
+  tiles.forEach((t,i)=>{ const tx=vert?x:x+i*(tw+3), ty=vert?y+i*(th+2.5):y; doc.setFillColor(...bg); doc.roundedRect(tx,ty,tw,th,3,3,'F');
+    if(vert){ K.ic[t[0]](tx+4,ty+th/2-2.3,4.6,AC); if(t[1]==null) K.dots(tx+14.3,ty+th/2-1.4,1.15,AC,bg); else { K.font('Inter','bold',8.4,INK); doc.text(K.wrap(t[1],tw-16)[0],tx+13,ty+th/2-.4); } K.font('Inter','normal',5,INK2); doc.text(K.wrap(t[2],tw-16)[0],tx+13,ty+th/2+3.6); return; }
+    K.ic[t[0]](tx+3.5,ty+3.5,4.4,AC);
+    if(t[1]==null) K.dots(tx+4.3,ty+13,1.15,AC,bg); else { K.font('Inter','bold',8.4,INK); doc.text(K.wrap(t[1],tw-6)[0],tx+3.5,ty+14); } K.font('Inter','normal',5,INK2); doc.text(K.wrap(t[2],tw-6)[0],tx+3.5,ty+18); });
+}
+function ksCovBox(K,x,y,w,cols){
+  const {doc,INK,WHITE}=K; const box=[['grid','Aida fabric'],['thread','Sorted threads'],['needle','Needle'],['phone','Printed + app chart']]; const bw=w/(cols||4);
+  box.forEach((b,i)=>{ const bx=x+(i%(cols||4))*bw, by=y+Math.floor(i/(cols||4))*11; doc.setFillColor(...K.AC); doc.roundedRect(bx,by-1.5,8,8,2,2,'F'); K.ic[b[0]](bx+1.8,by+.3,4.4,WHITE); K.font('Inter','bold',7,INK); doc.text(b[1],bx+10.5,by+3.6); });
+}
+const ksCovName=(K,x,y,max,sz,col)=>{ const name=K.meta.name||K.meta.sku; K.font('Inter','bold',sz,col||K.INK); let s=sz; while(K.doc.getTextWidth(name)>max&&s>12){ s-=1; K.font('Inter','bold',s,col||K.INK); } K.doc.text(name,x,y,K.align?{align:K.align}:undefined); };
+
+/* G · Icon frame: light coloured page, white card with the picture, centred title */
+function ksCovG(K){
+  const {doc,W,H,INK,INK2,MUTE,WHITE,f}=K, M=14, AC=K.AC;
+  doc.setFillColor(...K.TN); doc.rect(0,0,W,H,'F');
+  const LW=30, lh=K.logoH(LW); K.logo(W/2-LW/2,M,LW);
+  let y=M+lh+8; K.caps('Cross stitch kit · '+K.meta.sku,W/2,y,6,AC,.8,true,'center'); y+=10;
+  K.align='center'; ksCovName(K,W/2,y,W-2*M,22); K.align=null;
+  if(f.ro){ K.font('Inter','normal',8,INK2); doc.text(f.ro,W/2,y+6.5,{align:'center'}); }
+  y+=13;
+  const SH=40, SY=H-M-SH, tilesH=22, ph=SY-8-tilesH-8-y-16;
+  doc.setFillColor(...WHITE); doc.roundedRect(M,y,W-2*M,ph+16,4,4,'F');
+  const pf=K.picFit(M+8,y+8,W-2*M-16,ph,3); K.font('Inter','normal',5,MUTE); doc.text(K.credit,W-M-8,y+ph+13,{align:'right'});
+  y+=ph+16+6; ksCovTiles(K,M,y,W-2*M,tilesH,WHITE);
+  // strip on white so the barcode card and QR read cleanly
+  const t=K.TN; K.TN=WHITE; ksCovStrip(K,M,SY,SH); K.TN=t;
 }
 
-let KS_COVER=(()=>{ try{ return localStorage.getItem('ks_cover')||'A'; }catch(e){ return 'A'; } })(), KS_COV_DOC=null, KS_COV_URL=null, KS_COV_BUSY=0;
-function ksCoverUi(){ const box=$('ks-cov-lay'); if(!box) return;
-  if(box.children.length===KS_COVERS.length){ box.querySelectorAll('button').forEach(b=>{ const on=b.dataset.k===KS_COVER; b.classList.toggle('on',on); b.setAttribute('aria-checked',on); }); const c=KS_COVERS.find(x=>x[0]===KS_COVER); $('ks-cov-name').textContent=c?'· '+c[0]+' '+c[1]:''; return; }
-  box.innerHTML=KS_COVERS.map(([k,n])=>'<button type="button" role="radio" aria-checked="'+(k===KS_COVER)+'" data-k="'+k+'" class="'+(k===KS_COVER?'on':'')+'"><b>'+k+'</b>'+n+'</button>').join('');
-  const cur=KS_COVERS.find(x=>x[0]===KS_COVER); $('ks-cov-name').textContent=cur?'· '+cur[0]+' '+cur[1]:'';
-  box.querySelectorAll('button').forEach(b=>{ b.onclick=()=>{ if(KS_COVER===b.dataset.k) return; KS_COVER=b.dataset.k; try{ localStorage.setItem('ks_cover',KS_COVER); }catch(e){} ksCoverUi(); ksCoverRender(); }; });
+/* H · Icon split: picture on the left, coloured column with title, icon facts and contents */
+function ksCovH(K){
+  const {doc,W,H,INK,INK2,MUTE,WHITE,f}=K, M=14, AC=K.AC;
+  const SH=40, SY=H-M-SH, CW=72, CX=W-M-CW, top=M;
+  doc.setFillColor(...K.TN); doc.roundedRect(CX,top,CW,SY-6-top,4,4,'F');
+  const pw=CX-6-M, ph=SY-6-top; const pf=K.picFit(M,top,pw,ph,4); K.font('Inter','normal',5,MUTE); doc.text(K.credit,pf.x,top+pf.h+4);
+  const x=CX+7, w=CW-14; let y=top+8; const LW=32, lh=K.logo(x,y,LW); y+=lh+9;
+  K.caps('Cross stitch kit · '+K.meta.sku,x,y,5.6,AC,.8,true); y+=9;
+  const name=K.meta.name||K.meta.sku; K.font('Inter','bold',17,INK); const nl=K.wrap(name,w).slice(0,3); doc.text(nl,x,y,{lineHeightFactor:1.1}); y+=(nl.length-1)*6.6+6;
+  if(f.ro){ K.font('Inter','normal',7.4,INK2); doc.text(K.wrap(f.ro,w)[0],x,y); y+=6; }
+  y+=4; const tilesH=Math.min(85,SY-6-top-(y-top)-48); ksCovTiles(K,x,y,w,tilesH,WHITE); y+=tilesH+8;
+  K.caps('In the box',x,y,5.4,MUTE,.8,true); y+=5; ksCovBox(K,x,y,w,2);
+  ksCovStrip(K,M,SY,SH);
+}
+
+/* I · Icon panel: picture on top, light coloured panel with title, tiles and QR card (the F idea in light colours) */
+function ksCovI(K){
+  const {doc,W,H,INK,INK2,MUTE,WHITE,f}=K, M=14, AC=K.AC;
+  const LW=28, lh=K.logo(M,M,LW); K.caps('Cross stitch kit',W-M,M+5,5.6,MUTE,.8,false,'right'); K.font('Inter','bold',12,AC); doc.text(K.meta.sku,W-M,M+11.5,{align:'right'});
+  const FY=H-M-30, PNH=72, PY=FY-6-PNH, top=M+lh+6;
+  const pf=K.picFit(M,top,W-2*M,PY-6-top,4); K.font('Inter','normal',5,MUTE); doc.text(K.credit,pf.x+pf.w,top+pf.h+4,{align:'right'});
+  doc.setFillColor(...K.TN); doc.roundedRect(M,PY,W-2*M,PNH,4,4,'F');
+  let y=PY+13; ksCovName(K,M+8,y,W-2*M-60,20);
+  if(f.ro){ K.font('Inter','normal',7.6,INK2); doc.text(f.ro,M+8,y+6.5); }
+  const QS=28, qx=W-M-8-QS-4; doc.setFillColor(...WHITE); doc.roundedRect(qx,PY+8,QS+4,QS+11,3,3,'F'); K.qr(qx+2,PY+10,QS,false);
+  K.font('Inter','bold',5.4,INK); doc.text('Stitch it in Patternly',qx+2+QS/2,PY+QS+15,{align:'center'});
+  ksCovTiles(K,M+8,PY+PNH-8-24,qx-6-M-8,24,WHITE,4);
+  K.foot(M,FY+4);
+}
+
+let KS_COVER=(()=>{ try{ const v=localStorage.getItem('ks_cover'); return KS_COVERS.some(x=>x[0]===v)?v:'E'; }catch(e){ return 'E'; } })(), KS_COV_DOC=null, KS_COV_URL=null, KS_COV_BUSY=0;
+let KS_COVCOL=(()=>{ try{ const v=localStorage.getItem('ks_covcol'); return KS_COVCOLS.some(x=>x[0]===v)?v:'red'; }catch(e){ return 'red'; } })();
+function ksCoverUi(){ const sel=$('ks-cov-lay'), col=$('ks-cov-col'); if(!sel) return;
+  if(sel.options.length!==KS_COVERS.length){ sel.innerHTML=KS_COVERS.map(([k,n])=>'<option value="'+k+'">'+k+' · '+n+'</option>').join('');
+    sel.onchange=()=>{ KS_COVER=sel.value; try{ localStorage.setItem('ks_cover',KS_COVER); }catch(e){} ksCoverUi(); ksCoverRender(); }; }
+  if(col.options.length!==KS_COVCOLS.length){ col.innerHTML=KS_COVCOLS.map(([k,n])=>'<option value="'+k+'">'+n+'</option>').join('');
+    col.onchange=()=>{ KS_COVCOL=col.value; try{ localStorage.setItem('ks_covcol',KS_COVCOL); }catch(e){} ksCoverRender(); }; }
+  sel.value=KS_COVER; col.value=KS_COVCOL; const c=KS_COVERS.find(x=>x[0]===KS_COVER); $('ks-cov-name').textContent=c?'· '+c[0]+' '+c[1]:'';
+  col.disabled=!['E','G','H','I'].includes(KS_COVER); col.title=col.disabled?'Colours apply to the Icon covers (E, G, H, I)':'';
 }
 function ksPicTone(pic){ return new Promise(res=>{ const im=new Image(); im.onload=()=>{ try{ const c=document.createElement('canvas'); c.width=24; c.height=24; const x=c.getContext('2d'); x.drawImage(im,0,0,24,24);
   const d=x.getImageData(0,0,24,24).data; let r=0,g=0,b=0,n=0; for(let i=0;i<d.length;i+=4){ r+=d[i]; g+=d[i+1]; b+=d[i+2]; n++; } r/=n; g/=n; b/=n;
@@ -5482,7 +5530,7 @@ async function ksCoverRender(){
     const sku=($('ks-sku').value.trim()||P.sku||'KIT').toUpperCase();
     const picture=await ksLegendPicture(3000); if(picture) picture.avg=await ksPicTone(picture);
     const doc=await ksCoverPdf(P,{sku,name:$('ks-name').value.trim(),qr:await ksPatternLink(sku),picture,layout:KS_COVER,
-      fields:{ro:$('ks-ro').value.trim(),designer:$('ks-designer').value.trim(),skill:$('ks-skill').value,ean:$('ks-ean').value.replace(/\s+/g,'')}});
+      fields:{ro:$('ks-ro').value.trim(),designer:$('ks-designer').value.trim(),skill:$('ks-skill').value,ean:$('ks-ean').value.replace(/\s+/g,''),colour:KS_COVCOL}});
     if(tok!==KS_COV_BUSY) return;
     if(KS_COV_URL) URL.revokeObjectURL(KS_COV_URL);
     KS_COV_DOC=doc; KS_COV_URL=URL.createObjectURL(doc.output('blob'));
@@ -5492,12 +5540,10 @@ async function ksCoverRender(){
 }
 
 let KS_LAYOUT=(()=>{ try{ return localStorage.getItem('ks_layout')||'B'; }catch(e){ return 'B'; } })();
-function ksLayoutUi(){ const box=$('ks-lay'); if(!box) return;
-  // v62: update the buttons in place; rebuilding them mid-click (a render starts on the name field's change) swallowed the click
-  if(box.children.length===KS_LAYOUTS.length){ box.querySelectorAll('button').forEach(b=>{ const on=b.dataset.k===KS_LAYOUT; b.classList.toggle('on',on); b.setAttribute('aria-checked',on); }); const c=KS_LAYOUTS.find(x=>x[0]===KS_LAYOUT); $('ks-lay-name').textContent=c?'· '+c[0]+' '+c[1]:''; return; }
-  box.innerHTML=KS_LAYOUTS.map(([k,n])=>'<button type="button" role="radio" aria-checked="'+(k===KS_LAYOUT)+'" data-k="'+k+'" class="'+(k===KS_LAYOUT?'on':'')+'"><b>'+k+'</b>'+n+'</button>').join('');
-  const cur=KS_LAYOUTS.find(x=>x[0]===KS_LAYOUT); $('ks-lay-name').textContent=cur?'· '+cur[0]+' '+cur[1]:'';
-  box.querySelectorAll('button').forEach(b=>{ b.onclick=()=>{ if(KS_LAYOUT===b.dataset.k) return; KS_LAYOUT=b.dataset.k; try{ localStorage.setItem('ks_layout',KS_LAYOUT); }catch(e){} ksLayoutUi(); ksLegendRender(true); }; });
+function ksLayoutUi(){ const sel=$('ks-lay'); if(!sel) return;   // v63: dropdown
+  if(sel.options.length!==KS_LAYOUTS.length){ sel.innerHTML=KS_LAYOUTS.map(([k,n])=>'<option value="'+k+'">'+k+' · '+n+'</option>').join('');
+    sel.onchange=()=>{ KS_LAYOUT=sel.value; try{ localStorage.setItem('ks_layout',KS_LAYOUT); }catch(e){} ksLayoutUi(); ksLegendRender(true); }; }
+  sel.value=KS_LAYOUT; const c=KS_LAYOUTS.find(x=>x[0]===KS_LAYOUT); $('ks-lay-name').textContent=c?'· '+c[0]+' '+c[1]:'';
 }
 async function ksLegendRender(onlyLegend){
   const P=KS_PARSED||(KS_CUR&&KS_CUR.parsed); const box=$('ks-leg');
