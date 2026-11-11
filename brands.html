@@ -4,7 +4,7 @@
   Proprietary software: no part of this code may be copied, modified, reused or
   redistributed without written permission from UK Luca-S LTD.
   Third-party parts keep their own licences (noted where they appear).
-  Studio v61
+  Studio v62
 -->
 <html lang="en">
 <head>
@@ -5465,6 +5465,7 @@ function ksCovF(K){
 
 let KS_COVER=(()=>{ try{ return localStorage.getItem('ks_cover')||'A'; }catch(e){ return 'A'; } })(), KS_COV_DOC=null, KS_COV_URL=null, KS_COV_BUSY=0;
 function ksCoverUi(){ const box=$('ks-cov-lay'); if(!box) return;
+  if(box.children.length===KS_COVERS.length){ box.querySelectorAll('button').forEach(b=>{ const on=b.dataset.k===KS_COVER; b.classList.toggle('on',on); b.setAttribute('aria-checked',on); }); const c=KS_COVERS.find(x=>x[0]===KS_COVER); $('ks-cov-name').textContent=c?'· '+c[0]+' '+c[1]:''; return; }
   box.innerHTML=KS_COVERS.map(([k,n])=>'<button type="button" role="radio" aria-checked="'+(k===KS_COVER)+'" data-k="'+k+'" class="'+(k===KS_COVER?'on':'')+'"><b>'+k+'</b>'+n+'</button>').join('');
   const cur=KS_COVERS.find(x=>x[0]===KS_COVER); $('ks-cov-name').textContent=cur?'· '+cur[0]+' '+cur[1]:'';
   box.querySelectorAll('button').forEach(b=>{ b.onclick=()=>{ if(KS_COVER===b.dataset.k) return; KS_COVER=b.dataset.k; try{ localStorage.setItem('ks_cover',KS_COVER); }catch(e){} ksCoverUi(); ksCoverRender(); }; });
@@ -5492,6 +5493,8 @@ async function ksCoverRender(){
 
 let KS_LAYOUT=(()=>{ try{ return localStorage.getItem('ks_layout')||'B'; }catch(e){ return 'B'; } })();
 function ksLayoutUi(){ const box=$('ks-lay'); if(!box) return;
+  // v62: update the buttons in place; rebuilding them mid-click (a render starts on the name field's change) swallowed the click
+  if(box.children.length===KS_LAYOUTS.length){ box.querySelectorAll('button').forEach(b=>{ const on=b.dataset.k===KS_LAYOUT; b.classList.toggle('on',on); b.setAttribute('aria-checked',on); }); const c=KS_LAYOUTS.find(x=>x[0]===KS_LAYOUT); $('ks-lay-name').textContent=c?'· '+c[0]+' '+c[1]:''; return; }
   box.innerHTML=KS_LAYOUTS.map(([k,n])=>'<button type="button" role="radio" aria-checked="'+(k===KS_LAYOUT)+'" data-k="'+k+'" class="'+(k===KS_LAYOUT?'on':'')+'"><b>'+k+'</b>'+n+'</button>').join('');
   const cur=KS_LAYOUTS.find(x=>x[0]===KS_LAYOUT); $('ks-lay-name').textContent=cur?'· '+cur[0]+' '+cur[1]:'';
   box.querySelectorAll('button').forEach(b=>{ b.onclick=()=>{ if(KS_LAYOUT===b.dataset.k) return; KS_LAYOUT=b.dataset.k; try{ localStorage.setItem('ks_layout',KS_LAYOUT); }catch(e){} ksLayoutUi(); ksLegendRender(true); }; });
