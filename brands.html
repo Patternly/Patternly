@@ -4,7 +4,7 @@
   Proprietary software: no part of this code may be copied, modified, reused or
   redistributed without written permission from UK Luca-S LTD.
   Third-party parts keep their own licences (noted where they appear).
-  Studio v59
+  Studio v60
 -->
 <html lang="en">
 <head>
@@ -4710,7 +4710,7 @@ async function ksLegendPdf(P,meta){
 /* v59: legend layouts A–G. B is ksLegendPdf above; A, C, D, E, F, G are drawn here with the same data,
    fonts, QR and logo. Every layout fits one A4 page: rows, tiles and tables shrink (or add a column)
    to fit the number of colours. */
-const KS_LAYOUTS=[['A','Classic'],['B','Two columns'],['C','Tiles'],['D','Aesthetic'],['E','Icon'],['F','Minimal'],['G','Professional']];
+const KS_LAYOUTS=[['A','Classic'],['B','Two columns'],['C','Tiles'],['D','Aesthetic'],['E','Icon'],['F','Minimal'],['G','Professional'],['H','Navy icons'],['I','Icon table'],['J','Side panel']];
 const KS_SERIF_OK=/^[\x20-\x7e -ÿ]*$/;   // DM Serif covers Latin-1 only; other text falls back to Inter
 let KS_LOGO_IMG=null;
 async function ksLogoInfo(){
@@ -4720,6 +4720,20 @@ async function ksLogoInfo(){
   const d=x.getImageData(0,0,c.width,c.height); for(let i=0;i<d.data.length;i+=4){ const g=Math.round(.3*d.data[i]+.59*d.data[i+1]+.11*d.data[i+2]); const v=Math.min(255,g*.55+60); d.data[i]=d.data[i+1]=d.data[i+2]=v; }
   x.putImageData(d,0,0);
   KS_LOGO_IMG={ar:im.naturalHeight/im.naturalWidth,grey:c.toDataURL('image/png')}; return KS_LOGO_IMG;
+}
+function ksIcons(doc){
+  const ic={ // small line icons, drawn in a s×s box
+    palette:(x,y,s,c)=>{ doc.setDrawColor(...c); doc.setLineWidth(.35); doc.circle(x+s/2,y+s/2,s/2,'S'); doc.setFillColor(...c); [[.32,.35],[.6,.28],[.72,.55]].forEach(([a,b])=>doc.circle(x+s*a,y+s*b,s*.08,'F')); },
+    grid:(x,y,s,c)=>{ doc.setDrawColor(...c); doc.setLineWidth(.35); doc.roundedRect(x,y,s,s,.5,.5,'S'); [1/3,2/3].forEach(f=>{ doc.line(x+s*f,y,x+s*f,y+s); doc.line(x,y+s*f,x+s,y+s*f); }); },
+    cross:(x,y,s,c,w)=>{ doc.setDrawColor(...c); doc.setLineWidth(w||.4); doc.line(x,y,x+s,y+s); doc.line(x+s,y,x,y+s); },
+    stitches:(x,y,s,c)=>{ ic.cross(x,y,s*.42,c,.35); ic.cross(x+s*.58,y,s*.42,c,.35); ic.cross(x,y+s*.58,s*.42,c,.35); ic.cross(x+s*.58,y+s*.58,s*.42,c,.35); },
+    size:(x,y,s,c)=>{ doc.setDrawColor(...c); doc.setLineWidth(.4); doc.line(x,y,x,y+s); doc.line(x,y+s,x+s,y+s); doc.line(x+s*.2,y+s*.8,x+s,y); doc.line(x+s,y,x+s*.62,y); doc.line(x+s,y,x+s,y+s*.38); },
+    arc:(x,y,s,c,w)=>{ doc.setDrawColor(...c); doc.setLineWidth(w||.5); const k=.5523, r=s/2; doc.moveTo(x,y+s*.75); doc.curveTo(x,y+s*.75-k*r,x+r-k*r,y+s*.25,x+r,y+s*.25); doc.curveTo(x+r+k*r,y+s*.25,x+s,y+s*.75-k*r,x+s,y+s*.75); doc.stroke(); },
+    scan:(x,y,s,c)=>{ doc.setDrawColor(...c); doc.setLineWidth(.4); const a=s*.3; [[x,y,1,1],[x+s,y,-1,1],[x,y+s,1,-1],[x+s,y+s,-1,-1]].forEach(([px,py,dx,dy])=>{ doc.line(px,py,px+a*dx,py); doc.line(px,py,px,py+a*dy); }); doc.line(x+s*.2,y+s/2,x+s*.8,y+s/2); },
+    open:(x,y,s,c)=>{ doc.setDrawColor(...c); doc.setLineWidth(.4); doc.line(x+s/2,y,x+s/2,y+s*.68); doc.line(x+s*.25,y+s*.45,x+s/2,y+s*.7); doc.line(x+s*.75,y+s*.45,x+s/2,y+s*.7); doc.line(x,y+s*.75,x,y+s); doc.line(x,y+s,x+s,y+s); doc.line(x+s,y+s,x+s,y+s*.75); },
+    eye:(x,y,s,c)=>{ doc.setDrawColor(...c); doc.setLineWidth(.4); doc.ellipse(x+s/2,y+s/2,s/2,s*.3,'S'); doc.setFillColor(...c); doc.circle(x+s/2,y+s/2,s*.14,'F'); }
+  };
+  return ic;
 }
 async function ksLegendKit(doc,P,meta){
   doc.addFileToVFS('DMSerifI.ttf',KS_LF.di); doc.addFont('DMSerifI.ttf','DMSerif','italic');
@@ -4773,6 +4787,7 @@ async function ksLegendKit(doc,P,meta){
   K.sw=(x,y,w,h,rgb,r,stroke)=>{ doc.setFillColor(...ksRgb(rgb)); if(stroke!==false){ doc.setDrawColor(0,0,0); doc.setLineWidth(.1); } doc.roundedRect(x,y,w,h,r||0,r||0,stroke===false?'F':'FD'); };
   K.bar=(x,mid,w,hex,str)=>{ const h=str>1?1.0:.6; doc.setFillColor(...ksRgb(hex)); doc.roundedRect(x,mid-h/2,w,h,h/2,h/2,'F'); };
   K.wrap=(s,w)=>doc.splitTextToSize(s,w);
+  K.ic=ksIconsMore(doc,ksIcons(doc));
   return K;
 }
 async function ksLegendOther(P,meta){
@@ -4784,7 +4799,7 @@ async function ksLegendOther(P,meta){
   doc.addFileToVFS('CS3.ttf',KS_CS3_B64); doc.addFont('CS3.ttf','CS3','normal');
   doc.setProperties({title:meta.sku+' legend',creator:'Patternly Studio'});
   const K=await ksLegendKit(doc,P,meta);
-  ({A:ksLegA,C:ksLegC,D:ksLegD,E:ksLegE,F:ksLegF,G:ksLegG})[meta.layout](K);
+  ({A:ksLegA,C:ksLegC,D:ksLegD,E:ksLegE,F:ksLegF,G:ksLegG,H:ksLegH,I:ksLegI,J:ksLegJ})[meta.layout](K);
   return doc;
 }
 
@@ -4943,17 +4958,7 @@ function ksLegD(K){
 /* E · Icon: icon tiles, chart squares with the symbol, step strip */
 function ksLegE(K){
   const {doc,W,H,INK,INK2,MUTE,RULE,TINT,RED,WHITE}=K, M=10;
-  const ic={ // small line icons, drawn in a s×s box
-    palette:(x,y,s,c)=>{ doc.setDrawColor(...c); doc.setLineWidth(.35); doc.circle(x+s/2,y+s/2,s/2,'S'); doc.setFillColor(...c); [[.32,.35],[.6,.28],[.72,.55]].forEach(([a,b])=>doc.circle(x+s*a,y+s*b,s*.08,'F')); },
-    grid:(x,y,s,c)=>{ doc.setDrawColor(...c); doc.setLineWidth(.35); doc.roundedRect(x,y,s,s,.5,.5,'S'); [1/3,2/3].forEach(f=>{ doc.line(x+s*f,y,x+s*f,y+s); doc.line(x,y+s*f,x+s,y+s*f); }); },
-    cross:(x,y,s,c,w)=>{ doc.setDrawColor(...c); doc.setLineWidth(w||.4); doc.line(x,y,x+s,y+s); doc.line(x+s,y,x,y+s); },
-    stitches:(x,y,s,c)=>{ ic.cross(x,y,s*.42,c,.35); ic.cross(x+s*.58,y,s*.42,c,.35); ic.cross(x,y+s*.58,s*.42,c,.35); ic.cross(x+s*.58,y+s*.58,s*.42,c,.35); },
-    size:(x,y,s,c)=>{ doc.setDrawColor(...c); doc.setLineWidth(.4); doc.line(x,y,x,y+s); doc.line(x,y+s,x+s,y+s); doc.line(x+s*.2,y+s*.8,x+s,y); doc.line(x+s,y,x+s*.62,y); doc.line(x+s,y,x+s,y+s*.38); },
-    arc:(x,y,s,c,w)=>{ doc.setDrawColor(...c); doc.setLineWidth(w||.5); const k=.5523, r=s/2; doc.moveTo(x,y+s*.75); doc.curveTo(x,y+s*.75-k*r,x+r-k*r,y+s*.25,x+r,y+s*.25); doc.curveTo(x+r+k*r,y+s*.25,x+s,y+s*.75-k*r,x+s,y+s*.75); doc.stroke(); },
-    scan:(x,y,s,c)=>{ doc.setDrawColor(...c); doc.setLineWidth(.4); const a=s*.3; [[x,y,1,1],[x+s,y,-1,1],[x,y+s,1,-1],[x+s,y+s,-1,-1]].forEach(([px,py,dx,dy])=>{ doc.line(px,py,px+a*dx,py); doc.line(px,py,px,py+a*dy); }); doc.line(x+s*.2,y+s/2,x+s*.8,y+s/2); },
-    open:(x,y,s,c)=>{ doc.setDrawColor(...c); doc.setLineWidth(.4); doc.line(x+s/2,y,x+s/2,y+s*.68); doc.line(x+s*.25,y+s*.45,x+s/2,y+s*.7); doc.line(x+s*.75,y+s*.45,x+s/2,y+s*.7); doc.line(x,y+s*.75,x,y+s); doc.line(x,y+s,x+s,y+s); doc.line(x+s,y+s,x+s,y+s*.75); },
-    eye:(x,y,s,c)=>{ doc.setDrawColor(...c); doc.setLineWidth(.4); doc.ellipse(x+s/2,y+s/2,s/2,s*.3,'S'); doc.setFillColor(...c); doc.circle(x+s/2,y+s/2,s*.14,'F'); }
-  };
+  const ic=K.ic;
   const LW=22; const lh=K.logo(M,M,LW); const X=M+LW+6;
   K.caps(K.T.key,X,M+3.5,6,RED,.45,true);
   K.font('Inter','bold',26,INK); doc.text(K.meta.sku,X,M+14);
@@ -5089,6 +5094,176 @@ function ksLegG(K){
   K.font('Inter','normal',4.8,MUTE); doc.text(K.wrap(K.T.ipo,TW2),tx,ty,{lineHeightFactor:1.3});
   const LW=22, lh=K.logoH(LW); K.logo(W-M-LW,FY+2.5,LW);
   K.caps(K.meta.sku+' · Legend · 1/1',W-M,FY+lh+5.6,4.8,MUTE,.6,false,'right');
+}
+
+/* v60: three Professional + Icon mixes. H = navy header with icon tiles and chart squares,
+   I = icon header with full tables (chart square + metres), J = navy side panel with tables. */
+function ksIconsMore(doc,ic){
+  ic.thread=(x,y,s,c)=>{ doc.setDrawColor(...c); doc.setLineWidth(.35); doc.roundedRect(x+s*.22,y,s*.56,s,.5,.5,'S'); [.3,.5,.7].forEach(f=>doc.line(x+s*.22,y+s*f,x+s*.78,y+s*f)); };
+  ic.needle=(x,y,s,c)=>{ doc.setDrawColor(...c); doc.setLineWidth(.4); doc.line(x,y+s,x+s*.82,y+s*.18); doc.ellipse(x+s*.88,y+s*.12,s*.09,s*.09,'S'); };
+  ic.phone=(x,y,s,c)=>{ doc.setDrawColor(...c); doc.setLineWidth(.35); doc.roundedRect(x+s*.22,y,s*.56,s,.8,.8,'S'); doc.line(x+s*.42,y+s*.84,x+s*.58,y+s*.84); };
+  ic.heart=(x,y,s,c,fill)=>{ doc.setDrawColor(...c); doc.setLineWidth(.35); const k=s/24; doc.moveTo(x+12*k,y+20*k); doc.curveTo(x+5*k,y+15.7*k,x+5*k,y+11*k,x+5*k,y+10.4*k); doc.curveTo(x+5*k,y+6*k,x+10*k,y+5*k,x+12*k,y+8*k); doc.curveTo(x+14*k,y+5*k,x+19*k,y+6*k,x+19*k,y+10.4*k); doc.curveTo(x+19*k,y+11*k,x+19*k,y+15.7*k,x+12*k,y+20*k); doc.close(); if(fill){ doc.setFillColor(...c); doc.fill(); } else doc.stroke(); };
+  return ic;
+}
+// shared table: mode 'chart' (square with symbol), 'back' (line + colour)
+function ksTable(K,x,y,tw,rows,rh,mode,hs,sc){
+  const {doc,INK,INK2,MUTE,TINT}=K, NAVY=[30,37,51];
+  const C=mode==='back'?{no:0,a:tw*.1,b:tw*.24,th:tw*.4,str:tw*.6,st:tw*.84,m:tw}:{no:0,a:tw*.1,th:tw*.3,str:tw*.55,st:tw*.8,m:tw};
+  const H=mode==='back'?[['No',C.no],['Line',C.a],['Colour',C.b],['Luca-S',C.th],['Str',C.str]]:[['No',C.no],['Chart',C.a],['Luca-S',C.th],['Str',C.str]];
+  H.forEach(([t,xx])=>K.caps(t,x+xx,y+3.6,hs,MUTE,.5)); K.caps('Stitches',x+C.st,y+3.6,hs,MUTE,.5,false,'right'); K.caps('M',x+C.m,y+3.6,hs,MUTE,.5,false,'right');
+  doc.setDrawColor(...NAVY); doc.setLineWidth(.35); doc.line(x,y+5.2,x+tw,y+5.2); y+=5.8;
+  rows.forEach((o,i)=>{ const yy=y+i*rh, mid=yy+rh/2; if(i%2===1){ doc.setFillColor(...TINT); doc.rect(x,yy,tw,rh,'F'); }
+    K.font('Inter','normal',5.8*sc,MUTE); doc.text(K.nr(o.nr),x+C.no+.4,mid+K.cy(5.8*sc));
+    if(mode==='back'){ K.bar(x+C.a,mid,tw*.1,o.line,o.str); if(o.rgb) K.sw(x+C.b,mid-(rh-1.6)/2,tw*.1,rh-1.6,o.rgb,.3); }
+    else { const h=rh-1.1, w=Math.min(tw*.16,h*1.7); doc.setFillColor(...ksRgb(o.rgb)); doc.roundedRect(x+C.a,mid-h/2,w,h,.6,.6,'F'); if(o.sym!=null) K.sym(o.sym,x+C.a+w/2,mid,Math.min(9.5,h*2.3),K.on(o.rgb)); }
+    K.font('Inter','bold',7.4*sc,INK); doc.text(String(o.thread),x+C.th,mid+K.cy(7.4*sc));
+    K.font('Inter','normal',6.8*sc,INK2); doc.text(String(o.str),x+C.str+1,mid+K.cy(6.8*sc));
+    if(o.st!=null) doc.text(ksFmt(o.st),x+C.st,mid+K.cy(6.8*sc),{align:'right'}); doc.text(K.m(o.m),x+C.m,mid+K.cy(6.8*sc),{align:'right'}); });
+  return y+rows.length*rh;
+}
+// E-style chart squares, fitted to (x,y,w,avail); returns the bottom
+function ksSquares(K,x,y,w,avail,minCols){
+  const {doc,INK,MUTE}=K, nC=K.C.length, G=2.2; let cols, tw;
+  for(cols=minCols||9;cols<=18;cols++){ tw=(w-G*(cols-1))/cols; if(Math.ceil(nC/cols)*(tw+7.4)<=avail) break; }
+  let sq=tw; if(Math.ceil(nC/cols)*(sq+7.4)>avail) sq=avail/Math.ceil(nC/cols)-7.4;
+  const sc=Math.min(1,tw/19);
+  K.C.forEach((c,i)=>{ const xx=x+(i%cols)*(tw+G), yy=y+Math.floor(i/cols)*(sq+7.4);
+    doc.setFillColor(...ksRgb(c.rgb)); doc.roundedRect(xx+(tw-sq)/2,yy,sq,sq,1.6,1.6,'F');
+    if(K.lum(c.rgb)>.88){ doc.setDrawColor(...K.RULE); doc.setLineWidth(.25); doc.roundedRect(xx+(tw-sq)/2,yy,sq,sq,1.6,1.6,'S'); }
+    if(c.sym!=null) K.sym(c.sym,xx+tw/2,yy+sq/2,sq*1.25,K.on(c.rgb));
+    K.font('Inter','bold',7.2*sc+.6,INK); doc.text(String(c.thread),xx+tw/2,yy+sq+3.2,{align:'center'});
+    if(c.st!=null){ K.font('Inter','normal',4.8*sc+.4,MUTE); doc.text(ksFmt(c.st),xx+tw/2,yy+sq+5.8,{align:'center'}); } });
+  return y+Math.ceil(nC/cols)*(sq+7.4);
+}
+function ksBackCards(K,x,y,w,cols){
+  const {doc,INK,INK2,RULE}=K, bh=11.5, bw=(w-(cols-1)*3)/cols;
+  K.B.forEach((b,i)=>{ const xx=x+(i%cols)*(bw+3), yy=y+Math.floor(i/cols)*(bh+2.5); doc.setDrawColor(...RULE); doc.setLineWidth(.3); doc.roundedRect(xx,yy,bw,bh,2.2,2.2,'S');
+    K.bar(xx+2.5,yy+2.6,bw-5,b.line,2); K.font('Inter','bold',7.4,INK); doc.text(String(b.thread),xx+2.5,yy+6.8); K.font('Inter','normal',5.4,INK2); doc.text(K.wrap(K.strEn(b.str)+(b.st!=null?' · '+ksFmt(b.st):''),bw-4)[0],xx+2.5,yy+9.8); });
+  return y+Math.ceil(K.B.length/cols)*(bh+2.5);
+}
+function ksHowCards(K,x,y,w,dark){
+  const {doc,INK,INK2,RULE,RED,WHITE}=K, ic=K.ic;
+  const cards=[{t:'Cross stitch',s:K.crossLine,i:'cross'}].concat(K.backStr.map(n=>({t:'Backstitch',s:K.str(n),i:'arc',n})));
+  const cw=(w-(cards.length-1)*3)/cards.length, ch=12.5;
+  cards.forEach((c,i)=>{ const xx=x+i*(cw+3); doc.setDrawColor(...RULE); doc.setLineWidth(.3); doc.roundedRect(xx,y,cw,ch,3,3,'S');
+    doc.setFillColor(...RED); doc.roundedRect(xx+2.2,y+2.2,8.1,8.1,1.8,1.8,'F'); if(c.i==='cross') ic.cross(xx+4.4,y+4.4,3.7,WHITE,.5); else ic.arc(xx+4,y+4.3,4.5,WHITE,c.n>1?.9:.5);
+    K.font('Inter','bold',7.4,INK); doc.text(c.t,xx+13,y+5.4); K.font('Inter','normal',5.8,INK2); doc.text(K.wrap(c.s,cw-15)[0],xx+13,y+9); });
+  return y+ch;
+}
+function ksStepsRow(K,x,y,w,col){
+  const {doc,INK,RED}=K, ic=K.ic, sw=w/4;
+  [['scan','Scan the code'],['open','Open it in Patternly'],['cross','Mark your stitches'],['size','See your progress']].forEach(([i,t],k)=>{ const cx=x+k*sw+sw/2; ic[i](cx-2,y,4,RED,.4); K.font('Inter','normal',5.8,col||INK); doc.text(t,cx,y+8,{align:'center'}); });
+  return y+9;
+}
+function ksProFooter(K,M){
+  const {doc,W,H,INK,INK2,MUTE,RULE,RED}=K, FH=24, FY=H-M-FH;
+  doc.setDrawColor(...RULE); doc.setLineWidth(.3); doc.line(M,FY,W-M,FY);
+  K.qr(M,FY+3.5,19,false);
+  const tx=M+25, TW2=W-M-tx-30; let ty=FY+7;
+  K.font('Inter','bold',6.4,RED); doc.text(K.T.scanH,tx,ty); const hw=doc.getTextWidth(K.T.scanH+' '); K.font('Inter','normal',6.4,INK); doc.text(K.wrap(K.T.scan,TW2-hw)[0],tx+hw,ty); ty+=3.4;
+  K.font('Inter','normal',5.6,INK2); doc.text(K.T.scanRR,tx,ty); ty+=3.4;
+  K.font('Inter','bold',5.8,RED); doc.text(K.T.warn,tx,ty); const ww=doc.getTextWidth(K.T.warn+' '); K.font('Inter','normal',5.6,INK2); doc.text(K.wrap(K.T.warnRR,TW2-ww)[0],tx+ww,ty); ty+=3.4;
+  K.font('Inter','normal',4.8,MUTE); doc.text(K.wrap(K.T.ipo,TW2),tx,ty,{lineHeightFactor:1.3});
+  const LW=22, lh=K.logoH(LW); K.logo(W-M-LW,FY+2.5,LW);
+  K.caps(K.meta.sku+' · Legend · 1/1',W-M,FY+lh+5.6,4.8,MUTE,.6,false,'right');
+  return FY;
+}
+function ksNavyHead(K,M,h){
+  const {doc,W,WHITE}=K, NAVY=[30,37,51], PALE=[150,158,175];
+  doc.setFillColor(...NAVY); doc.rect(0,0,W,h,'F');
+  K.caps(K.T.key,M,M+2,5.8,PALE,.8);
+  K.font('Inter','bold',24,WHITE); doc.text(K.meta.sku,M,M+13.5);
+  if(K.meta.name){ const sw=doc.getTextWidth(K.meta.sku); K.font('Inter','normal',12,[205,210,220]); doc.text(K.wrap(K.meta.name,62)[0],M+sw+3.5,M+13.5); }
+}
+const KS_FIC={colours:'palette',fabric:'grid',stitches:'stitches',size:'size'};
+
+/* H · Navy icons: Professional header + Icon tiles and chart squares */
+function ksLegH(K){
+  const {doc,W,H,INK,INK2,MUTE,RED,WHITE}=K, M=12, PINK=[232,160,175];
+  ksNavyHead(K,M,48);
+  const fw=(W-2*M-9)/4, fy=M+20, fh=14;
+  K.facts.forEach((f,i)=>{ const x=M+i*(fw+3); doc.setFillColor(44,53,72); doc.roundedRect(x,fy,fw,fh,2.2,2.2,'F'); K.ic[KS_FIC[f.k]](x+3,fy+3,3.6,PINK);
+    K.font('Inter','bold',8.4,WHITE); doc.text(f.v,x+9,fy+6); K.font('Inter','normal',5.2,[175,182,198]); doc.text(K.wrap(f.l3,fw-11)[0],x+9,fy+10); });
+  let y=56; const PW=30, PH=K.picH(PW,40); K.pic(M,y,PW,PH,2);
+  const X=M+PW+6, TW=W-M-X;
+  let yy=ksHowCards(K,X,y,TW); yy=ksStepsRow(K,X,yy+4,TW);
+  K.font('Inter','bold',6.4,RED); doc.text(K.T.warn,X,yy+3.5); const ww=doc.getTextWidth(K.T.warn+' '); K.font('Inter','normal',5.8,INK2); doc.text(K.wrap(K.T.warnRR,TW-ww)[0],X+ww,yy+3.5);
+  y=Math.max(y+PH,yy+4)+7;
+  const head=(icon,en,rr,yy2)=>{ K.ic[icon](M,yy2-2.6,3,RED); K.caps(en,M+5,yy2,6.4,INK,.45,true); const w=doc.getTextWidth(en.toUpperCase())+.25*en.length; K.font('Inter','normal',5.4,MUTE); doc.text(rr,M+7+w,yy2); };
+  const FY=H-M-24, nB=K.B.length, bcols=Math.min(5,Math.max(1,nB)), backH=nB?9+Math.ceil(nB/bcols)*14:0;
+  head('grid',K.T.cross,K.T.crossRR+' · symbol as on the chart, thread, stitches',y); y+=4;
+  y=ksSquares(K,M,y,W-2*M,FY-6-y-backH)+5;
+  if(nB){ head('size',K.T.back,K.T.backRR,y); y+=4; ksBackCards(K,M,y,W-2*M,bcols); }
+  ksProFooter(K,M);
+}
+
+/* I · Icon table: Icon header and cards + Professional tables, chart squares in the table */
+function ksLegI(K){
+  const {doc,W,H,INK,INK2,MUTE,RULE,TINT,RED,WHITE}=K, M=10;
+  const LW=20; const lh=K.logo(M,M,LW); const X=M+LW+6;
+  K.caps(K.T.key,X,M+3.5,6,RED,.45,true);
+  K.font('Inter','bold',24,INK); doc.text(K.meta.sku,X,M+13.5);
+  if(K.meta.name){ K.font('Inter','normal',9,INK2); doc.text(K.wrap(K.meta.name,95)[0],X,M+19); }
+  const PW=30, PH=K.picH(PW,42); K.pic(W-M-PW,M,PW,PH,2.5);
+  const FW=W-2*M-PW-6, fy=M+Math.max(lh,21)+3, fw=(FW-9)/4, fh=15;
+  K.facts.forEach((f,i)=>{ const x=M+i*(fw+3); doc.setFillColor(...TINT); doc.roundedRect(x,fy,fw,fh,2.5,2.5,'F'); K.ic[KS_FIC[f.k]](x+3,fy+2.6,3.6,RED);
+    K.font('Inter','bold',8.4,INK); doc.text(f.v,x+3,fy+9.6); K.font('Inter','normal',5.2,INK2); doc.text(K.wrap(f.l3,fw-5)[0],x+3,fy+12.8); });
+  let y=Math.max(fy+fh,M+PH)+4; y=ksHowCards(K,M,y,W-2*M)+7;
+  const sec=(n,icon,en,rr,yy)=>{ doc.setFillColor(...RED); doc.roundedRect(M,yy-3.6,5,5,1.2,1.2,'F'); K.ic[icon](M+1.1,yy-2.5,2.8,WHITE); K.font('Inter','bold',8.2,INK); doc.text(en,M+7,yy); const w=doc.getTextWidth(en+'  '); K.font('Inter','normal',5.8,MUTE); doc.text(rr,M+7+w,yy); };
+  const SH=27, SY=H-M-SH, nC=K.C.length, nB=K.B.length, avail=SY-6-y;
+  let tc=2, rh=6.2, bcols; const need=h=>{ bcols=nB>6?tc:1; return 6+5.8+Math.ceil(nC/tc)*h+(nB?13+5.8+Math.ceil(nB/bcols)*h:0); };
+  while(need(rh)>avail&&rh>3.6) rh-=.1; if(need(rh)>avail){ tc=3; rh=5.2; while(need(rh)>avail&&rh>2.8) rh-=.1; } need(rh);
+  const GAP=tc>2?4:6, tw=(W-2*M-GAP*(tc-1))/tc, sc=Math.max(.6,Math.min(1,rh/5.6))*(tc>2?.9:1), hs=tc>2?4.2:4.8;
+  sec('02','grid',K.T.cross,K.T.crossRR,y); y+=3;
+  const per=Math.ceil(nC/tc); let bot=y; for(let c=0;c*per<nC&&c<tc;c++) bot=Math.max(bot,ksTable(K,M+c*(tw+GAP),y,tw,K.C.slice(c*per,(c+1)*per),rh,'chart',hs,sc));
+  y=bot+8;
+  if(nB){ sec('03','size',K.T.back,K.T.backRR,y); y+=3; const pb=Math.ceil(nB/bcols); for(let c=0;c*pb<nB&&c<bcols;c++) ksTable(K,M+c*(tw+GAP),y,tw,K.B.slice(c*pb,(c+1)*pb),rh,'back',hs,sc); }
+  // Icon bottom strip
+  doc.setFillColor(...TINT); doc.roundedRect(M,SY,W-2*M,SH,3,3,'F');
+  K.qr(M+4,SY+4,SH-8);
+  const sx=M+SH+2; ksStepsRow(K,sx,SY+3.5,W-M-4-sx);
+  K.ic.eye(sx+1,SY+14.2,4,RED); K.font('Inter','bold',6.4,RED); doc.text(K.T.warn,sx+7,SY+16.6); const ww=doc.getTextWidth(K.T.warn+' ');
+  K.font('Inter','normal',5.8,INK2); doc.text(K.wrap(K.T.warnRR,W-M-4-sx-7-ww)[0],sx+7+ww,SY+16.6);
+  K.font('Inter','normal',4.6,MUTE); doc.text(K.wrap(K.T.ipo,W-M-4-sx),sx+1,SY+SH-3.2);
+}
+
+/* J · Side panel: navy panel with picture, icon facts, steps and QR; Professional tables on the right */
+function ksLegJ(K){
+  const {doc,W,H,INK,INK2,MUTE,RULE,RED,WHITE}=K, NAVY=[30,37,51], PALE=[150,158,175], PINK=[232,160,175], SW=62, M=10;
+  doc.setFillColor(...NAVY); doc.rect(0,0,SW,H,'F');
+  const x=8, w=SW-16; let y=8;
+  doc.setFillColor(...WHITE); const LW=20, lh=K.logoH(LW); doc.roundedRect(x,y,w,lh+6,2.5,2.5,'F'); K.logo(x+(w-LW)/2,y+3,LW); y+=lh+12;
+  K.caps(K.T.key,x,y,5.2,PALE,.7); y+=8.5;
+  K.font('Inter','bold',22,WHITE); doc.text(K.meta.sku,x,y); y+=5;
+  if(K.meta.name){ K.font('Inter','normal',8.4,[205,210,220]); const nl=K.wrap(K.meta.name,w).slice(0,2); doc.text(nl,x,y+1,{lineHeightFactor:1.25}); y+=nl.length*3.7+2; }
+  const PH=K.picH(w,Math.min(56,H*.2)); K.pic(x,y,w,PH,2); y+=PH+6;
+  K.facts.forEach(f=>{ K.ic[KS_FIC[f.k]](x,y-.4,3.6,PINK); K.font('Inter','bold',7.6,WHITE); doc.text(f.v,x+6.5,y+1.4); K.font('Inter','normal',5.2,[175,182,198]); doc.text(K.wrap(f.l3,w-7)[0],x+6.5,y+4.6); y+=8.4; });
+  y+=2; doc.setDrawColor(70,80,100); doc.setLineWidth(.3); doc.line(x,y,x+w,y); y+=5.5;
+  K.caps(K.T.how,x,y,5.2,PALE,.7); y+=4.5;
+  [['X '+(K.crossStr.length===1?K.crossStr[0]:''),'Cross stitch',K.crossLine]].concat(K.backStr.map(n=>[n,'Backstitch',K.str(n)])).forEach(h=>{
+    if(typeof h[0]==='number') K.bar(x,y+1.4,7,'#ffffff',h[0]); else { K.font('Inter','bold',8,WHITE); doc.text(h[0],x,y+2.6); }
+    K.font('Inter','bold',6.4,WHITE); doc.text(h[1],x+10,y+1.4); K.font('Inter','normal',5.2,[175,182,198]); doc.text(K.wrap(h[2],w-10)[0],x+10,y+4.4); y+=7.6; });
+  // bottom of the panel: QR + steps
+  const QS=24, qy=H-10-QS-26;
+  doc.setFillColor(...WHITE); doc.roundedRect(x,qy,w,QS+4,2.5,2.5,'F'); K.qr(x+2,qy+2,QS,false);
+  K.font('Inter','bold',6,INK); doc.text(K.wrap('Stitch it in Patternly',w-QS-6),x+QS+4.5,qy+5); K.font('Inter','normal',5,INK2); doc.text(K.wrap('Scan to open this chart in the app.',w-QS-6),x+QS+4.5,qy+11,{lineHeightFactor:1.25});
+  let sy=qy+QS+9; ['Scan the code','Open it in Patternly','Mark your stitches','See your progress'].forEach((t,i)=>{ const yy=sy+Math.floor(i/2)*5.2, xx=x+(i%2)*(w/2);
+    K.font('Inter','bold',5.6,PINK); doc.text(String(i+1),xx,yy); K.font('Inter','normal',5.2,WHITE); doc.text(K.wrap(t,w/2-4)[0],xx+3,yy); });
+  K.font('Inter','normal',4.4,PALE); doc.text(K.wrap(K.T.scanRR,w),x,sy+11,{lineHeightFactor:1.25});
+  // right: tables
+  const RX=SW+8, RW=W-M-RX, FY=H-M-16;
+  const sec=(n,en,rr,yy)=>{ K.font('Inter','bold',7.6,RED); doc.text(n,RX,yy); const w2=doc.getTextWidth(n+'  '); K.font('Inter','bold',8.4,INK); doc.text(en,RX+w2,yy); const w3=doc.getTextWidth(en+'  '); K.font('Inter','normal',6,MUTE); doc.text(rr,RX+w2+w3,yy); };
+  let ty=M+4; const nC=K.C.length, nB=K.B.length, avail=FY-6-ty;
+  let tc=1, rh=6.4, bcols; const need=h=>{ bcols=nB>10?tc:1; return 6+5.8+Math.ceil(nC/tc)*h+(nB?13+5.8+Math.ceil(nB/bcols)*h:0); };
+  while(need(rh)>avail&&rh>4.6) rh-=.1; if(need(rh)>avail){ tc=2; rh=6; while(need(rh)>avail&&rh>2.8) rh-=.1; } need(rh);
+  const GAP=4, tw=(RW-GAP*(tc-1))/tc, sc=Math.max(.6,Math.min(1,rh/5.6))*(tc>1?.85:1), hs=tc>1?4.2:4.8;
+  sec('01',K.T.cross,K.T.crossRR,ty); ty+=3;
+  const per=Math.ceil(nC/tc); let bot=ty; for(let c=0;c*per<nC&&c<tc;c++) bot=Math.max(bot,ksTable(K,RX+c*(tw+GAP),ty,tw,K.C.slice(c*per,(c+1)*per),rh,'chart',hs,sc));
+  ty=bot+8;
+  if(nB){ sec('02',K.T.back,K.T.backRR,ty); ty+=3; const pb=Math.ceil(nB/bcols); for(let c=0;c*pb<nB&&c<bcols;c++) ksTable(K,RX+c*(tw+GAP),ty,tw,K.B.slice(c*pb,(c+1)*pb),rh,'back',hs,sc); }
+  doc.setDrawColor(...RULE); doc.setLineWidth(.3); doc.line(RX,FY,W-M,FY);
+  K.font('Inter','bold',6.2,RED); doc.text(K.T.warn,RX,FY+4.6); K.font('Inter','normal',5.6,INK2); doc.text(K.T.warnRR,RX,FY+8);
+  K.font('Inter','normal',4.6,MUTE); doc.text(K.wrap(K.T.ipo,RW-8),RX,FY+11.6,{lineHeightFactor:1.3});
 }
 
 let KS_LAYOUT=(()=>{ try{ return localStorage.getItem('ks_layout')||'B'; }catch(e){ return 'B'; } })();
