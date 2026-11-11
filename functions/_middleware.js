@@ -15,7 +15,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v116";
+const MW_VERSION = "v117";
 
 // v107: the help sheet the in-app AI assistant answers from (/help/chat). Keep it
 // to facts that are true in the live app; update it when a feature changes.
@@ -2156,11 +2156,12 @@ async function handlePartnerApi(request, url, env) {
       const name = ksClean(b.name, 120);
       if (!name) return partnerJson(400, { ok:false, error:"Type the model name." });
       const fields = {};
-      for (const [key, n] of [["nameRo", 120], ["nameRu", 120], ["designer", 80], ["skill", 1], ["ean", 14], ["notes", 1000], ["qr", 300], ["layout", 1]]) {
+      for (const [key, n] of [["nameRo", 120], ["nameRu", 120], ["designer", 80], ["skill", 1], ["ean", 14], ["notes", 1000], ["qr", 300], ["layout", 1], ["cover", 1]]) {
         const v = ksClean(b.fields && b.fields[key], n); if (v) fields[key] = v;
       }
       if (fields.skill && !/^[1-5]$/.test(fields.skill)) delete fields.skill;
       if (fields.layout && !/^[A-Z]$/.test(fields.layout)) delete fields.layout;   // v116: legend layout picked in Kit files
+      if (fields.cover && !/^[A-Z]$/.test(fields.cover)) delete fields.cover;      // v117: cover layout picked in Kit files
       if (fields.qr && !/^https:\/\/[^\s"<>]+$/.test(fields.qr)) return partnerJson(400, { ok:false, error:"The QR link must start with https://" });   // v115
       if (fields.ean && !/^\d{8,14}$/.test(fields.ean)) return partnerJson(400, { ok:false, error:"The barcode must be 8 to 14 digits." });
       let parsed = undefined;
