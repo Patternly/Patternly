@@ -4,7 +4,7 @@
   Proprietary software: no part of this code may be copied, modified, reused or
   redistributed without written permission from UK Luca-S LTD.
   Third-party parts keep their own licences (noted where they appear).
-  Studio v64
+  Studio v65
 -->
 <html lang="en">
 <head>
@@ -241,9 +241,35 @@
   .ks-facts b{color:var(--ink)}
   .ks-legwrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#f2eef0;aspect-ratio:210/297;max-width:760px}
   .ks-covwrap{aspect-ratio:225/310}
-  .ks-pick{display:flex;flex-wrap:wrap;align-items:center;gap:.45rem .6rem;margin:0 0 .7rem}
-  .ks-pick label{margin:0;font-size:.78rem;font-weight:700;color:var(--muted)}
-  .ks-pick select{padding:.45rem .6rem;border:1px solid var(--border);border-radius:8px;font:inherit;font-size:.85rem;background:var(--bg);color:var(--ink);min-width:12rem}
+  .ks-pick{display:flex;flex-wrap:wrap;align-items:center;gap:.55rem .8rem;margin:0 0 .8rem}
+  .ks-lab{font-size:.74rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+  .ks-dd{position:relative}
+  .ks-dd-btn{display:flex;align-items:center;gap:.55rem;min-width:15rem;padding:.42rem .7rem .42rem .45rem;border:1px solid var(--border);border-radius:12px;background:var(--bg);color:var(--ink);font:inherit;font-size:.86rem;font-weight:600;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:border-color .15s,box-shadow .15s}
+  .ks-dd-btn:hover,.ks-dd.open .ks-dd-btn{border-color:var(--red);box-shadow:0 0 0 3px rgba(139,26,43,.12)}
+  .ks-dd-btn svg{width:16px;height:16px;margin-left:auto;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .15s;color:var(--muted)}
+  .ks-dd.open .ks-dd-btn svg{transform:rotate(180deg)}
+  .ks-dd-k{display:inline-grid;place-items:center;width:1.6rem;height:1.6rem;border-radius:8px;background:var(--red);color:#fff;font-size:.78rem;font-weight:800;flex:none}
+  .ks-dd-menu{display:none;position:absolute;z-index:40;top:calc(100% + 6px);left:0;min-width:100%;width:max-content;max-width:min(22rem,90vw);max-height:22rem;overflow:auto;padding:.35rem;border:1px solid var(--border);border-radius:14px;background:var(--bg);box-shadow:0 12px 32px rgba(20,10,20,.18)}
+  .ks-dd.open .ks-dd-menu{display:block}
+  .ks-dd-menu button{display:flex;align-items:center;gap:.6rem;width:100%;padding:.4rem .5rem;border:0;border-radius:10px;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+  .ks-dd-menu button:hover,.ks-dd-menu button:focus-visible{background:rgba(139,26,43,.08);outline:none}
+  .ks-dd-menu button .ks-dd-k{background:rgba(139,26,43,.1);color:var(--red)}
+  .ks-dd-menu button.on .ks-dd-k{background:var(--red);color:#fff}
+  .ks-dd-t{display:flex;flex-direction:column;line-height:1.2}
+  .ks-dd-t b{font-size:.85rem}.ks-dd-t small{font-size:.72rem;color:var(--muted)}
+  .ks-dd-ok{width:16px;height:16px;margin-left:auto;padding-left:.6rem;fill:none;stroke:var(--red);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;visibility:hidden;box-sizing:content-box}
+  .ks-dd-menu button.on .ks-dd-ok{visibility:visible}
+  .ks-col{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem .8rem}
+  .ks-swa{display:flex;gap:.35rem;align-items:center}
+  .ks-swa button,.ks-cust{width:1.6rem;height:1.6rem;border-radius:50%;border:2px solid var(--bg);box-shadow:0 0 0 1px var(--border);cursor:pointer;padding:0;position:relative}
+  .ks-swa button.auto{background:conic-gradient(from 200deg,#e8b4c0,#9bc4a8,#a7c0dd,#e6cf9e,#e8b4c0)}
+  .ks-cust{background:conic-gradient(red,#ff0,lime,cyan,blue,#f0f,red);display:inline-block}
+  .ks-cust input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;border:0;padding:0}
+  .ks-swa button.on,.ks-cust.on{box-shadow:0 0 0 2px var(--ink)}
+  .ks-rgb{display:flex;align-items:center;gap:.3rem}
+  .ks-rgb input{width:3.4rem;padding:.3rem .35rem;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;font-size:.8rem;text-align:center}
+  .ks-rgb input.ks-hex{width:5.4rem;font-family:ui-monospace,monospace}
+  .ks-rgb span{font-size:.7rem;color:var(--muted)}
   .ks-legwrap iframe{width:100%;height:100%;border:0;display:block;background:#fff}
   .ks-tbl{border-collapse:collapse;width:100%;font-size:.8rem}
   .ks-tbl th{text-align:left;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:.35rem .5rem;border-bottom:1.5px solid var(--ink)}
@@ -898,7 +924,8 @@
             <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin:.2rem 0 .6rem">
               <h3 style="margin:0;font-size:.95rem">Legend preview <span id="ks-lay-name" style="font-weight:500;color:var(--muted)"></span></h3>
             </div>
-            <div class="ks-pick"><label for="ks-lay">Layout</label><select id="ks-lay"></select></div>
+            <div class="ks-pick"><span class="ks-lab">Layout</span><div id="ks-lay"></div></div>
+            <div class="ks-pick"><span class="ks-lab">Colour</span><div id="ks-leg-col"></div></div>
             <div class="ks-legwrap"><iframe id="ks-leg-frame" title="Legend preview"></iframe></div>
             <div class="note" id="ks-leg-msg" style="margin:.4rem 0 0;word-break:break-all"></div>
             <button class="primary" id="ks-leg-dl" type="button" style="margin-top:.7rem" disabled>Download legend PDF</button>
@@ -907,7 +934,8 @@
             <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin:.2rem 0 .6rem">
               <h3 style="margin:0;font-size:.95rem">Cover preview <span id="ks-cov-name" style="font-weight:500;color:var(--muted)"></span></h3>
             </div>
-            <div class="ks-pick"><label for="ks-cov-lay">Layout</label><select id="ks-cov-lay"></select><label for="ks-cov-col">Colour</label><select id="ks-cov-col"></select></div>
+            <div class="ks-pick"><span class="ks-lab">Layout</span><div id="ks-cov-lay"></div></div>
+            <div class="ks-pick"><span class="ks-lab">Colour</span><div id="ks-cov-col"></div></div>
             <div class="ks-legwrap ks-covwrap"><iframe id="ks-cov-frame" title="Cover preview"></iframe></div>
             <div class="note" id="ks-cov-msg" style="margin:.4rem 0 0">Romanian name, designer, skill level and barcode come from More details.</div>
             <button class="primary" id="ks-cov-dl" type="button" style="margin-top:.7rem" disabled>Download cover PDF</button>
@@ -4531,7 +4559,7 @@ function ksOpen(it){
   $('ks-title').textContent=it?(it.sku+' · '+(it.name||'')):'New kit';
   $('ks-sku').value=it?it.sku:''; $('ks-sku').disabled=!!it; $('ks-name').value=it?it.name||'':'';
   const fl=(it&&it.fields)||{};
-  $('ks-ro').value=fl.nameRo||''; $('ks-ru').value=fl.nameRu||''; $('ks-designer').value=fl.designer||''; $('ks-skill').value=fl.skill||''; $('ks-ean').value=fl.ean||''; $('ks-notes').value=fl.notes||''; if(/^[A-Z]$/.test(fl.layout||'')&&KS_LAYOUTS.some(x=>x[0]===fl.layout)) KS_LAYOUT=fl.layout; if(/^[A-Z]$/.test(fl.cover||'')&&KS_COVERS.some(x=>x[0]===fl.cover)) KS_COVER=fl.cover; if(KS_COVCOLS.some(x=>x[0]===fl.covcol)) KS_COVCOL=fl.covcol;
+  $('ks-ro').value=fl.nameRo||''; $('ks-ru').value=fl.nameRu||''; $('ks-designer').value=fl.designer||''; $('ks-skill').value=fl.skill||''; $('ks-ean').value=fl.ean||''; $('ks-notes').value=fl.notes||''; if(/^[A-Z]$/.test(fl.layout||'')&&KS_LAYOUTS.some(x=>x[0]===fl.layout)) KS_LAYOUT=fl.layout; if(/^[A-Z]$/.test(fl.cover||'')&&KS_COVERS.some(x=>x[0]===fl.cover)) KS_COVER=fl.cover; if(ksColOk(fl.covcol)) KS_COVCOL=fl.covcol; if(ksColOk(fl.legcol)) KS_LEGCOL=fl.legcol;
   $('ks-more').open=!!(fl.nameRo||fl.nameRu||fl.designer||fl.skill||fl.ean||fl.notes);
   $('ks-pic-prev').innerHTML=''; $('ks-xs-list').innerHTML=''; ksMsg('');
   $('ks-del').style.display=it?'':'none'; $('ks-save').textContent=it?'Save changes':'Save kit';
@@ -4567,7 +4595,7 @@ async function ksSave(){
   if(!name){ ksMsg('Type the model name.','err'); $('ks-name').focus(); return; }
   if(!KS_CUR&&KS_ITEMS.some(x=>x.sku===sku)){ ksMsg('There is already a kit '+ksEsc(sku)+'. Open it from the list to add files.','err'); return; }
   const btn=$('ks-save'); btn.disabled=true;
-  const fields={nameRo:$('ks-ro').value,nameRu:$('ks-ru').value,designer:$('ks-designer').value,skill:$('ks-skill').value,ean:$('ks-ean').value.replace(/\s+/g,''),notes:$('ks-notes').value,layout:KS_LAYOUT,cover:KS_COVER,covcol:KS_COVCOL};
+  const fields={nameRo:$('ks-ro').value,nameRu:$('ks-ru').value,designer:$('ks-designer').value,skill:$('ks-skill').value,ean:$('ks-ean').value.replace(/\s+/g,''),notes:$('ks-notes').value,layout:KS_LAYOUT,cover:KS_COVER,covcol:KS_COVCOL,legcol:KS_LEGCOL};
   const body={sku,name,fields}; if(KS_PARSED&&KS_XS.some(x=>x.raw)) body.parsed=KS_PARSED;
   const up=[]; if(KS_PIC) up.push({blob:KS_PIC,name:KS_PIC.name,type:KS_PIC.type||'application/octet-stream',role:'picture'}); KS_XS.forEach(x=>up.push({blob:x.blob,name:x.name,type:x.type,role:x.role}));
   try{
@@ -4635,7 +4663,8 @@ async function ksLegendPdf(P,meta){
   doc.addFileToVFS('DMSerif.ttf',KS_LF.d); doc.addFont('DMSerif.ttf','DMSerif','normal');
   doc.addFileToVFS('CS3.ttf',KS_CS3_B64); doc.addFont('CS3.ttf','CS3','normal');
   doc.setProperties({title:meta.sku+' legend',creator:'Patternly Studio'});
-  const W=210,H=297,M=10, INK=[29,26,31], INK2=[95,88,98], RULE=[231,225,232], TINT=[247,243,245], RED=[139,26,43];
+  const pl=ksPalette(meta.colour,meta.picture);   // v65: legend colour
+  const W=210,H=297,M=10, INK=[29,26,31], INK2=[95,88,98], RULE=[231,225,232], TINT=pl.TN, RED=pl.AC;
   const font=(f,st,sz,col)=>{ doc.setFont(f,st); doc.setFontSize(sz); doc.setTextColor(...(col||INK)); };
   const pt=v=>v*0.3528;                       // points → mm
   // ── top: picture + title, facts, how to stitch
@@ -4749,6 +4778,7 @@ async function ksLegendKit(doc,P,meta){
   doc.addFileToVFS('DMSerifI.ttf',KS_LF.di); doc.addFont('DMSerifI.ttf','DMSerif','italic');
   const lg=await ksLogoInfo().catch(()=>null);
   const K={doc,P,meta,W:210,H:297,INK:[29,26,31],INK2:[95,88,98],MUTE:[150,142,152],RULE:[231,225,232],TINT:[247,243,245],RED:[139,26,43],WHITE:[255,255,255]};
+  { const pl=ksPalette(meta.colour,meta.picture); K.RED=pl.AC; K.TINT=pl.TN; K.AC=pl.AC; K.TN=pl.TN; }   // v65: legend colour
   K.font=(f,st,sz,col)=>{ doc.setFont(f,st); doc.setFontSize(sz); doc.setTextColor(...(col||K.INK)); };
   K.serif=(st,sz,col,str)=>K.font(KS_SERIF_OK.test(str||'')?'DMSerif':'Inter',KS_SERIF_OK.test(str||'')?st:(st==='italic'?'normal':st),sz,col);
   // letter-spaced capitals; returns the width
@@ -5296,7 +5326,7 @@ function ksEan13(doc,x,y,w,h,code,K){
 }
 function ksCoverKit(K,f){
   const {doc}=K, P=K.P; K.W=225; K.H=310;
-  K.f=f; K.year=new Date().getFullYear(); Object.assign(K,ksCovPalette(K,f.colour,K.meta.picture));
+  K.f=f; K.year=new Date().getFullYear(); Object.assign(K,ksPalette(f.colour,K.meta.picture)); K.RED=K.AC; K.TINT=K.TN;
   K.credit='© Luca-S'+(f.designer?' / '+f.designer:'')+' / '+K.year;
   K.fab=String(P.fabric||'Aida').replace(/^\s*\d+\s*count\s*/i,'');
   K.cm=P.sizeCm?ksTrim(P.sizeCm[0])+' × '+ksTrim(P.sizeCm[1])+' cm':''; K.inch=P.sizeIn?P.sizeIn[0]+' × '+P.sizeIn[1]+' in':'';
@@ -5427,13 +5457,6 @@ function ksCovE(K){
    the E Icon style: G Icon frame, H Icon split, I Icon panel. */
 const KS_COVCOLS=[['red','Luca-S red',[139,26,43],[247,243,245]],['rose','Rose',[168,58,86],[251,238,242]],['sage','Sage',[66,104,78],[237,243,236]],
   ['sand','Sand',[146,92,48],[248,242,233]],['sky','Sky',[46,88,138],[235,242,249]],['plum','Plum',[100,56,108],[244,238,246]],['auto','From the picture',null,null]];
-function ksCovPalette(K,key,pic){
-  let c=KS_COVCOLS.find(x=>x[0]===key)||KS_COVCOLS[0];
-  if(c[0]==='auto'){ const a=pic&&pic.avg; if(!a) c=KS_COVCOLS[0]; else {
-    const l=.299*a[0]+.587*a[1]+.114*a[2], k=Math.min(1.4,70/Math.max(1,l)); const ac=a.map(v=>Math.max(0,Math.min(255,Math.round(v*k))));
-    return {AC:ac,TN:ac.map(v=>Math.round(v+(255-v)*.92))}; } }
-  return {AC:c[2],TN:c[3]};
-}
 function ksCovStrip(K,M,SY,SH){
   const {doc,W,INK,INK2,MUTE,WHITE,f}=K;
   doc.setFillColor(...K.TN); doc.roundedRect(M,SY,W-2*M,SH,3,3,'F');
@@ -5508,15 +5531,68 @@ function ksCovI(K){
   K.foot(M,FY+4);
 }
 
+/* v65: colour for legends and covers (preset, from the picture, or any colour as hex / RGB), and modern
+   dropdowns. A colour value is a preset key ('red', 'sage', 'auto'…) or '#rrggbb'. */
+function ksPalette(key,pic){
+  const fromRgb=a=>{ const l=.299*a[0]+.587*a[1]+.114*a[2], k=l>110?110/l:1;   // keep the accent dark enough for text on white
+    const ac=a.map(v=>Math.max(0,Math.min(255,Math.round(v*k)))); return {AC:ac,TN:a.map(v=>Math.round(v+(255-v)*.9))}; };
+  if(/^#[0-9a-f]{6}$/i.test(key||'')) return fromRgb(ksRgb(key));
+  let c=KS_COVCOLS.find(x=>x[0]===key)||KS_COVCOLS[0];
+  if(c[0]==='auto'){ const a=pic&&pic.avg; if(!a) c=KS_COVCOLS[0]; else {
+    const l=.299*a[0]+.587*a[1]+.114*a[2], k=Math.min(1.4,70/Math.max(1,l)); const ac=a.map(v=>Math.max(0,Math.min(255,Math.round(v*k))));
+    return {AC:ac,TN:ac.map(v=>Math.round(v+(255-v)*.92))}; } }
+  return {AC:c[2],TN:c[3]};
+}
+const ksHex=a=>'#'+a.map(v=>v.toString(16).padStart(2,'0')).join('');
+let KS_DD_OPEN=null;
+document.addEventListener('click',e=>{ if(KS_DD_OPEN&&!KS_DD_OPEN.contains(e.target)){ KS_DD_OPEN.classList.remove('open'); KS_DD_OPEN=null; } });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&KS_DD_OPEN){ KS_DD_OPEN.classList.remove('open'); KS_DD_OPEN.querySelector('.ks-dd-btn').focus(); KS_DD_OPEN=null; } });
+// modern dropdown: items [[key,name,sub]], value, onPick(key)
+function ksDropdown(host,items,value,onPick){
+  if(!host._built){ host._built=true; host.classList.add('ks-dd');
+    host.innerHTML='<button type="button" class="ks-dd-btn" aria-haspopup="listbox" aria-expanded="false"><span class="ks-dd-k"></span><span class="ks-dd-n"></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="ks-dd-menu" role="listbox"></div>';
+    const btn=host.querySelector('.ks-dd-btn'), menu=host.querySelector('.ks-dd-menu');
+    btn.onclick=e=>{ e.stopPropagation(); const open=!host.classList.contains('open'); if(KS_DD_OPEN&&KS_DD_OPEN!==host) KS_DD_OPEN.classList.remove('open');
+      host.classList.toggle('open',open); btn.setAttribute('aria-expanded',open); KS_DD_OPEN=open?host:null; if(open){ const on=menu.querySelector('.on'); (on||menu.firstChild).focus(); } };
+    menu.addEventListener('keydown',e=>{ const its=[...menu.children], i=its.indexOf(document.activeElement);
+      if(e.key==='ArrowDown'){ e.preventDefault(); (its[i+1]||its[0]).focus(); } else if(e.key==='ArrowUp'){ e.preventDefault(); (its[i-1]||its[its.length-1]).focus(); } });
+  }
+  const menu=host.querySelector('.ks-dd-menu');
+  menu.innerHTML=items.map(([k,n,sub])=>'<button type="button" role="option" data-k="'+k+'" class="'+(k===value?'on':'')+'" aria-selected="'+(k===value)+'"><span class="ks-dd-k">'+k+'</span><span class="ks-dd-t"><b>'+n+'</b>'+(sub?'<small>'+sub+'</small>':'')+'</span><svg class="ks-dd-ok" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>').join('');
+  menu.querySelectorAll('button').forEach(b=>{ b.onclick=e=>{ e.stopPropagation(); host.classList.remove('open'); KS_DD_OPEN=null; host.querySelector('.ks-dd-btn').setAttribute('aria-expanded','false'); if(b.dataset.k!==value) onPick(b.dataset.k); }; });
+  const cur=items.find(x=>x[0]===value)||items[0]; host.querySelector('.ks-dd-btn .ks-dd-k').textContent=cur[0]; host.querySelector('.ks-dd-btn .ks-dd-n').textContent=cur[1];
+}
+// colour chooser: preset swatches, "from the picture", and a custom colour (picker + hex + R G B)
+function ksColorPicker(host,value,onPick){
+  const custom=/^#[0-9a-f]{6}$/i.test(value||'');
+  if(!host._built){ host._built=true; host.classList.add('ks-col');
+    host.innerHTML='<div class="ks-swa">'+KS_COVCOLS.map(([k,n,ac])=>'<button type="button" data-k="'+k+'" title="'+n+'" aria-label="'+n+'" style="'+(ac?'background:'+ksHex(ac):'')+'"'+(ac?'':' class="auto"')+'></button>').join('')
+      +'<label class="ks-cust" title="Any colour"><input type="color" aria-label="Pick any colour"></label></div>'
+      +'<div class="ks-rgb"><input type="text" class="ks-hex" maxlength="7" aria-label="Hex colour" placeholder="#8b1a2b"><input type="number" min="0" max="255" aria-label="Red" data-c="0"><input type="number" min="0" max="255" aria-label="Green" data-c="1"><input type="number" min="0" max="255" aria-label="Blue" data-c="2"><span>R · G · B</span></div>';
+    const pick=v=>{ host._onPick(v); };
+    host.querySelectorAll('.ks-swa button').forEach(b=>{ b.onclick=()=>pick(b.dataset.k); });
+    const ci=host.querySelector('input[type=color]'); ci.oninput=()=>host._preview(ci.value); ci.onchange=()=>pick(ci.value);
+    const hx=host.querySelector('.ks-hex'); hx.onchange=()=>{ let v=hx.value.trim(); if(!v.startsWith('#')) v='#'+v; if(/^#[0-9a-f]{6}$/i.test(v)) pick(v.toLowerCase()); else hx.value=host._val||''; };
+    host.querySelectorAll('.ks-rgb input[type=number]').forEach(n=>{ n.onchange=()=>{ const a=[...host.querySelectorAll('.ks-rgb input[type=number]')].map(x=>Math.max(0,Math.min(255,Math.round(+x.value||0)))); pick(ksHex(a)); }; });
+    host._preview=v=>{ host.querySelector('.ks-hex').value=v; const a=ksRgb(v); host.querySelectorAll('.ks-rgb input[type=number]').forEach((n,i)=>n.value=a[i]); };
+  }
+  host._onPick=onPick; host._val=value;
+  host.querySelectorAll('.ks-swa button').forEach(b=>b.classList.toggle('on',b.dataset.k===value));
+  host.querySelector('.ks-cust').classList.toggle('on',custom);
+  const shown=custom?value:(()=>{ const c=KS_COVCOLS.find(x=>x[0]===value); return c&&c[2]?ksHex(c[2]):'#8b1a2b'; })();
+  host.querySelector('input[type=color]').value=shown; host._preview(shown); host._val=shown;
+  if(custom) host.querySelector('.ks-cust').style.background=value; else host.querySelector('.ks-cust').style.background='';
+}
+
 let KS_COVER=(()=>{ try{ const v=localStorage.getItem('ks_cover'); return KS_COVERS.some(x=>x[0]===v)?v:'E'; }catch(e){ return 'E'; } })(), KS_COV_DOC=null, KS_COV_URL=null, KS_COV_BUSY=0;
-let KS_COVCOL=(()=>{ try{ const v=localStorage.getItem('ks_covcol'); return KS_COVCOLS.some(x=>x[0]===v)?v:'red'; }catch(e){ return 'red'; } })();
-function ksCoverUi(){ const sel=$('ks-cov-lay'), col=$('ks-cov-col'); if(!sel) return;
-  if(sel.options.length!==KS_COVERS.length){ sel.innerHTML=KS_COVERS.map(([k,n])=>'<option value="'+k+'">'+k+' · '+n+'</option>').join('');
-    sel.onchange=()=>{ KS_COVER=sel.value; try{ localStorage.setItem('ks_cover',KS_COVER); }catch(e){} ksCoverUi(); ksCoverRender(); }; }
-  if(col.options.length!==KS_COVCOLS.length){ col.innerHTML=KS_COVCOLS.map(([k,n])=>'<option value="'+k+'">'+n+'</option>').join('');
-    col.onchange=()=>{ KS_COVCOL=col.value; try{ localStorage.setItem('ks_covcol',KS_COVCOL); }catch(e){} ksCoverRender(); }; }
-  sel.value=KS_COVER; col.value=KS_COVCOL; const c=KS_COVERS.find(x=>x[0]===KS_COVER); $('ks-cov-name').textContent=c?'· '+c[0]+' '+c[1]:'';
-  col.disabled=!['E','G','H','I'].includes(KS_COVER); col.title=col.disabled?'Colours apply to the Icon covers (E, G, H, I)':'';
+const ksColOk=v=>/^#[0-9a-f]{6}$/i.test(v||'')||KS_COVCOLS.some(x=>x[0]===v);
+let KS_COVCOL=(()=>{ try{ const v=localStorage.getItem('ks_covcol'); return ksColOk(v)?v:'red'; }catch(e){ return 'red'; } })();
+let KS_LEGCOL=(()=>{ try{ const v=localStorage.getItem('ks_legcol'); return ksColOk(v)?v:'red'; }catch(e){ return 'red'; } })();
+const KS_COV_SUB={A:'Picture in a frame, serif title',C:'Cream side rail with icons',D:'Navy header, spec list',E:'Icon tiles, grey strip',G:'Coloured page, white picture card',H:'Picture left, coloured column',I:'Picture top, coloured panel'};
+function ksCoverUi(){ if(!$('ks-cov-lay')) return;
+  ksDropdown($('ks-cov-lay'),KS_COVERS.map(([k,n])=>[k,n,KS_COV_SUB[k]]),KS_COVER,k=>{ KS_COVER=k; try{ localStorage.setItem('ks_cover',k); }catch(e){} ksCoverUi(); ksCoverRender(); });
+  ksColorPicker($('ks-cov-col'),KS_COVCOL,v=>{ KS_COVCOL=v; try{ localStorage.setItem('ks_covcol',v); }catch(e){} ksCoverUi(); ksCoverRender(); });
+  const c=KS_COVERS.find(x=>x[0]===KS_COVER); $('ks-cov-name').textContent=c?'· '+c[0]+' '+c[1]:'';
 }
 function ksPicTone(pic){ return new Promise(res=>{ const im=new Image(); im.onload=()=>{ try{ const c=document.createElement('canvas'); c.width=24; c.height=24; const x=c.getContext('2d'); x.drawImage(im,0,0,24,24);
   const d=x.getImageData(0,0,24,24).data; let r=0,g=0,b=0,n=0; for(let i=0;i<d.length;i+=4){ r+=d[i]; g+=d[i+1]; b+=d[i+2]; n++; } r/=n; g/=n; b/=n;
@@ -5540,10 +5616,11 @@ async function ksCoverRender(){
 }
 
 let KS_LAYOUT=(()=>{ try{ return localStorage.getItem('ks_layout')||'B'; }catch(e){ return 'B'; } })();
-function ksLayoutUi(){ const sel=$('ks-lay'); if(!sel) return;   // v63: dropdown
-  if(sel.options.length!==KS_LAYOUTS.length){ sel.innerHTML=KS_LAYOUTS.map(([k,n])=>'<option value="'+k+'">'+k+' · '+n+'</option>').join('');
-    sel.onchange=()=>{ KS_LAYOUT=sel.value; try{ localStorage.setItem('ks_layout',KS_LAYOUT); }catch(e){} ksLayoutUi(); ksLegendRender(true); }; }
-  sel.value=KS_LAYOUT; const c=KS_LAYOUTS.find(x=>x[0]===KS_LAYOUT); $('ks-lay-name').textContent=c?'· '+c[0]+' '+c[1]:'';
+const KS_LAY_SUB={A:'One table, notes on the side',B:'Two columns by stitch type',C:'A coloured tile per thread',D:'Cream paper, serif, round dots',E:'Icons and chart squares',F:'Lots of white, small type',G:'Navy header, full tables',H:'Navy header, chart squares',I:'Icon header, full tables',J:'Navy side panel, tables'};
+function ksLayoutUi(){ if(!$('ks-lay')) return;   // v65: modern dropdown + colour
+  ksDropdown($('ks-lay'),KS_LAYOUTS.map(([k,n])=>[k,n,KS_LAY_SUB[k]]),KS_LAYOUT,k=>{ KS_LAYOUT=k; try{ localStorage.setItem('ks_layout',k); }catch(e){} ksLayoutUi(); ksLegendRender(true); });
+  ksColorPicker($('ks-leg-col'),KS_LEGCOL,v=>{ KS_LEGCOL=v; try{ localStorage.setItem('ks_legcol',v); }catch(e){} ksLayoutUi(); ksLegendRender(true); });
+  const c=KS_LAYOUTS.find(x=>x[0]===KS_LAYOUT); $('ks-lay-name').textContent=c?'· '+c[0]+' '+c[1]:'';
 }
 async function ksLegendRender(onlyLegend){
   const P=KS_PARSED||(KS_CUR&&KS_CUR.parsed); const box=$('ks-leg');
@@ -5554,7 +5631,8 @@ async function ksLegendRender(onlyLegend){
     const sku=($('ks-sku').value.trim()||P.sku||'KIT').toUpperCase();
     const qr=await ksPatternLink(sku);
     ksLayoutUi();
-    const doc=await ksLegendPdf(P,{sku,name:$('ks-name').value.trim(),qr,picture:await ksLegendPicture(),layout:KS_LAYOUT});
+    const picture=await ksLegendPicture(); if(picture&&KS_LEGCOL==='auto') picture.avg=await ksPicTone(picture);
+    const doc=await ksLegendPdf(P,{sku,name:$('ks-name').value.trim(),qr,picture,layout:KS_LAYOUT,colour:KS_LEGCOL});
     if(tok!==KS_LEG_BUSY) return;
     if(KS_LEG_URL) URL.revokeObjectURL(KS_LEG_URL);
     KS_LEG_DOC=doc; KS_LEG_URL=URL.createObjectURL(doc.output('blob'));
