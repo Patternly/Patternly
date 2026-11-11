@@ -4,7 +4,7 @@
   Proprietary software: no part of this code may be copied, modified, reused or
   redistributed without written permission from UK Luca-S LTD.
   Third-party parts keep their own licences (noted where they appear).
-  Studio v65
+  Studio v66
 -->
 <html lang="en">
 <head>
@@ -5337,7 +5337,7 @@ function ksCoverKit(K,f){
   K.picFit=(x,y,w,maxH,r)=>{ const p=K.meta.picture; let h=maxH, ww=w; if(p){ h=Math.min(maxH,w*p.h/p.w); ww=Math.min(w,h*p.w/p.h); } K.pic(x+(w-ww)/2,y,ww,h,r||0); return {x:x+(w-ww)/2,w:ww,h}; };
   // shared bottom: QR + address | legal | recycling mark + Made in Moldova + barcode; languages line under
   K.foot=(M,y,opt)=>{ opt=opt||{}; const W=K.W;
-    if(opt.qr!==false) K.qr(M,y,18,false); K.font('Inter','normal',5.4,opt.col||K.INK2); doc.text(K.ADDR,M+(opt.qr===false?0:21),y+3,{lineHeightFactor:1.35});
+    K.font('Inter','normal',5.4,opt.col||K.INK2); doc.text(K.ADDR,M,y+3,{lineHeightFactor:1.35});   // v66: no QR on covers (the code is hidden inside the kit)
     const rx=W-M-40; K.font('Inter','normal',5,opt.col||K.MUTE); doc.text(K.wrap(K.T.ipo,62),(M+58+rx-4)/2+2,y+3,{align:'center',lineHeightFactor:1.35});
     try{ doc.addImage('data:image/png;base64,'+KS_CE,'PNG',rx,y-1,30,30*110/290); }catch(e){}
     K.font('Inter','bold',6.2,K.INK); doc.text('MADE IN MOLDOVA',rx,y+14.4);
@@ -5389,7 +5389,7 @@ function ksCovC(K){
   K.font('Inter','bold',15,RED); doc.text(K.meta.sku,x,y); y+=5; K.caps('Cross stitch kit',x,y,5.4,MUTE,.8); y+=10;
   const spec=[['grid',(K.P.count?K.P.count+' count ':'')+'Aida',K.fab],['thread','Luca-S mouline','Standard stranded thread'],['palette',K.C.length+' colours',K.strands],['size',K.cm,K.inch],['heart','Skill '+(+f.skill||'–')+' of 5',null]];
   spec.forEach(s=>{ K.ic[s[0]](x,y-3,4.6,RED); K.font('Inter','bold',8.2,INK); doc.text(s[1],x+8,y); if(s[2]){ K.font('Inter','normal',5.4,INK2); doc.text(K.wrap(s[2],w-8).slice(0,2),x+8,y+3.4,{lineHeightFactor:1.25}); } else if(+f.skill) K.dots(x+9.2,y+3.6,1.2,RED,CREAM); y+=13; });
-  const qy=H-12-34; K.qr(x,qy,20); K.font('Inter','normal',5,INK2); doc.text(K.ADDR,x,qy+26,{lineHeightFactor:1.35});
+  K.font('Inter','normal',5,INK2); doc.text(K.ADDR,x,H-12-14,{lineHeightFactor:1.35});
   // main
   const X=RW+12, MW=W-12-X; y=20;
   K.caps('Counted cross stitch',X,y,6,RED,.9,true); y+=14;
@@ -5420,7 +5420,7 @@ function ksCovD(K){
   spec.forEach((s,i)=>{ const yy=Math.min(M+lh+10,BH-8-4*5)+i*5; K.caps(s[0],W-M-62,yy,5,PALE,.7); K.font('Inter','bold',6.6,WHITE); doc.text(K.wrap(s[1],46)[0],W-M-46,yy); });
   const FY=H-M-34, top=BH+8, strip=22, ph=FY-8-strip-top;
   const pf=K.picFit(M,top,W-2*M,ph,1.4); K.font('Inter','normal',5,MUTE); doc.text(K.credit,pf.x+pf.w,top+pf.h+4.2,{align:'right'});
-  let y=top+pf.h+10; const items=[['Aida fabric',(K.P.count?K.P.count+' count':'')],['Luca-S mouline',K.C.length+' colours'],['Needle','ready to start'],['Printed chart','symbol key'],['Patternly app','scan the code']];
+  let y=top+pf.h+10; const items=[['Aida fabric',(K.P.count?K.P.count+' count':'')],['Luca-S mouline',K.C.length+' colours'],['Needle','ready to start'],['Printed chart','symbol key'],['Patternly app','code inside the kit']];
   const iw=(W-2*M)/5; items.forEach((it,i)=>{ const x=M+i*iw; doc.setDrawColor(...NAVY); doc.setLineWidth(.4); doc.line(x,y,x+iw-4,y);
     K.font('Inter','bold',7,RED); doc.text(String(i+1).padStart(2,'0'),x,y+5); K.font('Inter','bold',7,INK); doc.text(it[0],x+6,y+5); K.font('Inter','normal',5.4,INK2); doc.text(it[1],x+6,y+8.6); });
   K.foot(M,FY+4);
@@ -5443,9 +5443,8 @@ function ksCovE(K){
   box.forEach((b,i)=>{ const x=M+30+i*bw; doc.setFillColor(...RED); doc.roundedRect(x,y-1.5,8,8,2,2,'F'); K.ic[b[0]](x+1.8,y+.3,4.4,WHITE); K.font('Inter','bold',7,INK); doc.text(b[1],x+10.5,y+3.6); });
   // grey strip: QR, steps, address, barcode card
   doc.setFillColor(...TINT); doc.roundedRect(M,SY,W-2*M,SH,3,3,'F');
-  K.qr(M+5,SY+5,20); K.font('Inter','bold',5.4,INK); doc.text('Stitch it in Patternly',M+15,SY+31,{align:'center'});
-  const sx=M+30, sw=W-M-48-sx; ksStepsRow(K,sx,SY+5,sw,null,RED);
-  K.font('Inter','normal',5,INK2); doc.text(K.ADDR.join(' · '),sx,SY+21,{maxWidth:sw}); K.font('Inter','normal',4.6,MUTE); doc.text(K.wrap(K.T.ipo,sw),sx,SY+27,{lineHeightFactor:1.3});
+  K.font('Inter','normal',5.6,INK2); doc.text(K.ADDR,M+7,SY+10,{lineHeightFactor:1.45});
+  const lx=M+72, lw=W-M-52-lx; K.font('Inter','normal',5,MUTE); doc.text(K.wrap(K.T.ipo,lw),lx,SY+10,{lineHeightFactor:1.4});
   const bx=W-M-45; doc.setFillColor(...WHITE); doc.roundedRect(bx,SY+3,42,SH-6,2,2,'F');
   try{ doc.addImage('data:image/png;base64,'+KS_CE,'PNG',bx+3,SY+5,24,24*110/290); }catch(e){}
   K.font('Inter','bold',5.6,INK); doc.text('MADE IN MOLDOVA',bx+3,SY+18); ksEan13(doc,bx+2,SY+19.4,38,12.6,f.ean,K);
@@ -5460,9 +5459,8 @@ const KS_COVCOLS=[['red','Luca-S red',[139,26,43],[247,243,245]],['rose','Rose',
 function ksCovStrip(K,M,SY,SH){
   const {doc,W,INK,INK2,MUTE,WHITE,f}=K;
   doc.setFillColor(...K.TN); doc.roundedRect(M,SY,W-2*M,SH,3,3,'F');
-  K.qr(M+5,SY+5,20); K.font('Inter','bold',5.4,INK); doc.text('Stitch it in Patternly',M+15,SY+31,{align:'center'});
-  const sx=M+30, sw=W-M-48-sx; ksStepsRow(K,sx,SY+5,sw,null,K.AC);
-  K.font('Inter','normal',5,INK2); doc.text(K.ADDR.join(' · '),sx,SY+21,{maxWidth:sw}); K.font('Inter','normal',4.6,MUTE); doc.text(K.wrap(K.T.ipo,sw),sx,SY+27,{lineHeightFactor:1.3});
+  K.font('Inter','normal',5.6,INK2); doc.text(K.ADDR,M+7,SY+10,{lineHeightFactor:1.45});
+  const lx=M+72, lw=W-M-52-lx; K.font('Inter','normal',5,MUTE); doc.text(K.wrap(K.T.ipo,lw),lx,SY+10,{lineHeightFactor:1.4});
   const bx=W-M-45; doc.setFillColor(...WHITE); doc.roundedRect(bx,SY+3,42,SH-6,2,2,'F');
   try{ doc.addImage('data:image/png;base64,'+KS_CE,'PNG',bx+3,SY+5,24,24*110/290); }catch(e){}
   K.font('Inter','bold',5.6,INK); doc.text('MADE IN MOLDOVA',bx+3,SY+18); ksEan13(doc,bx+2,SY+19.4,38,12.6,f.ean,K);
@@ -5523,11 +5521,9 @@ function ksCovI(K){
   const FY=H-M-30, PNH=72, PY=FY-6-PNH, top=M+lh+6;
   const pf=K.picFit(M,top,W-2*M,PY-6-top,4); K.font('Inter','normal',5,MUTE); doc.text(K.credit,pf.x+pf.w,top+pf.h+4,{align:'right'});
   doc.setFillColor(...K.TN); doc.roundedRect(M,PY,W-2*M,PNH,4,4,'F');
-  let y=PY+13; ksCovName(K,M+8,y,W-2*M-60,20);
+  let y=PY+13; ksCovName(K,M+8,y,W-2*M-16,20);
   if(f.ro){ K.font('Inter','normal',7.6,INK2); doc.text(f.ro,M+8,y+6.5); }
-  const QS=28, qx=W-M-8-QS-4; doc.setFillColor(...WHITE); doc.roundedRect(qx,PY+8,QS+4,QS+11,3,3,'F'); K.qr(qx+2,PY+10,QS,false);
-  K.font('Inter','bold',5.4,INK); doc.text('Stitch it in Patternly',qx+2+QS/2,PY+QS+15,{align:'center'});
-  ksCovTiles(K,M+8,PY+PNH-8-24,qx-6-M-8,24,WHITE,4);
+  ksCovTiles(K,M+8,PY+PNH-8-26,W-2*M-16,26,WHITE);
   K.foot(M,FY+4);
 }
 
@@ -5605,7 +5601,7 @@ async function ksCoverRender(){
   try{
     const sku=($('ks-sku').value.trim()||P.sku||'KIT').toUpperCase();
     const picture=await ksLegendPicture(3000); if(picture) picture.avg=await ksPicTone(picture);
-    const doc=await ksCoverPdf(P,{sku,name:$('ks-name').value.trim(),qr:await ksPatternLink(sku),picture,layout:KS_COVER,
+    const doc=await ksCoverPdf(P,{sku,name:$('ks-name').value.trim(),qr:'',picture,layout:KS_COVER,
       fields:{ro:$('ks-ro').value.trim(),designer:$('ks-designer').value.trim(),skill:$('ks-skill').value,ean:$('ks-ean').value.replace(/\s+/g,''),colour:KS_COVCOL}});
     if(tok!==KS_COV_BUSY) return;
     if(KS_COV_URL) URL.revokeObjectURL(KS_COV_URL);
