@@ -4,7 +4,7 @@
   Proprietary software: no part of this code may be copied, modified, reused or
   redistributed without written permission from UK Luca-S LTD.
   Third-party parts keep their own licences (noted where they appear).
-  Studio v67
+  Studio v68
 -->
 <html lang="en">
 <head>
@@ -939,6 +939,14 @@
             <div class="ks-legwrap ks-covwrap"><iframe id="ks-cov-frame" title="Cover preview"></iframe></div>
             <div class="note" id="ks-cov-msg" style="margin:.4rem 0 0">Romanian name, designer, skill level and barcode come from More details.</div>
             <button class="primary" id="ks-cov-dl" type="button" style="margin-top:.7rem" disabled>Download cover PDF</button>
+          </div>
+          <div id="ks-ins" style="display:none;margin-top:1.6rem">
+            <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin:.2rem 0 .6rem">
+              <h3 style="margin:0;font-size:.95rem">Instructions preview <span style="font-weight:500;color:var(--muted)">· How to stitch, EN / RO / RU</span></h3>
+            </div>
+            <div class="ks-legwrap ks-covwrap"><iframe id="ks-ins-frame" title="Instructions preview"></iframe></div>
+            <div class="note" id="ks-ins-msg" style="margin:.4rem 0 0">Same size as the cover (225 × 310 mm). Strand counts come from the kit, the colour follows the cover colour.</div>
+            <button class="primary" id="ks-ins-dl" type="button" style="margin-top:.7rem" disabled>Download instructions PDF</button>
           </div>
         </div>
 
@@ -4525,6 +4533,7 @@ function ksBind(){
   });
   $('ks-save').onclick=ksSave;
   $('ks-leg-dl').onclick=ksLegendDownload; $('ks-cov-dl').onclick=()=>{ if(KS_COV_DOC) KS_COV_DOC.save(($('ks-sku').value.trim()||'kit').toUpperCase()+' cover '+KS_COVER+'.pdf'); };
+  $('ks-ins-dl').onclick=()=>{ if(KS_INS_DOC) KS_INS_DOC.save(($('ks-sku').value.trim()||'kit').toUpperCase()+' instructions.pdf'); };
   ['ks-ro','ks-designer','ks-skill','ks-ean'].forEach(id=>$(id).addEventListener('change',()=>{ if($('ks-cov').style.display!=='none') ksCoverRender(); }));
   ['ks-name'].forEach(id=>$(id).addEventListener('change',()=>{ if($('ks-leg').style.display!=='none') ksLegendRender(); }));
   $('ks-del').onclick=()=>{ const b=$('ks-del'); if(b.dataset.armed){ ksDelete(); } else { b.dataset.armed='1'; b.textContent='Delete kit and all its files?'; setTimeout(()=>{ delete b.dataset.armed; b.textContent='Delete kit'; },4000); } };
@@ -4563,7 +4572,7 @@ function ksOpen(it){
   $('ks-more').open=!!(fl.nameRo||fl.nameRu||fl.designer||fl.skill||fl.ean||fl.notes);
   $('ks-pic-prev').innerHTML=''; $('ks-xs-list').innerHTML=''; ksMsg('');
   $('ks-del').style.display=it?'':'none'; $('ks-save').textContent=it?'Save changes':'Save kit';
-  $('ks-leg').style.display='none'; $('ks-leg-frame').removeAttribute('src'); KS_LEG_DOC=null; $('ks-cov').style.display='none'; $('ks-cov-frame').removeAttribute('src'); KS_COV_DOC=null;
+  $('ks-leg').style.display='none'; $('ks-leg-frame').removeAttribute('src'); KS_LEG_DOC=null; $('ks-cov').style.display='none'; $('ks-cov-frame').removeAttribute('src'); KS_COV_DOC=null; $('ks-ins').style.display='none'; $('ks-ins-frame').removeAttribute('src'); KS_INS_DOC=null;
   if(it&&it.parsed) ksRenderRead(it.parsed,[]); else { $('ks-read').style.display='none'; }
   ksRenderSaved();
   window.scrollTo({top:0,behavior:'smooth'});
@@ -5590,7 +5599,7 @@ let KS_LEGCOL=(()=>{ try{ const v=localStorage.getItem('ks_legcol'); return ksCo
 const KS_COV_SUB={A:'Picture in a frame, serif title',C:'Cream side rail with icons',D:'Navy header, spec list',E:'Icon tiles, grey strip',G:'Coloured page, white picture card',H:'Picture left, coloured column',I:'Picture top, coloured panel'};
 function ksCoverUi(){ if(!$('ks-cov-lay')) return;
   ksDropdown($('ks-cov-lay'),KS_COVERS.map(([k,n])=>[k,n,KS_COV_SUB[k]]),KS_COVER,k=>{ KS_COVER=k; try{ localStorage.setItem('ks_cover',k); }catch(e){} ksCoverUi(); ksCoverRender(); });
-  ksColorPicker($('ks-cov-col'),KS_COVCOL,v=>{ KS_COVCOL=v; try{ localStorage.setItem('ks_covcol',v); }catch(e){} ksCoverUi(); ksCoverRender(); });
+  ksColorPicker($('ks-cov-col'),KS_COVCOL,v=>{ KS_COVCOL=v; try{ localStorage.setItem('ks_covcol',v); }catch(e){} ksCoverUi(); ksCoverRender(); ksInstrRender(); });
   const c=KS_COVERS.find(x=>x[0]===KS_COVER); $('ks-cov-name').textContent=c?'· '+c[0]+' '+c[1]:'';
 }
 function ksPicTone(pic){ return new Promise(res=>{ const im=new Image(); im.onload=()=>{ try{ const c=document.createElement('canvas'); c.width=24; c.height=24; const x=c.getContext('2d'); x.drawImage(im,0,0,24,24);
@@ -5612,6 +5621,161 @@ async function ksCoverRender(){
     $('ks-cov-frame').src=KS_COV_URL+'#toolbar=0&navpanes=0&view=FitH';
     $('ks-cov-msg').textContent='Romanian name, designer, skill level and barcode come from More details.'; $('ks-cov-dl').disabled=false;
   }catch(e){ if(tok===KS_COV_BUSY) $('ks-cov-msg').textContent='Could not make the cover: '+(e&&e.message||e); }
+}
+
+/* v68: "How to stitch" instructions page (Cristian 12 Nov: third download next to legend and cover, in the
+   same modern icon style). 225 × 310 mm like the cover; EN / RO / RU grouped into Prepare, Stitch, Finish and
+   Wash & iron, with 8 drawn figures. Strand counts come from the kit; colour follows the cover colour. */
+const KS_INS_T={
+  en:{t:'How to stitch',lead:'Read everything before you start. Stitch from the chart, not the cover picture: small differences are normal.',
+    g:[['prep','Prepare',[['Fold the fabric in four to find its centre and match it to the centre of the chart (the arrows).',['1']],['Stretch the fabric in a hoop without pulling it out of shape.'],['Count from the centre to find the bottom row of the design.']]],
+       ['stitch','Stitch',[['No knots. Hold the loose end on the back and cover it with your first stitches.',['2']],['Cross stitch with {n} of the 6 strands. Backstitch (if on the chart) with the “needle back” method. French knot with 1 strand.',['6','8']],['Bottom stitches first, lower left to upper right, then the top stitches back, lower right to upper left. Every cross leans the same way. Work in rows or one cross at a time.',['3A','3B','4','5']],['Half cross on the chart: make only the bottom stitch.',['half','3A']],['Keep an even, medium tension.']]],
+       ['finish','Finish',[['No knots here either. Run the thread under stitches of the same colour on the back, then cut.',['7']]]],
+       ['care','Wash & iron',[['Soak for 2–3 minutes in water at 30 °C with a mild detergent and rinse several times. Do not wring.'],['Dry flat. Iron on the back only, on a soft towel, under a clean damp cloth, so the stitches keep their relief.']]]],
+    warn:'Never iron wet embroidery.',n:n=>n===1?'1 strand':n+' strands'},
+  ro:{t:'Cum se brodează',lead:'Citiți toate instrucțiunile înainte de a începe. Brodați după schemă, nu după poza de pe copertă: pot exista mici diferențe.',
+    g:[['prep','Pregătire',[['Pliați pânza în patru pentru a-i găsi centrul și potriviți-l cu centrul schemei (săgețile).',['1']],['Întindeți pânza pe gherghef fără a o deforma.'],['Numărând de la centru, găsiți rândul de jos al broderiei.']]],
+       ['stitch','Brodare',[['Fără noduri. Țineți capătul firului pe dos și acoperiți-l cu primele cruciulițe.',['2']],['Cruciulițele se fac cu {n} din 6. Conturul (dacă este în schemă) se face punct în urma acului. Punctul nod se face cu 1 fir.',['6','8']],['Întâi pașii de jos, din stânga-jos spre dreapta-sus, apoi pașii de sus înapoi, din dreapta-jos spre stânga-sus. Toate cruciulițele au aceeași direcție. Lucrați pe rânduri sau câte o cruciuliță.',['3A','3B','4','5']],['Jumătate de cruciuliță în schemă: faceți doar pasul de jos.',['half','3A']],['Păstrați o tensiune uniformă, medie.']]],
+       ['finish','Finisare',[['Nici aici fără noduri. Treceți firul pe dos pe sub cruciulițele de aceeași culoare, apoi tăiați.',['7']]]],
+       ['care','Spălare și călcare',[['Înmuiați 2–3 minute în apă la 30 °C cu puțin detergent fin și clătiți de mai multe ori. Nu stoarceți.'],['Uscați pe o suprafață orizontală. Călcați doar pe dos, pe un prosop moale, printr-o bucată de material curat și umed, ca broderia să-și păstreze relieful.']]]],
+    warn:'Nu călcați broderia udă.',n:n=>n===1?'1 fir':n+' fire'},
+  ru:{t:'Как вышивать',lead:'Прочитайте всю инструкцию до начала работы. Вышивайте по схеме, а не по фото на обложке: небольшие отличия возможны.',
+    g:[['prep','Подготовка',[['Сложите ткань вчетверо, найдите центр и совместите его с центром схемы (стрелки).',['1']],['Натяните ткань на пяльцы, не перекашивая её.'],['Отсчитав от центра, найдите нижний ряд вышивки.']]],
+       ['stitch','Вышивка',[['Без узелков. Придержите кончик нити с изнанки и закрепите его первыми стежками.',['2']],['Крестики — в {n} из 6. Контур (если есть на схеме) — швом «назад иголку». Французский узелок — в 1 нить.',['6','8']],['Сначала нижние стежки, слева снизу вправо вверх, затем верхние обратно, справа снизу влево вверх. Все крестики в одном направлении. Работайте рядами или по одному крестику.',['3A','3B','4','5']],['Полукрестик на схеме: только нижний стежок.',['half','3A']],['Держите ровное, среднее натяжение.']]],
+       ['finish','Закрепление',[['Тоже без узелков. Протяните нить с изнанки под стежками того же цвета и обрежьте.',['7']]]],
+       ['care','Стирка и глажка',[['Замочите на 2–3 минуты в воде 30 °C с мягким средством и несколько раз прополощите. Не отжимайте.'],['Сушите на ровной поверхности. Гладьте только с изнанки, на мягком полотенце, через чистую влажную ткань, чтобы стежки сохранили рельеф.']]]],
+    warn:'Не гладьте мокрую вышивку.',n:n=>n===1?'1 нить':(n<5?n+' нити':n+' нитей')}
+};
+async function ksInstrPdf(P,meta){
+  const JsPDF=await ksJsPdf();
+  const doc=new JsPDF({unit:'mm',format:[225,310],compress:true});
+  doc.addFileToVFS('Inter-R.ttf',KS_LF.r); doc.addFont('Inter-R.ttf','Inter','normal');
+  doc.addFileToVFS('Inter-B.ttf',KS_LF.b); doc.addFont('Inter-B.ttf','Inter','bold');
+  doc.addFileToVFS('DMSerif.ttf',KS_LF.d); doc.addFont('DMSerif.ttf','DMSerif','normal');
+  doc.addFileToVFS('CS3.ttf',KS_CS3_B64); doc.addFont('CS3.ttf','CS3','normal');
+  doc.setProperties({title:meta.sku+' instructions',creator:'Patternly Studio'});
+  const K=await ksLegendKit(doc,P,meta); K.W=225; K.H=310;
+  ksInstrDraw(K);
+  return doc;
+}
+function ksInstrDraw(K){
+  const {doc,W,H,INK,MUTE,RULE}=K, AC=K.RED, M=13, CW=W-2*M;
+  const TN=[247,242,239], BAD=[216,185,193], PINK=[231,195,204], GREY=[143,138,140];
+  const n=(K.crossStr&&K.crossStr.length===1)?K.crossStr[0]:2;
+  const bn=K.B&&K.B.length?(K.backStr.length===1?K.backStr[0]:K.backStr.join('/')):1;
+  const mm=pt=>pt*0.3528;
+  // ── header ──
+  let y=11; const lw=K.logo(M,y,15); const hx=M+(lw?20:0);
+  K.caps(K.meta.sku+(K.meta.name?' · '+K.meta.name:''),hx,y+3.2,6.5,AC,.9,true);
+  K.font('Inter','bold',19,INK); doc.text('Cross stitch guide',hx,y+10.6);
+  K.font('Inter','normal',8,MUTE); doc.text('Ghid de brodare · Инструкция по вышивке',hx,y+15);
+  const pill=(txt,yy)=>{ K.font('Inter','normal',7,MUTE); const w=doc.getTextWidth(txt)+6; doc.setFillColor(246,238,240); doc.roundedRect(W-M-w,yy,w,5,2.5,2.5,'F'); doc.text(txt,W-M-3,yy+3.4,{align:'right'}); };
+  pill(n+' strands · fire · нити',y+1); pill(bn+' for backstitch · contur · контур',y+7.6);
+  y+=20; doc.setDrawColor(234,223,226); doc.setLineWidth(.3); doc.line(M,y,W-M,y);
+  // ── figures (drawn in a 100 × 76 box, shown through a 26 mm high window) ──
+  y+=4; const gap=2.6, fw=(CW-3*gap)/4, fh=28;
+  for(let i=0;i<8;i++){ const fx=M+(i%4)*(fw+gap), fy=y+Math.floor(i/4)*(fh+gap);
+    doc.setDrawColor(234,223,226); doc.setLineWidth(.3); doc.roundedRect(fx,fy,fw,fh,2.4,2.4,'S');
+    const ix=fx+1.2, iy=fy+1.2, iw=fw-2.4, ih=fh-2.4, s=iw/100, oy=iy+ih/2-38*s;
+    doc.saveGraphicsState(); doc.roundedRect(ix,iy,iw,ih,1.6,1.6,null); doc.clip(); doc.discardPath();
+    doc.setFillColor(...TN); doc.rect(ix,iy,iw,ih,'F');
+    ksInstrFig(K,i+1,(u,v)=>[ix+u*s,oy+v*s],s,{AC,MUTE,PINK,GREY,TN});
+    doc.restoreGraphicsState();
+    doc.setFillColor(...AC); doc.circle(fx+4.6,fy+4.6,2.7,'F'); K.font('Inter','bold',8,K.WHITE); doc.text(String(i+1),fx+4.6,fy+4.6+K.cy(8),{align:'center'}); }
+  y+=2*fh+gap+4;
+  // ── text, three languages; shrink the type until it fits above the footer ──
+  const footH=17, bottom=H-10-footH-4;
+  const cols=[CW*(1/3.25)-3.3,CW*(1.25/3.25)-3.4,CW*(1/3.25)-3.3], cx=[M,M+cols[0]+5,M+cols[0]+cols[1]+10];
+  const badgeW=b=>b==='half'?3.4:Math.max(3.4,doc.getTextWidth(b)+1.6);
+  const run=(sz,draw)=>{ let yy=y; const lh=mm(sz)*1.38;
+    ['en','ro','ru'].forEach((lg,li)=>{ const T=KS_INS_T[lg];
+      if(li){ yy+=1; if(draw){ doc.setDrawColor(234,223,226); doc.setLineWidth(.3); doc.line(M,yy,W-M,yy); } yy+=3; }
+      if(draw){ K.font('Inter','bold',6,K.WHITE); const cw=doc.getTextWidth(lg.toUpperCase())+2.8; doc.setFillColor(...INK); doc.roundedRect(M,yy-.6,cw,4,1.1,1.1,'F'); doc.text(lg.toUpperCase(),M+1.4,yy+2.2);
+        K.font('Inter','bold',10.5,INK); doc.text(T.t,M+cw+2.4,yy+2.9); }
+      yy+=5.6; K.font('Inter','normal',sz,MUTE); const ld=doc.splitTextToSize(T.lead,CW); if(draw) doc.text(ld,M,yy+mm(sz)*.8,{lineHeightFactor:1.38}); yy+=ld.length*lh+1.6;
+      const colY=[yy,yy,yy], place=[[0,2],[1],[3]];
+      place.forEach((gs,ci)=>{ let cy=colY[ci];
+        gs.forEach(gi=>{ const [ic,head,items]=T.g[gi];
+          if(draw){ ksInstrIcon(K,ic,cx[ci],cy-.4,3.4,AC); K.caps(head,cx[ci]+4.6,cy+2.2,7,AC,.5,true); }
+          cy+=4.6;
+          items.forEach(([txt,bd])=>{ const str=txt.replace('{n}',T.n(n)); K.font('Inter','normal',sz,INK);
+            const lines=doc.splitTextToSize(str,cols[ci]-2.4); let lastW=doc.getTextWidth(lines[lines.length-1]); const bw=(bd||[]).reduce((a,b)=>{ K.font('Inter','bold',5.4,INK); return a+badgeW(b)+.8; },0);
+            const extra=bd&&lastW+1+bw>cols[ci]-2.4?1:0;
+            if(draw){ K.font('Inter','normal',sz,INK); doc.text(lines,cx[ci]+2.4,cy+mm(sz)*.8,{lineHeightFactor:1.38}); doc.setFillColor(...BAD); doc.circle(cx[ci]+.5,cy+mm(sz)*.45,.5,'F');
+              if(bd){ let bx=extra?cx[ci]+2.4:cx[ci]+2.4+lastW+1, by=cy+(lines.length-1+extra)*lh+mm(sz)*.8-2.5;
+                bd.forEach(b=>{ K.font('Inter','bold',5.4,K.WHITE); const w=badgeW(b);
+                  if(b==='half'){ doc.setDrawColor(...INK); doc.setLineWidth(.25); doc.setFillColor(255,255,255); doc.rect(bx+.3,by+.3,2.8,2.8,'FD'); doc.setFillColor(...INK); doc.triangle(bx+.3,by+.3,bx+3.1,by+.3,bx+.3,by+3.1,'F'); }
+                  else { doc.setFillColor(...AC); doc.roundedRect(bx,by,w,3.4,1.7,1.7,'F'); doc.text(b,bx+w/2,by+2.35,{align:'center'}); }
+                  bx+=w+.8; }); } }
+            cy+=(lines.length+extra)*lh+.9; });
+          cy+=1.4; });
+        if(ci===2){ K.font('Inter','bold',sz,AC); const wl=doc.splitTextToSize(T.warn,cols[2]-8); const wh=wl.length*lh+3;
+          if(draw){ doc.setFillColor(251,238,241); doc.roundedRect(cx[2],cy,cols[2],wh,2,2,'F'); ksInstrIcon(K,'warn',cx[2]+1.6,cy+wh/2-1.6,3.2,AC); doc.text(wl,cx[2]+6,cy+1.6+mm(sz)*.8,{lineHeightFactor:1.38}); }
+          cy+=wh; }
+        colY[ci]=cy; });
+      yy=Math.max(...colY); });
+    return yy; };
+  let sz=7; while(sz>5.6 && run(sz,false)>bottom) sz-=.2;
+  run(sz,true);
+  // ── footer: Patternly (no QR here; the code stays on the colour key inside the kit) ──
+  const fy=H-10-footH; doc.setFillColor(...TN); doc.roundedRect(M,fy,CW,footH,3,3,'F');
+  K.font('Inter','bold',8.5,INK); doc.text('Stitch it on your phone too',M+4,fy+5.6);
+  K.font('Inter','normal',6.2,MUTE); doc.text(doc.splitTextToSize('Open this kit in the Patternly app with the code on your colour key · Deschideți kitul în Patternly cu codul de pe legendă · Откройте набор в Patternly по коду на ключе',CW-62),M+4,fy+9.2,{lineHeightFactor:1.35});
+  [['scan','Scan'],['open','Open'],['mark','Mark'],['prog','Progress']].forEach(([ic,l],i)=>{ const x=W-M-52+i*13; ksInstrIcon(K,ic,x+2.6,fy+4,4.6,INK); K.font('Inter','normal',6,MUTE); doc.text(l,x+4.9,fy+12.4,{align:'center'}); });
+}
+// small line icons on a 24 × 24 grid
+function ksInstrIcon(K,k,x,y,sz,col){ const d=K.doc, s=sz/24, P=(u,v)=>[x+u*s,y+v*s], L=(a,b,c,e)=>{ const p=P(a,b),q=P(c,e); d.line(p[0],p[1],q[0],q[1]); };
+  d.setDrawColor(...col); d.setLineWidth(Math.max(.25,2*s)); d.setLineCap('round'); d.setLineJoin('round');
+  if(k==='prep'){ const p=P(4,4); d.rect(p[0],p[1],16*s,16*s,'S'); d.setLineDashPattern([2*s,2*s],0); L(12,4,12,20); L(4,12,20,12); d.setLineDashPattern([],0); }
+  else if(k==='stitch'){ L(5,19,19,5); L(5,5,19,19); }
+  else if(k==='finish'){ let p=P(7,17); d.circle(p[0],p[1],3*s,'S'); p=P(17,17); d.circle(p[0],p[1],3*s,'S'); L(9,15,19,4); L(15,15,5,4); }
+  else if(k==='care'){ L(4,9,20,9); L(20,9,18,19); L(18,19,6,19); L(6,19,4,9); L(9,4,9,7); L(13,4,13,7); }
+  else if(k==='warn'){ const p=P(12,12); d.circle(p[0],p[1],9*s,'S'); L(12,7,12,13); L(12,16.5,12,17); }
+  else if(k==='scan'){ L(4,8,4,4); L(4,4,8,4); L(16,4,20,4); L(20,4,20,8); L(20,16,20,20); L(20,20,16,20); L(8,20,4,20); L(4,20,4,16); L(4,12,20,12); }
+  else if(k==='open'){ L(12,4,12,15); L(7,10,12,15); L(12,15,17,10); L(5,20,19,20); }
+  else if(k==='mark'){ L(6,6,18,18); L(18,6,6,18); }
+  else if(k==='prog'){ L(4,20,20,4); L(20,4,13,4); L(20,4,20,11); }
+  d.setLineCap('butt'); }
+// the 8 figures; T maps the 100 × 76 drawing grid to the page
+function ksInstrFig(K,n,T,s,C){ const d=K.doc;
+  const th=(w,col)=>{ d.setDrawColor(...(col||C.AC)); d.setLineWidth(w*s); d.setLineCap('round'); d.setLineJoin('round'); };
+  const L=(a,b,c,e)=>{ const p=T(a,b),q=T(c,e); d.line(p[0],p[1],q[0],q[1]); };
+  const curve=(pts)=>{ const p=T(pts[0],pts[1]); d.moveTo(p[0],p[1]); for(let i=2;i<pts.length;i+=6){ const a=T(pts[i],pts[i+1]),b=T(pts[i+2],pts[i+3]),c=T(pts[i+4],pts[i+5]); d.curveTo(a[0],a[1],b[0],b[1],c[0],c[1]); } d.stroke(); };
+  const cross=(x,y,z,half)=>{ th(2.6); L(x,y+z,x+z,y); if(!half) L(x,y,x+z,y+z); };
+  const needle=(x1,y1,x2,y2)=>{ th(1.6,C.GREY); L(x1,y1,x2,y2); const ex=x1+(x2-x1)*.1, ey=y1+(y2-y1)*.1, p=T(ex,ey); d.setFillColor(255,255,255); d.setLineWidth(.8*s); d.ellipse(p[0],p[1],(Math.abs(x2-x1)>Math.abs(y2-y1)?2.6:1.1)*s,(Math.abs(x2-x1)>Math.abs(y2-y1)?1.1:2.6)*s,'FD'); };
+  const bar=(x,y,w,h)=>{ const p=T(x,y); d.setFillColor(...C.PINK); d.roundedRect(p[0],p[1],w*s,h*s,2*s,2*s,'F'); };
+  // fabric holes
+  d.setFillColor(216,204,198); for(let x=4;x<100;x+=8) for(let y=4;y<76;y+=8){ const p=T(x,y); d.circle(p[0],p[1],.9*s,'F'); }
+  if(n===1){ th(1.3); d.setLineDashPattern([3*s,2.4*s],0); L(50,4,50,72); L(4,38,96,38); d.setLineDashPattern([],0); const p=T(50,38); d.setFillColor(...C.AC); d.circle(p[0],p[1],3.2*s,'F');
+    th(1.2,C.MUTE); [[22,18,-6,5],[78,18,6,5],[22,58,-6,-5],[78,58,6,-5]].forEach(([x,y,dx,dy])=>{ L(x,y,x+dx,y); L(x+dx,y,x+dx,y+dy); }); }
+  if(n===2){ [28,44,60].forEach(x=>bar(x,30,5,16)); th(2.4); curve([10,52,16,52,18,38,26,38]); L(26,38,78,38); needle(92,38,70,38); }
+  if(n===3){ cross(12,30,9,1); cross(24,30,9,1); cross(36,30,9,1); cross(58,30,9); cross(70,30,9); cross(82,30,9,1);
+    th(1,[229,219,215]); L(50,18,50,58); K.font('Inter','bold',11*s/0.3528,C.MUTE); let p=T(25,62); d.text('A',p[0],p[1],{align:'center'}); p=T(76,62); d.text('B',p[0],p[1],{align:'center'}); }
+  if(n===4){ cross(20,48,9); cross(34,37,9); cross(48,26,9); cross(62,15,9,1); th(1.3,C.MUTE); L(74,22,82,16); L(82,16,80.5,21); L(82,16,77,16.5); }
+  if(n===5){ cross(46,50,8); cross(46,39,8); cross(46,28,8); cross(46,17,8,1); th(1.3,C.MUTE); L(62,56,62,20); L(58,24,62,19); L(62,19,66,24); }
+  if(n===6){ th(2.6); L(12,38,28,38); L(32,38,48,38); L(52,38,68,38); th(1.6); d.setLineDashPattern([2*s,2*s],0); curve([68,38,74,38,76,52,82,52]); d.setLineDashPattern([],0); needle(92,22,72,38);
+    th(1.3,C.MUTE); L(60,26,52,26); L(52,26,55,23); L(52,26,55,29); }
+  if(n===7){ [20,30,40,50,60].forEach(x=>bar(x,26,4,24)); th(2.2); L(14,38,66,38); curve([66,38,72,38,74,46,70,52]);
+    th(1.4,C.MUTE); const sc=(u,v)=>{ const a=-30*Math.PI/180, X=u*Math.cos(a)-v*Math.sin(a), Y=u*Math.sin(a)+v*Math.cos(a); return [78+X,40+Y]; };
+    let p=T(...sc(0,10)); d.circle(p[0],p[1],3.4*s,'S'); p=T(...sc(8,10)); d.circle(p[0],p[1],3.4*s,'S'); L(...sc(1.5,7),...sc(10,-10)); L(...sc(6.5,7),...sc(-2,-10)); }
+  if(n===8){ th(1.8); curve([30,70,30,50,34,40,46,38]); th(2); let p=T(50,38); d.ellipse(p[0],p[1],5*s,2.4*s,'S'); p=T(50,42); d.ellipse(p[0],p[1],5*s,2.4*s,'S'); needle(50,12,50,66);
+    p=T(80,40); d.setFillColor(...C.AC); d.circle(p[0],p[1],5.5*s,'F'); }
+  d.setLineCap('butt'); }
+
+let KS_INS_DOC=null, KS_INS_URL=null, KS_INS_BUSY=0;
+async function ksInstrRender(){
+  const P=KS_PARSED||(KS_CUR&&KS_CUR.parsed); const box=$('ks-ins'); if(!box) return;
+  if(!P||!P.colours||!P.colours.length){ box.style.display='none'; return; }
+  box.style.display=''; const tok=++KS_INS_BUSY; $('ks-ins-dl').disabled=true;
+  try{
+    const sku=($('ks-sku').value.trim()||P.sku||'KIT').toUpperCase();
+    const picture=KS_COVCOL==='auto'?await ksLegendPicture(600):null; if(picture) picture.avg=await ksPicTone(picture);
+    const doc=await ksInstrPdf(P,{sku,name:$('ks-name').value.trim(),qr:'',picture,colour:KS_COVCOL});
+    if(tok!==KS_INS_BUSY) return;
+    if(KS_INS_URL) URL.revokeObjectURL(KS_INS_URL);
+    KS_INS_DOC=doc; KS_INS_URL=URL.createObjectURL(doc.output('blob'));
+    $('ks-ins-frame').src=KS_INS_URL+'#toolbar=0&navpanes=0&view=FitH'; $('ks-ins-dl').disabled=false;
+  }catch(e){ if(tok===KS_INS_BUSY) $('ks-ins-msg').textContent='Could not make the instructions: '+(e&&e.message||e); }
 }
 
 // v67: legend layouts offered in Studio (Cristian 11 Nov: only B). The others stay in the code; add a key here to show it again.
@@ -5642,7 +5806,7 @@ async function ksLegendRender(onlyLegend){
     $('ks-leg-frame').src=KS_LEG_URL+'#toolbar=0&navpanes=0&view=FitH';
     $('ks-leg-msg').innerHTML=qr?'QR code opens '+ksEsc(sku)+' in Patternly (the same link as its insert card).':'<span class="err">'+ksEsc(sku)+' is not in Patterns yet, so the legend has no QR code. Add the SKU in the Patterns tab, then open this kit again.</span>';
     $('ks-leg-dl').disabled=false;
-    if(!onlyLegend) ksCoverRender();
+    if(!onlyLegend){ ksCoverRender(); ksInstrRender(); }
   }catch(e){ if(tok===KS_LEG_BUSY) $('ks-leg-msg').textContent='Could not make the legend: '+(e&&e.message||e); }
 }
 // v58: the legend QR is the kit's own Patternly link (Patterns tab: access code + tracker), so nothing is typed.
