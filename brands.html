@@ -4,7 +4,7 @@
   Proprietary software: no part of this code may be copied, modified, reused or
   redistributed without written permission from UK Luca-S LTD.
   Third-party parts keep their own licences (noted where they appear).
-  Studio v69
+  Studio v70
 -->
 <html lang="en">
 <head>
@@ -955,11 +955,11 @@
           </div>
           <div id="ks-amz" style="display:none;margin-top:1.6rem">
             <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin:.2rem 0 .6rem">
-              <h3 style="margin:0;font-size:.95rem">Amazon images <span style="font-weight:500;color:var(--muted)">· 4 infographics made from this kit</span></h3>
+              <h3 style="margin:0;font-size:.95rem">Amazon images <span style="font-weight:500;color:var(--muted)">· 5 infographics made from this kit</span></h3>
             </div>
             <div class="ks-amzgrid" id="ks-amz-grid"></div>
             <div class="note" id="ks-amz-msg" style="margin:.4rem 0 0">2000 × 2000 px JPG.</div>
-            <button class="primary" id="ks-amz-all" type="button" style="margin-top:.7rem" disabled>Download all 4 images</button>
+            <button class="primary" id="ks-amz-all" type="button" style="margin-top:.7rem" disabled>Download all 5 images</button>
           </div>
         </div>
 
@@ -5792,7 +5792,7 @@ async function ksInstrRender(){
   }catch(e){ if(tok===KS_INS_BUSY) $('ks-ins-msg').textContent='Could not make the instructions: '+(e&&e.message||e); }
 }
 
-// v69: Amazon listing images (Cristian 12 Nov). Four 2000×2000 JPGs made from the kit itself:
+// v69: Amazon listing images (Cristian 12 Nov; v70 real-Tracker phone + chart image). Five 2000×2000 JPGs made from the kit itself:
 // 1 Patternly app, 2 In the box, 3 Finished size, 4 Colours. Drawn on a canvas in 1000-unit coordinates.
 let KS_AMZ_FONTS=null;
 function ksAmzFonts(){
@@ -5859,35 +5859,44 @@ const KS_AMZ_ICONS={
   pen:'M4 20l4-1 11-11-3-3L5 16z M14 6l3 3', zoom:'M11 4a7 7 0 1 0 0.01 0 M16 16l5 5 M11 8v6 M8 11h6', list:'M4 6h16 M4 12h10 M4 18h7 M18 13a3 3 0 1 0 0.01 0',
   qr:'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h3v3 M21 14v7h-7', frame:'M3 3h18v18H3z M7 7h10v10H7z', grid:'M4 4h16v16H4z M4 10h16 M4 15h16 M10 4v16 M15 4v16',
   ruler:'M3 17L17 3l4 4L7 21z M7 13l2 2 M10 10l2 2 M13 7l2 2', thread:'M6 4h12v16H6z M6 8h12 M6 12h12 M6 16h12', drop:'M12 3c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11z',
-  needle:'M5 19L19 5 M16 5a2 2 0 1 0 3 3', check:'M5 12l4 4 10-10'
+  needle:'M5 19L19 5 M16 5a2 2 0 1 0 3 3', check:'M5 12l4 4 10-10',
+  palette:'M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.5-1.5 0-1-.8-1.4-.8-2.3 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5C21 6.6 17 3 12 3z M7.5 11.5a.8.8 0 1 0 .01 0 M10 7.5a.8.8 0 1 0 .01 0 M14.5 7.5a.8.8 0 1 0 .01 0'
 };
 // ── image 1: Patternly app ───────────────────────────────────────────────────
-function ksAmzPhone(A,X,Y,rot,draw){
-  const {x}=A, W=262, H=567;
-  x.save(); x.translate(X+W/2,Y+H/2); x.rotate(rot*Math.PI/180); x.translate(-W/2,-H/2);
-  x.save(); x.shadowColor='rgba(60,20,35,.30)'; x.shadowBlur=50; x.shadowOffsetY=26; A.rr(0,0,W,H,44); x.fillStyle='#1d1720'; x.fill(); x.restore();
-  A.rr(11,11,W-22,H-22,34); x.save(); x.clip(); x.translate(11,11); draw(W-22,H-22); x.restore();
-  x.restore();
+function ksAmzPhone(A,X,Y,W,H,draw){   // v70: modern phone, thin bezel + island
+  const {x}=A;
+  x.save(); x.shadowColor='rgba(50,15,30,.32)'; x.shadowBlur=60; x.shadowOffsetY=30; A.rr(X,Y,W,H,46); x.fillStyle='#16121a'; x.fill(); x.restore();
+  A.rr(X+1.5,Y+1.5,W-3,H-3,45); x.strokeStyle='rgba(255,255,255,.18)'; x.lineWidth=1.5; x.stroke();
+  A.rr(X+8,Y+8,W-16,H-16,39); x.save(); x.clip(); x.translate(X+8,Y+8); draw(W-16,H-16); x.restore();
+  A.rr(X+W/2-38,Y+18,76,22,11); x.fillStyle='#000'; x.fill();
 }
-function ksAmzTop(A,w,D,pct){
-  const {x}=A; x.fillStyle='#fff'; x.fillRect(0,0,w,70);
-  A.rr(10,32,28,28,14); x.strokeStyle='#e4dde1'; x.lineWidth=1; x.stroke(); A.t('‹',24,52,{sz:20,al:'center'});
-  const nm=D.name||D.sku; A.f(13,700); let n=nm; while(x.measureText(n).width>150&&n.length>4) n=n.slice(0,-2); if(n!==nm) n=n.trim()+'…';
-  A.t(n,46,44,{sz:13,w:700}); A.t(pct+'% done · +'+Math.max(12,Math.round(D.stitches*.02))+' today',46,60,{sz:10,col:D.INK2});
-  A.rr(w-38,32,28,28,14); x.stroke(); A.t('⋯',w-24,51,{sz:16,al:'center',w:700});
-}
-function ksAmzChartView(A,D,w,h,top,cells,cols,rows,c0,r0,n,doneFn){
-  const {x}=A, cs=w/n, m=Math.ceil((h-top)/cs);
-  x.fillStyle='#fff'; x.fillRect(0,top,w,h-top);
-  for(let r=0;r<m;r++) for(let c=0;c<n;c++){ const cc=c0+c, rr=r0+r; if(cc>=cols||rr>=rows) continue;
-    const col=D.C[cells[rr*cols+cc]], X=c*cs, Y=top+r*cs, done=doneFn(cc,rr);
-    x.fillStyle=ksCss(done?col.rgb:ksMix(col.rgb,[255,255,255],.55)); x.fillRect(X,Y,cs,cs);
-    if(!done) A.sym(col,X+cs/2,Y+cs/2,cs*.72,A.on(ksMix(col.rgb,[255,255,255],.55)));
-    else { x.strokeStyle='rgba(0,0,0,.18)'; x.lineWidth=.8; x.beginPath(); x.moveTo(X+2,Y+2); x.lineTo(X+cs-2,Y+cs-2); x.moveTo(X+cs-2,Y+2); x.lineTo(X+2,Y+cs-2); x.stroke(); } }
-  x.strokeStyle='rgba(0,0,0,.10)'; x.lineWidth=.5; for(let c=0;c<=n;c++){ x.beginPath(); x.moveTo(c*cs,top); x.lineTo(c*cs,h); x.stroke(); }
-  for(let r=0;r<=m;r++){ x.beginPath(); x.moveTo(0,top+r*cs); x.lineTo(w,top+r*cs); x.stroke(); }
-  x.strokeStyle='rgba(0,0,0,.45)'; x.lineWidth=1.1; for(let c=0;c<=n;c++) if((c0+c)%10===0){ x.beginPath(); x.moveTo(c*cs,top); x.lineTo(c*cs,h); x.stroke(); }
-  for(let r=0;r<=m;r++) if((r0+r)%10===0){ x.beginPath(); x.moveTo(0,top+r*cs); x.lineTo(w,top+r*cs); x.stroke(); }
+function ksAmzTracker(A,D,w,h,cells,cols,rows,c0,r0,n,doneFn,pct){
+  const {x}=A, RL=24, TOP=96, cs=(w-RL)/n, m=Math.ceil((h-TOP-RL)/cs)+1, GREEN=[96,190,110];
+  x.fillStyle='#1f1b22'; x.fillRect(0,0,w,h);
+  // cells: colour + symbol; finished stitches light up green
+  for(let r=0;r<m;r++) for(let c=0;c<n;c++){ const cc=c0+c, rr=r0+r; if(cc>=cols||rr>=rows||cc<0||rr<0) continue;
+    const col=D.C[cells[rr*cols+cc]], X=RL+c*cs, Y=TOP+RL+r*cs, rgb=doneFn(cc,rr)?ksMix(col.rgb,GREEN,.5):col.rgb;
+    x.fillStyle=ksCss(rgb); x.fillRect(X,Y,cs+.3,cs+.3); A.sym(col,X+cs/2,Y+cs/2,cs*.66,A.on(rgb)); }
+  x.strokeStyle='rgba(0,0,0,.16)'; x.lineWidth=.5;
+  for(let c=0;c<=n;c++){ x.beginPath(); x.moveTo(RL+c*cs,TOP+RL); x.lineTo(RL+c*cs,h); x.stroke(); }
+  for(let r=0;r<=m;r++){ x.beginPath(); x.moveTo(RL,TOP+RL+r*cs); x.lineTo(w,TOP+RL+r*cs); x.stroke(); }
+  x.strokeStyle='rgba(20,15,20,.75)'; x.lineWidth=1.2;
+  for(let c=0;c<=n;c++) if((c0+c)%10===0){ x.beginPath(); x.moveTo(RL+c*cs,TOP); x.lineTo(RL+c*cs,h); x.stroke(); A.t(String(c0+c),RL+c*cs,TOP+17,{sz:10,w:700,col:'#fff',al:'center'}); }
+  for(let r=0;r<=m;r++) if((r0+r)%10===0){ x.beginPath(); x.moveTo(0,TOP+RL+r*cs); x.lineTo(w,TOP+RL+r*cs); x.stroke(); A.t(String(r0+r),RL-4,TOP+RL+r*cs-3,{sz:10,w:700,col:'#fff',al:'right'}); }
+  x.fillStyle='#1f1b22'; x.fillRect(0,0,w,TOP); x.fillRect(0,TOP,RL,RL);
+  // status bar + floating header card
+  A.t('9:41',30,24,{sz:12,w:700,col:'#fff'}); x.fillStyle='#fff'; A.rr(w-46,15,22,10,3); x.fill(); x.fillRect(w-24,18,2,4);
+  x.save(); x.shadowColor='rgba(0,0,0,.25)'; x.shadowBlur=14; A.rr(8,40,w-16,50,18); x.fillStyle='#fff'; x.fill(); x.restore();
+  x.beginPath(); x.arc(34,65,15,0,7); x.strokeStyle='#e8e1e5'; x.lineWidth=1; x.stroke(); A.t('‹',34,71,{sz:18,al:'center'});
+  const nm=D.name||D.sku; A.f(13,700); let s=nm; while(x.measureText(s).width>w-150&&s.length>4) s=s.slice(0,-2); if(s!==nm) s=s.trim()+'…';
+  A.t(s,58,62,{sz:13,w:700}); A.t(pct+'% done · +'+Math.max(12,Math.round(D.stitches*.03)).toLocaleString('en-GB')+' today',58,78,{sz:10,col:D.INK2});
+  x.beginPath(); x.arc(w-64,65,9,0,7); x.strokeStyle='#eee'; x.lineWidth=2.4; x.stroke(); x.beginPath(); x.arc(w-64,65,9,-Math.PI/2,-Math.PI/2+Math.PI*2*pct/100); x.strokeStyle=ksCss(D.AC); x.stroke();
+  x.beginPath(); x.arc(w-30,65,15,0,7); x.strokeStyle='#e8e1e5'; x.lineWidth=1; x.stroke(); A.t('•••',w-30,69,{sz:9,w:700,al:'center'});
+  // picture thumbnail + palette button
+  if(D.pic){ const pw=46, ph=Math.min(110,pw*D.pic.height/D.pic.width); x.save(); x.shadowColor='rgba(0,0,0,.3)'; x.shadowBlur=8; A.rr(w-pw-10,TOP+RL+8,pw,ph,7); x.fillStyle='#fff'; x.fill(); x.restore();
+    A.rr(w-pw-8,TOP+RL+10,pw-4,ph-4,6); x.save(); x.clip(); const s2=Math.max((pw-4)/D.pic.width,(ph-4)/D.pic.height); x.drawImage(D.pic,w-pw-8+(pw-4-D.pic.width*s2)/2,TOP+RL+10+(ph-4-D.pic.height*s2)/2,D.pic.width*s2,D.pic.height*s2); x.restore(); }
+  x.beginPath(); x.arc(w-38,h-44,24,0,7); x.fillStyle='#1d1720'; x.fill(); x.strokeStyle='#fff'; x.lineWidth=2.5; x.stroke(); A.ico('palette',w-50,h-56,24,'#fff');
+  A.rr(w/2-50,h-10,100,4,2); x.fillStyle='rgba(255,255,255,.7)'; x.fill();
 }
 function ksAmzImg1(D){
   const A=ksAmzCanvas(D), {x}=A; A.bg();
@@ -5897,30 +5906,58 @@ function ksAmzImg1(D){
   A.t("Your kit's chart also opens in the Patternly app,",62,306,{sz:24,col:D.INK2}); A.t('made by Luca-S.',62,338,{sz:24,col:D.INK2});
   [['pen','Tap to mark stitches','Finished areas light up,','so you never lose your place'],['zoom','Zoom in on any symbol','Big, clear symbols','on any screen'],['list','See what\'s left','Stitches left for each colour','and your % done']].forEach(([ic,h,a,b],i)=>{
     const Y=420+i*130; A.card(52,Y,58,58,18); A.ico(ic,66,Y+14,30); A.t(h,126,Y+24,{sz:23,w:700}); A.t(a,126,Y+52,{sz:18,col:D.INK2}); A.t(b,126,Y+76,{sz:18,col:D.INK2}); });
-  // chart cells for both phones
   const cols=Math.max(20,Math.min(D.w||60,300)), rows=Math.max(20,Math.min(D.h||80,400)); const cells=ksAmzCells(D,cols,rows);
-  const n=17, c0=Math.max(0,Math.round(cols/2-n/2)), r0=Math.max(0,Math.round(rows*.42-14));
-  const pct=41, doneFn=(c,r)=>r>r0+16||(r===r0+16&&c<c0+9);
-  ksAmzPhone(A,668,300,5,(w,h)=>{ x.fillStyle='#f4f1f3'; x.fillRect(0,0,w,h);
-    ksAmzChartView(A,D,w,h,70,cells,cols,rows,c0+3,r0-4,n+1,doneFn); ksAmzTop(A,w,D,pct);
-    // colours sheet
-    const sy=h*.44; x.save(); x.shadowColor='rgba(0,0,0,.18)'; x.shadowBlur=20; A.rr(0,sy,w,h,18); x.fillStyle='#fff'; x.fill(); x.restore();
-    A.rr(w/2-16,sy+7,32,4,2); x.fillStyle='#ddd'; x.fill();
-    A.t('Colours',14,sy+40,{sz:17,fam:'serif'}); A.t(String(D.C.length),80,sy+40,{sz:11,col:D.INK2});
-    const list=[...D.C].sort((a,b)=>b.st-a.st).slice(0,7);
-    list.forEach((c,i)=>{ const Y=sy+58+i*38, p=.2+((c.i*37)%60)/100, left=Math.max(1,Math.round(c.st*(1-p)));
-      A.rr(12,Y,24,24,6); x.fillStyle=ksCss(c.rgb); x.fill(); x.strokeStyle='rgba(0,0,0,.12)'; x.stroke(); A.sym(c,24,Y+12,15,A.on(c.rgb));
-      A.t('Luca-S-'+c.thread,44,Y+12,{sz:11,w:700}); A.t(left.toLocaleString('en-GB')+' left',w-12,Y+12,{sz:9,col:D.INK2,al:'right'});
-      A.rr(44,Y+19,w-58,3,1.5); x.fillStyle='#efe8ec'; x.fill(); A.rr(44,Y+19,(w-58)*p,3,1.5); x.fillStyle=ksCss(D.AC); x.fill(); });
-  });
-  ksAmzPhone(A,410,330,-4,(w,h)=>{ x.fillStyle='#f4f1f3'; x.fillRect(0,0,w,h);
-    ksAmzChartView(A,D,w,h,70,cells,cols,rows,c0,r0,n,doneFn); ksAmzTop(A,w,D,pct);
-    if(D.pic){ const pw=40, ph=pw*D.pic.height/D.pic.width; A.rr(w-pw-8,78,pw,ph,6); x.save(); x.clip(); x.drawImage(D.pic,w-pw-8,78,pw,ph); x.restore(); x.strokeStyle='#fff'; x.lineWidth=2; A.rr(w-pw-8,78,pw,ph,6); x.stroke(); }
-    x.beginPath(); x.arc(w-34,h-36,22,0,7); x.fillStyle='#1d1720'; x.fill(); A.ico('drop',w-46,h-48,24,'#fff');
-  });
+  const n=13, c0=Math.max(0,Math.round(cols/2-n/2)), r0=Math.max(0,Math.round(rows*.45-12)), pct=41;
+  const doneFn=(c,r)=>r>r0+12||(r===r0+12&&c<c0+7);
+  ksAmzPhone(A,600,296,300,576,(w,h)=>ksAmzTracker(A,D,w,h,cells,cols,rows,c0,r0,n,doneFn,pct));
+  // floating Colours card, overlapping the phone
+  const list=[...D.C].sort((a,b)=>b.st-a.st).slice(0,4), CX=440, CY=640, CW=250, CH=58+list.length*44;
+  A.card(CX,CY,CW,CH,20); A.t('Colours',CX+18,CY+36,{sz:20,fam:'serif'}); A.t(String(D.C.length),CX+96,CY+36,{sz:13,col:D.INK2});
+  list.forEach((c,i)=>{ const Y=CY+52+i*44, p=.25+((c.i*37)%55)/100, left=Math.max(1,Math.round(c.st*(1-p)));
+    A.rr(CX+16,Y,28,28,7); x.fillStyle=ksCss(c.rgb); x.fill(); x.strokeStyle='rgba(0,0,0,.12)'; x.lineWidth=1; x.stroke(); A.sym(c,CX+30,Y+14,17,A.on(c.rgb));
+    A.t('Luca-S-'+c.thread,CX+54,Y+13,{sz:13,w:700}); A.t(left.toLocaleString('en-GB')+' left',CX+CW-16,Y+13,{sz:11,col:D.INK2,al:'right'});
+    A.rr(CX+54,Y+21,CW-70,4,2); x.fillStyle='#efe8ec'; x.fill(); A.rr(CX+54,Y+21,(CW-70)*p,4,2); x.fillStyle=ksCss(D.AC); x.fill(); });
   x.fillStyle=ksCss(D.DARK); x.fillRect(0,882,1000,118);
   x.save(); x.setLineDash([6,5]); x.strokeStyle=ksCss(ksMix(D.AC,[255,255,255],.65)); x.lineWidth=2.5; A.rr(60,908,66,66,14); x.stroke(); x.restore(); A.ico('qr',75,923,36,'#fff');
   A.t('Scan the code inside your kit',148,936,{sz:27,w:700,col:'#fff'}); A.t('Your pattern opens in Patternly · App Store & Google Play',148,964,{sz:19,col:'rgba(255,255,255,.78)'});
+  return A.cv;
+}
+// ── image 5: reading the chart ───────────────────────────────────────────────
+function ksAmzImg5(D){
+  const A=ksAmzCanvas(D), {x}=A; A.bg(); ksAmzBrand(A);
+  A.title('An easy chart to read','Clear symbols, a colour key and a bold line every 10 stitches.',112);
+  const cols=Math.max(30,Math.min(D.w||60,300)), rows=Math.max(30,Math.min(D.h||80,400)); const cells=ksAmzCells(D,cols,rows);
+  const n=14, cs=37, X0=60, Y0=262, c0=Math.max(0,Math.round(cols/2-n/2)), r0=Math.max(0,Math.round(rows/2-n/2));
+  // align a bold 10-line inside the view
+  const off=(10-(c0%10))%10, roff=(10-(r0%10))%10;
+  A.card(X0-14,Y0-14,n*cs+28,n*cs+28,16);
+  const used=new Map();
+  for(let r=0;r<n;r++) for(let c=0;c<n;c++){ const k=cells[(r0+r)*cols+c0+c], col=D.C[k]; used.set(k,(used.get(k)||0)+1);
+    A.sym(col,X0+c*cs+cs/2,Y0+r*cs+cs/2,cs*.72,'#2b2226'); }
+  x.strokeStyle='rgba(0,0,0,.18)'; x.lineWidth=.7;
+  for(let i=0;i<=n;i++){ x.beginPath(); x.moveTo(X0+i*cs,Y0); x.lineTo(X0+i*cs,Y0+n*cs); x.stroke(); x.beginPath(); x.moveTo(X0,Y0+i*cs); x.lineTo(X0+n*cs,Y0+i*cs); x.stroke(); }
+  x.strokeStyle='#2b2226'; x.lineWidth=2.2;
+  x.beginPath(); x.moveTo(X0+off*cs,Y0); x.lineTo(X0+off*cs,Y0+n*cs); x.stroke(); x.beginPath(); x.moveTo(X0,Y0+roff*cs); x.lineTo(X0+n*cs,Y0+roff*cs); x.stroke();
+  // highlighted cell
+  const hc=Math.min(n-2,off+3), hr=Math.min(n-2,roff+3); const hk=cells[(r0+hr)*cols+c0+hc], hcol=D.C[hk];
+  x.strokeStyle=ksCss(D.AC); x.lineWidth=3.5; A.rr(X0+hc*cs-3,Y0+hr*cs-3,cs+6,cs+6,6); x.stroke();
+  // callouts
+  const KX=600, num=(k,X,Y)=>{ x.beginPath(); x.arc(X,Y,16,0,7); x.fillStyle=ksCss(D.AC); x.fill(); A.t(k,X,Y+6,{sz:16,w:700,col:'#fff',al:'center'}); };
+  num('1',X0+hc*cs+cs+18,Y0+hr*cs-14);
+  num('3',X0+off*cs,Y0-34);
+  // key card: the highlighted colour first, then the most used in this piece
+  const keys=[hk,...[...used.entries()].sort((a,b)=>b[1]-a[1]).map(e=>e[0]).filter(k=>k!==hk)].slice(0,4);
+  const KY=262, KW=340, KH=60+keys.length*54; A.card(KX,KY,KW,KH,20);
+  A.t('COLOUR KEY',KX+22,KY+36,{sz:13,w:700,col:D.INK2,sp:1.5}); num('2',KX+KW-30,KY+30);
+  keys.forEach((k,i)=>{ const c=D.C[k], Y=KY+56+i*54; if(i===0){ A.rr(KX+10,Y-4,KW-20,48,12); x.fillStyle=ksCss(D.TN); x.fill(); }
+    A.rr(KX+22,Y+4,32,32,7); x.fillStyle='#fff'; x.fill(); x.strokeStyle='rgba(0,0,0,.2)'; x.lineWidth=1; x.stroke(); A.sym(c,KX+38,Y+20,22,'#2b2226');
+    A.rr(KX+66,Y+4,32,32,7); x.fillStyle=ksCss(c.rgb); x.fill(); x.stroke();
+    A.t('Luca-S '+c.thread,KX+112,Y+19,{sz:17,w:700}); A.t(c.str+' strands',KX+112,Y+37,{sz:13,col:D.INK2}); });
+  const steps=[['1','One symbol = one cross stitch'],['2','Find the symbol in the key to get the thread'],['3','Bold lines every 10 stitches help you count']];
+  let sy=KY+KH+44; steps.forEach(([k,s])=>{ num(k,KX+16,sy-6); const l=A.wrap(s,KW-50,18); l.forEach((t,i)=>A.t(t,KX+44,sy+i*24,{sz:18,col:D.INK})); sy+=l.length*24+22; });
+  const facts=[]; if(D.w) facts.push([D.w+' × '+D.h,'stitches']); facts.push([String(D.C.length),'symbols']); if(D.count) facts.push([D.count+' ct',D.fab]);
+  if(D.strands) facts.push([D.strands+' strands','for crosses']);
+  A.facts(facts,850);
   return A.cv;
 }
 // ── image 2: in the box ──────────────────────────────────────────────────────
@@ -6026,7 +6063,7 @@ function ksAmzImg4(D){
   A.facts(facts,850);
   return A.cv;
 }
-const KS_AMZ_SET=[['app','Patternly app',ksAmzImg1],['box','In the box',ksAmzImg2],['size','Finished size',ksAmzImg3],['colours','Colours',ksAmzImg4]];
+const KS_AMZ_SET=[['app','Patternly app',ksAmzImg1],['box','In the box',ksAmzImg2],['size','Finished size',ksAmzImg3],['colours','Colours',ksAmzImg4],['chart','Reading the chart',ksAmzImg5]];
 async function ksAmzMake(P,meta){
   await ksAmzFonts(); await document.fonts.ready;
   const D=ksAmzData(P,meta); const out=[];
