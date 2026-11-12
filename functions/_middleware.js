@@ -15,7 +15,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v124";
+const MW_VERSION = "v126";
 
 // v107: the help sheet the in-app AI assistant answers from (/help/chat). Keep it
 // to facts that are true in the live app; update it when a feature changes.
@@ -89,6 +89,18 @@ function b64FromBuf(buf) {
 }
 // One feedback record per AI chat, "fb:<chat start ts>:<last 6 of the chat id>", rewritten
 // after every answer with the whole conversation (first question + latest turns, ≤6,000 chars).
+// v126: "fbconv:<chat id>" lists the inbox records of one chat, so the person who
+// wrote it can delete it (POST /help/delete). Kept a little longer than the chats.
+async function fbConvIndex(env, conv, id) {
+  try {
+    if (!conv || !id) return;
+    const k = "fbconv:" + conv;
+    let a = []; try { a = JSON.parse((await env.ENTITLEMENTS.get(k)) || "[]") || []; } catch (e) { a = []; }
+    if (a.indexOf(id) !== -1 || a.length >= 60) return;
+    a.push(id);
+    await env.ENTITLEMENTS.put(k, JSON.stringify(a), { expirationTtl: (FB_KEEP_DAYS + 10) * 86400 });
+  } catch (e) {}
+}
 async function fbChatSave(env, conv, p) {
   const now = Date.now();
   let t = parseInt(conv.slice(0, 8), 36);
@@ -102,6 +114,7 @@ async function fbChatSave(env, conv, p) {
     if (total >= 5000) return;
     try { await env.ENTITLEMENTS.put("fbcount", String(total + 1)); } catch (e) {}
     rec = { id, ts: t, status: "new", chat: true, conv };
+    await fbConvIndex(env, conv, id);
   }
   if (p.hist) {
     const lines = p.hist.map((m) => (m.role === "user" ? "Customer: " : "Assistant: ") + m.content);
@@ -3922,6 +3935,33 @@ function visitorCountry(request) {
 }
 // A signed-in customer who opens a kit while it is free in their country keeps
 // that kit free if the country list later changes (Cristian, 10 Nov 2026).
+// v125: the erased-cell list that travels with stitch progress (editor v752).
+// "idx:s:t,..." in base 36: cell index, s=0 erased / s=1 marked again, t=ms.
+// Merges two lists, the newest entry per cell wins (a tie keeps the stitch).
+// A time from a device whose clock runs ahead is pulled back to now, so one
+// wrong clock cannot win every merge. Newest OV_CAP entries are kept.
+const OV_CAP = 6000;
+function ovMerge(a, b) {
+  const now = Date.now(), m = new Map();
+  for (const src of [a, b]) {
+    if (typeof src !== "string" || !src || src.length > 200000) continue;
+    for (const part of src.split(",")) {
+      const q = part.split(":");
+      if (q.length !== 3) continue;
+      const i = parseInt(q[0], 36), sv = q[1] === "1" ? 1 : 0;
+      let t = parseInt(q[2], 36);
+      if (!/^[0-9a-z]{1,5}:[01]:[0-9a-z]{8,9}$/.test(part)) continue;
+      if (!(i >= 0) || i > 4000000 || !(t > 1e12)) continue;
+      if (t > now + 300000) t = now;
+      const cur = m.get(i);
+      if (!cur || t > cur.t || (t === cur.t && sv && !cur.s)) m.set(i, { s: sv, t });
+    }
+  }
+  if (!m.size) return "";
+  const arr = [...m.entries()].sort((x, y) => y[1].t - x[1].t || x[0] - y[0]).slice(0, OV_CAP);
+  return arr.map(([i, e]) => i.toString(36) + ":" + e.s + ":" + e.t.toString(36)).join(",");
+}
+
 async function freeKitLatch(auth, request, env, sku) {
   try {
     if (!auth || !auth.customerId || !env.ENTITLEMENTS || !sku) return;
@@ -4672,6 +4712,67 @@ async function handleRequest(context) {
     return out({ ok: true, text });
   }
 
+  // v126: POST /help/delete {conv} — "Delete this chat" in the help chat (Cristian, 12 Nov
+  // 2026: people can remove their chat themselves instead of waiting for the 90 days).
+  // Deletes every inbox record of that chat (the saved AI chat and the messages sent to
+  // the team) and its attached files, now. The chat id is the only key: it exists only
+  // in the page that wrote the chat. 10 a day per account or address.
+  if (url.pathname.endsWith("/help/delete") && url.pathname.indexOf("/partner/") < 0) {
+    const h = { "content-type": "application/json", "cache-control": "no-store" };
+    const out = (code, obj) => new Response(JSON.stringify(obj), { status: code, headers: h });
+    if (request.method !== "POST") return out(405, { ok: false, error: "method not allowed" });
+    if (!env.ENTITLEMENTS) return out(200, { ok: false, error: "not available right now" });
+    let b; try { b = await request.json(); } catch (e) { return out(200, { ok: false, error: "bad json" }); }
+    const conv = String((b && b.conv) || "");
+    if (!/^[a-z0-9]{12,20}$/.test(conv)) return out(200, { ok: false, error: "bad chat" });
+    const who = await fbWho(request, auth);
+    const rk = "rlfbd:" + new Date().toISOString().slice(0, 10) + ":" + who;
+    let n = 0; try { n = +((await env.ENTITLEMENTS.get(rk)) || 0) || 0; } catch (e) {}
+    if (n >= 10) return out(200, { ok: false, error: "limit", limit: true });
+    try { await env.ENTITLEMENTS.put(rk, String(n + 1), { expirationTtl: 90000 }); } catch (e) {}
+
+    const ids = new Set();
+    let indexed = false;
+    try { const a = JSON.parse((await env.ENTITLEMENTS.get("fbconv:" + conv)) || "null"); if (Array.isArray(a)) { indexed = true; a.forEach((x) => ids.add(String(x))); } } catch (e) {}
+    const t0 = parseInt(conv.slice(0, 8), 36);
+    if (t0 > 0) {
+      ids.add(String(t0).padStart(13, "0") + ":" + conv.slice(-6).toUpperCase().padStart(6, "X"));
+      // Chats from before the index: look through the inbox records of the ~2 days after the chat began.
+      if (!indexed) {
+        const bucket = Math.floor(t0 / 1e8);
+        let reads = 0;
+        for (const bk of [bucket, bucket + 1]) {
+          try {
+            const l = await env.ENTITLEMENTS.list({ prefix: "fb:" + String(bk).padStart(5, "0"), limit: 400 });
+            for (const k of l.keys) { if (reads++ >= 400) break; ids.add(k.name.slice(3)); }
+          } catch (e) {}
+        }
+      }
+    }
+    let gone = 0, files = 0;
+    for (const id of ids) {
+      if (!/^\d{13}:[A-Za-z0-9]{6}$/.test(id)) continue;
+      let rec = null; try { rec = JSON.parse((await env.ENTITLEMENTS.get("fb:" + id)) || "null"); } catch (e) {}
+      if (!rec || rec.conv !== conv) continue;               // only records of exactly this chat
+      for (const f of (rec.files || [])) { try { if (env.PATTERNS && f && /^fbf\//.test(f.k) && f.k.split("/")[2] === conv) { await env.PATTERNS.delete(f.k); files++; } } catch (e) {} }
+      try { await env.ENTITLEMENTS.delete("fb:" + id); gone++; } catch (e) {}
+    }
+    // Files uploaded in this chat that no record kept.
+    if (env.PATTERNS && t0 > 0) {
+      for (const d of [t0, t0 + 86400000, Date.now()]) {
+        try {
+          const day = new Date(d).toISOString().slice(0, 10);
+          const l = await env.PATTERNS.list({ prefix: "fbf/" + day + "/" + conv + "/", limit: 100 });
+          for (const o of (l.objects || [])) { try { await env.PATTERNS.delete(o.key); files++; } catch (e) {} }
+        } catch (e) {}
+      }
+    }
+    try { await env.ENTITLEMENTS.delete("fbconv:" + conv); } catch (e) {}
+    if (gone) { try { const c = +((await env.ENTITLEMENTS.get("fbcount")) || 0) || 0; await env.ENTITLEMENTS.put("fbcount", String(Math.max(0, c - gone))); } catch (e) {} }
+    if (files) { try { const c = +((await env.ENTITLEMENTS.get("fbfcount")) || 0) || 0; await env.ENTITLEMENTS.put("fbfcount", String(Math.max(0, c - files))); } catch (e) {} }
+    return out(200, { ok: true, removed: gone, files });
+  }
+
   // v106: POST /feedback — the in-app help chat ("Help & suggestions"): one record per message,
   // kind = problem | idea | question | account | other, optional first name and a chat id (conv).
   // Stored in ENTITLEMENTS under "fb:<ts>:<rand>" (value = full record, metadata =
@@ -4717,6 +4818,7 @@ async function handleRequest(context) {
     if (files.length) rec.files = files;
     await env.ENTITLEMENTS.put("fb:" + id, JSON.stringify(rec), { metadata: { kind, status: "new", ts } });
     try { await env.ENTITLEMENTS.put("fbcount", String(total + 1)); } catch (e) {}
+    if (conv) await fbConvIndex(env, conv, id);   // v126
     return out(200, { ok: true });
   }
 
@@ -5281,6 +5383,15 @@ async function handleRequest(context) {
         sessions: body.sessions | 0,
         ts: Date.now()
       };
+      // v125: keep the erased-cell list. An older app sends none: the stored
+      // list stays as it is. A failure here must never stop the progress save.
+      try {
+        let prevOv = "";
+        const prevRaw = await env.ENTITLEMENTS.get(key);
+        if (prevRaw) { try { prevOv = JSON.parse(prevRaw).ov || ""; } catch (e) {} }
+        const ov = ovMerge(prevOv, typeof body.ov === "string" ? body.ov : "");
+        if (ov) rec.ov = ov;
+      } catch (e) { console.warn("progress ov merge failed:", e.message); }
       await env.ENTITLEMENTS.put(key, JSON.stringify(rec));
       // v97: automatic notifications run after the save, off the response path.
       try { const job = pushAutoOnProgress(env, auth.customerId, sku, rec, ""); if (context.waitUntil) context.waitUntil(job); } catch (e) {}
@@ -5382,6 +5493,12 @@ async function handleRequest(context) {
         // ?part=progress returns the packed per-cell stitched state (stored as a
         // separate R2 object) so a new device restores EXACT marks, not just the
         // done/total counts held in KV.
+        if (new URL(request.url).searchParams.get("part") === "ov") {            // v125
+          const oobj = await env.USER_PATTERNS.get(blobKey + ".ov");
+          return new Response(oobj ? await oobj.text() : "", {
+            headers: { "content-type": "text/plain", "cache-control": "no-store" }
+          });
+        }
         if (new URL(request.url).searchParams.get("part") === "progress") {
           const pobj = await env.USER_PATTERNS.get(blobKey + ".progress");
           if (!pobj) return bad("notfound", 404);
@@ -5456,6 +5573,15 @@ async function handleRequest(context) {
               await env.USER_PATTERNS.delete(blobKey + ".progress");
             }
           } catch (e) {}
+          // v125: erased-cell list, merged with the stored one. Untouched when
+          // an older app sends none.
+          try {
+            if (typeof body.ov === "string" && body.ov) {
+              const prevObj = await env.USER_PATTERNS.get(blobKey + ".ov");
+              const ov = ovMerge(prevObj ? await prevObj.text() : "", body.ov);
+              if (ov) await env.USER_PATTERNS.put(blobKey + ".ov", ov, { httpMetadata: { contentType: "text/plain" } });
+            }
+          } catch (e) {}
           return new Response(JSON.stringify({ ok: true, id, ts: rec.ts }), {
             headers: { "content-type": "application/json", "cache-control": "no-store" }
           });
@@ -5472,6 +5598,7 @@ async function handleRequest(context) {
       if (request.method === "DELETE") {
         await env.USER_PATTERNS.delete(blobKey);
         try { await env.USER_PATTERNS.delete(blobKey + ".progress"); } catch (e) {}
+        try { await env.USER_PATTERNS.delete(blobKey + ".ov"); } catch (e) {}
         await env.ENTITLEMENTS.delete(metaKey);
         // Tombstone the deletion so other devices prune their local copy. TTL ~90d.
         try { const _t = Date.now(); await env.ENTITLEMENTS.put("updel:" + auth.customerId + ":" + id, JSON.stringify({ ts: _t }), { expirationTtl: 7776000, metadata: { ts: _t } }); } catch (e) {}
