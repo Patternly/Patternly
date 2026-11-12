@@ -4,7 +4,7 @@
   Proprietary software: no part of this code may be copied, modified, reused or
   redistributed without written permission from UK Luca-S LTD.
   Third-party parts keep their own licences (noted where they appear).
-  Studio v70
+  Studio v71
 -->
 <html lang="en">
 <head>
@@ -5859,7 +5859,7 @@ const KS_AMZ_ICONS={
   pen:'M4 20l4-1 11-11-3-3L5 16z M14 6l3 3', zoom:'M11 4a7 7 0 1 0 0.01 0 M16 16l5 5 M11 8v6 M8 11h6', list:'M4 6h16 M4 12h10 M4 18h7 M18 13a3 3 0 1 0 0.01 0',
   qr:'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h3v3 M21 14v7h-7', frame:'M3 3h18v18H3z M7 7h10v10H7z', grid:'M4 4h16v16H4z M4 10h16 M4 15h16 M10 4v16 M15 4v16',
   ruler:'M3 17L17 3l4 4L7 21z M7 13l2 2 M10 10l2 2 M13 7l2 2', thread:'M6 4h12v16H6z M6 8h12 M6 12h12 M6 16h12', drop:'M12 3c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11z',
-  needle:'M5 19L19 5 M16 5a2 2 0 1 0 3 3', check:'M5 12l4 4 10-10',
+  needle:'M5 19L19 5 M16 5a2 2 0 1 0 3 3', check:'M5 12l4 4 10-10', phone2:'M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z M11 19h2', tablet:'M5 3h14a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M11 18h2', screen:'M3 4h18v12H3z M8 20h8 M12 16v4',
   palette:'M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.5-1.5 0-1-.8-1.4-.8-2.3 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5C21 6.6 17 3 12 3z M7.5 11.5a.8.8 0 1 0 .01 0 M10 7.5a.8.8 0 1 0 .01 0 M14.5 7.5a.8.8 0 1 0 .01 0'
 };
 // ── image 1: Patternly app ───────────────────────────────────────────────────
@@ -5898,28 +5898,59 @@ function ksAmzTracker(A,D,w,h,cells,cols,rows,c0,r0,n,doneFn,pct){
   x.beginPath(); x.arc(w-38,h-44,24,0,7); x.fillStyle='#1d1720'; x.fill(); x.strokeStyle='#fff'; x.lineWidth=2.5; x.stroke(); A.ico('palette',w-50,h-56,24,'#fff');
   A.rr(w/2-50,h-10,100,4,2); x.fillStyle='rgba(255,255,255,.7)'; x.fill();
 }
+function ksAmzHoop(A,D,cx,cy,r){   // v71: the kit picture stretched in an embroidery hoop
+  const {x}=A;
+  x.save(); x.shadowColor='rgba(60,30,20,.28)'; x.shadowBlur=40; x.shadowOffsetY=18; x.beginPath(); x.arc(cx,cy,r+18,0,7); x.fillStyle='#c99a5e'; x.fill(); x.restore();
+  const g=x.createRadialGradient(cx-r*.3,cy-r*.3,r*.2,cx,cy,r+20); g.addColorStop(0,'#f0cf9a'); g.addColorStop(1,'#b8843f');
+  x.beginPath(); x.arc(cx,cy,r+18,0,7); x.fillStyle=g; x.fill();
+  x.beginPath(); x.arc(cx,cy,r+4,0,7); x.fillStyle='#a9773a'; x.fill();
+  x.save(); x.beginPath(); x.arc(cx,cy,r,0,7); x.clip(); x.fillStyle='#f7f4ee'; x.fillRect(cx-r,cy-r,2*r,2*r);
+  x.strokeStyle='rgba(0,0,0,.05)'; x.lineWidth=1; for(let k=-r;k<r;k+=5){ x.beginPath(); x.moveTo(cx+k,cy-r); x.lineTo(cx+k,cy+r); x.stroke(); x.beginPath(); x.moveTo(cx-r,cy+k); x.lineTo(cx+r,cy+k); x.stroke(); }
+  const p=D.pic; if(p){ const s=Math.min(1.3*r/p.width,1.5*r/p.height), w=p.width*s, h=p.height*s, px=Math.max(cx-w/2,Math.min(cx+r*.8-w,cx+r*.12-w/2)); x.globalCompositeOperation='multiply'; x.drawImage(p,px,cy-h/2,w,h); x.globalCompositeOperation='source-over'; }
+  const sh=x.createRadialGradient(cx,cy,r*.7,cx,cy,r); sh.addColorStop(0,'rgba(0,0,0,0)'); sh.addColorStop(1,'rgba(60,40,20,.18)'); x.fillStyle=sh; x.fillRect(cx-r,cy-r,2*r,2*r);
+  x.restore();
+  // brass screw at the top
+  x.save(); x.translate(cx,cy); x.rotate(.5); A.rr(-16,-r-44,32,30,5); x.fillStyle='#b8843f'; x.fill(); A.rr(-6,-r-62,12,22,3); const b=x.createLinearGradient(-6,0,6,0); b.addColorStop(0,'#9c8a5a'); b.addColorStop(.5,'#efe2b0'); b.addColorStop(1,'#8d7a4a'); x.fillStyle=b; x.fill(); x.restore();
+}
+function ksAmzSkein(A,X,Y,w,rgb,rot){
+  const {x}=A; x.save(); x.translate(X,Y); x.rotate(rot||0);
+  for(let s=0;s<9;s++){ x.strokeStyle=ksCss(ksMix(rgb,s%2?[255,255,255]:[0,0,0],.1)); x.lineWidth=3.2; x.beginPath(); x.moveTo(0,s*3); x.bezierCurveTo(w*.3,s*3-6,w*.7,s*3+6,w,s*3); x.stroke(); }
+  A.rr(w*.42,-4,w*.16,32,4); x.fillStyle='#fbfaf7'; x.fill(); x.strokeStyle='rgba(0,0,0,.08)'; x.lineWidth=1; x.stroke(); x.restore();
+}
 function ksAmzImg1(D){
-  const A=ksAmzCanvas(D), {x}=A; A.bg();
-  A.rr(60,54,322,44,22); x.fillStyle=ksCss(D.AC); x.fill(); A.t('NEW · DIGITAL PATTERN',221,83,{sz:19,w:700,col:'#fff',al:'center',sp:.6});
-  A.plogo(745,58,ksCss(D.AC));
-  A.t('Stitch it on paper',60,192,{sz:66,fam:'serif'}); A.t('or on your phone',60,258,{sz:66,fam:'serif'});
-  A.t("Your kit's chart also opens in the Patternly app,",62,306,{sz:24,col:D.INK2}); A.t('made by Luca-S.',62,338,{sz:24,col:D.INK2});
-  [['pen','Tap to mark stitches','Finished areas light up,','so you never lose your place'],['zoom','Zoom in on any symbol','Big, clear symbols','on any screen'],['list','See what\'s left','Stitches left for each colour','and your % done']].forEach(([ic,h,a,b],i)=>{
-    const Y=420+i*130; A.card(52,Y,58,58,18); A.ico(ic,66,Y+14,30); A.t(h,126,Y+24,{sz:23,w:700}); A.t(a,126,Y+52,{sz:18,col:D.INK2}); A.t(b,126,Y+76,{sz:18,col:D.INK2}); });
-  const cols=Math.max(20,Math.min(D.w||60,300)), rows=Math.max(20,Math.min(D.h||80,400)); const cells=ksAmzCells(D,cols,rows);
-  const n=13, c0=Math.max(0,Math.round(cols/2-n/2)), r0=Math.max(0,Math.round(rows*.45-12)), pct=41;
-  const doneFn=(c,r)=>r>r0+12||(r===r0+12&&c<c0+7);
-  ksAmzPhone(A,600,296,300,576,(w,h)=>ksAmzTracker(A,D,w,h,cells,cols,rows,c0,r0,n,doneFn,pct));
-  // floating Colours card, overlapping the phone
-  const list=[...D.C].sort((a,b)=>b.st-a.st).slice(0,4), CX=440, CY=640, CW=250, CH=58+list.length*44;
-  A.card(CX,CY,CW,CH,20); A.t('Colours',CX+18,CY+36,{sz:20,fam:'serif'}); A.t(String(D.C.length),CX+96,CY+36,{sz:13,col:D.INK2});
-  list.forEach((c,i)=>{ const Y=CY+52+i*44, p=.25+((c.i*37)%55)/100, left=Math.max(1,Math.round(c.st*(1-p)));
-    A.rr(CX+16,Y,28,28,7); x.fillStyle=ksCss(c.rgb); x.fill(); x.strokeStyle='rgba(0,0,0,.12)'; x.lineWidth=1; x.stroke(); A.sym(c,CX+30,Y+14,17,A.on(c.rgb));
-    A.t('Luca-S-'+c.thread,CX+54,Y+13,{sz:13,w:700}); A.t(left.toLocaleString('en-GB')+' left',CX+CW-16,Y+13,{sz:11,col:D.INK2,al:'right'});
-    A.rr(CX+54,Y+21,CW-70,4,2); x.fillStyle='#efe8ec'; x.fill(); A.rr(CX+54,Y+21,(CW-70)*p,4,2); x.fillStyle=ksCss(D.AC); x.fill(); });
-  x.fillStyle=ksCss(D.DARK); x.fillRect(0,882,1000,118);
-  x.save(); x.setLineDash([6,5]); x.strokeStyle=ksCss(ksMix(D.AC,[255,255,255],.65)); x.lineWidth=2.5; A.rr(60,908,66,66,14); x.stroke(); x.restore(); A.ico('qr',75,923,36,'#fff');
-  A.t('Scan the code inside your kit',148,936,{sz:27,w:700,col:'#fff'}); A.t('Your pattern opens in Patternly · App Store & Google Play',148,964,{sz:19,col:'rgba(255,255,255,.78)'});
+  const A=ksAmzCanvas(D), {x}=A;
+  x.fillStyle=ksCss(ksMix(D.BG,[251,248,244],.6)); x.fillRect(0,0,1000,1000);
+  // logo: Patternly + By LUCA-S, centred
+  A.f(52,400,'serif'); const lw=x.measureText('Patternly').width, lx=500-(lw+58)/2;
+  A.pheart(lx,44,46,ksCss(D.AC)); A.t('Patternly',lx+58,88,{sz:52,fam:'serif',col:D.AC});
+  A.t('By',lx+58,114,{sz:15,col:D.INK2}); A.t('LUCA-S',lx+80,114,{sz:15,w:700,col:D.AC,sp:.6});
+  A.t('Stitch it on',500,196,{sz:68,fam:'serif',al:'center'}); A.t('your phone too',500,262,{sz:68,fam:'serif',al:'center'});
+  const deco=(X,dir)=>{ x.strokeStyle=ksCss(ksMix(D.AC,[255,255,255],.45)); x.lineWidth=2; x.beginPath(); x.moveTo(X-24,232); x.lineTo(X+24,232); x.moveTo(X-8*dir,220); x.lineTo(X+8*dir,244); x.stroke(); };
+  deco(150,1); deco(850,-1);
+  A.t("This kit's chart, right on your phone.",500,306,{sz:25,col:D.INK2,al:'center'});
+  // hoop with the kit, skeins in the kit's own colours
+  ksAmzHoop(A,D,40,560,200);
+  const sk=[...D.C].sort((a,b)=>b.st-a.st).slice(0,3); sk.forEach((c,i)=>ksAmzSkein(A,-30,800+i*30,170,c.rgb,-.18+i*.05));
+  // phone, slightly turned, with the Tracker on this kit
+  const cols=Math.max(24,Math.min(D.w||60,300)), rows=Math.max(24,Math.min(D.h||80,400)); const cells=ksAmzCells(D,cols,rows);
+  const n=Math.min(cols,26), c0=Math.max(0,Math.round(cols/2-n/2)), r0=Math.max(0,Math.round(rows*.4-15)), pct=46;
+  const doneFn=(c,r)=>r>r0+22||(r===r0+22&&c<c0+11);
+  x.save(); x.translate(455,620); x.rotate(-.05); x.translate(-455,-620);
+  ksAmzPhone(A,305,340,300,560,(w,h)=>ksAmzTracker(A,D,w,h,cells,cols,rows,c0,r0,n,doneFn,pct));
+  x.restore();
+  // features, outline circle icons
+  [['pen','Tap each stitch','as you go','the app remembers your place'],['phone2','Pick up on','any device','your progress follows your account'],['zoom','Zoom in, no','more squinting','big clear symbols on any screen']].forEach(([ic,a,b,c],i)=>{
+    const Y=392+i*150; x.beginPath(); x.arc(690,Y+38,40,0,7); x.fillStyle='#fff'; x.fill(); x.strokeStyle=ksCss(ksMix(D.AC,[255,255,255],.45)); x.lineWidth=2; x.stroke(); A.ico(ic,672,Y+20,36);
+    A.t(a,748,Y+22,{sz:22,w:700}); A.t(b,748,Y+48,{sz:22,w:700}); A.wrap(c,200,16).forEach((l,k)=>A.t(l,748,Y+74+k*20,{sz:16,col:D.INK2})); });
+  // dashed card
+  x.save(); x.setLineDash([7,6]); x.strokeStyle=ksCss(ksMix(D.AC,[255,255,255],.5)); x.lineWidth=2; A.rr(640,812,320,62,16); x.fillStyle='rgba(255,255,255,.7)'; x.fill(); x.stroke(); x.restore();
+  A.pheart(660,828,30,ksCss(D.AC)); A.t('Stitch more. Count less.',704,851,{sz:20,w:700});
+  // bands
+  x.fillStyle=ksCss(D.AC); x.fillRect(0,890,1000,58); A.ico('qr',300,903,32,'#fff'); A.t('Scan the code inside your kit',345,929,{sz:26,w:700,col:'#fff'});
+  x.fillStyle=ksCss(ksMix(D.BG,[255,255,255],.5)); x.fillRect(0,948,1000,52);
+  ['phone2','tablet','screen'].forEach((ic,i)=>A.ico(ic,90+i*40,960,28,ksCss(D.AC)));
+  A.t('Works on phone, tablet & computer',220,980,{sz:18,col:D.INK2}); x.fillStyle='rgba(0,0,0,.15)'; x.fillRect(600,960,1,28);
+  A.t('App Store · Google Play',780,980,{sz:18,w:700,col:D.AC,al:'center'});
   return A.cv;
 }
 // ── image 5: reading the chart ───────────────────────────────────────────────
