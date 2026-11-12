@@ -4,7 +4,7 @@
   Proprietary software: no part of this code may be copied, modified, reused or
   redistributed without written permission from UK Luca-S LTD.
   Third-party parts keep their own licences (noted where they appear).
-  Studio v68
+  Studio v69
 -->
 <html lang="en">
 <head>
@@ -241,6 +241,11 @@
   .ks-facts b{color:var(--ink)}
   .ks-legwrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#f2eef0;aspect-ratio:210/297;max-width:760px}
   .ks-covwrap{aspect-ratio:225/310}
+  .ks-amzgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.8rem;max-width:760px}
+  .ks-amzfig{margin:0;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#fff}
+  .ks-amzfig img{display:block;width:100%;aspect-ratio:1;object-fit:cover}
+  .ks-amzfig figcaption{display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.45rem .6rem;font-size:.82rem}
+  .ks-amzfig a{font-weight:600;color:var(--red);text-decoration:none}
   .ks-pick{display:flex;flex-wrap:wrap;align-items:center;gap:.55rem .8rem;margin:0 0 .8rem}
   .ks-lab{font-size:.74rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
   .ks-dd{position:relative}
@@ -947,6 +952,14 @@
             <div class="ks-legwrap ks-covwrap"><iframe id="ks-ins-frame" title="Instructions preview"></iframe></div>
             <div class="note" id="ks-ins-msg" style="margin:.4rem 0 0">Same size as the cover (225 × 310 mm). Strand counts come from the kit, the colour follows the cover colour.</div>
             <button class="primary" id="ks-ins-dl" type="button" style="margin-top:.7rem" disabled>Download instructions PDF</button>
+          </div>
+          <div id="ks-amz" style="display:none;margin-top:1.6rem">
+            <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin:.2rem 0 .6rem">
+              <h3 style="margin:0;font-size:.95rem">Amazon images <span style="font-weight:500;color:var(--muted)">· 4 infographics made from this kit</span></h3>
+            </div>
+            <div class="ks-amzgrid" id="ks-amz-grid"></div>
+            <div class="note" id="ks-amz-msg" style="margin:.4rem 0 0">2000 × 2000 px JPG.</div>
+            <button class="primary" id="ks-amz-all" type="button" style="margin-top:.7rem" disabled>Download all 4 images</button>
           </div>
         </div>
 
@@ -4533,6 +4546,7 @@ function ksBind(){
   });
   $('ks-save').onclick=ksSave;
   $('ks-leg-dl').onclick=ksLegendDownload; $('ks-cov-dl').onclick=()=>{ if(KS_COV_DOC) KS_COV_DOC.save(($('ks-sku').value.trim()||'kit').toUpperCase()+' cover '+KS_COVER+'.pdf'); };
+  $('ks-amz-all').onclick=async()=>{ for(const m of KS_AMZ){ const a=document.createElement('a'); a.href=m.url; a.download=m.file; document.body.appendChild(a); a.click(); a.remove(); await new Promise(r=>setTimeout(r,400)); } };
   $('ks-ins-dl').onclick=()=>{ if(KS_INS_DOC) KS_INS_DOC.save(($('ks-sku').value.trim()||'kit').toUpperCase()+' instructions.pdf'); };
   ['ks-ro','ks-designer','ks-skill','ks-ean'].forEach(id=>$(id).addEventListener('change',()=>{ if($('ks-cov').style.display!=='none') ksCoverRender(); }));
   ['ks-name'].forEach(id=>$(id).addEventListener('change',()=>{ if($('ks-leg').style.display!=='none') ksLegendRender(); }));
@@ -4572,7 +4586,7 @@ function ksOpen(it){
   $('ks-more').open=!!(fl.nameRo||fl.nameRu||fl.designer||fl.skill||fl.ean||fl.notes);
   $('ks-pic-prev').innerHTML=''; $('ks-xs-list').innerHTML=''; ksMsg('');
   $('ks-del').style.display=it?'':'none'; $('ks-save').textContent=it?'Save changes':'Save kit';
-  $('ks-leg').style.display='none'; $('ks-leg-frame').removeAttribute('src'); KS_LEG_DOC=null; $('ks-cov').style.display='none'; $('ks-cov-frame').removeAttribute('src'); KS_COV_DOC=null; $('ks-ins').style.display='none'; $('ks-ins-frame').removeAttribute('src'); KS_INS_DOC=null;
+  $('ks-leg').style.display='none'; $('ks-leg-frame').removeAttribute('src'); KS_LEG_DOC=null; $('ks-cov').style.display='none'; $('ks-cov-frame').removeAttribute('src'); KS_COV_DOC=null; $('ks-ins').style.display='none'; $('ks-amz').style.display='none'; $('ks-amz-grid').innerHTML=''; KS_AMZ=[]; $('ks-ins-frame').removeAttribute('src'); KS_INS_DOC=null;
   if(it&&it.parsed) ksRenderRead(it.parsed,[]); else { $('ks-read').style.display='none'; }
   ksRenderSaved();
   window.scrollTo({top:0,behavior:'smooth'});
@@ -5599,7 +5613,7 @@ let KS_LEGCOL=(()=>{ try{ const v=localStorage.getItem('ks_legcol'); return ksCo
 const KS_COV_SUB={A:'Picture in a frame, serif title',C:'Cream side rail with icons',D:'Navy header, spec list',E:'Icon tiles, grey strip',G:'Coloured page, white picture card',H:'Picture left, coloured column',I:'Picture top, coloured panel'};
 function ksCoverUi(){ if(!$('ks-cov-lay')) return;
   ksDropdown($('ks-cov-lay'),KS_COVERS.map(([k,n])=>[k,n,KS_COV_SUB[k]]),KS_COVER,k=>{ KS_COVER=k; try{ localStorage.setItem('ks_cover',k); }catch(e){} ksCoverUi(); ksCoverRender(); });
-  ksColorPicker($('ks-cov-col'),KS_COVCOL,v=>{ KS_COVCOL=v; try{ localStorage.setItem('ks_covcol',v); }catch(e){} ksCoverUi(); ksCoverRender(); ksInstrRender(); });
+  ksColorPicker($('ks-cov-col'),KS_COVCOL,v=>{ KS_COVCOL=v; try{ localStorage.setItem('ks_covcol',v); }catch(e){} ksCoverUi(); ksCoverRender(); ksInstrRender(); ksAmzRender(); });
   const c=KS_COVERS.find(x=>x[0]===KS_COVER); $('ks-cov-name').textContent=c?'· '+c[0]+' '+c[1]:'';
 }
 function ksPicTone(pic){ return new Promise(res=>{ const im=new Image(); im.onload=()=>{ try{ const c=document.createElement('canvas'); c.width=24; c.height=24; const x=c.getContext('2d'); x.drawImage(im,0,0,24,24);
@@ -5778,6 +5792,263 @@ async function ksInstrRender(){
   }catch(e){ if(tok===KS_INS_BUSY) $('ks-ins-msg').textContent='Could not make the instructions: '+(e&&e.message||e); }
 }
 
+// v69: Amazon listing images (Cristian 12 Nov). Four 2000×2000 JPGs made from the kit itself:
+// 1 Patternly app, 2 In the box, 3 Finished size, 4 Colours. Drawn on a canvas in 1000-unit coordinates.
+let KS_AMZ_FONTS=null;
+function ksAmzFonts(){
+  if(KS_AMZ_FONTS) return KS_AMZ_FONTS;
+  const ab=b=>Uint8Array.from(atob(b),c=>c.charCodeAt(0)).buffer;
+  const fs=[new FontFace('KSAInter',ab(KS_LF.r),{weight:'400'}),new FontFace('KSAInter',ab(KS_LF.b),{weight:'700'}),new FontFace('KSASerif',ab(KS_LF.d))];
+  if(typeof KS_CS3_B64!=='undefined') fs.push(new FontFace('KSACS3',ab(KS_CS3_B64)));
+  KS_AMZ_FONTS=Promise.all(fs.map(f=>f.load().then(x=>document.fonts.add(x)).catch(()=>{})));
+  return KS_AMZ_FONTS;
+}
+const ksAmzImg=src=>new Promise((ok,no)=>{ const i=new Image(); i.onload=()=>ok(i); i.onerror=no; i.src=src; });
+const ksCss=a=>'rgb('+a.map(v=>Math.round(v)).join(',')+')';
+const ksMix=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
+const KS_FRAMES=[[13,18],[18,24],[20,25],[21,30],[24,30],[30,40],[40,50],[50,60],[50,70],[60,80],[70,100],[80,100],[100,120]];
+function ksAmzData(P,meta){
+  const C=P.colours.map((c,i)=>({i,rgb:ksRgb(c.rgb),thread:String(c.thread||''),sym:c.sym,str:c.strands||2,st:+c.stitches||0,m:ksMRound(c.metres)||0}));
+  const B=(P.back||[]).map(b=>({thread:String(b.thread||''),m:ksMRound(b.metres)||0,rgb:ksRgb(b.rgb||'#333333')}));
+  const fab=String(P.fabric||'Aida').replace(/^\s*\d+\s*count\s*/i,'').trim()||'Aida';
+  const D={P,C,B,fab,count:P.count||0,w:P.w||0,h:P.h||0,cm:P.sizeCm||null,inch:P.sizeIn||null,sku:meta.sku,name:meta.name||'',pic:meta.pic};
+  D.metres=Math.round(C.reduce((s,c)=>s+c.m,0)+B.reduce((s,b)=>s+b.m,0));
+  D.stitches=C.reduce((s,c)=>s+c.st,0);
+  const strs=[...new Set(C.map(c=>c.str))]; D.strands=strs.length===1?strs[0]:0;
+  if(D.cm){ const pw=D.cm[0]+8, ph=D.cm[1]+8, land=D.cm[0]>D.cm[1];
+    const f=KS_FRAMES.find(([a,b])=>land?(b>=pw&&a>=ph):(a>=pw&&b>=ph)); D.frame=f?(land?f[1]+' × '+f[0]:f[0]+' × '+f[1]):''; }
+  const pl=ksPalette(meta.colour,meta.picture); D.AC=pl.AC; D.TN=pl.TN;
+  D.BG=ksMix(pl.TN,[255,255,255],.35); D.INK=[43,34,38]; D.INK2=[109,90,98]; D.DARK=ksMix(pl.AC,[25,18,24],.78);
+  return D;
+}
+// map the picture onto a cols×rows stitch grid using the kit's own thread colours
+function ksAmzCells(D,cols,rows){
+  const cv=document.createElement('canvas'); cv.width=cols; cv.height=rows; const x=cv.getContext('2d');
+  const p=D.pic; if(p){ const s=Math.max(cols/p.width,rows/p.height); x.drawImage(p,(cols-p.width*s)/2,(rows-p.height*s)/2,p.width*s,p.height*s); }
+  else { x.fillStyle='#ddd'; x.fillRect(0,0,cols,rows); }
+  const d=x.getImageData(0,0,cols,rows).data, out=new Int16Array(cols*rows), cache=new Map();
+  for(let k=0;k<cols*rows;k++){ const r=d[k*4],g=d[k*4+1],b=d[k*4+2], key=(r>>3)<<10|(g>>3)<<5|(b>>3);
+    let best=cache.get(key); if(best==null){ let bd=1e9; best=0; D.C.forEach((c,i)=>{ const dr=c.rgb[0]-r,dg=c.rgb[1]-g,db=c.rgb[2]-b, dd=2*dr*dr+4*dg*dg+3*db*db; if(dd<bd){ bd=dd; best=i; } }); cache.set(key,best); }
+    out[k]=best; }
+  return out;
+}
+function ksAmzCanvas(D){
+  const cv=document.createElement('canvas'); cv.width=2000; cv.height=2000; const x=cv.getContext('2d'); x.scale(2,2);
+  const A={cv,x,D};
+  A.f=(sz,w,fam)=>{ x.font=(w||400)+' '+sz+'px '+(fam==='serif'?'KSASerif, Georgia, serif':fam==='sym'?'KSACS3':'KSAInter, Arial, sans-serif'); };
+  A.t=(s,X,Y,o)=>{ o=o||{}; A.f(o.sz||20,o.w,o.fam); x.fillStyle=o.col?(typeof o.col==='string'?o.col:ksCss(o.col)):ksCss(D.INK); x.textAlign=o.al||'left'; x.textBaseline=o.bl||'alphabetic';
+    if(o.sp){ x.letterSpacing=o.sp+'px'; } x.fillText(String(s),X,Y); x.letterSpacing='0px'; return x.measureText(String(s)).width; };
+  A.wrap=(s,maxW,sz,w,fam)=>{ A.f(sz,w,fam); const out=[]; let line='';
+    for(const word of String(s).split(' ')){ const t=line?line+' '+word:word; if(x.measureText(t).width>maxW&&line){ out.push(line); line=word; } else line=t; } if(line) out.push(line); return out; };
+  A.rr=(X,Y,w,h,r)=>{ x.beginPath(); x.roundRect(X,Y,w,h,r); };
+  A.card=(X,Y,w,h,r,fill,sh)=>{ x.save(); if(sh!==false){ x.shadowColor='rgba(70,25,40,.13)'; x.shadowBlur=26; x.shadowOffsetY=10; } A.rr(X,Y,w,h,r); x.fillStyle=fill||'#fff'; x.fill(); x.restore(); };
+  A.bg=()=>{ const g=x.createLinearGradient(0,0,700,1000); g.addColorStop(0,ksCss(ksMix(D.BG,[255,255,255],.3))); g.addColorStop(1,ksCss(D.BG)); x.fillStyle=g; x.fillRect(0,0,1000,1000); };
+  A.title=(s,sub,y)=>{ y=y||112; A.t(s,60,y,{sz:62,fam:'serif'}); let yy=y+44; for(const l of A.wrap(sub,760,24)){ A.t(l,62,yy,{sz:24,col:D.INK2}); yy+=32; } return yy; };
+  A.ico=(name,X,Y,s,col)=>{ x.save(); x.translate(X,Y); x.scale(s/24,s/24); x.strokeStyle=col||ksCss(D.AC); x.lineWidth=2; x.lineCap='round'; x.lineJoin='round'; x.fillStyle='none';
+    const P=new Path2D(KS_AMZ_ICONS[name]||''); x.stroke(P); x.restore(); };
+  A.sym=(c,X,Y,sz,col)=>{ A.f(sz,400,'sym'); x.fillStyle=col; x.textAlign='center'; x.textBaseline='middle'; x.fillText(ksSymCh(c.sym),X,Y+sz*.04); };
+  A.on=rgb=>(.299*rgb[0]+.587*rgb[1]+.114*rgb[2])>150?'rgba(30,24,28,.85)':'rgba(255,255,255,.92)';
+  A.pheart=(X,Y,s,col)=>{ x.fillStyle=col; const u=s/10; [[1,0,3,1],[6,0,3,1],[0,1,10,3],[1,4,8,1],[2,5,6,1],[3,6,4,1],[4,7,2,1]].forEach(([a,b,c,d])=>x.fillRect(X+a*u,Y+b*u,c*u,d*u)); };
+  A.plogo=(X,Y,col)=>{ A.pheart(X,Y+3,30,col); A.t('Patternly',X+40,Y+28,{sz:34,fam:'serif',col}); };
+  A.facts=(items,Y)=>{ const X=60,W=880,H=104; A.card(X,Y,W,H,20); const cw=W/items.length;
+    items.forEach(([v,l],i)=>{ const cx=X+cw*i+cw/2; A.t(v,cx,Y+52,{sz:v.length>11?24:30,w:700,col:D.AC,al:'center'}); A.t(l.toUpperCase(),cx,Y+80,{sz:14,col:D.INK2,al:'center',sp:1.2});
+      if(i){ x.fillStyle=ksCss(ksMix(D.TN,[200,190,195],.25)); x.fillRect(X+cw*i,Y+20,1,H-40); } }); };
+  return A;
+}
+const KS_AMZ_ICONS={
+  pen:'M4 20l4-1 11-11-3-3L5 16z M14 6l3 3', zoom:'M11 4a7 7 0 1 0 0.01 0 M16 16l5 5 M11 8v6 M8 11h6', list:'M4 6h16 M4 12h10 M4 18h7 M18 13a3 3 0 1 0 0.01 0',
+  qr:'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h3v3 M21 14v7h-7', frame:'M3 3h18v18H3z M7 7h10v10H7z', grid:'M4 4h16v16H4z M4 10h16 M4 15h16 M10 4v16 M15 4v16',
+  ruler:'M3 17L17 3l4 4L7 21z M7 13l2 2 M10 10l2 2 M13 7l2 2', thread:'M6 4h12v16H6z M6 8h12 M6 12h12 M6 16h12', drop:'M12 3c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11z',
+  needle:'M5 19L19 5 M16 5a2 2 0 1 0 3 3', check:'M5 12l4 4 10-10'
+};
+// ── image 1: Patternly app ───────────────────────────────────────────────────
+function ksAmzPhone(A,X,Y,rot,draw){
+  const {x}=A, W=262, H=567;
+  x.save(); x.translate(X+W/2,Y+H/2); x.rotate(rot*Math.PI/180); x.translate(-W/2,-H/2);
+  x.save(); x.shadowColor='rgba(60,20,35,.30)'; x.shadowBlur=50; x.shadowOffsetY=26; A.rr(0,0,W,H,44); x.fillStyle='#1d1720'; x.fill(); x.restore();
+  A.rr(11,11,W-22,H-22,34); x.save(); x.clip(); x.translate(11,11); draw(W-22,H-22); x.restore();
+  x.restore();
+}
+function ksAmzTop(A,w,D,pct){
+  const {x}=A; x.fillStyle='#fff'; x.fillRect(0,0,w,70);
+  A.rr(10,32,28,28,14); x.strokeStyle='#e4dde1'; x.lineWidth=1; x.stroke(); A.t('‹',24,52,{sz:20,al:'center'});
+  const nm=D.name||D.sku; A.f(13,700); let n=nm; while(x.measureText(n).width>150&&n.length>4) n=n.slice(0,-2); if(n!==nm) n=n.trim()+'…';
+  A.t(n,46,44,{sz:13,w:700}); A.t(pct+'% done · +'+Math.max(12,Math.round(D.stitches*.02))+' today',46,60,{sz:10,col:D.INK2});
+  A.rr(w-38,32,28,28,14); x.stroke(); A.t('⋯',w-24,51,{sz:16,al:'center',w:700});
+}
+function ksAmzChartView(A,D,w,h,top,cells,cols,rows,c0,r0,n,doneFn){
+  const {x}=A, cs=w/n, m=Math.ceil((h-top)/cs);
+  x.fillStyle='#fff'; x.fillRect(0,top,w,h-top);
+  for(let r=0;r<m;r++) for(let c=0;c<n;c++){ const cc=c0+c, rr=r0+r; if(cc>=cols||rr>=rows) continue;
+    const col=D.C[cells[rr*cols+cc]], X=c*cs, Y=top+r*cs, done=doneFn(cc,rr);
+    x.fillStyle=ksCss(done?col.rgb:ksMix(col.rgb,[255,255,255],.55)); x.fillRect(X,Y,cs,cs);
+    if(!done) A.sym(col,X+cs/2,Y+cs/2,cs*.72,A.on(ksMix(col.rgb,[255,255,255],.55)));
+    else { x.strokeStyle='rgba(0,0,0,.18)'; x.lineWidth=.8; x.beginPath(); x.moveTo(X+2,Y+2); x.lineTo(X+cs-2,Y+cs-2); x.moveTo(X+cs-2,Y+2); x.lineTo(X+2,Y+cs-2); x.stroke(); } }
+  x.strokeStyle='rgba(0,0,0,.10)'; x.lineWidth=.5; for(let c=0;c<=n;c++){ x.beginPath(); x.moveTo(c*cs,top); x.lineTo(c*cs,h); x.stroke(); }
+  for(let r=0;r<=m;r++){ x.beginPath(); x.moveTo(0,top+r*cs); x.lineTo(w,top+r*cs); x.stroke(); }
+  x.strokeStyle='rgba(0,0,0,.45)'; x.lineWidth=1.1; for(let c=0;c<=n;c++) if((c0+c)%10===0){ x.beginPath(); x.moveTo(c*cs,top); x.lineTo(c*cs,h); x.stroke(); }
+  for(let r=0;r<=m;r++) if((r0+r)%10===0){ x.beginPath(); x.moveTo(0,top+r*cs); x.lineTo(w,top+r*cs); x.stroke(); }
+}
+function ksAmzImg1(D){
+  const A=ksAmzCanvas(D), {x}=A; A.bg();
+  A.rr(60,54,322,44,22); x.fillStyle=ksCss(D.AC); x.fill(); A.t('NEW · DIGITAL PATTERN',221,83,{sz:19,w:700,col:'#fff',al:'center',sp:.6});
+  A.plogo(745,58,ksCss(D.AC));
+  A.t('Stitch it on paper',60,192,{sz:66,fam:'serif'}); A.t('or on your phone',60,258,{sz:66,fam:'serif'});
+  A.t("Your kit's chart also opens in the Patternly app,",62,306,{sz:24,col:D.INK2}); A.t('made by Luca-S.',62,338,{sz:24,col:D.INK2});
+  [['pen','Tap to mark stitches','Finished areas light up,','so you never lose your place'],['zoom','Zoom in on any symbol','Big, clear symbols','on any screen'],['list','See what\'s left','Stitches left for each colour','and your % done']].forEach(([ic,h,a,b],i)=>{
+    const Y=420+i*130; A.card(52,Y,58,58,18); A.ico(ic,66,Y+14,30); A.t(h,126,Y+24,{sz:23,w:700}); A.t(a,126,Y+52,{sz:18,col:D.INK2}); A.t(b,126,Y+76,{sz:18,col:D.INK2}); });
+  // chart cells for both phones
+  const cols=Math.max(20,Math.min(D.w||60,300)), rows=Math.max(20,Math.min(D.h||80,400)); const cells=ksAmzCells(D,cols,rows);
+  const n=17, c0=Math.max(0,Math.round(cols/2-n/2)), r0=Math.max(0,Math.round(rows*.42-14));
+  const pct=41, doneFn=(c,r)=>r>r0+16||(r===r0+16&&c<c0+9);
+  ksAmzPhone(A,668,300,5,(w,h)=>{ x.fillStyle='#f4f1f3'; x.fillRect(0,0,w,h);
+    ksAmzChartView(A,D,w,h,70,cells,cols,rows,c0+3,r0-4,n+1,doneFn); ksAmzTop(A,w,D,pct);
+    // colours sheet
+    const sy=h*.44; x.save(); x.shadowColor='rgba(0,0,0,.18)'; x.shadowBlur=20; A.rr(0,sy,w,h,18); x.fillStyle='#fff'; x.fill(); x.restore();
+    A.rr(w/2-16,sy+7,32,4,2); x.fillStyle='#ddd'; x.fill();
+    A.t('Colours',14,sy+40,{sz:17,fam:'serif'}); A.t(String(D.C.length),80,sy+40,{sz:11,col:D.INK2});
+    const list=[...D.C].sort((a,b)=>b.st-a.st).slice(0,7);
+    list.forEach((c,i)=>{ const Y=sy+58+i*38, p=.2+((c.i*37)%60)/100, left=Math.max(1,Math.round(c.st*(1-p)));
+      A.rr(12,Y,24,24,6); x.fillStyle=ksCss(c.rgb); x.fill(); x.strokeStyle='rgba(0,0,0,.12)'; x.stroke(); A.sym(c,24,Y+12,15,A.on(c.rgb));
+      A.t('Luca-S-'+c.thread,44,Y+12,{sz:11,w:700}); A.t(left.toLocaleString('en-GB')+' left',w-12,Y+12,{sz:9,col:D.INK2,al:'right'});
+      A.rr(44,Y+19,w-58,3,1.5); x.fillStyle='#efe8ec'; x.fill(); A.rr(44,Y+19,(w-58)*p,3,1.5); x.fillStyle=ksCss(D.AC); x.fill(); });
+  });
+  ksAmzPhone(A,410,330,-4,(w,h)=>{ x.fillStyle='#f4f1f3'; x.fillRect(0,0,w,h);
+    ksAmzChartView(A,D,w,h,70,cells,cols,rows,c0,r0,n,doneFn); ksAmzTop(A,w,D,pct);
+    if(D.pic){ const pw=40, ph=pw*D.pic.height/D.pic.width; A.rr(w-pw-8,78,pw,ph,6); x.save(); x.clip(); x.drawImage(D.pic,w-pw-8,78,pw,ph); x.restore(); x.strokeStyle='#fff'; x.lineWidth=2; A.rr(w-pw-8,78,pw,ph,6); x.stroke(); }
+    x.beginPath(); x.arc(w-34,h-36,22,0,7); x.fillStyle='#1d1720'; x.fill(); A.ico('drop',w-46,h-48,24,'#fff');
+  });
+  x.fillStyle=ksCss(D.DARK); x.fillRect(0,882,1000,118);
+  x.save(); x.setLineDash([6,5]); x.strokeStyle=ksCss(ksMix(D.AC,[255,255,255],.65)); x.lineWidth=2.5; A.rr(60,908,66,66,14); x.stroke(); x.restore(); A.ico('qr',75,923,36,'#fff');
+  A.t('Scan the code inside your kit',148,936,{sz:27,w:700,col:'#fff'}); A.t('Your pattern opens in Patternly · App Store & Google Play',148,964,{sz:19,col:'rgba(255,255,255,.78)'});
+  return A.cv;
+}
+// ── image 2: in the box ──────────────────────────────────────────────────────
+function ksAmzTile(A,X,Y,w,h,nr,head,sub,draw,dark){
+  const {x,D}=A; A.card(X,Y,w,h,22,dark?ksCss(D.DARK):'#fff'); x.save(); A.rr(X,Y,w,h,22); x.clip(); x.translate(X,Y); draw(w,h); x.restore();
+  if(nr){ x.beginPath(); x.arc(X+36,Y+36,22,0,7); x.fillStyle=ksCss(D.AC); x.fill(); A.t(nr,X+36,Y+44,{sz:21,w:700,col:'#fff',al:'center'}); }
+  if(head&&!dark){ const lines=A.wrap(sub,w-52,16), lh=56+lines.length*20; x.save(); A.rr(X+12,Y+h-12-lh,w-24,lh,14); x.fillStyle='rgba(255,255,255,.95)'; x.shadowColor='rgba(0,0,0,.06)'; x.shadowBlur=10; x.fill(); x.restore();
+    A.t(head,X+26,Y+h-12-lh+34,{sz:22,w:700}); lines.forEach((l,i)=>A.t(l,X+26,Y+h-12-lh+58+i*20,{sz:16,col:D.INK2})); }
+}
+function ksAmzImg2(D){
+  const A=ksAmzCanvas(D), {x}=A; A.bg(); ksAmzBrand(A);
+  A.title('Everything in the box','Open it and start stitching. Nothing else to buy.',112);
+  const g=18, tw=(880-2*g)/3, th=290, Y0=200;
+  // 1 threads: tall tile, real kit colours on a thread card
+  ksAmzTile(A,60,Y0,tw,th*2+g,'1','Sorted threads',D.C.length+' colours'+(D.B.length?' + '+D.B.length+' backstitch':'')+', numbered to the chart',(w,h)=>{
+    x.fillStyle=ksCss(ksMix(D.TN,[255,255,255],.5)); x.fillRect(0,0,w,h);
+    const rh=40, fit=Math.floor((h-70-24-120)/rh), many=D.C.length>2*fit, per=Math.min(fit-(many?1:0),Math.ceil(D.C.length/2));
+    const hue=c=>{ const [r,g,b]=c.rgb.map(v=>v/255), mx=Math.max(r,g,b), mn=Math.min(r,g,b), d=mx-mn; if(d<.08) return 400+(1-mx)*50; let hh=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4; return (hh*60+360)%360; };
+    const show=[...D.C].sort((a,b)=>b.st-a.st).slice(0,2*per).sort((a,b)=>hue(a)-hue(b));
+    for(let k=0;k<2;k++){ const cx=20+k*(w-28)/2, cw=(w-48)/2; A.card(cx,70,cw,per*rh+24,10,'#fff');
+      show.slice(k*per,(k+1)*per).forEach((c,i)=>{ const yy=86+i*rh; x.beginPath(); x.arc(cx+14,yy+rh/2-4,5,0,7); x.fillStyle=ksCss(ksMix(D.TN,[230,220,225],.4)); x.fill();
+        for(let s=0;s<5;s++){ x.strokeStyle=ksCss(ksMix(c.rgb,s%2?[255,255,255]:[0,0,0],.08)); x.lineWidth=3; x.beginPath(); x.moveTo(cx+19,yy+rh/2-10+s*2.6); x.bezierCurveTo(cx+40,yy+rh/2-14+s*2.6,cx+cw-30,yy+rh/2-2+s*1.2,cx+cw-8,yy+rh/2-6+s*2); x.stroke(); }
+        A.t(c.thread,cx+cw-10,yy+rh-6,{sz:10,col:D.INK2,al:'right'}); }); }
+    if(D.C.length>show.length) A.t('+ '+(D.C.length-show.length)+' more colours',w/2,70+per*rh+24+30,{sz:16,w:700,col:D.AC,al:'center'});
+  });
+  // 2 fabric
+  ksAmzTile(A,60+tw+g,Y0,tw,th,'2',(D.count?D.count+' count ':'')+D.fab,'Stitching fabric',(w,h)=>{
+    x.fillStyle='#f7f3ea'; x.fillRect(0,0,w,h); const s=11;
+    for(let yy=0;yy<h;yy+=s) for(let xx=0;xx<w;xx+=s){ x.fillStyle='#ece5d6'; x.fillRect(xx+1,yy+1,s-2,s-2); x.fillStyle='#d9cfbb'; x.fillRect(xx+s-2.5,yy+s-2.5,2.5,2.5); }
+    const gr=x.createLinearGradient(0,0,w,h); gr.addColorStop(0,'rgba(255,255,255,.35)'); gr.addColorStop(1,'rgba(0,0,0,.06)'); x.fillStyle=gr; x.fillRect(0,0,w,h);
+    // a few finished crosses in kit colours
+    [...D.C].sort((a,b)=>(Math.max(...b.rgb)-Math.min(...b.rgb))-(Math.max(...a.rgb)-Math.min(...a.rgb))).slice(0,6).forEach((c,i)=>{ const cx=w-120+(i%3)*s, cy=60+Math.floor(i/3)*s; x.strokeStyle=ksCss(c.rgb); x.lineWidth=3; x.lineCap='round';
+      x.beginPath(); x.moveTo(cx+2,cy+2); x.lineTo(cx+s-2,cy+s-2); x.moveTo(cx+s-2,cy+2); x.lineTo(cx+2,cy+s-2); x.stroke(); });
+  });
+  // 3 printed chart
+  ksAmzTile(A,60+2*(tw+g),Y0,tw,th,'3','Printed chart','Symbols + colour key',(w,h)=>{
+    x.fillStyle=ksCss(ksMix(D.TN,[255,255,255],.3)); x.fillRect(0,0,w,h);
+    x.save(); x.translate(w/2,h/2-24); x.rotate(-.05); const pw=w*.8, ph=h*.78; A.card(-pw/2,-ph/2,pw,ph,4,'#fff');
+    const n=26, cs=(pw-20)/n, rows=Math.floor((ph-20)/cs), cols=Math.max(n,Math.min(D.w||n,200)), rws=Math.max(rows,Math.min(D.h||rows,260)); const cells=ksAmzCells(D,cols,rws);
+    const c0=Math.round(cols/2-n/2), r0=Math.round(rws/2-rows/2);
+    for(let r=0;r<rows;r++) for(let c=0;c<n;c++){ const col=D.C[cells[(r0+r)*cols+c0+c]]; A.sym(col,-pw/2+10+c*cs+cs/2,-ph/2+10+r*cs+cs/2,cs*.8,'#2b2226'); }
+    x.strokeStyle='rgba(0,0,0,.12)'; x.lineWidth=.4; for(let c=0;c<=n;c++){ x.beginPath(); x.moveTo(-pw/2+10+c*cs,-ph/2+10); x.lineTo(-pw/2+10+c*cs,-ph/2+10+rows*cs); x.stroke(); }
+    for(let r=0;r<=rows;r++){ x.beginPath(); x.moveTo(-pw/2+10,-ph/2+10+r*cs); x.lineTo(-pw/2+10+n*cs,-ph/2+10+r*cs); x.stroke(); }
+    x.restore();
+  });
+  // 4 needle
+  ksAmzTile(A,60+tw+g,Y0+th+g,tw,th,'4','Needle','Ready to use',(w,h)=>{
+    x.fillStyle='#f3eff0'; x.fillRect(0,0,w,h);
+    [[w*.42,22,-.42],[w*.62,40,-.36]].forEach(([nx,ny,a])=>{ x.save(); x.translate(nx,ny); x.rotate(a); const L=h*.62;
+      const gr=x.createLinearGradient(-3,0,3,0); gr.addColorStop(0,'#8e8a8c'); gr.addColorStop(.5,'#f4f2f3'); gr.addColorStop(1,'#77727a'); x.fillStyle=gr;
+      x.beginPath(); x.moveTo(-2.6,0); x.lineTo(2.6,0); x.lineTo(1.8,L); x.lineTo(0,L+14); x.lineTo(-1.8,L); x.closePath(); x.fill();
+      x.fillStyle='#f3eff0'; A.rr(-1,10,2,16,1); x.fill(); x.restore(); });
+    x.strokeStyle=ksCss(D.AC); x.lineWidth=2.4; x.beginPath(); x.moveTo(w*.42+3,40); x.bezierCurveTo(w*.15,70,w*.85,110,w*.3,170); x.stroke();
+  });
+  // 5 app
+  ksAmzTile(A,60+2*(tw+g),Y0+th+g,tw,th,'','','',(w,h)=>{
+    x.save(); x.setLineDash([6,5]); x.strokeStyle=ksCss(ksMix(D.AC,[255,255,255],.65)); x.lineWidth=2.5; A.rr(24,54,56,56,14); x.stroke(); x.restore(); A.ico('qr',37,67,30,'#fff');
+    A.t('+ Chart in the',24,156,{sz:26,w:700,col:'#fff'}); A.t('Patternly app',24,188,{sz:26,w:700,col:'#fff'}); A.t('Code inside the kit',24,222,{sz:17,col:'rgba(255,255,255,.78)'});
+  },true);
+  const facts=[]; if(D.cm) facts.push([ksTrim(D.cm[0])+' × '+ksTrim(D.cm[1]),'cm finished']); facts.push([String(D.C.length),'colours']);
+  if(D.count) facts.push([D.count+' ct',D.fab]); if(D.w) facts.push([D.w+' × '+D.h,'stitches']);
+  A.facts(facts,850);
+  return A.cv;
+}
+function ksAmzBrand(A){ const {x}=A; A.pheart(870,64,26,ksCss(A.D.AC)); }
+// ── image 3: finished size ───────────────────────────────────────────────────
+function ksAmzImg3(D){
+  const A=ksAmzCanvas(D), {x}=A; A.bg(); ksAmzBrand(A);
+  A.title('Finished size',(D.w?D.w+' × '+D.h+' stitches':'')+(D.count?' on '+D.count+' count '+D.fab:''),112);
+  const p=D.pic, ar=p?p.width/p.height:(D.cm?D.cm[0]/D.cm[1]:.75), bw=640, bh=450; let w=bw, h=bw/ar; if(h>bh){ h=bh; w=bh*ar; }
+  const X=530-w/2, Y=318+(bh-h)/2;
+  x.save(); x.shadowColor='rgba(60,20,35,.25)'; x.shadowBlur=40; x.shadowOffsetY=18; x.fillStyle='#fff'; x.fillRect(X-14,Y-14,w+28,h+28); x.restore();
+  if(p) x.drawImage(p,X,Y,w,h); else { x.fillStyle='#ddd'; x.fillRect(X,Y,w,h); }
+  const arrow=(x1,y1,x2,y2)=>{ x.strokeStyle=ksCss(D.AC); x.fillStyle=ksCss(D.AC); x.lineWidth=2; x.beginPath(); x.moveTo(x1,y1); x.lineTo(x2,y2); x.stroke();
+    const a=Math.atan2(y2-y1,x2-x1); [[x1,y1,a+Math.PI],[x2,y2,a]].forEach(([px,py,aa])=>{ x.beginPath(); x.moveTo(px,py); x.lineTo(px-11*Math.cos(aa-.4),py-11*Math.sin(aa-.4)); x.lineTo(px-11*Math.cos(aa+.4),py-11*Math.sin(aa+.4)); x.closePath(); x.fill(); }); };
+  const pill=(s,s2,cx,cy)=>{ A.f(22,700); const w1=x.measureText(s).width; A.f(16); const w2=s2?x.measureText(s2).width:0; const pw=Math.max(w1,w2)+36, ph=s2?62:42;
+    A.card(cx-pw/2,cy-ph/2,pw,ph,14); A.t(s,cx,cy+(s2?-3:8),{sz:22,w:700,col:D.AC,al:'center'}); if(s2) A.t(s2,cx,cy+20,{sz:16,col:D.INK2,al:'center'}); };
+  if(D.cm){ arrow(X,Y-44,X+w,Y-44); pill(ksTrim(D.cm[0])+' cm',D.inch?D.inch[0]+' in':'',X+w/2,Y-44);
+    arrow(X-48,Y,X-48,Y+h); pill(ksTrim(D.cm[1])+' cm',D.inch?D.inch[1]+' in':'',X-48,Y+h/2); }
+  const cards=[]; if(D.frame) cards.push(['frame','Fits a '+D.frame+' cm frame','with a little margin to spare']);
+  if(D.w) cards.push(['grid',(D.w*D.h).toLocaleString('en-GB')+' squares',D.w+' wide × '+D.h+' high']);
+  if(D.count) cards.push(['ruler',D.count+' stitches per inch',D.count+' count '+D.fab]);
+  const cw=(880-18*(cards.length-1))/Math.max(1,cards.length);
+  cards.forEach(([ic,h1,h2],i)=>{ const cx=60+i*(cw+18), cy=816; A.card(cx,cy,cw,124,20); A.ico(ic,cx+24,cy+24,30);
+    let fz=21; A.f(fz,700); while(x.measureText(h1).width>cw-44&&fz>14){ fz--; A.f(fz,700); } A.t(h1,cx+24,cy+82,{sz:fz,w:700}); A.t(h2,cx+24,cy+106,{sz:15,col:D.INK2}); });
+  return A.cv;
+}
+// ── image 4: colours ─────────────────────────────────────────────────────────
+function ksAmzImg4(D){
+  const A=ksAmzCanvas(D), {x}=A; A.bg(); ksAmzBrand(A);
+  A.title(D.C.length+' colours, already sorted','Luca-S mouline. Every colour has a symbol and a number that match the chart.',112);
+  const top=226, area=[880,560], n=D.C.length; let cols=4; while(true){ const rows=Math.ceil(n/cols), cw=area[0]/cols, ch=Math.min(cw*1.05,area[1]/rows); if(ch>=cw*.9||cols>14){ break; } cols++; }
+  const rows=Math.ceil(n/cols), cw=area[0]/cols, ch=Math.min(cw*1.1,area[1]/rows), s=Math.min(cw,ch)*.86;
+  const y0=top+(area[1]-rows*ch)/2;
+  D.C.forEach((c,i)=>{ const cx=60+(i%cols)*cw+cw/2, cy=y0+Math.floor(i/cols)*ch+ch/2-s*.08, r=s*.36;
+    x.save(); x.shadowColor='rgba(0,0,0,.14)'; x.shadowBlur=8; x.shadowOffsetY=3; x.beginPath(); x.arc(cx,cy,r,0,7); x.fillStyle=ksCss(c.rgb); x.fill(); x.restore();
+    // twisted thread texture
+    x.save(); x.beginPath(); x.arc(cx,cy,r,0,7); x.clip(); x.strokeStyle='rgba(255,255,255,.16)'; x.lineWidth=Math.max(1,r*.08);
+    for(let k=-6;k<=6;k++){ x.beginPath(); x.moveTo(cx+k*r*.3-r,cy-r); x.lineTo(cx+k*r*.3+r,cy+r); x.stroke(); } x.restore();
+    A.sym(c,cx,cy,r*.95,A.on(c.rgb)); A.t(c.thread,cx,cy+r+Math.max(13,s*.2),{sz:Math.max(10,Math.min(17,s*.17)),w:700,col:D.INK,al:'center'}); });
+  const facts=[[String(n),'colours']]; if(D.B.length) facts.push([String(D.B.length),'backstitch']);
+  if(D.metres) facts.push([D.metres+' m','of thread']); if(D.strands) facts.push([D.strands+' strands','for crosses']);
+  A.facts(facts,850);
+  return A.cv;
+}
+const KS_AMZ_SET=[['app','Patternly app',ksAmzImg1],['box','In the box',ksAmzImg2],['size','Finished size',ksAmzImg3],['colours','Colours',ksAmzImg4]];
+async function ksAmzMake(P,meta){
+  await ksAmzFonts(); await document.fonts.ready;
+  const D=ksAmzData(P,meta); const out=[];
+  for(const [k,label,fn] of KS_AMZ_SET){ const cv=fn(D); out.push({k,label,url:cv.toDataURL('image/jpeg',.92)}); }
+  return out;
+}
+let KS_AMZ=[], KS_AMZ_BUSY=0;
+async function ksAmzRender(){
+  const P=KS_PARSED||(KS_CUR&&KS_CUR.parsed); const box=$('ks-amz'); if(!box) return;
+  if(!P||!P.colours||!P.colours.length){ box.style.display='none'; return; }
+  box.style.display=''; const tok=++KS_AMZ_BUSY; $('ks-amz-all').disabled=true; $('ks-amz-msg').textContent='Making the Amazon images…';
+  try{
+    const sku=($('ks-sku').value.trim()||P.sku||'KIT').toUpperCase();
+    const pd=await ksLegendPicture(1400); const pic=pd?await ksAmzImg(pd.url):null; if(pd) pd.avg=await ksPicTone(pd);
+    const imgs=await ksAmzMake(P,{sku,name:$('ks-name').value.trim(),pic,picture:pd,colour:KS_COVCOL});
+    if(tok!==KS_AMZ_BUSY) return; KS_AMZ=imgs.map((m,i)=>({...m,file:sku+' amazon '+(i+1)+' '+m.k+'.jpg'}));
+    $('ks-amz-grid').innerHTML=KS_AMZ.map((m,i)=>'<figure class="ks-amzfig"><img src="'+m.url+'" alt="'+ksEsc(m.label)+'"><figcaption><span>'+(i+1)+' · '+ksEsc(m.label)+'</span><a href="'+m.url+'" download="'+ksEsc(m.file)+'">Download</a></figcaption></figure>').join('');
+    $('ks-amz-msg').textContent=pd?'2000 × 2000 px JPG. Size, colours, fabric and thread metres come from the kit files; the colour follows the cover colour.':'Add the design picture to get the picture into the images.';
+    $('ks-amz-all').disabled=false;
+  }catch(e){ if(tok===KS_AMZ_BUSY) $('ks-amz-msg').textContent='Could not make the Amazon images: '+(e&&e.message||e); }
+}
+
 // v67: legend layouts offered in Studio (Cristian 11 Nov: only B). The others stay in the code; add a key here to show it again.
 const KS_LAYOUTS_ON=['B'];
 const ksLayOn=k=>KS_LAYOUTS_ON.includes(k);
@@ -5806,7 +6077,7 @@ async function ksLegendRender(onlyLegend){
     $('ks-leg-frame').src=KS_LEG_URL+'#toolbar=0&navpanes=0&view=FitH';
     $('ks-leg-msg').innerHTML=qr?'QR code opens '+ksEsc(sku)+' in Patternly (the same link as its insert card).':'<span class="err">'+ksEsc(sku)+' is not in Patterns yet, so the legend has no QR code. Add the SKU in the Patterns tab, then open this kit again.</span>';
     $('ks-leg-dl').disabled=false;
-    if(!onlyLegend){ ksCoverRender(); ksInstrRender(); }
+    if(!onlyLegend){ ksCoverRender(); ksInstrRender(); ksAmzRender(); }
   }catch(e){ if(tok===KS_LEG_BUSY) $('ks-leg-msg').textContent='Could not make the legend: '+(e&&e.message||e); }
 }
 // v58: the legend QR is the kit's own Patternly link (Patterns tab: access code + tracker), so nothing is typed.
