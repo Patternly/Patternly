@@ -4,7 +4,7 @@
   Proprietary software: no part of this code may be copied, modified, reused or
   redistributed without written permission from UK Luca-S LTD.
   Third-party parts keep their own licences (noted where they appear).
-  Studio v72
+  Studio v73
 -->
 <html lang="en">
 <head>
@@ -5806,7 +5806,7 @@ function ksAmzFonts(){
 const ksAmzImg=src=>new Promise((ok,no)=>{ const i=new Image(); i.onload=()=>ok(i); i.onerror=no; i.src=src; });
 const ksCss=a=>'rgb('+a.map(v=>Math.round(v)).join(',')+')';
 const ksMix=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
-const KS_FRAMES=[[13,18],[18,24],[20,25],[21,30],[24,30],[30,40],[40,50],[50,60],[50,70],[60,80],[70,100],[80,100],[100,120]];
+const KS_FRAMES=[[20,20],[25,25],[30,30],[40,40],[50,50],[13,18],[18,24],[20,25],[21,30],[24,30],[30,40],[40,50],[50,60],[50,70],[60,80],[70,100],[80,100],[100,120]];
 function ksAmzData(P,meta){
   const C=P.colours.map((c,i)=>({i,rgb:ksRgb(c.rgb),thread:String(c.thread||''),sym:c.sym,str:c.strands||2,st:+c.stitches||0,m:ksMRound(c.metres)||0}));
   const B=(P.back||[]).map(b=>({thread:String(b.thread||''),m:ksMRound(b.metres)||0,rgb:ksRgb(b.rgb||'#333333')}));
@@ -5816,7 +5816,8 @@ function ksAmzData(P,meta){
   D.stitches=C.reduce((s,c)=>s+c.st,0);
   const strs=[...new Set(C.map(c=>c.str))]; D.strands=strs.length===1?strs[0]:0;
   if(D.cm){ const pw=D.cm[0]+8, ph=D.cm[1]+8, land=D.cm[0]>D.cm[1];
-    const f=KS_FRAMES.find(([a,b])=>land?(b>=pw&&a>=ph):(a>=pw&&b>=ph)); D.frame=f?(land?f[1]+' × '+f[0]:f[0]+' × '+f[1]):''; }
+    const sq=Math.abs(D.cm[0]-D.cm[1])/Math.max(D.cm[0],D.cm[1])<.12, cand=KS_FRAMES.filter(([a,b])=>sq?a===b:a!==b).sort((u,v)=>u[0]*u[1]-v[0]*v[1]);
+    const f=cand.find(([a,b])=>land?(b>=pw&&a>=ph):(a>=pw&&b>=ph)); D.frame=f?(land?f[1]+' × '+f[0]:f[0]+' × '+f[1]):''; }
   const pl=ksPalette(meta.colour,meta.picture); D.AC=pl.AC; D.TN=pl.TN;
   D.BG=ksMix(pl.TN,[255,255,255],.35); D.INK=[43,34,38]; D.INK2=[109,90,98]; D.DARK=ksMix(pl.AC,[25,18,24],.78);
   return D;
@@ -6064,22 +6065,24 @@ function ksAmzImg4(D){
   return A.cv;
 }
 // ── image 6: the Luca-S story (Cristian 12 Nov: since 1992, 1000+ designs, 60+ countries) ──
-function ksAmzImg6(D){
-  const A=ksAmzCanvas(D), {x}=A; A.bg();
+function ksAmzImg6(D){   // v73: picture box follows the design shape (landscape / square / portrait)
+  const A=ksAmzCanvas(D), {x}=A; A.bg(); const p=D.pic, ar=p?p.width/p.height:.75, port=ar<.83;
   const lg=D.lslogo; if(lg){ const lh=74, lw=lh*lg.width/lg.height; x.drawImage(lg,60,50,lw,lh); }
   A.t('Designed with love',60,210,{sz:56,fam:'serif'}); A.t('by Luca-S',60,270,{sz:56,fam:'serif',col:D.AC});
-  A.wrap('Luca-S has been creating cross stitch kits since 1992. Every design is our own, with threads chosen to match the picture.',440,20).forEach((l,i)=>A.t(l,62,318+i*29,{sz:20,col:D.INK2}));
+  const tw=port?440:420; A.wrap('Luca-S has been creating cross stitch kits since 1992. Every design is our own, with threads chosen to match the picture.',tw,20).forEach((l,i)=>A.t(l,62,318+i*29,{sz:20,col:D.INK2}));
   const cards=[['1992','founded','creating cross stitch kits ever since'],['1000+','designs','in the Luca-S collection'],['60+','countries','stitch Luca-S kits']];
-  cards.forEach(([v,l,s],i)=>{ const X=60, Y=440+i*132, W=440, H=116; A.card(X,Y,W,H,22);
+  if(port) cards.forEach(([v,l,s],i)=>{ const X=60, Y=440+i*132, W=440, H=116; A.card(X,Y,W,H,22);
     A.t(v,X+28,Y+72,{sz:50,fam:'serif',col:D.AC}); A.f(50,400,'serif'); const vw=x.measureText(v).width;
     A.t(l.toUpperCase(),X+50+vw,Y+50,{sz:15,w:700,sp:1.4}); A.t(s,X+50+vw,Y+76,{sz:17,col:D.INK2}); });
-  const p=D.pic, PX=540, PY=56, PW=400, PH=770;
-  x.save(); x.shadowColor='rgba(60,20,30,.25)'; x.shadowBlur=40; x.shadowOffsetY=16; A.rr(PX,PY,PW,PH,26); x.fillStyle='#fff'; x.fill(); x.restore();
-  x.save(); A.rr(PX+16,PY+16,PW-32,PH-32,18); x.clip(); x.fillStyle=ksCss(D.TN); x.fillRect(PX,PY,PW,PH);
-  if(p){ const s=Math.min((PW-32)/p.width,(PH-32)/p.height), w=p.width*s, h=p.height*s; const s2=Math.max((PW-32)/p.width,(PH-32)/p.height);
-    x.filter='blur(18px)'; x.globalAlpha=.55; x.drawImage(p,PX+16+(PW-32-p.width*s2)/2,PY+16+(PH-32-p.height*s2)/2,p.width*s2,p.height*s2); x.filter='none'; x.globalAlpha=1;
-    x.drawImage(p,PX+16+(PW-32-w)/2,PY+16+(PH-32-h)/2,w,h); }
-  x.restore();
+  else cards.forEach(([v,l,s],i)=>{ const X=60+i*300, Y=660, W=280, H=170; A.card(X,Y,W,H,22);
+    A.t(v,X+28,Y+76,{sz:52,fam:'serif',col:D.AC}); A.t(l.toUpperCase(),X+28,Y+112,{sz:15,w:700,sp:1.4}); A.t(s,X+28,Y+140,{sz:16,col:D.INK2}); });
+  // picture: tall box on the right for portrait designs, otherwise a box sized to the design above the cards
+  const BX=port?540:520, BY=port?56:60, BW=port?400:420, BH=port?770:560;
+  if(p){ const f=Math.min((BW-32)/p.width,(BH-32)/p.height), w=p.width*f, h=p.height*f, bw=port?BW:w+32, bh=port?BH:h+32, bx=port?BX:BX+(BW-bw)/2, by=port?BY:BY+(BH-bh)/2;
+    x.save(); x.shadowColor='rgba(60,20,30,.25)'; x.shadowBlur=40; x.shadowOffsetY=16; A.rr(bx,by,bw,bh,26); x.fillStyle='#fff'; x.fill(); x.restore();
+    x.save(); A.rr(bx+16,by+16,bw-32,bh-32,18); x.clip(); x.fillStyle=ksCss(D.TN); x.fillRect(bx,by,bw,bh);
+    if(port){ const s2=Math.max((bw-32)/p.width,(bh-32)/p.height); x.filter='blur(18px)'; x.globalAlpha=.55; x.drawImage(p,bx+16+(bw-32-p.width*s2)/2,by+16+(bh-32-p.height*s2)/2,p.width*s2,p.height*s2); x.filter='none'; x.globalAlpha=1; }
+    x.drawImage(p,bx+16+(bw-32-w)/2,by+16+(bh-32-h)/2,w,h); x.restore(); }
   x.fillStyle=ksCss(D.DARK); x.fillRect(0,870,1000,130); A.t('Original designs · Real thread colours · Made to be kept',500,945,{sz:24,w:700,col:'#fff',al:'center'});
   return A.cv;
 }
