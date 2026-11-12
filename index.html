@@ -5497,7 +5497,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v748';
+window.PATTERNLY_BUILD='v750';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -21248,6 +21248,13 @@ async function trkOpenKitRun(kit){
       e.gateMessage = info && info.message;
       throw e;
     }
+    // v749: middleware v122 answers 402 (a kit code needs Plus) or 429 (too many new kits
+    // opened with codes). Neither means the code is wrong, so the saved code is kept.
+    if(r.status===402 || r.status===429){
+      let info=null; try{ info=await r.clone().json(); }catch(e){}
+      if(r.status===402){ try{ trkPlusGate(); }catch(e){} }
+      throw new Error((info && info.message) || (name+' unavailable ('+r.status+')'));
+    }
     if(!r.ok) throw new Error(name+' unavailable ('+r.status+')');
     return new File([await r.blob()], name, {type:r.headers.get('content-type')||'application/octet-stream'});
   };
@@ -30234,6 +30241,7 @@ function acctRenderPage(){
       <div style="display:flex;flex-direction:column;gap:.45rem;align-items:flex-end">
       <a href="#" onclick="acctSignOutConfirm();return false" style="padding:.5rem .9rem;border:1.5px solid #eadde1;border-radius:9px;font-size:.8rem;font-weight:700;color:#5a4a51;text-decoration:none">Sign out</a>
       <a href="#" onclick="acctOpenLogin(true);return false" style="font-size:.72rem;color:var(--lp-red,#8B1A2B);font-weight:700;text-decoration:none">Use a different account</a>
+      <a href="#" onclick="plDeleteAccountOpen();return false" style="font-size:.72rem;color:#b23b3b;font-weight:700;text-decoration:none">${String((window.plT&&plT('da.row')!=='da.row'&&plT('da.row'))||'Delete my account').replace(/</g,'&lt;')}</a>
       </div>`;
   } else if(a.proxied || plIsApp()){
     el.innerHTML=`<div style="flex:1;min-width:200px"><b style="font-size:.95rem">You're not signed in</b><p style="font-size:.78rem;color:#7d6b72;margin:.25rem 0 0;line-height:1.5">Sign in with your email — you'll get a code, and new customers get an account automatically. A small sign-in window opens; the moment you're done, Patternly notices by itself.</p></div>
@@ -39462,6 +39470,7 @@ body.dark #pmo .row.danger{color:#f08a8a}body.dark #pmo .row.danger .ic{backgrou
     tag:'<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="8" cy="8" r="1.4"/>',
     lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
     out:'<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"/>',
+    trash:'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>',
     spool:'<rect x="6" y="3" width="12" height="3" rx="1"/><rect x="6" y="18" width="12" height="3" rx="1"/><path d="M8 6v12M16 6v12M8 9l8 2M8 13l8 2"/>'
   };
   function ic(n){ return '<span class="ic"><svg viewBox="0 0 24 24">'+IC[n]+'</svg></span>'; }
@@ -39490,6 +39499,7 @@ body.dark #pmo .row.danger{color:#f08a8a}body.dark #pmo .row.danger .ic{backgrou
       else if(w==='pricing') openPricing();
       else if(w==='privacy') plOpenPrivacy();
       else if(w==='out') acctSignOutConfirm();
+      else if(w==='del') window.plDeleteAccountOpen();   // v750
       else if(w==='lang'){ var s=$('pl-lang-select'); if(s){ try{ s.showPicker(); }catch(_){ s.focus(); s.click(); } } }
     }catch(e){ console.warn('[pmo]',e); }
   }
@@ -39527,7 +39537,7 @@ body.dark #pmo .row.danger{color:#f08a8a}body.dark #pmo .row.danger .ic{backgrou
       +'</div>'
       +'<p class="grp">'+esc(tx('mo.tools'))+'</p><div class="list">'+row('threads','thread','mo.threads')+(typeof window.plStashOpen==='function'?row('stash','spool','sk.open'):'')+row('calc','calc','mo.calc')+row('conv','conv','mo.conv')+'</div>'
       +'<p class="grp">'+esc(tx('mo.help'))+'</p><div class="list">'+row('guide','book','mo.guide')+(hasAsk?row('ask','chat','mo.ask'):'')+(typeof window.plWhatsNewHas==='function'&&window.plWhatsNewHas()?row('whatsnew','sparkle','wn.more'):'')+row('about','info','mo.about')+'</div>'
-      +'<p class="grp">'+esc(tx('mo.account'))+'</p><div class="list">'+row('sub','star','mo.sub')+row('pricing','tag','mo.pricing')+row('privacy','lock','mo.privacy')+(a.loggedIn?row('out','out','mo.out','danger'):'')+'</div>';
+      +'<p class="grp">'+esc(tx('mo.account'))+'</p><div class="list">'+row('sub','star','mo.sub')+row('pricing','tag','mo.pricing')+row('privacy','lock','mo.privacy')+(a.loggedIn?row('out','out','mo.out','danger'):'')+(a.loggedIn&&typeof window.plDeleteAccountOpen==='function'?row('del','trash','da.row','danger'):'')+'</div>';
     var set=$('pmo-set');
     if(lang) $('pmo-lang').appendChild(lang);
     if(dark){ set.insertBefore(dark, set.firstChild); deco(dark,'moon','mo.dark'); }
@@ -39555,6 +39565,98 @@ body.dark #pmo .row.danger{color:#f08a8a}body.dark #pmo .row.danger .ic{backgrou
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
   else setTimeout(init,0);
+})();
+</script>
+<!-- v750: Delete my account (Apple / Google Play ask for it inside the app). API: plDeleteAccountOpen().
+     Entry points: website My Account (link under "Use a different account") and the app More page (row under Sign out).
+     Two taps, then POST /account/delete {confirm:"DELETE"} (middleware v124), which deletes everything Patternly keeps
+     for the account and files a request in Studio › Feedback to close the Luca-S shop account. Then signs out.
+     Patterns stored on the device are left alone. Strings da.* in 8 languages. -->
+<style id="pda-style">
+.pda{--da-bg:#fff;--da-ink:#2b2226;--da-mute:#6f5e65;--da-line:#efe3e6;--da-soft:#f7f1f2;--da-red:#b3261e;--da-redbg:#fbecec;
+  position:fixed;inset:0;z-index:9700;display:none;align-items:center;justify-content:center;padding:1rem;background:rgba(20,12,18,.45);font-family:inherit}
+body.dark .pda{--da-bg:#221a2e;--da-ink:#f2ecf4;--da-mute:#b3a5b8;--da-line:#3a2f47;--da-soft:#2b2238;--da-red:#ff8a80;--da-redbg:#3a2020}
+.pda.on{display:flex}
+.pda *{box-sizing:border-box}
+.pda-card{background:var(--da-bg);color:var(--da-ink);width:min(420px,100%);max-height:calc(100vh - 2rem);overflow-y:auto;border-radius:20px;padding:1.3rem 1.25rem 1.1rem;box-shadow:0 18px 60px rgba(0,0,0,.3)}
+.pda-ic{width:46px;height:46px;border-radius:50%;background:var(--da-redbg);color:var(--da-red);display:flex;align-items:center;justify-content:center;margin-bottom:.8rem}
+.pda-ic svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.pda h3{font-size:1.12rem;font-weight:800;margin:0 0 .5rem;line-height:1.25}
+.pda p{font-size:.88rem;line-height:1.5;margin:0 0 .7rem;color:var(--da-ink)}
+.pda ul{list-style:none;margin:0 0 .9rem;padding:.7rem .8rem;background:var(--da-soft);border-radius:12px}
+.pda li{font-size:.8rem;line-height:1.45;color:var(--da-mute);padding-left:1rem;position:relative}
+.pda li+li{margin-top:.45rem}
+.pda li:before{content:"";position:absolute;left:0;top:.55em;width:5px;height:5px;border-radius:50%;background:var(--da-mute)}
+.pda-msg{font-size:.8rem;font-weight:600;color:var(--da-red);min-height:1.1rem;margin:0 0 .5rem}
+.pda-btns{display:flex;gap:.6rem;flex-wrap:wrap}
+.pda-btns button{flex:1;min-width:130px;min-height:46px;border-radius:12px;font:inherit;font-size:.9rem;font-weight:700;cursor:pointer;touch-action:manipulation;padding:.5rem .8rem}
+.pda-no{background:none;border:1.5px solid var(--da-line);color:var(--da-ink)}
+.pda-yes{background:var(--da-red);border:1.5px solid var(--da-red);color:#fff}
+body.dark .pda-yes{color:#1d1420}
+.pda-yes[disabled]{opacity:.6;cursor:default}
+</style>
+<script id="pda-src">
+(function(){
+  var S={
+    en:{"da.row":"Delete my account","da.title":"Delete your account?","da.body":"This permanently deletes everything Patternly keeps for your account: your stitching progress, the patterns and designs saved to your account, My threads and your notification settings. It cannot be undone.","da.n1":"Patterns stored on this device stay until you remove them or the app.","da.n2":"A subscription is not cancelled by this. Cancel it in the App Store, Google Play or your Luca-S account.","da.n3":"Our team will also close your Luca-S account within 30 days. Order records we must keep by law are kept.","da.cancel":"Cancel","da.go":"Delete my account","da.sure":"Yes, delete everything","da.busy":"Deleting…","da.done":"Your account data was deleted and you are signed out.","da.err":"We could not delete it right now. Check your connection and try again.","da.signin":"Please sign in again first, then try once more."},
+    fr:{"da.row":"Supprimer mon compte","da.title":"Supprimer votre compte ?","da.body":"Cela supprime définitivement tout ce que Patternly conserve pour votre compte : votre progression, les grilles et créations enregistrées sur votre compte, Mes fils et vos réglages de notifications. Cette action est irréversible.","da.n1":"Les grilles stockées sur cet appareil restent jusqu’à ce que vous les supprimiez ou supprimiez l’application.","da.n2":"Cela n’annule pas un abonnement. Annulez-le dans l’App Store, Google Play ou votre compte Luca-S.","da.n3":"Notre équipe fermera aussi votre compte Luca-S sous 30 jours. Les données de commande que la loi nous oblige à conserver sont gardées.","da.cancel":"Annuler","da.go":"Supprimer mon compte","da.sure":"Oui, tout supprimer","da.busy":"Suppression…","da.done":"Les données de votre compte ont été supprimées et vous êtes déconnecté.","da.err":"Suppression impossible pour le moment. Vérifiez votre connexion et réessayez.","da.signin":"Reconnectez-vous d’abord, puis réessayez."},
+    de:{"da.row":"Mein Konto löschen","da.title":"Konto löschen?","da.body":"Damit wird alles, was Patternly zu deinem Konto speichert, endgültig gelöscht: dein Stickfortschritt, die im Konto gespeicherten Muster und Entwürfe, Meine Garne und deine Benachrichtigungseinstellungen. Das lässt sich nicht rückgängig machen.","da.n1":"Muster auf diesem Gerät bleiben, bis du sie oder die App entfernst.","da.n2":"Ein Abo wird dadurch nicht gekündigt. Kündige es im App Store, bei Google Play oder in deinem Luca-S-Konto.","da.n3":"Unser Team schließt außerdem dein Luca-S-Konto innerhalb von 30 Tagen. Bestelldaten, die wir gesetzlich aufbewahren müssen, bleiben erhalten.","da.cancel":"Abbrechen","da.go":"Mein Konto löschen","da.sure":"Ja, alles löschen","da.busy":"Wird gelöscht…","da.done":"Deine Kontodaten wurden gelöscht und du bist abgemeldet.","da.err":"Das Löschen ist gerade nicht möglich. Prüfe deine Verbindung und versuche es erneut.","da.signin":"Bitte melde dich zuerst neu an und versuche es dann noch einmal."},
+    nl:{"da.row":"Mijn account verwijderen","da.title":"Je account verwijderen?","da.body":"Hiermee wordt alles wat Patternly voor je account bewaart definitief verwijderd: je borduurvoortgang, de patronen en ontwerpen in je account, Mijn garens en je meldingsinstellingen. Dit kan niet ongedaan worden gemaakt.","da.n1":"Patronen op dit apparaat blijven staan tot je ze of de app verwijdert.","da.n2":"Een abonnement wordt hierdoor niet opgezegd. Zeg het op in de App Store, Google Play of je Luca-S-account.","da.n3":"Ons team sluit ook je Luca-S-account binnen 30 dagen. Bestelgegevens die we wettelijk moeten bewaren, blijven bewaard.","da.cancel":"Annuleren","da.go":"Mijn account verwijderen","da.sure":"Ja, alles verwijderen","da.busy":"Bezig met verwijderen…","da.done":"Je accountgegevens zijn verwijderd en je bent uitgelogd.","da.err":"Verwijderen lukt nu niet. Controleer je verbinding en probeer het opnieuw.","da.signin":"Log eerst opnieuw in en probeer het dan nog eens."},
+    ru:{"da.row":"Удалить мой аккаунт","da.title":"Удалить аккаунт?","da.body":"Будет навсегда удалено всё, что Patternly хранит для вашего аккаунта: прогресс вышивки, схемы и дизайны, сохранённые в аккаунте, «Мои нитки» и настройки уведомлений. Это нельзя отменить.","da.n1":"Схемы на этом устройстве останутся, пока вы не удалите их или приложение.","da.n2":"Подписка при этом не отменяется. Отмените её в App Store, Google Play или в аккаунте Luca-S.","da.n3":"Наша команда также закроет ваш аккаунт Luca-S в течение 30 дней. Данные о заказах, которые мы обязаны хранить по закону, сохраняются.","da.cancel":"Отмена","da.go":"Удалить мой аккаунт","da.sure":"Да, удалить всё","da.busy":"Удаление…","da.done":"Данные аккаунта удалены, вы вышли из аккаунта.","da.err":"Сейчас не удалось удалить. Проверьте соединение и попробуйте ещё раз.","da.signin":"Сначала войдите снова, затем повторите."},
+    uk:{"da.row":"Видалити мій акаунт","da.title":"Видалити акаунт?","da.body":"Буде назавжди видалено все, що Patternly зберігає для вашого акаунта: прогрес вишивання, схеми й дизайни, збережені в акаунті, «Мої нитки» та налаштування сповіщень. Це неможливо скасувати.","da.n1":"Схеми на цьому пристрої залишаться, доки ви не видалите їх або застосунок.","da.n2":"Підписка при цьому не скасовується. Скасуйте її в App Store, Google Play або в акаунті Luca-S.","da.n3":"Наша команда також закриє ваш акаунт Luca-S протягом 30 днів. Дані про замовлення, які ми зобов’язані зберігати за законом, зберігаються.","da.cancel":"Скасувати","da.go":"Видалити мій акаунт","da.sure":"Так, видалити все","da.busy":"Видалення…","da.done":"Дані акаунта видалено, ви вийшли з акаунта.","da.err":"Зараз не вдалося видалити. Перевірте з’єднання і спробуйте ще раз.","da.signin":"Спочатку увійдіть знову, потім повторіть."},
+    es:{"da.row":"Eliminar mi cuenta","da.title":"¿Eliminar tu cuenta?","da.body":"Esto elimina para siempre todo lo que Patternly guarda de tu cuenta: tu progreso de bordado, los patrones y diseños guardados en tu cuenta, Mis hilos y tus ajustes de notificaciones. No se puede deshacer.","da.n1":"Los patrones guardados en este dispositivo permanecen hasta que los elimines o elimines la app.","da.n2":"Esto no cancela una suscripción. Cancélala en App Store, Google Play o en tu cuenta Luca-S.","da.n3":"Nuestro equipo también cerrará tu cuenta Luca-S en un plazo de 30 días. Se conservan los datos de pedidos que la ley nos obliga a guardar.","da.cancel":"Cancelar","da.go":"Eliminar mi cuenta","da.sure":"Sí, eliminar todo","da.busy":"Eliminando…","da.done":"Los datos de tu cuenta se han eliminado y se ha cerrado la sesión.","da.err":"No se ha podido eliminar ahora. Revisa tu conexión e inténtalo de nuevo.","da.signin":"Inicia sesión de nuevo primero y vuelve a intentarlo."},
+    it:{"da.row":"Elimina il mio account","da.title":"Eliminare il tuo account?","da.body":"Verrà eliminato definitivamente tutto ciò che Patternly conserva per il tuo account: i progressi di ricamo, gli schemi e i disegni salvati nell’account, I miei fili e le impostazioni delle notifiche. Non si può annullare.","da.n1":"Gli schemi salvati su questo dispositivo restano finché non li rimuovi o rimuovi l’app.","da.n2":"Questo non annulla un abbonamento. Annullalo in App Store, Google Play o nel tuo account Luca-S.","da.n3":"Il nostro team chiuderà anche il tuo account Luca-S entro 30 giorni. I dati degli ordini che dobbiamo conservare per legge vengono mantenuti.","da.cancel":"Annulla","da.go":"Elimina il mio account","da.sure":"Sì, elimina tutto","da.busy":"Eliminazione…","da.done":"I dati del tuo account sono stati eliminati e sei stato disconnesso.","da.err":"Non è stato possibile eliminare ora. Controlla la connessione e riprova.","da.signin":"Accedi di nuovo e riprova."}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k){ var s=null; try{ s=window.plT?plT(k):null; }catch(e){} if(!s||s===k){ var L=String(window.PL_LANG||document.documentElement.lang||'en').slice(0,2); s=(S[L]&&S[L][k])||S.en[k]||k; } return s; }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  var box=null, step=0, busy=false;
+  function close(){ if(box){ box.classList.remove('on'); } step=0; busy=false; }
+  function base(){ try{ if(typeof TRK_KITS_BASE==='string') return TRK_KITS_BASE.replace(/\/patterns$/,''); }catch(e){} return 'https://luca-s.com/apps/patternly'; }
+  function platform(){ try{ if(window.Capacitor&&Capacitor.getPlatform){ var p=Capacitor.getPlatform(); if(p==='ios'||p==='android') return p; } }catch(e){} return 'web'; }
+  function draw(){
+    box.innerHTML='<div class="pda-card" role="dialog" aria-modal="true" aria-labelledby="pda-t">'
+      +'<div class="pda-ic"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg></div>'
+      +'<h3 id="pda-t">'+esc(tx('da.title'))+'</h3>'
+      +'<p>'+esc(tx('da.body'))+'</p>'
+      +'<ul><li>'+esc(tx('da.n1'))+'</li><li>'+esc(tx('da.n2'))+'</li><li>'+esc(tx('da.n3'))+'</li></ul>'
+      +'<div class="pda-msg" id="pda-msg" role="status"></div>'
+      +'<div class="pda-btns"><button type="button" class="pda-no" id="pda-no">'+esc(tx('da.cancel'))+'</button>'
+      +'<button type="button" class="pda-yes" id="pda-yes">'+esc(tx(step?'da.sure':'da.go'))+'</button></div></div>';
+    box.querySelector('#pda-no').addEventListener('click', function(){ if(!busy) close(); });
+    box.querySelector('#pda-yes').addEventListener('click', yes);
+  }
+  function yes(){
+    if(busy) return;
+    var btn=box.querySelector('#pda-yes'), msg=box.querySelector('#pda-msg');
+    if(!step){ step=1; btn.textContent=tx('da.sure'); return; }   // first tap only arms the button
+    busy=true; btn.disabled=true; btn.textContent=tx('da.busy'); msg.textContent='';
+    var qs=''; try{ qs=(typeof plSessQS==='function')?plSessQS():''; }catch(e){}
+    fetch(base()+'/account/delete'+qs, {method:'POST', credentials:'include', headers:{'content-type':'application/json'}, body:JSON.stringify({confirm:'DELETE', platform:platform()})})
+      .then(function(r){ return r.json().catch(function(){ return null; }).then(function(j){ return {s:r.status, j:j}; }); })
+      .then(function(o){
+        if(o.j && o.j.ok){
+          close();
+          try{ if(typeof acctSignOut==='function') acctSignOut(); }catch(e){}
+          try{ if(typeof toast==='function') toast(tx('da.done'), 7000); }catch(e){}
+          return;
+        }
+        busy=false; btn.disabled=false; btn.textContent=tx('da.sure');
+        msg.textContent=tx(o.s===401?'da.signin':'da.err');
+      })
+      .catch(function(){ busy=false; btn.disabled=false; btn.textContent=tx('da.sure'); msg.textContent=tx('da.err'); });
+  }
+  window.plDeleteAccountOpen=function(){
+    var a={}; try{ a=lucasAuth()||{}; }catch(e){}
+    if(!a.loggedIn) return;
+    if(!box){
+      box=document.createElement('div'); box.className='pda'; box.id='pda';
+      box.addEventListener('click', function(e){ if(e.target===box && !busy) close(); });
+      document.addEventListener('keydown', function(e){ if(e.key==='Escape' && box.classList.contains('on') && !busy) close(); });
+      document.body.appendChild(box);
+    }
+    step=0; busy=false; draw(); box.classList.add('on');
+  };
 })();
 </script>
 <!-- v659: help chat ("Help & suggestions"). Chat-style: name → reason → (email ok?) → messages. API: plFeedbackOpen(where). Posts each message to /feedback.

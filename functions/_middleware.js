@@ -15,7 +15,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v120";
+const MW_VERSION = "v124";
 
 // v107: the help sheet the in-app AI assistant answers from (/help/chat). Keep it
 // to facts that are true in the live app; update it when a feature changes.
@@ -753,12 +753,13 @@ async function setupLinkMake(env, uid, url) {
   const base = env.STUDIO_PUBLIC_URL || "https://luca-s.com/apps/patternly/brands";
   return base + "?setup=" + tok;
 }
-async function sessionsRevoke(env, uid) {
+async function sessionsRevoke(env, uid, pkey) {      // v123: pkey = a partner brand's sessions
+  if (!uid && !pkey) return;
   let cursor;
   for (let page = 0; page < 5; page++) {
     const listed = await env.PARTNERS.list({ prefix: "sess:", limit: 1000, cursor });
     for (const k of listed.keys) {
-      try { const s = JSON.parse((await env.PARTNERS.get(k.name)) || "null"); if (s && s.uid === uid) await env.PARTNERS.delete(k.name); } catch (e) {}
+      try { const s = JSON.parse((await env.PARTNERS.get(k.name)) || "null"); if (s && ((uid && s.uid === uid) || (pkey && s.pkey === pkey))) await env.PARTNERS.delete(k.name); } catch (e) {}
     }
     if (!listed.list_complete) cursor = listed.cursor; else break;
   }
@@ -802,6 +803,13 @@ async function partnerKeyByEmail(env, email) {
   }
   return null;
 }
+// v123: a brand record lives under its brand key (normally "PK-<PREFIX>-…"). The same
+// store also holds team users, sessions, set-up links, applications and lookup indexes;
+// none of those may ever be read, edited or deleted through a route that takes a brand key.
+function brandKeyOk(key) {
+  return typeof key === "string" && key.length >= 4 && key.length <= 80 &&
+    !/^(user|ukey|uemail|pemail|sess|setup|ulock|ufor|app):/i.test(key);
+}
 async function partnerAuth(request, env) {
   if (!env.PARTNERS) return { err: partnerJson(503, { ok:false, error:"partner-system-not-configured" }) };
   let key = (request.headers.get("x-brand-key") || "").trim();
@@ -812,6 +820,8 @@ async function partnerAuth(request, env) {
     if (!s || !s.pkey || (s.exp && s.exp < Date.now())) return { err: partnerJson(401, { ok:false, error:"session-expired" }) };
     key = s.pkey;
   }
+  // v123: only a brand key names a brand; no other record in this store can stand in for one.
+  if (!brandKeyOk(key)) return { err: partnerJson(401, { ok:false, error:"bad-key" }) };
   let rec = null;
   try { rec = JSON.parse((await env.PARTNERS.get(key)) || "null"); } catch (e) {}
   if (!rec || !rec.prefix || !rec.brand) return { err: partnerJson(401, { ok:false, error:"bad-key" }) };
@@ -1635,6 +1645,7 @@ async function handlePartnerApi(request, url, env) {
       await env.PARTNERS.put(s.pkey, JSON.stringify(prec));
       if (prec.email) await env.PARTNERS.put("pemail:" + normEmail(prec.email), s.pkey);
       await env.PARTNERS.delete(skey);
+      try { await sessionsRevoke(env, null, s.pkey); } catch (e) {}   // v123: a new password signs every old session out
       return partnerJson(200, { ok:true, email: prec.email || "", partner: true });
     }
     const rec = await userGet(env, s.uid);
@@ -1642,6 +1653,7 @@ async function handlePartnerApi(request, url, env) {
     rec.pw = await pwMake(password);
     await env.PARTNERS.put("user:" + s.uid, JSON.stringify(rec));
     await env.PARTNERS.delete(skey);
+    try { await sessionsRevoke(env, s.uid); } catch (e) {}            // v123: a new password signs every old session out
     return partnerJson(200, { ok:true, email: rec.email || "" });
   }
   if (sub === "staff/login" && request.method === "POST") {
@@ -1736,8 +1748,8 @@ async function handlePartnerApi(request, url, env) {
     const key = String(body.key || "").trim();
     const email = String(body.email || "").trim().toLowerCase();
     let rec = null;
-    try { rec = JSON.parse((await env.PARTNERS.get(key)) || "null"); } catch (e) {}
-    if (!rec || !email || String(rec.email || "").toLowerCase() !== email) {
+    try { if (brandKeyOk(key)) rec = JSON.parse((await env.PARTNERS.get(key)) || "null"); } catch (e) {}   // v123: brand keys only
+    if (!rec || !rec.prefix || !email || String(rec.email || "").toLowerCase() !== email) {
       return partnerJson(401, { ok:false, error:"That email and brand key don\u2019t match." });
     }
     return partnerJson(200, { ok:true, brand: rec.brand, prefix: String(rec.prefix).toUpperCase(), email: rec.email, buy: rec.buy || "" });
@@ -2745,7 +2757,7 @@ async function handlePartnerApi(request, url, env) {
     if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"partner system not configured" });
     let body = {}; try { body = await request.json(); } catch (e) {}
     const key = String(body.key || "").trim();
-    let rec = null; try { rec = JSON.parse((await env.PARTNERS.get(key)) || "null"); } catch (e) {}
+    let rec = null; try { if (brandKeyOk(key)) rec = JSON.parse((await env.PARTNERS.get(key)) || "null"); } catch (e) {}   // v123
     if (!rec || !rec.prefix) return partnerJson(404, { ok:false, error:"no such brand key" });
     if (rec.email) await env.PARTNERS.put("pemail:" + normEmail(rec.email), key);
     const link = await setupLinkMakeFor(env, { pkey: key });
@@ -2760,8 +2772,8 @@ async function handlePartnerApi(request, url, env) {
     let body = {}; try { body = await request.json(); } catch (e) {}
     const key = String(body.key || "").trim();
     let rec = null;
-    try { rec = JSON.parse((await env.PARTNERS.get(key)) || "null"); } catch (e) {}
-    if (!rec) return partnerJson(404, { ok:false, error:"no such brand key" });
+    try { if (brandKeyOk(key)) rec = JSON.parse((await env.PARTNERS.get(key)) || "null"); } catch (e) {}   // v123: this route edits brands only, never a team user or any other record
+    if (!rec || !rec.prefix) return partnerJson(404, { ok:false, error:"no such brand key" });
     if (body.email !== undefined) {
       const email = String(body.email || "").trim().toLowerCase();
       if (!email || email.indexOf("@") <= 0) return partnerJson(400, { ok:false, error:"bad email" });
@@ -2794,7 +2806,8 @@ async function handlePartnerApi(request, url, env) {
     if (!env.PARTNERS) return partnerJson(503, { ok:false, error:"partner system not configured" });
     let body = {}; try { body = await request.json(); } catch (e) {}
     const key = String(body.key || "").trim();
-    if (!(await env.PARTNERS.get(key))) return partnerJson(404, { ok:false, error:"no such brand key" });
+    let brec = null; try { if (brandKeyOk(key)) brec = JSON.parse((await env.PARTNERS.get(key)) || "null"); } catch (e) {}   // v123: brands only
+    if (!brec || !brec.prefix) return partnerJson(404, { ok:false, error:"no such brand key" });
     await env.PARTNERS.delete(key);
     return partnerJson(200, { ok:true, revoked: key,
       note: "Sign-in and uploads stop immediately. The brand’s published kits stay live — hide or remove them separately if needed." });
@@ -3923,12 +3936,86 @@ async function freeKitLatch(auth, request, env, sku) {
   } catch (e) { console.warn("freekit latch failed:", e.message); }
 }
 
+// v122: an access code alone no longer opens a kit's files. Until now anyone could
+// read a kit's code from /kit/<SKU> and download the chart with it: no account, no
+// Plus, no purchase. A code now works only for someone who may use the Tracker:
+//   - a Plus member (trial included), or
+//   - a visitor in a free-kit country (v111, Russia / Ukraine: signed in or not), or
+//   - a signed-in customer who already opened this kit while it was free there.
+// It is also capped per person, so one account or address cannot collect the whole
+// catalogue: KIT_CODE_CAP new kits per 30 days per account (default 12), and
+// KIT_CODE_CAP_ANON per day per address when not signed in (default 6). A kit that
+// was already counted, or that the customer owns, never counts again.
+// Returns null when the code may be used, or the Response that refuses it.
+async function kitCodeGate(auth, request, env, sku) {
+  const S = String(sku).toUpperCase();
+  const json = (status, obj) => new Response(JSON.stringify(obj), {
+    status, headers: { "content-type": "application/json", "x-code-seen": "1", "cache-control": "no-store" }
+  });
+  const signedIn = !!(auth && auth.loggedIn && auth.customerId);
+  const cc = visitorCountry(request);
+  let allowed = !!cc && freeKitCountries(env).indexOf(cc) !== -1;
+  let exempt = false;
+  if (!allowed && signedIn) {
+    try {
+      const kept = JSON.parse((env.ENTITLEMENTS && await env.ENTITLEMENTS.get("freekit:" + auth.customerId)) || "[]");
+      if (Array.isArray(kept) && kept.indexOf(S) !== -1) allowed = true;
+    } catch (e) {}
+    if (!allowed) {
+      let st = null;
+      try { st = await plusState(auth, env); } catch (e) { st = { subsError: String(e && e.message || e) }; }
+      // A failed Shopify lookup must never lock a paying member out of a kit.
+      if (st && (st.plus || st.subsError)) allowed = true;
+      if (st && st.source === "override") exempt = true;        // PLUS_CUSTOMERS: team and comped testers
+    }
+  }
+  if (!allowed) {
+    return signedIn
+      ? json(402, { error: "plus", sku: S, message: "Patternly Plus is needed to open a kit with its code." })
+      : json(401, { error: "signin", sku: S, message: "Sign in to your account to open this kit with its code." });
+  }
+  if (exempt || !env.ENTITLEMENTS) return null;
+  try {
+    const now = Date.now();
+    if (signedIn) {
+      const cap = Math.max(1, (env.KIT_CODE_CAP | 0) || 12);
+      const k = "codeuse:c" + auth.customerId;
+      let rec = {}; try { rec = JSON.parse((await env.ENTITLEMENTS.get(k)) || "{}") || {}; } catch (e) { rec = {}; }
+      for (const s of Object.keys(rec)) if (!(rec[s] > now - 30 * 86400000)) delete rec[s];
+      if (rec[S]) return null;
+      if (Object.keys(rec).length >= cap) return json(429, { error: "limit", sku: S, message: "You have opened a lot of new kits with codes this month. Please contact us if you need more." });
+      rec[S] = now;
+      await env.ENTITLEMENTS.put(k, JSON.stringify(rec), { expirationTtl: 31 * 86400 });
+    } else {
+      const cap = Math.max(1, (env.KIT_CODE_CAP_ANON | 0) || 6);
+      const ip = auth && auth.proxied
+        ? String(request.headers.get("x-forwarded-for") || "").split(",")[0].trim()
+        : String(request.headers.get("cf-connecting-ip") || "").trim();
+      if (!ip) return null;                                     // never block everyone at once
+      const k = "codeuse:i" + (await sha256b64(ip)) + ":" + new Date(now).toISOString().slice(0, 10);
+      let list = []; try { list = JSON.parse((await env.ENTITLEMENTS.get(k)) || "[]") || []; } catch (e) { list = []; }
+      if (list.indexOf(S) !== -1) return null;
+      if (list.length >= cap) return json(429, { error: "limit", sku: S, message: "Too many new kits opened from this connection today. Sign in, or try again tomorrow." });
+      list.push(S);
+      await env.ENTITLEMENTS.put(k, JSON.stringify(list), { expirationTtl: 90000 });
+    }
+  } catch (e) { console.warn("kit code cap failed:", e.message); }
+  return null;
+}
+
 async function servePattern(key, auth, request, url, env) {
   if (!env.PATTERNS) {
     return new Response("pattern storage not bound", { status: 500 });
   }
   // No traversal, no absolute keys.
   if (!key || key.includes("..") || key.startsWith("/")) {
+    return new Response("not found", { status: 404 });
+  }
+
+  // v121: the bucket also holds private things that are not kit files: help chat
+  // attachments (fbf/), the team's Kit files (kitsrc/) and the partner manifest.
+  // They have their own signed-in routes; this public route never serves them.
+  if (/^(fbf|kitsrc)\//i.test(key) || /^partner-kits\.json$/i.test(key)) {
     return new Response("not found", { status: 404 });
   }
 
@@ -3965,6 +4052,7 @@ async function servePattern(key, auth, request, url, env) {
           headers: { "x-code-seen": c.seen ? "1" : "0", "cache-control": "no-store" }
         });
       }
+      if (c.seen) { const g = await kitCodeGate(auth, request, env, sku); if (g) return g; }   // v122
       if (auth && auth.customerId) { try { await latchSkus(auth.customerId, new Set([sku]), env); } catch (e) {} }
       { await freeKitLatch(auth, request, env, sku); return deliver(key, env); }
     }
@@ -3995,6 +4083,7 @@ async function servePattern(key, auth, request, url, env) {
       // "My Luca-S Patterns" — just like a purchase. (Anonymous code users have
       // no account to grant to; they still get the chart.) This is what lets a
       // kit opened by code — not bought on the account — be tracked & synced.
+      { const g = await kitCodeGate(auth, request, env, sku); if (g) return g; }   // v122
       if (auth && auth.customerId) {
         try { await latchSkus(auth.customerId, new Set([sku]), env); }
         catch (e) { console.warn("latch on code failed:", e.message); }
@@ -4977,6 +5066,79 @@ async function handleRequest(context) {
     return new Response("method not allowed", { status: 405 });
   }
 
+  // ── /account/delete: "Delete my account" (v124) ─────────────────────────
+  // Apple and Google require an in-app way to delete the account. The sign-in itself
+  // is the customer's Luca-S shop account (Shopify), which also holds their orders, so
+  // this route deletes everything PATTERNLY keeps for the account and files a request
+  // in Studio › Feedback for the team to close the shop account.
+  //   POST /account/delete  {confirm:"DELETE"}  ->  {ok, removed:{…}}
+  // Deleted: stitch progress, synced uploaded patterns and Editor designs (records and
+  // files), My threads, streak / notification history, this account's push devices,
+  // free-kit and code-opened kit lists, export counters.
+  // Kept on purpose: the "trial used" marker (one free trial per account) and the store
+  // subscription state and revenue ledger (a running subscription is cancelled in the
+  // App Store / Google Play / shop, not here).
+  if (url.pathname.endsWith("/account/delete")) {
+    const json = (obj, code) => new Response(JSON.stringify(obj), {
+      status: code || 200, headers: { "content-type": "application/json", "cache-control": "no-store" }
+    });
+    if (request.method !== "POST") return json({ ok: false, error: "method" }, 405);
+    if (!auth.loggedIn || !auth.customerId) return json({ ok: false, error: "signin" }, 401);
+    if (!env.ENTITLEMENTS) return json({ ok: false, error: "storage not configured" }, 500);
+    let b = null; try { b = await request.json(); } catch (e) {}
+    if (!b || b.confirm !== "DELETE") return json({ ok: false, error: "confirm" }, 400);
+    const cid = String(auth.customerId);
+    if (!/^[A-Za-z0-9_-]{1,40}$/.test(cid)) return json({ ok: false, error: "bad account" }, 400);
+    const removed = { progress: 0, patterns: 0, designs: 0, devices: 0, files: 0, other: 0 };
+    const kvKeys = async (prefix) => {
+      const names = []; let cursor;
+      for (let page = 0; page < 20; page++) {
+        const l = await env.ENTITLEMENTS.list({ prefix, limit: 1000, cursor });
+        for (const k of l.keys) names.push(k.name);
+        if (!l.list_complete) cursor = l.cursor; else break;
+      }
+      return names;
+    };
+    const kvDel = async (name) => { try { await env.ENTITLEMENTS.delete(name); return 1; } catch (e) { return 0; } };
+    const r2Wipe = async (bucket) => {
+      if (!bucket) return 0;
+      let n = 0, cursor;
+      for (let page = 0; page < 20; page++) {
+        const l = await bucket.list({ prefix: cid + "/", limit: 1000, cursor });
+        for (const o of (l.objects || [])) { try { await bucket.delete(o.key); n++; } catch (e) {} }
+        if (l.truncated) cursor = l.cursor; else break;
+      }
+      return n;
+    };
+    try {
+      for (const k of await kvKeys("prog:" + cid + ":")) removed.progress += await kvDel(k);
+      for (const k of await kvKeys("upat:" + cid + ":")) removed.patterns += await kvDel(k);
+      for (const k of await kvKeys("edpat:" + cid + ":")) removed.designs += await kvDel(k);
+      for (const p of ["updel:", "edpdel:", "exports:"]) for (const k of await kvKeys(p + cid + ":")) removed.other += await kvDel(k);
+      for (const k of await kvKeys("pushcid:" + cid + ":")) {
+        try { const dev = await env.ENTITLEMENTS.get(k); if (dev && /^push:/.test(dev)) await kvDel(dev); } catch (e) {}
+        removed.devices += await kvDel(k);
+      }
+      for (const k of ["stash:" + cid, "pushauto:u:" + cid, "freekit:" + cid, "cust:" + cid, "codeuse:c" + cid]) removed.other += await kvDel(k);
+      _cache.delete("owned:" + cid);
+      removed.files += await r2Wipe(env.USER_PATTERNS);
+      removed.files += await r2Wipe(env.EDITOR_PATTERNS);
+    } catch (e) {
+      return json({ ok: false, error: "failed", detail: String(e && e.message || e).slice(0, 200), removed }, 500);
+    }
+    // Tell the team (Studio › Feedback), with the email so the shop account can be closed.
+    try {
+      let email = auth.email || "";
+      if (!email) { try { const who = await adminQuery(env, CUSTOMER_EMAIL_QUERY, { id: "gid://shopify/Customer/" + cid }); email = (who && who.customer && who.customer.email) || ""; } catch (e) {} }
+      const ts = Date.now(), id = String(ts).padStart(13, "0") + ":" + randAlpha(6);
+      const rec = { id, ts, kind: "account", status: "new", lang: "en", platform: ["ios", "android", "web"].includes(String(b.platform || "")) ? String(b.platform) : "web", where: "delete-account",
+        text: "Account deletion requested from the app. All Patternly data for this account was deleted automatically (" + removed.progress + " kit progress, " + removed.patterns + " uploaded patterns, " + removed.designs + " designs). The customer also asks for their Luca-S account to be closed: Shopify admin › Customers › find the email › More actions › Erase personal data. Customer id " + cid + "." };
+      if (email) rec.email = String(email).slice(0, 200);
+      await env.ENTITLEMENTS.put("fb:" + id, JSON.stringify(rec), { metadata: { kind: "account", status: "new", ts } });
+    } catch (e) { console.warn("delete-account notice failed:", e.message); }
+    return json({ ok: true, removed });
+  }
+
   // ── /stash: "My threads" that follow the account (v109) ─────────────────
   // The threads a stitcher owns, shared by every shopping list. One small JSON
   // record per account in KV: {h: have, c: skeins counted, m: label/colour,
@@ -5500,7 +5662,7 @@ async function handleRequest(context) {
   // /apps/patternly, so any base computed here is wrong by the length of the
   // proxy prefix. The app works it out from its own location instead. Set the
   // variable here only to point at a different origin on purpose.
-  const inject = `<script>window.__LUCAS_AUTH__=${JSON.stringify(auth)};</script>`;
+  const inject = `<script>window.__LUCAS_AUTH__=${JSON.stringify(auth).replace(/</g, "\\u003c")};</script>`;   // v123: no value can close the script tag
 
   const out = new HTMLRewriter()
     .on("head", { element(el) { el.prepend(inject, { html: true }); } })
