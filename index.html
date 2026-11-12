@@ -5497,7 +5497,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v750';
+window.PATTERNLY_BUILD='v751';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -40719,6 +40719,127 @@ body.dark #pst-info .pi-txt{color:#cfc4d6}
     var f=window.trkFsPanel; if(typeof f!=='function'||!f._pst){ setTimeout(init,200); return; }   // after the v669 sheet is in place
     if(!f._pss){ var w=function(kind){ var r=f.apply(this,arguments); try{ if(kind==='settings'&&app()) restructure(); }catch(e){ console.warn('[pss]',e); } return r; }; w._pst=1; w._pss=1; window.trkFsPanel=w; }
     var rs=window.trkFsRestore; if(typeof rs==='function'&&!rs._pss){ var wr2=function(){ try{ restore(); }catch(e){} return rs.apply(this,arguments); }; wr2._pss=1; window.trkFsRestore=wr2; }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
+  else setTimeout(init,0);
+})();
+</script>
+<style id="ppg-style">
+/* v751 – app Tracker Settings, Pages: two picture tiles (Whole chart / Printed pages) and a page stepper
+   under them that stays visible but locked until Printed pages is chosen (nothing expands). The old
+   Full/Pages bar, per-page select and mini map stay in the DOM (hidden here) and are driven by clicks. */
+body.ptly-appui #trk-fspanel.pst #trk-fs-pages-wrap{display:none!important}
+body.ptly-appui #trk-fspanel.pst .ppg-row{flex-direction:column!important;align-items:stretch!important;padding:10px 0 14px!important}
+.ppg-hd{display:flex;align-items:center;min-height:30px}
+.ppg-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.ppg-tile{border:1.5px solid #eee2e5;border-radius:14px;background:#fff;padding:10px 8px 8px;text-align:center;font:inherit;font-size:.8rem;font-weight:600;color:#7c6f75;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.ppg-tile svg{display:block;width:100%;max-width:120px;height:auto;margin:0 auto 6px}
+.ppg-tile.on{border-color:#8B1A2B;color:#8B1A2B;background:#fdf6f7}
+.ppg-step{margin-top:12px;transition:opacity .2s}
+.ppg-step.off{opacity:.38;pointer-events:none;filter:grayscale(1)}
+.ppg-nav{display:flex;align-items:center;justify-content:space-between;background:#f3ecef;border-radius:14px;padding:4px}
+.ppg-nav button{width:46px;height:44px;border:0;border-radius:11px;background:#fff;color:#2b2226;font-size:22px;line-height:1;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.ppg-nav button:disabled{opacity:.35}
+.ppg-mid{text-align:center;font-size:.95rem;font-weight:600;color:#2b2226}
+.ppg-mid small{display:block;font-size:.72rem;font-weight:500;color:#8a7b82;margin-top:2px}
+.ppg-pr{display:flex;justify-content:space-between;font-size:.78rem;color:#8a7b82;margin-top:12px}
+.ppg-pr b{color:#2b2226;font-weight:600}
+.ppg-bar{height:6px;border-radius:3px;background:#f0e6ea;margin-top:6px;overflow:hidden}
+.ppg-bar i{display:block;height:100%;width:0;background:#8B1A2B;border-radius:3px;transition:width .25s}
+.ppg-size{display:flex;align-items:center;justify-content:space-between;margin-top:12px;font-size:.9rem;color:#2b2226}
+.ppg-chips{display:flex;gap:6px}
+.ppg-chips button{border:0;border-radius:9px;background:#f3ecef;color:#6a5a62;font:inherit;font-size:.78rem;font-weight:600;padding:7px 10px;cursor:pointer}
+.ppg-chips button.on{background:#8B1A2B;color:#fff}
+body.dark .ppg-tile{background:#221c30;border-color:#37303f;color:#b3a8bd}
+body.dark .ppg-tile.on{border-color:#e0607a;color:#ff8da3;background:#2c1f2c}
+body.dark .ppg-nav,body.dark .ppg-chips button{background:#2c2438}
+body.dark .ppg-nav button{background:#3a3048;color:#f1e9f3}
+body.dark .ppg-mid,body.dark .ppg-pr b,body.dark .ppg-size{color:#ece4ef}
+body.dark .ppg-mid small,body.dark .ppg-pr{color:#a99cb0}
+body.dark .ppg-bar{background:#2c2438}
+body.dark .ppg-bar i,body.dark .ppg-chips button.on{background:#c23a55;color:#fff}
+body.dark .ppg-chips button{color:#b3a8bd}
+</style>
+<script id="ppg-src">
+(function(){
+  var S={
+    en:{"pg.view":"View","pg.whole":"Whole chart","pg.printed":"Printed pages","pg.page":"Page {n} of {m}","pg.where":"Rows {a}–{b} · Columns {c}–{d}","pg.this":"This page","pg.done":"{p}% done","pg.size":"Page size","pg.prev":"Previous page","pg.next":"Next page"},
+    fr:{"pg.view":"Vue","pg.whole":"Grille entière","pg.printed":"Pages imprimées","pg.page":"Page {n} sur {m}","pg.where":"Rangs {a}–{b} · Colonnes {c}–{d}","pg.this":"Cette page","pg.done":"{p} % fait","pg.size":"Taille de page","pg.prev":"Page précédente","pg.next":"Page suivante"},
+    de:{"pg.view":"Darstellung","pg.whole":"Ganze Vorlage","pg.printed":"Druckseiten","pg.page":"Seite {n} von {m}","pg.where":"Reihen {a}–{b} · Spalten {c}–{d}","pg.this":"Diese Seite","pg.done":"{p} % fertig","pg.size":"Seitengröße","pg.prev":"Vorherige Seite","pg.next":"Nächste Seite"},
+    nl:{"pg.view":"Weergave","pg.whole":"Hele patroon","pg.printed":"Gedrukte pagina's","pg.page":"Pagina {n} van {m}","pg.where":"Rijen {a}–{b} · Kolommen {c}–{d}","pg.this":"Deze pagina","pg.done":"{p}% klaar","pg.size":"Paginagrootte","pg.prev":"Vorige pagina","pg.next":"Volgende pagina"},
+    ru:{"pg.view":"Вид","pg.whole":"Вся схема","pg.printed":"По страницам","pg.page":"Страница {n} из {m}","pg.where":"Ряды {a}–{b} · Столбцы {c}–{d}","pg.this":"Эта страница","pg.done":"Готово {p}%","pg.size":"Размер страницы","pg.prev":"Предыдущая страница","pg.next":"Следующая страница"},
+    uk:{"pg.view":"Вигляд","pg.whole":"Уся схема","pg.printed":"По сторінках","pg.page":"Сторінка {n} з {m}","pg.where":"Ряди {a}–{b} · Стовпці {c}–{d}","pg.this":"Ця сторінка","pg.done":"Готово {p}%","pg.size":"Розмір сторінки","pg.prev":"Попередня сторінка","pg.next":"Наступна сторінка"},
+    es:{"pg.view":"Vista","pg.whole":"Gráfico completo","pg.printed":"Páginas impresas","pg.page":"Página {n} de {m}","pg.where":"Filas {a}–{b} · Columnas {c}–{d}","pg.this":"Esta página","pg.done":"{p} % hecho","pg.size":"Tamaño de página","pg.prev":"Página anterior","pg.next":"Página siguiente"},
+    it:{"pg.view":"Vista","pg.whole":"Schema intero","pg.printed":"Pagine stampate","pg.page":"Pagina {n} di {m}","pg.where":"Righe {a}–{b} · Colonne {c}–{d}","pg.this":"Questa pagina","pg.done":"{p}% fatto","pg.size":"Dimensione pagina","pg.prev":"Pagina precedente","pg.next":"Pagina successiva"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k,v){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; if(v) for(var n in v) s=s.split('{'+n+'}').join(v[n]); return s; }
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  var HEART='<g fill="#c94a62"><rect x="25" y="15" width="20" height="14"/><rect x="62" y="15" width="20" height="14"/><rect x="20" y="29" width="68" height="14"/><rect x="32" y="43" width="44" height="12"/></g>';
+  var WHOLE='<svg viewBox="0 0 110 70" aria-hidden="true"><rect x="5" y="5" width="100" height="60" rx="4" fill="#f6eef0" stroke="#d9c7cd"/>'+HEART+'</svg>';
+  var PAGES='<svg viewBox="0 0 110 70" aria-hidden="true"><rect x="5" y="5" width="100" height="60" rx="4" fill="#f6eef0" stroke="#d9c7cd"/><g opacity=".55">'+HEART+'</g><path d="M55 5v60M5 35h100" stroke="#2f6fd6" stroke-width="1.6" stroke-dasharray="4 3"/><g font-size="9" font-weight="700" fill="#fff" font-family="sans-serif" text-anchor="middle"><circle cx="14" cy="14" r="6" fill="#2f6fd6"/><text x="14" y="17">1</text><circle cx="64" cy="14" r="6" fill="#2f6fd6"/><text x="64" y="17">2</text><circle cx="14" cy="44" r="6" fill="#2f6fd6"/><text x="14" y="47">3</text><circle cx="64" cy="44" r="6" fill="#2f6fd6"/><text x="64" y="47">4</text></g></svg>';
+  var box=null;
+  function pageMode(){ try{ return !!trkPageMode; }catch(e){ return false; } }
+  function sizes(){ var s=$('trk-page-cells'); return s?[].map.call(s.options,function(o){ return +o.value; }):[30,40,50]; }
+  function cur(){ try{ return trkPageCells; }catch(e){ var s=$('trk-page-cells'); return s?+s.value:50; } }
+  // Which page and how much of it is done. In Whole chart mode it shows page 1 at the chosen size (locked).
+  function info(){
+    var g=null, st=null; try{ g=trackerGrid; st=trackerStitched; }catch(e){}
+    if(!g) return null;
+    var N=cur(), tx_=Math.ceil(g.cols/N), ty=Math.ceil(g.rows/N), m=tx_*ty, i=0;
+    if(pageMode()){ try{ i=Math.max(0,Math.min(trkPageIdx,m-1)); }catch(e){} }
+    var px=i%tx_, py=Math.floor(i/tx_), c0=px*N, r0=py*N, nr=Math.min(N,g.rows-r0), nc=Math.min(N,g.cols-c0), tot=0, dn=0;
+    for(var r=r0;r<r0+nr;r++) for(var c=c0;c<c0+nc;c++){ if(g.cells[r][c]===' ') continue; tot++; if(st&&st[r]&&st[r][c]) dn++; }
+    return {i:i, m:m, r0:r0, c0:c0, nr:nr, nc:nc, p:tot?Math.floor(dn*100/tot):0};
+  }
+  function refresh(){
+    if(!box||!box.isConnected) return;
+    var on=pageMode(), t=box.querySelectorAll('.ppg-tile');
+    t[0].classList.toggle('on',!on); t[1].classList.toggle('on',on);
+    t[0].setAttribute('aria-pressed',!on); t[1].setAttribute('aria-pressed',on);
+    var stp=box.querySelector('.ppg-step'); stp.classList.toggle('off',!on); stp.setAttribute('aria-disabled',!on);
+    var f=info(); if(!f) return;
+    box.querySelector('.ppg-mid').innerHTML=esc(tx('pg.page',{n:f.i+1,m:f.m}))+'<small>'+esc(tx('pg.where',{a:f.r0+1,b:f.r0+f.nr,c:f.c0+1,d:f.c0+f.nc}))+'</small>';
+    var b=box.querySelectorAll('.ppg-nav button'); b[0].disabled=!on||f.i<=0; b[1].disabled=!on||f.i>=f.m-1;
+    box.querySelector('.ppg-pr b').textContent=tx('pg.done',{p:f.p});
+    box.querySelector('.ppg-bar i').style.width=f.p+'%';
+    var N=cur(); [].forEach.call(box.querySelectorAll('.ppg-chips button'),function(c){ c.classList.toggle('on',+c.dataset.n===N); });
+  }
+  function click(id){ var e=$(id); if(e) e.click(); setTimeout(refresh,0); }
+  function build(){
+    var wrap=$('trk-fs-pages-wrap'); if(!wrap) return;
+    var row=wrap.closest('.pst-row'); if(!row||row.querySelector('.ppg-hd')) { refresh(); return; }
+    row.classList.add('ppg-row');
+    var hd=document.createElement('div'); hd.className='ppg-hd';
+    var lb=row.firstElementChild; if(lb&&lb!==wrap){ var span=lb.querySelector('span'); if(span&&!span.classList.contains('pst-i')&&!span.querySelector('svg')&&span.childElementCount===0&&span.textContent) span.textContent=tx('pg.view'); else if(lb.firstChild&&lb.firstChild.nodeType===3) lb.firstChild.nodeValue=tx('pg.view'); hd.appendChild(lb); }
+    row.insertBefore(hd,row.firstChild);
+    box=document.createElement('div');
+    box.innerHTML='<div class="ppg-tiles"><button type="button" class="ppg-tile">'+WHOLE+esc(tx('pg.whole'))+'</button><button type="button" class="ppg-tile">'+PAGES+esc(tx('pg.printed'))+'</button></div>'
+      +'<div class="ppg-step"><div class="ppg-nav"><button type="button" aria-label="'+esc(tx('pg.prev'))+'">‹</button><div class="ppg-mid"></div><button type="button" aria-label="'+esc(tx('pg.next'))+'">›</button></div>'
+      +'<div class="ppg-pr"><span>'+esc(tx('pg.this'))+'</span><b></b></div><div class="ppg-bar"><i></i></div>'
+      +'<div class="ppg-size"><span>'+esc(tx('pg.size'))+'</span><span class="ppg-chips">'+sizes().map(function(n){ return '<button type="button" data-n="'+n+'">'+n+'×'+n+'</button>'; }).join('')+'</span></div></div>';
+    row.insertBefore(box,wrap);
+    var t=box.querySelectorAll('.ppg-tile');
+    t[0].addEventListener('click',function(){ click('trk-view-full'); });
+    t[1].addEventListener('click',function(){ click('trk-view-pages'); });
+    var b=box.querySelectorAll('.ppg-nav button');
+    b[0].addEventListener('click',function(){ click('trk-page-prev'); });
+    b[1].addEventListener('click',function(){ click('trk-page-next'); });
+    [].forEach.call(box.querySelectorAll('.ppg-chips button'),function(c){ c.addEventListener('click',function(){
+      var s=$('trk-page-cells'); if(!s) return; s.value=c.dataset.n; s.dispatchEvent(new Event('change',{bubbles:true})); setTimeout(refresh,0); }); });
+    refresh();
+  }
+  function init(){
+    if(!document.body.classList.contains('ptly-appui')){
+      if(!init._mo){ init._mo=new MutationObserver(function(){ if(document.body.classList.contains('ptly-appui')){ init._mo.disconnect(); init(); } }); init._mo.observe(document.body,{attributes:true,attributeFilter:['class']}); }
+      return;
+    }
+    var f=window.trkFsPanel; if(typeof f!=='function'||!f._pss){ setTimeout(init,250); return; }   // after the v747 sections are in place
+    if(!f._ppg){ var w=function(kind){ var r=f.apply(this,arguments); try{ if(kind==='settings') build(); }catch(e){ console.warn('[ppg]',e); } return r; }; w._pst=1; w._pss=1; w._ppg=1; window.trkFsPanel=w; }
+    // keep the stepper in step with the chart: the page label changes on every page turn / size change / mode change
+    var lab=$('trk-page-label'); if(lab&&!lab._ppg){ lab._ppg=1; new MutationObserver(function(){ refresh(); }).observe(lab,{childList:true,characterData:true,subtree:true}); }
+    var vp=$('trk-view-pages'); if(vp&&!vp._ppg){ vp._ppg=1; new MutationObserver(function(){ refresh(); }).observe(vp,{attributes:true,attributeFilter:['class']}); }
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
   else setTimeout(init,0);
