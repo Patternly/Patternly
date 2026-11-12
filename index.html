@@ -5497,7 +5497,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v747';
+window.PATTERNLY_BUILD='v748';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -32111,7 +32111,7 @@ function trkSheetDrag(header, sheet, opts){
     startY=e.touches[0].clientY;
     startH=sheet.getBoundingClientRect().height;
     collapsedPx=opts.collapsedPx(vh());
-    expandedPx=Math.round(0.88*vh());
+    expandedPx=Math.round(Math.min(0.88*vh(), vh()-(parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ptg-top'))||0)-10));   // v748: stop under the app top bar
     lastH=startH; down=0; moved=false;
     sheet.classList.add('sheet-dragging');   // freeze transition while dragging
     sheet.style.transform='';
@@ -40617,6 +40617,33 @@ body.dark #pst-info .pi-txt{color:#cfc4d6}
     var f=window.trkFsPanel; if(typeof f!=='function'||!f._pst){ setTimeout(init,200); return; }   // after the v669 sheet is in place
     if(!f._pss){ var w=function(kind){ var r=f.apply(this,arguments); try{ if(kind==='settings'&&app()) restructure(); }catch(e){ console.warn('[pss]',e); } return r; }; w._pst=1; w._pss=1; window.trkFsPanel=w; }
     var rs=window.trkFsRestore; if(typeof rs==='function'&&!rs._pss){ var wr2=function(){ try{ restore(); }catch(e){} return rs.apply(this,arguments); }; wr2._pss=1; window.trkFsRestore=wr2; }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
+  else setTimeout(init,0);
+})();
+</script>
+<style id="ptg-style">
+/* v748 – app Tracker sheets (Settings, Colours) opened to full height stop under the floating top bar with a
+   small gap instead of touching it. --ptg-top = bottom of #plsx-top (includes the phone's safe area). */
+@media (max-width:820px){
+  body.ptly-appui.trk-fs.trk-setexp #trk-fspanel{max-height:min(88vh,calc(100vh - var(--ptg-top,72px) - 10px))!important}
+  body.ptly-appui.trk-fs.trk-cbopen.cb-exp #trk-colorbar{max-height:min(88vh,calc(100vh - var(--ptg-top,72px) - 10px))!important}
+}
+</style>
+<script id="ptg-src">
+(function(){
+  function measure(){
+    var t=document.getElementById('plsx-top'); if(!t) return;
+    var r=t.getBoundingClientRect(); if(!r.height || getComputedStyle(t).display==='none') return;
+    document.documentElement.style.setProperty('--ptg-top',Math.round(r.bottom)+'px');
+  }
+  function init(){
+    if(!document.body.classList.contains('ptly-appui')) return;
+    measure();
+    window.addEventListener('resize',measure);
+    // re-measure whenever a Tracker sheet opens or grows (the bar can change height with the title)
+    new MutationObserver(function(){ var c=document.body.classList; if(c.contains('trk-setexp')||c.contains('cb-exp')||c.contains('trk-setopen')) measure(); })
+      .observe(document.body,{attributes:true,attributeFilter:['class']});
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
   else setTimeout(init,0);
