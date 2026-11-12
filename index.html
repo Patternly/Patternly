@@ -5497,7 +5497,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v746';
+window.PATTERNLY_BUILD='v747';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -40313,6 +40313,310 @@ body.dark.ptly-appui #trk-fspanel.pst .pst-more>button.pst-danger{color:#f08a8a!
       };
       w._pst=1; window.trkFsPanel=w;
     }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
+  else setTimeout(init,0);
+})();
+</script>
+<style id="pss-style">
+body.ptly-appui #trk-fspanel.pst .pss-card #tg-lightup-row>span>span[data-i18n]{font-size:.9rem!important;font-weight:500!important}
+/* v747 – app stitching Settings: options grouped into sections (Chart · Show on chart · Marking stitches ·
+   Home screen · More), short labels, and an (i) button on every option that opens a card saying what it
+   does with an Off / On picture. Same live controls; they go back to their place when the sheet closes. App only. */
+body.ptly-appui #trk-fspanel.pst .pst-card.pss-host{background:none!important;border:0!important;padding:0!important}
+body.ptly-appui #trk-fspanel.pst .pss-sec .pst-lbl{margin-top:16px}
+body.ptly-appui #trk-fspanel.pst .pss-sec:first-child .pst-lbl{margin-top:16px}
+body.ptly-appui #trk-fspanel.pst .pss-card{background:#fff;border:1px solid #eee2e5;border-radius:16px;padding:4px 14px 0;overflow:hidden}
+body.ptly-appui #trk-fspanel.pst .pss-card>*{margin-bottom:-1px!important}   /* hides the divider under the last visible row */
+body.ptly-appui #trk-fspanel.pst .pss-card>:last-child{border-bottom:0!important}
+body.ptly-appui #trk-fspanel.pst .pss-card #tg-lightup-row,body.ptly-appui #trk-fspanel.pst .pss-card #tg-widget-row{margin:0!important;padding:0!important;min-height:52px;border-bottom:1px solid #f3e9ec!important}
+body.ptly-appui #trk-fspanel.pst .pss-card #tg-done-rows{border-bottom:1px solid #f3e9ec!important}
+body.ptly-appui #trk-fspanel.pst .pss-card #tg-widget-row>span,body.ptly-appui #trk-fspanel.pst .pss-card #tg-lightup-row>span{font-size:.9rem!important;font-weight:500!important}
+/* the long explanations move into the (i) card */
+body.ptly-appui #trk-fspanel.pst [data-i18n="tg.tintsub"],body.ptly-appui #trk-fspanel.pst [data-i18n="wd.pin"],body.ptly-appui #trk-fspanel.pst .tg-ppk-row small{display:none!important}
+body.ptly-appui #trk-fspanel.pst .tg-ppk-row{padding:0!important;min-height:52px}
+body.ptly-appui #trk-fspanel.pst #tg-ppkmark-row{padding-left:14px!important}
+/* the (i) button */
+.pst-i{display:none}
+body.ptly-appui #trk-fspanel.pst .pst-i{display:inline-flex;align-items:center;justify-content:center;flex:none;width:26px;height:26px;margin:0 auto 0 4px;border-radius:50%;color:#a8949c;cursor:pointer;vertical-align:middle;-webkit-tap-highlight-color:transparent}
+body.ptly-appui #trk-fspanel.pst .pst-i svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
+body.ptly-appui #trk-fspanel.pst .pst-i:active{background:#f3ecef}
+body.ptly-appui #trk-fspanel.pst .pst-row>span:first-child,body.ptly-appui #trk-fspanel.pst #pst-gridhd>span{display:inline-flex;align-items:center}
+body.ptly-appui #trk-fspanel.pst #tg-lightup-row>span,body.ptly-appui #trk-fspanel.pst #tg-widget-row>span,body.ptly-appui #trk-fspanel.pst .tg-ppk-row>span{display:inline-flex;align-items:center;margin-right:auto}
+/* info card */
+#pst-info{position:fixed;inset:0;z-index:10060;display:none;align-items:flex-end;justify-content:center;background:rgba(20,12,18,.45);padding:0 0 env(safe-area-inset-bottom,0)}
+#pst-info.on{display:flex}
+#pst-info .pi-card{width:min(520px,100%);background:#fff;color:#2b2226;border-radius:22px 22px 0 0;padding:18px 18px calc(18px + var(--sa-bottom,0px));box-shadow:0 -10px 40px rgba(0,0,0,.2);animation:piUp .22s ease}
+@keyframes piUp{from{transform:translateY(30px);opacity:.4}to{transform:none;opacity:1}}
+#pst-info .pi-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+#pst-info .pi-head b{font-family:'DM Serif Display',serif;font-weight:400;font-size:1.25rem;flex:1}
+#pst-info .pi-x{width:34px;height:34px;border-radius:50%;border:0;background:#f3ecef;color:#2b2226;font-size:1.1rem;cursor:pointer}
+#pst-info .pi-figs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#pst-info .pi-fig{margin:0;background:#faf6f7;border:1px solid #eee2e5;border-radius:14px;padding:8px 8px 6px;text-align:center}
+#pst-info .pi-fig svg{display:block;width:100%;height:auto;border-radius:9px}
+#pst-info .pi-fig figcaption{font-size:.74rem;font-weight:700;color:#7d6b72;margin-top:6px;text-transform:uppercase;letter-spacing:.05em}
+#pst-info .pi-fig.on figcaption{color:#8B1A2B}
+#pst-info .pi-txt{font-size:.9rem;line-height:1.45;margin:14px 2px 16px;color:#4a3d43}
+#pst-info .pi-ok{width:100%;min-height:48px;border:0;border-radius:14px;background:#8B1A2B;color:#fff;font:inherit;font-weight:700;font-size:.95rem;cursor:pointer}
+body.dark.ptly-appui #trk-fspanel.pst .pss-card{background:#221c30;border-color:#37303f}
+body.dark.ptly-appui #trk-fspanel.pst .pss-card #tg-lightup-row,body.dark.ptly-appui #trk-fspanel.pst .pss-card #tg-widget-row,body.dark.ptly-appui #trk-fspanel.pst .pss-card #tg-done-rows{border-color:#302839!important}
+body.dark.ptly-appui #trk-fspanel.pst .pss-card #tg-lightup-row>span,body.dark.ptly-appui #trk-fspanel.pst .pss-card #tg-widget-row>span{color:#ece4ef!important}
+body.dark.ptly-appui #trk-fspanel.pst .pst-i{color:#8f8199}
+body.dark.ptly-appui #trk-fspanel.pst .pst-i:active{background:#2c2438}
+body.dark #pst-info .pi-card{background:#1f1a2b;color:#ece4ef}
+body.dark #pst-info .pi-x{background:#2c2438;color:#ece4ef}
+body.dark #pst-info .pi-fig{background:#2a2337;border-color:#37303f}
+body.dark #pst-info .pi-fig figcaption{color:#a596ab}
+body.dark #pst-info .pi-fig.on figcaption{color:#f08a9b}
+body.dark #pst-info .pi-txt{color:#cfc4d6}
+</style>
+<script id="pss-src">
+(function(){
+  var S={
+    en:{"st.marking":"Marking stitches","st.home":"Home screen","st.off":"Off","st.on":"On","st.ok":"Got it","st.about":"About",
+      "pi.look":"Choose how the chart looks: the real thread colours with symbols, or black and white symbols like a printed chart.",
+      "pi.zoom":"Make the stitches bigger or smaller. You can also pinch the chart with two fingers.",
+      "pi.pages":"Full shows the whole chart. Pages splits it like the printed chart, so you can work one page at a time.",
+      "pi.grid":"Thin lines between the stitches, so counting is easier.",
+      "pi.centre":"Two lines that mark the middle of the chart. Handy for starting in the centre of your fabric.",
+      "pi.bs":"Shows the backstitch lines on top of the cross stitches. Turn it off to see the cross stitches clearly.",
+      "pi.info":"Shows the pattern name, size and number of colours above the chart.",
+      "pi.gridstyle":"Change how the grid looks: a thicker line every 5, 10 or 20 stitches, line width, opacity and colour.",
+      "pi.tint":"Stitches you mark as done get a colour shade instead of a cross, so they are never mistaken for a symbol. Pick the colour and how strong it is.",
+      "pi.ppk":"When you pick a colour, a bar appears with Next stitch (jumps to the next stitch in that colour) and Park (leaves a marker where you park the thread).",
+      "pi.ppkmark":"Each tap on Next also marks the stitch it was showing as done, so you can stitch and tap along.",
+      "pi.widget":"Shows this pattern and your progress on your phone's home screen."},
+    fr:{"st.marking":"Marquer les points","st.home":"Écran d'accueil","st.off":"Désactivé","st.on":"Activé","st.ok":"Compris","st.about":"À propos :",
+      "pi.look":"Choisissez l'aspect de la grille : les vraies couleurs avec symboles, ou des symboles noir et blanc comme une grille imprimée.",
+      "pi.zoom":"Agrandissez ou réduisez les points. Vous pouvez aussi pincer la grille avec deux doigts.",
+      "pi.pages":"Complet montre toute la grille. Pages la découpe comme la grille imprimée, pour broder une page à la fois.",
+      "pi.grid":"De fines lignes entre les points, pour compter plus facilement.",
+      "pi.centre":"Deux lignes qui marquent le milieu de la grille. Pratique pour commencer au centre du tissu.",
+      "pi.bs":"Affiche les lignes de point arrière au-dessus des croix. Désactivez-les pour mieux voir les croix.",
+      "pi.info":"Affiche le nom du modèle, sa taille et le nombre de couleurs au-dessus de la grille.",
+      "pi.gridstyle":"Modifiez le quadrillage : une ligne plus épaisse tous les 5, 10 ou 20 points, épaisseur, opacité et couleur.",
+      "pi.tint":"Les points marqués comme brodés prennent une teinte au lieu d'une croix, pour ne jamais les confondre avec un symbole. Choisissez la couleur et son intensité.",
+      "pi.ppk":"Quand vous choisissez une couleur, une barre apparaît avec Point suivant (va au prochain point de cette couleur) et Garer (laisse un repère là où vous garez le fil).",
+      "pi.ppkmark":"Chaque appui sur Suivant marque aussi comme brodé le point affiché : brodez et appuyez au fur et à mesure.",
+      "pi.widget":"Affiche ce modèle et votre progression sur l'écran d'accueil du téléphone."},
+    de:{"st.marking":"Stiche markieren","st.home":"Startbildschirm","st.off":"Aus","st.on":"An","st.ok":"Verstanden","st.about":"Info:",
+      "pi.look":"Wähle das Aussehen der Vorlage: echte Garnfarben mit Symbolen oder Schwarz-Weiß-Symbole wie auf einer gedruckten Vorlage.",
+      "pi.zoom":"Stiche größer oder kleiner anzeigen. Du kannst die Vorlage auch mit zwei Fingern zoomen.",
+      "pi.pages":"Ganz zeigt die ganze Vorlage. Seiten teilt sie wie die gedruckte Vorlage, damit du Seite für Seite stickst.",
+      "pi.grid":"Feine Linien zwischen den Stichen, damit das Zählen leichter fällt.",
+      "pi.centre":"Zwei Linien markieren die Mitte der Vorlage. Praktisch, um in der Stoffmitte zu beginnen.",
+      "pi.bs":"Zeigt die Rückstichlinien über den Kreuzstichen. Ausschalten, um die Kreuzstiche klar zu sehen.",
+      "pi.info":"Zeigt Name, Größe und Farbanzahl des Musters über der Vorlage.",
+      "pi.gridstyle":"Gitter anpassen: dickere Linie alle 5, 10 oder 20 Stiche, Linienbreite, Deckkraft und Farbe.",
+      "pi.tint":"Als gestickt markierte Stiche werden farbig getönt statt durchgekreuzt, so verwechselst du sie nie mit einem Symbol. Wähle Farbe und Stärke.",
+      "pi.ppk":"Wenn du eine Farbe wählst, erscheint eine Leiste mit Nächster Stich (springt zum nächsten Stich dieser Farbe) und Parken (setzt eine Markierung, wo du den Faden parkst).",
+      "pi.ppkmark":"Jedes Tippen auf Weiter markiert auch den gezeigten Stich als gestickt, so stickst und tippst du einfach mit.",
+      "pi.widget":"Zeigt dieses Muster und deinen Fortschritt auf dem Startbildschirm deines Handys."},
+    nl:{"st.marking":"Steken markeren","st.home":"Beginscherm","st.off":"Uit","st.on":"Aan","st.ok":"Begrepen","st.about":"Over:",
+      "pi.look":"Kies hoe het patroon eruitziet: echte garenkleuren met symbolen, of zwart-witsymbolen zoals een geprint patroon.",
+      "pi.zoom":"Maak de steken groter of kleiner. Je kunt ook met twee vingers knijpen op het patroon.",
+      "pi.pages":"Volledig toont het hele patroon. Pagina's verdeelt het zoals het geprinte patroon, zodat je per pagina werkt.",
+      "pi.grid":"Dunne lijnen tussen de steken, zodat tellen makkelijker gaat.",
+      "pi.centre":"Twee lijnen die het midden van het patroon aangeven. Handig om in het midden van je stof te beginnen.",
+      "pi.bs":"Toont de backstitchlijnen boven de kruissteken. Zet uit om de kruissteken duidelijk te zien.",
+      "pi.info":"Toont de naam, grootte en het aantal kleuren boven het patroon.",
+      "pi.gridstyle":"Pas het raster aan: een dikkere lijn elke 5, 10 of 20 steken, lijndikte, dekking en kleur.",
+      "pi.tint":"Steken die je als klaar markeert krijgen een kleurtint in plaats van een kruis, zodat je ze nooit voor een symbool aanziet. Kies de kleur en hoe sterk.",
+      "pi.ppk":"Als je een kleur kiest, verschijnt een balk met Volgende steek (springt naar de volgende steek in die kleur) en Parkeren (zet een markering waar je de draad parkeert).",
+      "pi.ppkmark":"Elke tik op Volgende markeert ook de getoonde steek als geborduurd, zodat je borduurt en meetikt.",
+      "pi.widget":"Toont dit patroon en je voortgang op het beginscherm van je telefoon."},
+    ru:{"st.marking":"Отметка крестиков","st.home":"Главный экран","st.off":"Выкл.","st.on":"Вкл.","st.ok":"Понятно","st.about":"Подробнее:",
+      "pi.look":"Выберите вид схемы: настоящие цвета ниток с символами или чёрно-белые символы, как на печатной схеме.",
+      "pi.zoom":"Увеличьте или уменьшите крестики. Можно также развести два пальца на схеме.",
+      "pi.pages":"«Целиком» показывает всю схему. «Страницы» делит её как печатную схему, чтобы вышивать по одной странице.",
+      "pi.grid":"Тонкие линии между крестиками, чтобы было легче считать.",
+      "pi.centre":"Две линии отмечают середину схемы. Удобно, чтобы начать с центра ткани.",
+      "pi.bs":"Показывает линии бэкстича поверх крестиков. Выключите, чтобы лучше видеть крестики.",
+      "pi.info":"Показывает название, размер и число цветов над схемой.",
+      "pi.gridstyle":"Настройте сетку: толстая линия каждые 5, 10 или 20 крестиков, толщина, прозрачность и цвет.",
+      "pi.tint":"Вышитые крестики закрашиваются цветом, а не зачёркиваются, поэтому их не спутать с символом. Выберите цвет и насыщенность.",
+      "pi.ppk":"Когда вы выбираете цвет, появляется панель: «Следующий крестик» (переход к следующему крестику этого цвета) и «Парковка» (метка там, где вы оставили нитку).",
+      "pi.ppkmark":"Каждое нажатие «Следующий» также отмечает показанный крестик как вышитый: вышивайте и нажимайте по ходу.",
+      "pi.widget":"Показывает эту схему и ваш прогресс на главном экране телефона."},
+    uk:{"st.marking":"Позначення хрестиків","st.home":"Головний екран","st.off":"Вимк.","st.on":"Увімк.","st.ok":"Зрозуміло","st.about":"Докладніше:",
+      "pi.look":"Оберіть вигляд схеми: справжні кольори ниток із символами або чорно-білі символи, як на друкованій схемі.",
+      "pi.zoom":"Збільшуйте або зменшуйте хрестики. Також можна розвести два пальці на схемі.",
+      "pi.pages":"«Повністю» показує всю схему. «Сторінки» ділить її як друковану схему, щоб вишивати по одній сторінці.",
+      "pi.grid":"Тонкі лінії між хрестиками, щоб легше рахувати.",
+      "pi.centre":"Дві лінії позначають середину схеми. Зручно, щоб почати з центру тканини.",
+      "pi.bs":"Показує лінії бекстічу поверх хрестиків. Вимкніть, щоб краще бачити хрестики.",
+      "pi.info":"Показує назву, розмір і кількість кольорів над схемою.",
+      "pi.gridstyle":"Налаштуйте сітку: товща лінія кожні 5, 10 або 20 хрестиків, товщина, прозорість і колір.",
+      "pi.tint":"Вишиті хрестики зафарбовуються кольором, а не закреслюються, тож їх не сплутати із символом. Оберіть колір і насиченість.",
+      "pi.ppk":"Коли ви обираєте колір, з'являється панель: «Наступний хрестик» (перехід до наступного хрестика цього кольору) і «Паркування» (мітка там, де ви залишили нитку).",
+      "pi.ppkmark":"Кожне натискання «Наступний» також позначає показаний хрестик як вишитий: вишивайте й натискайте по ходу.",
+      "pi.widget":"Показує цю схему та ваш прогрес на головному екрані телефона."},
+    es:{"st.marking":"Marcar puntadas","st.home":"Pantalla de inicio","st.off":"Desactivado","st.on":"Activado","st.ok":"Entendido","st.about":"Acerca de:",
+      "pi.look":"Elige cómo se ve el patrón: los colores reales del hilo con símbolos, o símbolos en blanco y negro como un patrón impreso.",
+      "pi.zoom":"Haz las puntadas más grandes o más pequeñas. También puedes pellizcar el patrón con dos dedos.",
+      "pi.pages":"Completo muestra todo el patrón. Páginas lo divide como el patrón impreso, para bordar una página cada vez.",
+      "pi.grid":"Líneas finas entre las puntadas, para contar con más facilidad.",
+      "pi.centre":"Dos líneas que marcan el centro del patrón. Útil para empezar en el centro de la tela.",
+      "pi.bs":"Muestra las líneas de pespunte sobre las cruces. Desactívalo para ver bien las cruces.",
+      "pi.info":"Muestra el nombre, el tamaño y el número de colores encima del patrón.",
+      "pi.gridstyle":"Cambia la cuadrícula: una línea más gruesa cada 5, 10 o 20 puntadas, grosor, opacidad y color.",
+      "pi.tint":"Las puntadas marcadas como hechas se tiñen de color en lugar de tacharse, así nunca se confunden con un símbolo. Elige el color y la intensidad.",
+      "pi.ppk":"Al elegir un color aparece una barra con Siguiente puntada (salta a la siguiente puntada de ese color) y Aparcar (deja una marca donde aparcas el hilo).",
+      "pi.ppkmark":"Cada toque en Siguiente también marca como bordada la puntada mostrada, para bordar y tocar a la vez.",
+      "pi.widget":"Muestra este patrón y tu progreso en la pantalla de inicio del móvil."},
+    it:{"st.marking":"Segnare i punti","st.home":"Schermata Home","st.off":"Disattivato","st.on":"Attivo","st.ok":"Ho capito","st.about":"Info:",
+      "pi.look":"Scegli l'aspetto dello schema: i colori reali del filo con simboli, o simboli in bianco e nero come uno schema stampato.",
+      "pi.zoom":"Ingrandisci o rimpicciolisci i punti. Puoi anche allargare due dita sullo schema.",
+      "pi.pages":"Intero mostra tutto lo schema. Pagine lo divide come lo schema stampato, per ricamare una pagina alla volta.",
+      "pi.grid":"Linee sottili tra i punti, per contare più facilmente.",
+      "pi.centre":"Due linee che segnano il centro dello schema. Utile per iniziare dal centro della tela.",
+      "pi.bs":"Mostra le linee del punto scritto sopra i punti croce. Disattivalo per vedere bene le croci.",
+      "pi.info":"Mostra nome, dimensioni e numero di colori sopra lo schema.",
+      "pi.gridstyle":"Cambia la griglia: una linea più spessa ogni 5, 10 o 20 punti, spessore, opacità e colore.",
+      "pi.tint":"I punti segnati come fatti si colorano invece di essere barrati, così non li confondi mai con un simbolo. Scegli il colore e l'intensità.",
+      "pi.ppk":"Quando scegli un colore compare una barra con Punto successivo (va al prossimo punto di quel colore) e Parcheggia (lascia un segno dove parcheggi il filo).",
+      "pi.ppkmark":"Ogni tocco su Successivo segna anche come ricamato il punto mostrato: ricama e tocca man mano.",
+      "pi.widget":"Mostra questo schema e i tuoi progressi nella schermata Home del telefono."}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k,fb){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||fb||k; return s; }
+  function app(){ return document.body.classList.contains('ptly-appui'); }
+  function $(id){ return document.getElementById(id); }
+  function el(tag,cls,html){ var e=document.createElement(tag); if(cls) e.className=cls; if(html!=null) e.innerHTML=html; return e; }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+  // ── pictures: a small heart chart drawn as SVG, with the option off and on ──
+  var PAT=['00110110','01221221','01222221','00122210','30012103','33441443'];
+  var COL={1:'#8B1A2B',2:'#e98aa5',3:'#4f8a5b',4:'#d9a72e'}, SYM={1:'●',2:'▲',3:'■',4:'◆'}, DARK={1:1,3:1};
+  function chart(o){
+    o=o||{}; var cs=o.cs||15, cols=8, rows=6, ox=o.ox!=null?o.ox:(150-cols*cs)/2, oy=o.oy!=null?o.oy:(o.info?32:(120-rows*cs)/2);
+    var s='<svg viewBox="0 0 150 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="150" height="120" fill="#f7f2ee"/>';
+    var cell=function(c,r){ return [ox+c*cs,oy+r*cs]; };
+    for(var r=0;r<rows;r++) for(var c=0;c<cols;c++){
+      var k=+PAT[r][c]; if(!k) continue; var p=cell(c,r), done=o.done&&r>=4, fill=o.bw?'#fff':COL[k];
+      if(o.markA && r===3 && c===3) done=true;
+      s+='<rect x="'+p[0]+'" y="'+p[1]+'" width="'+cs+'" height="'+cs+'" fill="'+fill+'"/>';
+      if(done && o.done!=='x') s+='<rect x="'+p[0]+'" y="'+p[1]+'" width="'+cs+'" height="'+cs+'" fill="#ff3df0" opacity=".72"/>';
+      s+='<text x="'+(p[0]+cs/2)+'" y="'+(p[1]+cs/2+cs*.04)+'" font-size="'+(cs*.58)+'" text-anchor="middle" dominant-baseline="central" fill="'+(o.bw?'#222':(DARK[k]&&!(done&&o.done!=='x')?'#fff':'#2b2226'))+'" font-family="sans-serif">'+SYM[k]+'</text>';
+      if(done && o.done==='x') s+='<path d="M'+(p[0]+2)+' '+(p[1]+2)+'L'+(p[0]+cs-2)+' '+(p[1]+cs-2)+'M'+(p[0]+cs-2)+' '+(p[1]+2)+'L'+(p[0]+2)+' '+(p[1]+cs-2)+'" stroke="#2b2226" stroke-width="1.5"/>';
+    }
+    var W=cols*cs, H=rows*cs;
+    if(o.grid){ for(var i=0;i<=cols;i++) s+='<line x1="'+(ox+i*cs)+'" y1="'+oy+'" x2="'+(ox+i*cs)+'" y2="'+(oy+H)+'" stroke="rgba(0,0,0,.22)" stroke-width=".5"/>';
+      for(var j=0;j<=rows;j++) s+='<line x1="'+ox+'" y1="'+(oy+j*cs)+'" x2="'+(ox+W)+'" y2="'+(oy+j*cs)+'" stroke="rgba(0,0,0,.22)" stroke-width=".5"/>'; }
+    if(o.block){ [0,4,8].forEach(function(i){ s+='<line x1="'+(ox+i*cs)+'" y1="'+oy+'" x2="'+(ox+i*cs)+'" y2="'+(oy+H)+'" stroke="rgba(0,0,0,.7)" stroke-width="1.4"/>'; });
+      [0,3,6].forEach(function(j){ s+='<line x1="'+ox+'" y1="'+(oy+j*cs)+'" x2="'+(ox+W)+'" y2="'+(oy+j*cs)+'" stroke="rgba(0,0,0,.7)" stroke-width="1.4"/>'; }); }
+    if(o.centre){ s+='<line x1="'+(ox+4*cs)+'" y1="'+(oy-6)+'" x2="'+(ox+4*cs)+'" y2="'+(oy+H+6)+'" stroke="#e11d48" stroke-width="1.4" stroke-dasharray="3 2"/>';
+      s+='<line x1="'+(ox-6)+'" y1="'+(oy+3*cs)+'" x2="'+(ox+W+6)+'" y2="'+(oy+3*cs)+'" stroke="#e11d48" stroke-width="1.4" stroke-dasharray="3 2"/>'; }
+    if(o.bs){ var pts=[[1,1],[2,0],[3.5,1],[5,0],[6,0],[7,1],[7,3],[4,5],[1,3],[1,1]].map(function(q){ return (ox+q[0]*cs)+','+(oy+q[1]*cs); }).join(' ');
+      s+='<polyline points="'+pts+'" fill="none" stroke="#2b2226" stroke-width="1.8" stroke-linejoin="round"/>'; }
+    if(o.pages){ s+='<line x1="'+(ox+4*cs)+'" y1="'+(oy-4)+'" x2="'+(ox+4*cs)+'" y2="'+(oy+H+4)+'" stroke="#2f80ed" stroke-width="1.6" stroke-dasharray="4 3"/>';
+      s+='<line x1="'+(ox-4)+'" y1="'+(oy+3*cs)+'" x2="'+(ox+W+4)+'" y2="'+(oy+3*cs)+'" stroke="#2f80ed" stroke-width="1.6" stroke-dasharray="4 3"/>';
+      [[0,0,1],[4,0,2],[0,3,3],[4,3,4]].forEach(function(q){ var x=ox+q[0]*cs+6, y=oy+q[1]*cs+6; s+='<circle cx="'+x+'" cy="'+y+'" r="5" fill="#2f80ed"/><text x="'+x+'" y="'+(y+.4)+'" font-size="6.5" font-weight="700" text-anchor="middle" dominant-baseline="central" fill="#fff" font-family="sans-serif">'+q[2]+'</text>'; }); }
+    if(o.info){ s+='<rect x="8" y="5" width="134" height="21" rx="5" fill="#fff" stroke="#eadde1"/><text x="14" y="13.5" font-size="7.5" font-weight="700" fill="#2b2226" font-family="sans-serif">Rose heart</text><text x="14" y="21.5" font-size="6" fill="#8a7880" font-family="sans-serif">4 colours · 8 × 6 · 34 stitches</text>'; }
+    if(o.ring){ var rp=cell(o.ring[0],o.ring[1]); s+='<rect x="'+(rp[0]-1.5)+'" y="'+(rp[1]-1.5)+'" width="'+(cs+3)+'" height="'+(cs+3)+'" rx="3" fill="none" stroke="#ffd400" stroke-width="2.4"/>'; }
+    if(o.bar){ s+='<rect x="18" y="96" width="114" height="19" rx="9.5" fill="#2b2226"/><circle cx="29" cy="105.5" r="5" fill="#8B1A2B" stroke="#fff" stroke-width="1"/>'
+      +'<rect x="40" y="99.5" width="52" height="12" rx="6" fill="#fff"/><text x="66" y="105.8" font-size="6.5" font-weight="700" text-anchor="middle" dominant-baseline="central" fill="#2b2226" font-family="sans-serif">Next ›</text>'
+      +'<rect x="96" y="99.5" width="30" height="12" rx="6" fill="#4a3d43"/><text x="111" y="105.8" font-size="6.5" font-weight="700" text-anchor="middle" dominant-baseline="central" fill="#fff" font-family="sans-serif">Park</text>'; }
+    return s+'</svg>';
+  }
+  function phone(on){
+    var s='<svg viewBox="0 0 150 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="150" height="120" fill="#f7f2ee"/>'
+      +'<rect x="44" y="4" width="62" height="112" rx="11" fill="#e9dfe4" stroke="#c9b6be" stroke-width="1.2"/>';
+    var ic=['#e98aa5','#6aa3d8','#f2b544','#7cc28a','#b28ad8','#ef8a5a','#5cc0c0','#d16a7d'];
+    var y0=on?60:16; for(var i=0;i<(on?8:16);i++){ var c=i%4, r=Math.floor(i/4); s+='<rect x="'+(51+c*12.5)+'" y="'+(y0+r*13)+'" width="9" height="9" rx="2.5" fill="'+ic[i%8]+'"/>'; }
+    if(on){ s+='<rect x="51" y="14" width="48" height="40" rx="7" fill="#fff"/>';
+      for(var rr=0;rr<6;rr++) for(var cc=0;cc<8;cc++){ var k=+PAT[rr][cc]; if(k) s+='<rect x="'+(55+cc*3)+'" y="'+(19+rr*3)+'" width="3" height="3" fill="'+COL[k]+'"/>'; }
+      s+='<text x="83" y="27" font-size="8" font-weight="800" text-anchor="middle" fill="#8B1A2B" font-family="sans-serif">42%</text>'
+       +'<rect x="55" y="44" width="40" height="4" rx="2" fill="#f0e3e7"/><rect x="55" y="44" width="17" height="4" rx="2" fill="#8B1A2B"/>'; }
+    return s+'</svg>';
+  }
+  var OFF=function(){ return tx('st.off'); }, ON=function(){ return tx('st.on'); };
+  var INFO={
+    look:{t:'st.look',a:function(){ return [chart({grid:1}),tx('st.colour','Colour')]; },b:function(){ return [chart({grid:1,bw:1}),tx('st.bw','Symbols B&W')]; }},
+    zoom:{t:'st.zoom',a:function(){ return [chart({grid:1}),'100%']; },b:function(){ return [chart({grid:1,cs:30,ox:-20,oy:-20}),'200%']; },same:1},
+    pages:{t:'st.pages',a:function(){ return [chart({grid:1}),tx('trk.full','Full')]; },b:function(){ return [chart({grid:1,pages:1}),tx('trk.pages','Pages')]; },same:1},
+    grid:{t:'tg.grid',a:function(){ return [chart({}),OFF()]; },b:function(){ return [chart({grid:1}),ON()]; }},
+    centre:{t:'tg.centre',a:function(){ return [chart({grid:1}),OFF()]; },b:function(){ return [chart({grid:1,centre:1}),ON()]; }},
+    bs:{t:'tg.bs',a:function(){ return [chart({grid:1}),OFF()]; },b:function(){ return [chart({grid:1,bs:1}),ON()]; }},
+    info:{t:'tg.info',a:function(){ return [chart({grid:1}),OFF()]; },b:function(){ return [chart({grid:1,info:1}),ON()]; }},
+    gridstyle:{t:'st.grid',a:function(){ return [chart({grid:1}),'1 × 1']; },b:function(){ return [chart({grid:1,block:1}),'+ 5 × 5']; },same:1},
+    tint:{t:'tg.tint',a:function(){ return [chart({grid:1,done:'x'}),OFF()]; },b:function(){ return [chart({grid:1,done:'tint'}),ON()]; }},
+    ppk:{t:'pk.set',a:function(){ return [chart({grid:1,cs:13,oy:10}),OFF()]; },b:function(){ return [chart({grid:1,cs:13,oy:10,ring:[2,1],bar:1}),ON()]; }},
+    ppkmark:{t:'pk.mark',a:function(){ return [chart({grid:1,cs:13,oy:10,ring:[4,1],bar:1}),OFF()]; },b:function(){ return [chart({grid:1,cs:13,oy:10,ring:[4,1],bar:1,markA:1,done:false}),ON()]; }},
+    widget:{t:'wd.title',a:function(){ return [phone(0),OFF()]; },b:function(){ return [phone(1),ON()]; }}
+  };
+  // markA: the stitch Next showed before (row 3, col 3) is tinted as done
+  function sheet(){
+    var d=$('pst-info'); if(d) return d;
+    d=el('div',null,'<div class="pi-card" role="dialog" aria-modal="true"><div class="pi-head"><b></b><button type="button" class="pi-x" aria-label="Close">✕</button></div><div class="pi-figs"></div><p class="pi-txt"></p><button type="button" class="pi-ok"></button></div>');
+    d.id='pst-info'; document.body.appendChild(d);
+    var close=function(){ d.classList.remove('on'); };
+    d.addEventListener('click',function(e){ if(e.target===d||e.target.closest('.pi-x')||e.target.closest('.pi-ok')) close(); });
+    document.addEventListener('keydown',function(e){ if(e.key==='Escape') close(); });
+    return d;
+  }
+  function open(key){
+    var I=INFO[key]; if(!I) return; var d=sheet(), a=I.a(), b=I.b();
+    d.querySelector('.pi-head b').textContent=tx(I.t);
+    d.querySelector('.pi-figs').innerHTML='<figure class="pi-fig'+(I.same?' on':'')+'">'+a[0]+'<figcaption>'+esc(a[1])+'</figcaption></figure><figure class="pi-fig on">'+b[0]+'<figcaption>'+esc(b[1])+'</figcaption></figure>';
+    d.querySelector('.pi-txt').textContent=tx('pi.'+key);
+    d.querySelector('.pi-ok').textContent=tx('st.ok');
+    d.classList.add('on');
+  }
+  var ICON='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6v.2"/></svg>';
+  function addI(row,key,anchor){
+    if(!row||row.querySelector('.pst-i')) return;
+    var b=el('span','pst-i',ICON); b.setAttribute('role','button'); b.tabIndex=0; b.setAttribute('data-k',key); b.setAttribute('aria-label',tx('st.about')+' '+tx(INFO[key].t));
+    var go=function(e){ e.preventDefault(); e.stopPropagation(); open(key); };
+    b.addEventListener('click',go); b.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===' ') go(e); });
+    anchor=anchor||row.querySelector('[data-i18n]')||row.firstElementChild;
+    if(anchor&&anchor.parentNode) anchor.parentNode.insertBefore(b,anchor.nextSibling); else row.appendChild(b);
+  }
+
+  // ── sections: rows are moved into section cards INSIDE #trk-grid-pop (so its switch styles still apply)
+  //    and put back at their place markers before the sheet hands the popover back ──
+  var TAKEN=[];
+  function take(n,into){ if(!n) return; if(!n._pssPh) n._pssPh=document.createComment('pss'); if(n._pssPh.parentNode!==n.parentNode||n.previousSibling!==n._pssPh) n.parentNode.insertBefore(n._pssPh,n); into.appendChild(n); TAKEN.push(n); }
+  function restore(){
+    for(var i=TAKEN.length-1;i>=0;i--){ var n=TAKEN[i], ph=n._pssPh; if(ph&&ph.parentNode){ ph.parentNode.insertBefore(n,ph); ph.parentNode.removeChild(ph); } }
+    TAKEN=[]; var pop=$('trk-grid-pop'); if(pop) [].slice.call(pop.querySelectorAll('.pss-sec')).forEach(function(s){ s.parentNode.removeChild(s); });
+  }
+  function sec(k){ var s=el('div','pss-sec'); s.appendChild(el('p','pst-lbl',esc(tx(k)))); var c=el('div','pss-card'); s.appendChild(c); return {s:s,c:c}; }
+  function rowOf(id){ var e=$(id); return e?e.closest('.tg-row'):null; }
+  function restructure(){
+    var panel=$('trk-fspanel'), body=$('trk-fspanel-body'), pop=$('trk-grid-pop'); if(!panel||!body||!pop||!panel.classList.contains('pst')) return;
+    restore();
+    // Chart card rows (built by the v669 sheet): Look, Zoom, Pages
+    [].forEach.call(body.querySelectorAll(':scope > .pst-card .pst-row'),function(r){
+      if(r.querySelector('.pst-seg')) addI(r,'look',r.firstElementChild);
+      else if(r.querySelector('#trk-zoomgroup')) addI(r,'zoom',r.firstElementChild);
+      else if(r.querySelector('#trk-fs-pages-wrap')){ var l=r.firstElementChild; if(l&&!l.querySelector('.pst-i')){ var m=el('span',null,''); l.appendChild(m); addI(r,'pages',m); } }
+    });
+    var host=pop.closest('.pst-card'); if(host){ host.classList.add('pss-host'); var lb=host.previousElementSibling; if(lb&&lb.classList.contains('pst-lbl')) lb.style.display='none'; }
+    var show=sec('st.show'), mark=sec('st.marking'), home=sec('st.home');
+    // Show on chart: Grid, Centre lines, Backstitch, Pattern info, then Grid style (folds open)
+    [rowOf('tg-on'),rowOf('tg-centre'),$('tg-bs-row'),$('tg-info-row')].forEach(function(n){ take(n,show.c); });
+    var gh=pop.querySelector('#pst-gridhd'); if(gh){ take(gh,show.c); [].slice.call(pop.querySelectorAll(':scope > .pst-g')).forEach(function(n){ take(n,show.c); }); }
+    // Marking stitches: Tint (+ colour and opacity), Colour focus bar (+ Mark stitch on Next)
+    [$('tg-lightup-row'),$('tg-done-rows'),$('tg-ppk-row'),$('tg-ppkmark-row')].forEach(function(n){ take(n,mark.c); });
+    // Home screen: the widget switch, only where the phone has the widget
+    var wr=$('tg-widget-row'), hasW=wr&&wr.style.display!=='none'; if(hasW) take(wr,home.c);
+    pop.appendChild(show.s); pop.appendChild(mark.s); if(hasW) pop.appendChild(home.s);
+    addI(rowOf('tg-on'),'grid'); addI(rowOf('tg-centre'),'centre'); addI($('tg-bs-row'),'bs'); addI($('tg-info-row'),'info');
+    if(gh) addI(gh,'gridstyle',gh.firstElementChild);
+    var lt=$('tg-lightup-row'); if(lt) addI(lt,'tint',lt.querySelector('[data-i18n="tg.tint"]'));
+    var pk=$('tg-ppk-row'); if(pk) addI(pk,'ppk',pk.querySelector('[data-i18n="pk.set"]'));
+    var pm=$('tg-ppkmark-row'); if(pm) addI(pm,'ppkmark',pm.querySelector('[data-i18n="pk.mark"]'));
+    if(hasW) addI(wr,'widget',wr.querySelector('[data-i18n="wd.title"]'));
+  }
+  function init(){
+    if(!app()){
+      if(!init._mo){ init._mo=new MutationObserver(function(){ if(app()){ init._mo.disconnect(); init(); } }); init._mo.observe(document.body,{attributes:true,attributeFilter:['class']}); }
+      return;
+    }
+    var f=window.trkFsPanel; if(typeof f!=='function'||!f._pst){ setTimeout(init,200); return; }   // after the v669 sheet is in place
+    if(!f._pss){ var w=function(kind){ var r=f.apply(this,arguments); try{ if(kind==='settings'&&app()) restructure(); }catch(e){ console.warn('[pss]',e); } return r; }; w._pst=1; w._pss=1; window.trkFsPanel=w; }
+    var rs=window.trkFsRestore; if(typeof rs==='function'&&!rs._pss){ var wr2=function(){ try{ restore(); }catch(e){} return rs.apply(this,arguments); }; wr2._pss=1; window.trkFsRestore=wr2; }
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
   else setTimeout(init,0);
