@@ -15,7 +15,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v120";
+const MW_VERSION = "v121";
 
 // v107: the help sheet the in-app AI assistant answers from (/help/chat). Keep it
 // to facts that are true in the live app; update it when a feature changes.
@@ -3929,6 +3929,13 @@ async function servePattern(key, auth, request, url, env) {
   }
   // No traversal, no absolute keys.
   if (!key || key.includes("..") || key.startsWith("/")) {
+    return new Response("not found", { status: 404 });
+  }
+
+  // v121: the bucket also holds private things that are not kit files: help chat
+  // attachments (fbf/), the team's Kit files (kitsrc/) and the partner manifest.
+  // They have their own signed-in routes; this public route never serves them.
+  if (/^(fbf|kitsrc)\//i.test(key) || /^partner-kits\.json$/i.test(key)) {
     return new Response("not found", { status: 404 });
   }
 
