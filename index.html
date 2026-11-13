@@ -5497,7 +5497,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v753';
+window.PATTERNLY_BUILD='v752';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -39833,7 +39833,6 @@ body.ptly-appui #plfb-fab{bottom:calc(84px + var(--sa-bottom,0px))}
     <div class="fb-head">
       <div class="fb-av" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"/><path d="M8.5 10.5h7M8.5 13.5h4.5"/></svg></div>
       <div class="fb-hd"><b id="fb-title" data-i18n="fb.title">Patternly help</b><span><i></i><em style="font-style:normal" data-i18n="fb.status">The team reads every message</em></span></div>
-      <button class="fb-ib" type="button" id="fb-del" data-i18n-title="fb.del" title="Delete this chat" aria-label="Delete this chat"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg></button>
       <button class="fb-ib" type="button" id="fb-restart" data-i18n-title="fb.restart" title="New chat" aria-label="New chat">↺</button>
       <button class="fb-ib" type="button" aria-label="Close" onclick="plFeedbackClose()">✕</button>
     </div>
@@ -39910,23 +39909,6 @@ body.ptly-appui #plfb-fab{bottom:calc(84px + var(--sa-bottom,0px))}
              [tx('fb.other'),function(){ me(tx('fb.other')); S.step='reason'; bot(tx('fb.nice0'),reasonChips); }],
              [tx('fb.done'),bye]]);
     });
-  }
-  // v753: "Delete this chat" (bin in the header). Removes this chat's messages and files from the
-  // team inbox now (POST /help/delete, middleware v126) instead of after the 90 days.
-  try{ var _T=window.PL_I18N, _D={"en": {"fb.del": "Delete this chat", "fb.delAsk": "Delete this chat? Your messages and files are removed from our systems now. This cannot be undone.", "fb.delYes": "Yes, delete it", "fb.delNo": "Keep it", "fb.delDone": "This chat was deleted."}, "fr": {"fb.del": "Supprimer cette discussion", "fb.delAsk": "Supprimer cette discussion ? Vos messages et fichiers sont retirés de nos systèmes tout de suite. Cette action est irréversible.", "fb.delYes": "Oui, supprimer", "fb.delNo": "Garder", "fb.delDone": "Cette discussion a été supprimée."}, "de": {"fb.del": "Diesen Chat löschen", "fb.delAsk": "Diesen Chat löschen? Deine Nachrichten und Dateien werden jetzt aus unseren Systemen entfernt. Das lässt sich nicht rückgängig machen.", "fb.delYes": "Ja, löschen", "fb.delNo": "Behalten", "fb.delDone": "Dieser Chat wurde gelöscht."}, "nl": {"fb.del": "Dit gesprek verwijderen", "fb.delAsk": "Dit gesprek verwijderen? Je berichten en bestanden worden nu uit onze systemen verwijderd. Dit kan niet ongedaan worden gemaakt.", "fb.delYes": "Ja, verwijderen", "fb.delNo": "Bewaren", "fb.delDone": "Dit gesprek is verwijderd."}, "ru": {"fb.del": "Удалить этот чат", "fb.delAsk": "Удалить этот чат? Ваши сообщения и файлы будут сразу удалены из наших систем. Это нельзя отменить.", "fb.delYes": "Да, удалить", "fb.delNo": "Оставить", "fb.delDone": "Этот чат удалён."}, "uk": {"fb.del": "Видалити цей чат", "fb.delAsk": "Видалити цей чат? Ваші повідомлення та файли буде одразу видалено з наших систем. Це неможливо скасувати.", "fb.delYes": "Так, видалити", "fb.delNo": "Залишити", "fb.delDone": "Цей чат видалено."}, "es": {"fb.del": "Eliminar este chat", "fb.delAsk": "¿Eliminar este chat? Tus mensajes y archivos se borran de nuestros sistemas ahora. No se puede deshacer.", "fb.delYes": "Sí, eliminar", "fb.delNo": "Conservar", "fb.delDone": "Este chat se ha eliminado."}, "it": {"fb.del": "Elimina questa chat", "fb.delAsk": "Eliminare questa chat? I tuoi messaggi e file vengono rimossi subito dai nostri sistemi. Non si può annullare.", "fb.delYes": "Sì, elimina", "fb.delNo": "Tieni", "fb.delDone": "Questa chat è stata eliminata."}}; if(_T) for(var _l in _D){ _T[_l]=_T[_l]||{}; for(var _k in _D[_l]) _T[_l][_k]=_D[_l][_k]; } }catch(e){}
-  function delAsk(){
-    if(busy || !S || $('fb-delq')) return;
-    var c=$('fb-chips'), saved=Array.prototype.slice.call(c.childNodes), barOff=$('fb-bar').classList.contains('off');
-    var q=el('fb-m bot',tx('fb.delAsk')); q.id='fb-delq'; add(q); $('fb-bar').classList.add('off');
-    chips([[tx('fb.delYes'),function(){ delGo(q); }],
-           [tx('fb.delNo'),function(){ q.remove(); c.innerHTML=''; saved.forEach(function(n){ c.appendChild(n); }); $('fb-bar').classList.toggle('off',barOff); scroll(); }]]);
-  }
-  async function delGo(q){
-    busy=true; var ok=false;
-    try{ var r=await fetch(base()+'/help/delete'+qs(),{method:'POST',credentials:'include',headers:{'content-type':'application/json'},body:JSON.stringify({conv:S.conv})}); var j=await r.json(); ok=!!(j&&j.ok); }catch(e){}
-    busy=false;
-    if(!ok){ q.removeAttribute('id'); failNote(false); chips([[tx('fb.restart'),start]]); return; }
-    start(); add(el('fb-priv',tx('fb.delDone')));
   }
   function bye(){ me(tx('fb.done')); bot(tx('fb.bye'),function(){ S.step='done'; input(false); chips([[tx('fb.restart'),start]]); }); }
   // Sends one message to the team inbox (/feedback). Resolves {ok, lim, short}.
@@ -40044,7 +40026,6 @@ body.ptly-appui #plfb-fab{bottom:calc(84px + var(--sa-bottom,0px))}
     try{ var r=await fetch(base()+'/help/chat'+qs(),{credentials:'include',cache:'no-store'}); var j=r.ok?await r.json():null; aiOn=!!(j && j.ai); }catch(e){ aiOn=false; }
     setStatus();
   }
-  try{ $('fb-del').addEventListener('click',delAsk); }catch(e){}
   window.plFeedbackOpen=function(w){
     where=String(w||'');
     $('plfb').classList.add('on');

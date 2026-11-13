@@ -15,7 +15,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v126";
+const MW_VERSION = "v125";
 
 // v107: the help sheet the in-app AI assistant answers from (/help/chat). Keep it
 // to facts that are true in the live app; update it when a feature changes.
@@ -89,18 +89,6 @@ function b64FromBuf(buf) {
 }
 // One feedback record per AI chat, "fb:<chat start ts>:<last 6 of the chat id>", rewritten
 // after every answer with the whole conversation (first question + latest turns, ≤6,000 chars).
-// v126: "fbconv:<chat id>" lists the inbox records of one chat, so the person who
-// wrote it can delete it (POST /help/delete). Kept a little longer than the chats.
-async function fbConvIndex(env, conv, id) {
-  try {
-    if (!conv || !id) return;
-    const k = "fbconv:" + conv;
-    let a = []; try { a = JSON.parse((await env.ENTITLEMENTS.get(k)) || "[]") || []; } catch (e) { a = []; }
-    if (a.indexOf(id) !== -1 || a.length >= 60) return;
-    a.push(id);
-    await env.ENTITLEMENTS.put(k, JSON.stringify(a), { expirationTtl: (FB_KEEP_DAYS + 10) * 86400 });
-  } catch (e) {}
-}
 async function fbChatSave(env, conv, p) {
   const now = Date.now();
   let t = parseInt(conv.slice(0, 8), 36);
@@ -114,7 +102,6 @@ async function fbChatSave(env, conv, p) {
     if (total >= 5000) return;
     try { await env.ENTITLEMENTS.put("fbcount", String(total + 1)); } catch (e) {}
     rec = { id, ts: t, status: "new", chat: true, conv };
-    await fbConvIndex(env, conv, id);
   }
   if (p.hist) {
     const lines = p.hist.map((m) => (m.role === "user" ? "Customer: " : "Assistant: ") + m.content);
@@ -4712,67 +4699,6 @@ async function handleRequest(context) {
     return out({ ok: true, text });
   }
 
-  // v126: POST /help/delete {conv} — "Delete this chat" in the help chat (Cristian, 12 Nov
-  // 2026: people can remove their chat themselves instead of waiting for the 90 days).
-  // Deletes every inbox record of that chat (the saved AI chat and the messages sent to
-  // the team) and its attached files, now. The chat id is the only key: it exists only
-  // in the page that wrote the chat. 10 a day per account or address.
-  if (url.pathname.endsWith("/help/delete") && url.pathname.indexOf("/partner/") < 0) {
-    const h = { "content-type": "application/json", "cache-control": "no-store" };
-    const out = (code, obj) => new Response(JSON.stringify(obj), { status: code, headers: h });
-    if (request.method !== "POST") return out(405, { ok: false, error: "method not allowed" });
-    if (!env.ENTITLEMENTS) return out(200, { ok: false, error: "not available right now" });
-    let b; try { b = await request.json(); } catch (e) { return out(200, { ok: false, error: "bad json" }); }
-    const conv = String((b && b.conv) || "");
-    if (!/^[a-z0-9]{12,20}$/.test(conv)) return out(200, { ok: false, error: "bad chat" });
-    const who = await fbWho(request, auth);
-    const rk = "rlfbd:" + new Date().toISOString().slice(0, 10) + ":" + who;
-    let n = 0; try { n = +((await env.ENTITLEMENTS.get(rk)) || 0) || 0; } catch (e) {}
-    if (n >= 10) return out(200, { ok: false, error: "limit", limit: true });
-    try { await env.ENTITLEMENTS.put(rk, String(n + 1), { expirationTtl: 90000 }); } catch (e) {}
-
-    const ids = new Set();
-    let indexed = false;
-    try { const a = JSON.parse((await env.ENTITLEMENTS.get("fbconv:" + conv)) || "null"); if (Array.isArray(a)) { indexed = true; a.forEach((x) => ids.add(String(x))); } } catch (e) {}
-    const t0 = parseInt(conv.slice(0, 8), 36);
-    if (t0 > 0) {
-      ids.add(String(t0).padStart(13, "0") + ":" + conv.slice(-6).toUpperCase().padStart(6, "X"));
-      // Chats from before the index: look through the inbox records of the ~2 days after the chat began.
-      if (!indexed) {
-        const bucket = Math.floor(t0 / 1e8);
-        let reads = 0;
-        for (const bk of [bucket, bucket + 1]) {
-          try {
-            const l = await env.ENTITLEMENTS.list({ prefix: "fb:" + String(bk).padStart(5, "0"), limit: 400 });
-            for (const k of l.keys) { if (reads++ >= 400) break; ids.add(k.name.slice(3)); }
-          } catch (e) {}
-        }
-      }
-    }
-    let gone = 0, files = 0;
-    for (const id of ids) {
-      if (!/^\d{13}:[A-Za-z0-9]{6}$/.test(id)) continue;
-      let rec = null; try { rec = JSON.parse((await env.ENTITLEMENTS.get("fb:" + id)) || "null"); } catch (e) {}
-      if (!rec || rec.conv !== conv) continue;               // only records of exactly this chat
-      for (const f of (rec.files || [])) { try { if (env.PATTERNS && f && /^fbf\//.test(f.k) && f.k.split("/")[2] === conv) { await env.PATTERNS.delete(f.k); files++; } } catch (e) {} }
-      try { await env.ENTITLEMENTS.delete("fb:" + id); gone++; } catch (e) {}
-    }
-    // Files uploaded in this chat that no record kept.
-    if (env.PATTERNS && t0 > 0) {
-      for (const d of [t0, t0 + 86400000, Date.now()]) {
-        try {
-          const day = new Date(d).toISOString().slice(0, 10);
-          const l = await env.PATTERNS.list({ prefix: "fbf/" + day + "/" + conv + "/", limit: 100 });
-          for (const o of (l.objects || [])) { try { await env.PATTERNS.delete(o.key); files++; } catch (e) {} }
-        } catch (e) {}
-      }
-    }
-    try { await env.ENTITLEMENTS.delete("fbconv:" + conv); } catch (e) {}
-    if (gone) { try { const c = +((await env.ENTITLEMENTS.get("fbcount")) || 0) || 0; await env.ENTITLEMENTS.put("fbcount", String(Math.max(0, c - gone))); } catch (e) {} }
-    if (files) { try { const c = +((await env.ENTITLEMENTS.get("fbfcount")) || 0) || 0; await env.ENTITLEMENTS.put("fbfcount", String(Math.max(0, c - files))); } catch (e) {} }
-    return out(200, { ok: true, removed: gone, files });
-  }
-
   // v106: POST /feedback — the in-app help chat ("Help & suggestions"): one record per message,
   // kind = problem | idea | question | account | other, optional first name and a chat id (conv).
   // Stored in ENTITLEMENTS under "fb:<ts>:<rand>" (value = full record, metadata =
@@ -4818,7 +4744,6 @@ async function handleRequest(context) {
     if (files.length) rec.files = files;
     await env.ENTITLEMENTS.put("fb:" + id, JSON.stringify(rec), { metadata: { kind, status: "new", ts } });
     try { await env.ENTITLEMENTS.put("fbcount", String(total + 1)); } catch (e) {}
-    if (conv) await fbConvIndex(env, conv, id);   // v126
     return out(200, { ok: true });
   }
 
