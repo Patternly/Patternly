@@ -5497,7 +5497,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v751';
+window.PATTERNLY_BUILD='v752';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -26185,6 +26185,7 @@ async function tryBuildTracker(){
       trkAskUnknownColours();   // notice already seen (or n/a) — go straight to the unknown-colour prompt
   }catch(_e){ console.warn('unknown-colour prompt failed', _e); }
   trackerStitched = Array.from({length: trackerGrid.rows}, ()=>Array(trackerGrid.cols).fill(false));
+  trkOv=new Map(); trkMk=new Map(); trkOvKey=null;   // v752: a new chart starts with no erased-cell list
   trkApplyViewAvail();
   trkSaveProject();
   try{
@@ -26739,6 +26740,7 @@ function trkSetCell(r,c,state){
   if(trackerStitched[r][c]===state) return;
   if(trkStroke) trkStroke.push({r,c,prev:trackerStitched[r][c]});
   trackerStitched[r][c]=state;
+  trkOvNote(r,c,state);         // v752
   if(state) plStreakRecord();   // v612: counts today as a stitching day
 }
 function trkSelectSymbolAt(cell){
@@ -26846,7 +26848,7 @@ document.getElementById('trk-pick').addEventListener('click',()=>trkPickToggle()
 function trkUndoStroke(){
   const s=trkUndoStack.pop(); if(!s||!trackerStitched) { trkUndoSync(); return; }
   let n=0;
-  for(let i=s.length-1;i>=0;i--){ const ch=s[i]; if(trackerStitched[ch.r] && trackerStitched[ch.r][ch.c]!==ch.prev){ trackerStitched[ch.r][ch.c]=ch.prev; n++; } }
+  for(let i=s.length-1;i>=0;i--){ const ch=s[i]; if(trackerStitched[ch.r] && trackerStitched[ch.r][ch.c]!==ch.prev){ trackerStitched[ch.r][ch.c]=ch.prev; trkOvNote(ch.r,ch.c,ch.prev); n++; } }
   trkUndoSync();
   renderTracker(); updateTrackerProgressUI(); saveTrackerProgress();
   if(typeof toast==='function') toast(n===1?trkT('ts.undone1'):trkT('ts.undonen',{n}));
@@ -26936,7 +26938,7 @@ trkCanvas.addEventListener('pointerdown', e=>{
     trkLongT=setTimeout(()=>{ trkLongT=null;
       if(trkMarking===null) return;
       const p=trkPtrs.get(e.pointerId); if(p && Math.hypot(p.x-_px,p.y-_py)>8) return;
-      if(trkStroke){ for(let i=trkStroke.length-1;i>=0;i--){ const ch=trkStroke[i]; trackerStitched[ch.r][ch.c]=ch.prev; } trkStroke=null; }
+      if(trkStroke){ for(let i=trkStroke.length-1;i>=0;i--){ const ch=trkStroke[i]; trackerStitched[ch.r][ch.c]=ch.prev; trkOvNote(ch.r,ch.c,ch.prev); } trkStroke=null; }
       trkMarking=null; trkTapCell=null; trkLongDone=Date.now();
       try{ trkCanvas.releasePointerCapture(e.pointerId); }catch(_e){}
       trkSelectSymbolAt(cell);
@@ -27085,7 +27087,7 @@ function trkBlockTap(cell,e){
   if(trkBsSelActive()) return false;
   if(L.stroke && trkUndoStack[trkUndoStack.length-1]===L.stroke){
     trkUndoStack.pop();
-    for(let i=L.stroke.length-1;i>=0;i--){ const ch=L.stroke[i]; trackerStitched[ch.r][ch.c]=ch.prev; }
+    for(let i=L.stroke.length-1;i>=0;i--){ const ch=L.stroke[i]; trackerStitched[ch.r][ch.c]=ch.prev; trkOvNote(ch.r,ch.c,ch.prev); }
   }
   const B=Math.max(1,trkGridCfg.block||10), r0=Math.floor(cell.r/B)*B, c0=Math.floor(cell.c/B)*B;
   const r1=Math.min(trackerGrid.rows,r0+B), c1=Math.min(trackerGrid.cols,c0+B);
@@ -27743,6 +27745,7 @@ document.getElementById('trk-reset').addEventListener('click',()=>{
     requireCheck: done>500 ? 'Yes, clear all '+done.toLocaleString()+' stitches' : null,
     confirmLabel:'Reset progress', danger:true,
     onConfirm(){
+      try{ for(let r=0;r<trackerGrid.rows;r++) for(let c=0;c<trackerGrid.cols;c++) if(trackerStitched[r]&&trackerStitched[r][c]) trkOvNote(r,c,false); }catch(e){}   // v752
       trackerStitched=Array.from({length:trackerGrid.rows},()=>Array(trackerGrid.cols).fill(false));
       renderTracker(); updateTrackerProgressUI(); saveTrackerProgress();
       // Push the cleared state straight away rather than waiting for the
@@ -27852,7 +27855,8 @@ function trkUserPatternPush(){
     safeId, name: displayName, blob, done, total,
     cols: _upCols, rows: _upRows, threads: _upThreads,
     thumb: (idxRec.thumb || null), progress: _upProgress,
-    timeMs: idxRec.timeMs|0, sessions: Object.keys(idxRec.sessions||{}).length
+    timeMs: idxRec.timeMs|0, sessions: Object.keys(idxRec.sessions||{}).length,
+    ov: trkOvPack(), _key: id, _ts: Date.now()            // v752
   };
   // Coalesce: only the latest snapshot per pattern stays queued.
   _trkUpQueue = _trkUpQueue.filter(q=>q.safeId!==safeId);
@@ -27887,9 +27891,10 @@ async function trkDrainUpQueue(){
             name, blob:p.blob, done:p.done, total:p.total,
             cols:p.cols, rows:p.rows, threads:p.threads,
             thumb:p.thumb, progress:p.progress,
-            timeMs:p.timeMs, sessions:p.sessions
+            timeMs:p.timeMs, sessions:p.sessions, ov:p.ov
           })
         });
+        if(r.ok) trkMkPushed(p._key, p._ts);
         if(r.status===409){
           let info={}; try{ info=await r.json(); }catch(e){}
           trkUserCapNotice(info);
@@ -27961,10 +27966,10 @@ async function trkUserPatternFetch(id){
 }
 // Fetch the packed per-cell stitched marks for one account pattern (separate
 // from the chart blob) so "Continue on this device" restores exact progress.
-async function trkUserPatternFetchProgress(id){
+async function trkUserPatternFetchProgress(id, part){
   try{
     var base = trkUserPatternUrl(id);
-    var url = base + (base.indexOf('?')>=0 ? '&' : '?') + 'part=progress';
+    var url = base + (base.indexOf('?')>=0 ? '&' : '?') + 'part=' + (part||'progress');
     const r=await fetch(url, {credentials:'include', cache:'no-cache'});
     if(!r.ok) return null;
     return await r.text();   // rows of '1'/'0' joined by '|'
@@ -28022,6 +28027,97 @@ function trkUserCapNotice(info){
   setTimeout(()=>{ _trkCapNoticeShown=false; }, 30000);
 }
 
+// ── v752: erased stitches stay erased on every device ───────────────────────
+// The sync merges by UNION (a stitched cell stays stitched), so a stitch erased
+// on one device came back from any other device that still had it. The bitmap
+// and the union stay exactly as they were. Next to them travels a small list of
+// the cells somebody changed BACK by hand: trkOv, cell index -> {s, t}, where
+// s=0 "erased at t" and s=1 "marked again at t". For a cell on that list the
+// newest entry decides; every other cell is merged by union as before. An older
+// app that knows nothing about the list keeps working (the server keeps the list
+// when a push comes without one). trkMk holds the marks made on this device that
+// are not pushed yet, so a stitch made here after an erase elsewhere is kept.
+// Only code paths where the stitcher changes a cell call trkOvNote, so nothing
+// can turn into an erase by accident. Wire format: "idx:s:t,..." in base 36.
+const TRK_OV_CAP=6000;
+let trkOv=new Map(), trkMk=new Map(), trkOvKey=null;
+function trkOvFor(){            // the lists belong to one pattern
+  if(trkOvKey!==trackerActiveProjectKey){ trkOv=new Map(); trkMk=new Map(); trkOvKey=trackerActiveProjectKey; }
+}
+function trkOvNote(r,c,state){
+  try{
+    if(!trackerGrid) return;
+    trkOvFor();
+    const i=r*trackerGrid.cols+c, now=Date.now();
+    if(state){ trkMk.set(i,now); if(trkOv.has(i)) trkOv.set(i,{s:1,t:now}); }
+    else { trkMk.delete(i); trkOv.set(i,{s:0,t:now}); }
+  }catch(e){}
+}
+function trkOvParse(str){
+  const m=new Map();
+  if(typeof str!=='string' || !str) return m;
+  for(const part of str.split(',')){
+    const q=part.split(':'); if(q.length!==3) continue;
+    const i=parseInt(q[0],36), t=parseInt(q[2],36);
+    if(!(i>=0) || !(t>1e12) || (q[1]!=='0' && q[1]!=='1')) continue;
+    const e={s:q[1]==='1'?1:0, t:t}, cur=m.get(i);
+    if(!cur || e.t>cur.t || (e.t===cur.t && e.s && !cur.s)) m.set(i,e);
+  }
+  return m;
+}
+function trkOvPack(){
+  try{
+    trkOvFor();
+    if(!trkOv.size) return '';
+    let a=[...trkOv.entries()];
+    if(a.length>TRK_OV_CAP){ a.sort((x,y)=>y[1].t-x[1].t || x[0]-y[0]); a=a.slice(0,TRK_OV_CAP); trkOv=new Map(a); }
+    return a.map(x=>x[0].toString(36)+':'+x[1].s+':'+x[1].t.toString(36)).join(',');
+  }catch(e){ return ''; }
+}
+function trkMkPack(){
+  try{
+    if(!trkMk.size) return '';
+    let a=[...trkMk.entries()];
+    if(a.length>TRK_OV_CAP){ a.sort((x,y)=>y[1]-x[1]); a=a.slice(0,TRK_OV_CAP); trkMk=new Map(a); }
+    return a.map(x=>x[0].toString(36)+':1:'+x[1].toString(36)).join(',');
+  }catch(e){ return ''; }
+}
+// Marks that reached the account no longer need protecting.
+function trkMkPushed(key, ts){
+  try{ if(key!==trkOvKey) return; trkMk.forEach((t,i)=>{ if(t<=ts) trkMk.delete(i); }); }catch(e){}
+}
+// Merge the account copy (rows of 0/1 + its list) into the open pattern.
+// Returns what changed here and whether this device knows something newer.
+function trkMergeRemote(lines, rovStr){
+  trkOvFor();
+  const cols=trackerGrid.cols, rows=trackerGrid.rows;
+  const rov=trkOvParse(rovStr);
+  let added=0, removed=0, newer=false;
+  trkOv.forEach((l,i)=>{ const e=rov.get(i); if(!e || l.t>e.t) newer=true; });
+  rov.forEach((e,i)=>{ const l=trkOv.get(i); if(!l || e.t>l.t || (e.t===l.t && e.s && !l.s)) trkOv.set(i,{s:e.s,t:e.t}); });
+  trkOv.forEach((e,i)=>{
+    const r=Math.floor(i/cols), c=i%cols;
+    if(r>=rows || !trackerStitched[r] || !trackerGrid.cells[r] || trackerGrid.cells[r][c]===' ') return;
+    if(e.s){ if(!trackerStitched[r][c]){ trackerStitched[r][c]=true; added++; } }
+    else if(trackerStitched[r][c]){
+      const m=trkMk.get(i);
+      if(m && m>e.t){ trkOv.set(i,{s:1,t:m}); newer=true; }   // stitched here after that erase: the stitch stays
+      else { trackerStitched[r][c]=false; removed++; }
+    }
+  });
+  for(let y=0;y<rows && y<lines.length;y++){
+    const ln=lines[y];
+    for(let x=0;x<cols && x<ln.length;x++){
+      if(ln[x]==='1' && !trackerStitched[y][x]){
+        const e=trkOv.get(y*cols+x);
+        if(e && !e.s) continue;              // erased by hand, newer than that old mark
+        trackerStitched[y][x]=true; added++;
+      }
+    }
+  }
+  return {added, removed, newer};
+}
+
 async function trkCloudPush(){
   // A grid must be loaded: the flush-on-leave handler (visibilitychange/pagehide)
   // can fire with trkCloudSku still set but no pattern open, and reading
@@ -28029,6 +28125,7 @@ async function trkCloudPush(){
   // that saves your last marks before you switch away. No grid = nothing to push.
   if(!trkCloudSku || _trkCloudBusy || !trackerGrid) return;
   _trkCloudBusy=true;
+  const _ovKey=trackerActiveProjectKey, _ovTs=Date.now();
   try{
     const r=await fetch(trkProgressUrl(trkCloudSku), {
       method:'PUT', credentials:'include',
@@ -28040,10 +28137,12 @@ async function trkCloudPush(){
         return {data:trkPackProgress(), cols:trackerGrid.cols, rows:trackerGrid.rows,
                 done:trkCountDone(), total,
                 threads:(trackerLegend&&trackerLegend.rowCount)||Object.keys(trackerColourMap||{}).length,
-                timeMs:idx.timeMs|0, sessions:Object.keys(idx.sessions||{}).length};
+                timeMs:idx.timeMs|0, sessions:Object.keys(idx.sessions||{}).length,
+                ov:trkOvPack()};
       })())
     });
     if(!r.ok) console.warn('[tracker] progress push refused', r.status);
+    else trkMkPushed(_ovKey, _ovTs);
   }catch(e){ console.warn('[tracker] cloud push failed', e); }
   finally{ _trkCloudBusy=false; }
 }
@@ -28052,6 +28151,7 @@ async function trkCloudPush(){
 // discard an evening's work done on another device.
 async function trkCloudPull(){
   if(!trkCloudSku || !trackerGrid) return;
+  const _key=trackerActiveProjectKey, _sku=trkCloudSku;
   try{
     const r=await fetch(trkProgressUrl(trkCloudSku), {credentials:'include', cache:'no-cache'});
     if(r.status===401){
@@ -28066,19 +28166,17 @@ async function trkCloudPull(){
     if(!r.ok){ console.warn('[tracker] progress fetch', r.status); return; }
     const rec=await r.json();
     if(!rec || !rec.data) return;
+    if(!trackerGrid || !trackerStitched || trackerActiveProjectKey!==_key || trkCloudSku!==_sku) return;   // another pattern was opened meanwhile
     if(rec.cols && (rec.cols!==trackerGrid.cols || rec.rows!==trackerGrid.rows)) return;
     const lines=rec.data.split('|');
-    let added=0;
-    for(let y=0;y<trackerGrid.rows && y<lines.length;y++){
-      const ln=lines[y];
-      for(let x=0;x<trackerGrid.cols && x<ln.length;x++){
-        if(ln[x]==='1' && !trackerStitched[y][x]){ trackerStitched[y][x]=true; added++; }
-      }
-    }
-    if(added){
+    const m=trkMergeRemote(lines, rec.ov), added=m.added;    // v752: union + erased cells
+    if(added || m.removed){
       renderTracker(); updateTrackerProgressUI();
-      toast(added.toLocaleString()+' stitches synced from your account');
+      if(added) toast(added.toLocaleString()+' stitches synced from your account');
+      trkSaveLocalNow();
       trkCloudPush();          // local had extras too — put the union back
+    } else if(m.newer){
+      trkCloudPush();          // this device knows of an erase the account has not seen
     }
   }catch(e){ console.warn('[tracker] cloud pull failed', e); }
 }
@@ -28094,32 +28192,37 @@ async function trkUserPatternPull(){
     const _pr=(typeof trkIndex==='function'?trkIndex():[]).find(p=>p.id===trackerActiveProjectKey);
     const safeId=trkAccountId(_pr) || trkSyncIdFromBlob(blob, trackerActiveProjectKey);
     if(!safeId) return;
-    const data=await trkUserPatternFetchProgress(safeId);
+    const _key=trackerActiveProjectKey;
+    const got=await Promise.all([trkUserPatternFetchProgress(safeId), trkUserPatternFetchProgress(safeId,'ov')]);
+    const data=got[0];
     if(!data || typeof data!=='string' || data.indexOf('|')<0) return;
+    if(!trackerGrid || !trackerStitched || trkCloudSku || trackerActiveProjectKey!==_key) return;   // another pattern was opened meanwhile
     const lines=data.split('|');
-    let added=0;
-    for(let y=0;y<trackerGrid.rows && y<lines.length;y++){
-      const ln=lines[y];
-      for(let x=0;x<trackerGrid.cols && x<ln.length;x++){
-        if(ln[x]==='1' && !trackerStitched[y][x]){ trackerStitched[y][x]=true; added++; }
-      }
-    }
-    if(added){
+    const _same=(lines.length===trackerGrid.rows && lines[0].length===trackerGrid.cols);            // the erased-cell list only means something on the same grid
+    const m=trkMergeRemote(lines, _same?got[1]:''), added=m.added;    // v752: union + erased cells
+    if(added || m.removed){
       renderTracker(); updateTrackerProgressUI();
       saveTrackerProgress();   // persist the union locally + queue the push back
-      toast(added.toLocaleString()+' stitches synced from your account');
+      if(added) toast(added.toLocaleString()+' stitches synced from your account');
+    } else if(m.newer){
+      trkQueueUserPatternPush();
     }
   }catch(e){ console.warn('[tracker] user-pattern pull failed', e); }
 }
+function trkSaveLocalNow(){
+  try{
+    if(!trackerGrid || !trackerStitched || !trackerActiveProjectKey) return;
+    const rows=trkPackProgress();
+    const o={cols:trackerGrid.cols, rows:trackerGrid.rows, data:rows};
+    const ov=trkOvPack(), mk=trkMkPack();     // v752: the erased-cell list is kept with the progress
+    if(ov) o.ov=ov;
+    if(mk) o.mk=mk;
+    trkProgSet(trackerActiveProjectKey, JSON.stringify(o));
+  }catch(e){ console.warn('[tracker] save failed', e); }
+}
 function saveTrackerProgress(){
   clearTimeout(_trkSaveT);
-  _trkSaveT=setTimeout(()=>{
-    try{
-      const rows=trkPackProgress();
-      trkProgSet(trackerActiveProjectKey,
-        JSON.stringify({cols:trackerGrid.cols, rows:trackerGrid.rows, data:rows}));
-    }catch(e){ console.warn('[tracker] save failed', e); }
-  },300);
+  _trkSaveT=setTimeout(trkSaveLocalNow,300);
   // The cloud copy lags further behind on purpose — marking is rapid and each
   // push is a network write.
   clearTimeout(_trkCloudT);
@@ -28141,11 +28244,13 @@ function trkFlushProgress(){
   try{ if(typeof trkUserPatternPush==='function') trkUserPatternPush(); }catch(e){}
 }
 function loadTrackerProgress(){
+  trkOv=new Map(); trkMk=new Map(); trkOvKey=trackerActiveProjectKey;   // v752: lists start empty for the pattern being opened
   try{
     const raw=trkProgGet(trackerActiveProjectKey);
     if(!raw) return;
     const s=JSON.parse(raw);
     if(s.cols!==trackerGrid.cols||s.rows!==trackerGrid.rows) return; // different pattern under same name
+    try{ trkOv=trkOvParse(s.ov); const mk=trkOvParse(s.mk); mk.forEach((e,i)=>trkMk.set(i,e.t)); }catch(e){}
     const lines=s.data.split('|');
     for(let r=0;r<trackerGrid.rows;r++)
       for(let c=0;c<trackerGrid.cols;c++)

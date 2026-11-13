@@ -15,7 +15,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v124";
+const MW_VERSION = "v125";
 
 // v107: the help sheet the in-app AI assistant answers from (/help/chat). Keep it
 // to facts that are true in the live app; update it when a feature changes.
@@ -3922,6 +3922,33 @@ function visitorCountry(request) {
 }
 // A signed-in customer who opens a kit while it is free in their country keeps
 // that kit free if the country list later changes (Cristian, 10 Nov 2026).
+// v125: the erased-cell list that travels with stitch progress (editor v752).
+// "idx:s:t,..." in base 36: cell index, s=0 erased / s=1 marked again, t=ms.
+// Merges two lists, the newest entry per cell wins (a tie keeps the stitch).
+// A time from a device whose clock runs ahead is pulled back to now, so one
+// wrong clock cannot win every merge. Newest OV_CAP entries are kept.
+const OV_CAP = 6000;
+function ovMerge(a, b) {
+  const now = Date.now(), m = new Map();
+  for (const src of [a, b]) {
+    if (typeof src !== "string" || !src || src.length > 200000) continue;
+    for (const part of src.split(",")) {
+      const q = part.split(":");
+      if (q.length !== 3) continue;
+      const i = parseInt(q[0], 36), sv = q[1] === "1" ? 1 : 0;
+      let t = parseInt(q[2], 36);
+      if (!/^[0-9a-z]{1,5}:[01]:[0-9a-z]{8,9}$/.test(part)) continue;
+      if (!(i >= 0) || i > 4000000 || !(t > 1e12)) continue;
+      if (t > now + 300000) t = now;
+      const cur = m.get(i);
+      if (!cur || t > cur.t || (t === cur.t && sv && !cur.s)) m.set(i, { s: sv, t });
+    }
+  }
+  if (!m.size) return "";
+  const arr = [...m.entries()].sort((x, y) => y[1].t - x[1].t || x[0] - y[0]).slice(0, OV_CAP);
+  return arr.map(([i, e]) => i.toString(36) + ":" + e.s + ":" + e.t.toString(36)).join(",");
+}
+
 async function freeKitLatch(auth, request, env, sku) {
   try {
     if (!auth || !auth.customerId || !env.ENTITLEMENTS || !sku) return;
@@ -5281,6 +5308,15 @@ async function handleRequest(context) {
         sessions: body.sessions | 0,
         ts: Date.now()
       };
+      // v125: keep the erased-cell list. An older app sends none: the stored
+      // list stays as it is. A failure here must never stop the progress save.
+      try {
+        let prevOv = "";
+        const prevRaw = await env.ENTITLEMENTS.get(key);
+        if (prevRaw) { try { prevOv = JSON.parse(prevRaw).ov || ""; } catch (e) {} }
+        const ov = ovMerge(prevOv, typeof body.ov === "string" ? body.ov : "");
+        if (ov) rec.ov = ov;
+      } catch (e) { console.warn("progress ov merge failed:", e.message); }
       await env.ENTITLEMENTS.put(key, JSON.stringify(rec));
       // v97: automatic notifications run after the save, off the response path.
       try { const job = pushAutoOnProgress(env, auth.customerId, sku, rec, ""); if (context.waitUntil) context.waitUntil(job); } catch (e) {}
@@ -5382,6 +5418,12 @@ async function handleRequest(context) {
         // ?part=progress returns the packed per-cell stitched state (stored as a
         // separate R2 object) so a new device restores EXACT marks, not just the
         // done/total counts held in KV.
+        if (new URL(request.url).searchParams.get("part") === "ov") {            // v125
+          const oobj = await env.USER_PATTERNS.get(blobKey + ".ov");
+          return new Response(oobj ? await oobj.text() : "", {
+            headers: { "content-type": "text/plain", "cache-control": "no-store" }
+          });
+        }
         if (new URL(request.url).searchParams.get("part") === "progress") {
           const pobj = await env.USER_PATTERNS.get(blobKey + ".progress");
           if (!pobj) return bad("notfound", 404);
@@ -5456,6 +5498,15 @@ async function handleRequest(context) {
               await env.USER_PATTERNS.delete(blobKey + ".progress");
             }
           } catch (e) {}
+          // v125: erased-cell list, merged with the stored one. Untouched when
+          // an older app sends none.
+          try {
+            if (typeof body.ov === "string" && body.ov) {
+              const prevObj = await env.USER_PATTERNS.get(blobKey + ".ov");
+              const ov = ovMerge(prevObj ? await prevObj.text() : "", body.ov);
+              if (ov) await env.USER_PATTERNS.put(blobKey + ".ov", ov, { httpMetadata: { contentType: "text/plain" } });
+            }
+          } catch (e) {}
           return new Response(JSON.stringify({ ok: true, id, ts: rec.ts }), {
             headers: { "content-type": "application/json", "cache-control": "no-store" }
           });
@@ -5472,6 +5523,7 @@ async function handleRequest(context) {
       if (request.method === "DELETE") {
         await env.USER_PATTERNS.delete(blobKey);
         try { await env.USER_PATTERNS.delete(blobKey + ".progress"); } catch (e) {}
+        try { await env.USER_PATTERNS.delete(blobKey + ".ov"); } catch (e) {}
         await env.ENTITLEMENTS.delete(metaKey);
         // Tombstone the deletion so other devices prune their local copy. TTL ~90d.
         try { const _t = Date.now(); await env.ENTITLEMENTS.put("updel:" + auth.customerId + ":" + id, JSON.stringify({ ts: _t }), { expirationTtl: 7776000, metadata: { ts: _t } }); } catch (e) {}
