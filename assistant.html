@@ -254,10 +254,11 @@ self.onmessage=e=>{ try{ const r=run(e.data); self.postMessage({ok:true,id:e.dat
       <div class="views" hidden><div class="view"><span class="cap">Original picture</span><img alt=""></div>
       <div class="view"><span class="cap">Draft chart</span><canvas></canvas></div></div>
       <div class="colours" hidden></div>
-      <div class="acts" hidden><button class="dl">Download for Patternly editor (.oxs)</button>
+      <div class="acts" hidden><button class="dl">Download for Patternly editor (.oxs)</button><button class="ghost dlb">Download for XSPro (picture, .bmp)</button>
       <label class="sw"><input type="checkbox" class="conf"> Show single stitches</label></div>`;
     el.querySelector('h2').textContent=it.file.name.replace(/\.[^.]+$/,'');
     el.querySelector('.dl').onclick=()=>download(it);
+    el.querySelector('.dlb').onclick=()=>downloadBmp(it);
     el.querySelector('.conf').onchange=()=>draw(it);
     $('list').appendChild(el); return el;
   }
@@ -309,6 +310,24 @@ self.onmessage=e=>{ try{ const r=run(e.data); self.postMessage({ok:true,id:e.dat
     for(let y=0;y<r.H;y++)for(let xx=0;xx<r.W;xx++) x+=`<stitch x="${xx+1}" y="${y+1}" palindex="${r.idx[y*r.W+xx]+1}"/>\n`;
     return x+'</fullstitches>\n<backstitches>\n</backstitches>\n</chart>\n';
   }
+  // One pixel per stitch in the exact thread colours (24-bit BMP): XSPro's picture import
+  // turns it into a chart without changing any colour when the colour count is set to match.
+  function bmp(it){
+    const r=it.res, W=r.W, H=r.H, row=Math.ceil(W*3/4)*4, size=54+row*H;
+    const b=new Uint8Array(size), v=new DataView(b.buffer);
+    b[0]=66; b[1]=77; v.setUint32(2,size,true); v.setUint32(10,54,true); v.setUint32(14,40,true);
+    v.setInt32(18,W,true); v.setInt32(22,H,true); v.setUint16(26,1,true); v.setUint16(28,24,true);
+    v.setUint32(34,row*H,true); v.setInt32(38,2835,true); v.setInt32(42,2835,true);
+    const cols=r.threadIdx.map(t=>it.th[t]);
+    for(let y=0;y<H;y++){ const o=54+(H-1-y)*row;
+      for(let x=0;x<W;x++){ const c=cols[r.idx[y*W+x]]; b[o+x*3]=c.b; b[o+x*3+1]=c.g; b[o+x*3+2]=c.r; } }
+    return b;
+  }
+  function save(blob,name){
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  }
+  function downloadBmp(it){ save(new Blob([bmp(it)],{type:'image/bmp'}), it.file.name.replace(/\.[^.]+$/,'')+' draft '+it.res.W+'x'+it.res.H+' '+it.res.threadIdx.length+' colours.bmp'); }
   function download(it){
     const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([oxs(it)],{type:'application/xml'}));
     a.download=it.file.name.replace(/\.[^.]+$/,'')+' draft.oxs'; document.body.appendChild(a); a.click(); a.remove();
