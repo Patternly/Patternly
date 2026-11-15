@@ -5497,7 +5497,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v752';
+window.PATTERNLY_BUILD='v753';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -43501,6 +43501,95 @@ body.dark #pwn .pwn-ic{background:#2f2638;color:#f0b3c0}
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(start,400); });
   else setTimeout(start,400);
+})();
+</script>
+<style id="pal-style">
+/* v753 – older pages in the app design (app only, body.ptly-appui): Thread colours, Calculators,
+   File converter, Subscription, Pricing, Guides and the Tracker "Open a kit / Scan / Upload" pages.
+   Same tokens as the More page (pmo-style) and Tracker chips (pltl-style). Website unchanged. */
+body.ptly-appui :is(#calc-page,#threads-page,#convert-page,#subs-page,#tracker-page) .calc-container{padding-top:14px}
+body.ptly-appui .calc-title{font-size:1.75rem!important;line-height:1.15;margin:0 0 6px!important;font-weight:400;color:#2b2226}
+body.ptly-appui .calc-sub{font-size:.86rem!important;color:#8a7a82!important;line-height:1.45;margin:0 0 16px!important}
+body.ptly-appui #tracker-page>.calc-container>.calc-sub{display:none}
+body.ptly-appui #pricing-page h1{font-family:'DM Serif Display',serif;font-size:1.75rem!important;font-weight:400;line-height:1.15}
+/* tabs = chips */
+body.ptly-appui .calc-tabs{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-bottom:14px}
+body.ptly-appui .calc-tabs::-webkit-scrollbar{display:none}
+body.ptly-appui .calc-tab{display:inline-flex;align-items:center;gap:6px;border-radius:999px;border:1px solid #eee2e5;background:#fff;color:#5a5268;font-size:.82rem;font-weight:700;padding:.45rem .95rem;white-space:nowrap;box-shadow:none}
+body.ptly-appui .calc-tab.active{background:#1a1520;border-color:#1a1520;color:#fdf9f5}
+body.ptly-appui .calc-tab .pal-ic{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+/* cards */
+body.ptly-appui :is(.calc-card,.pls-card,.conv-dest-card,.th-ccard,.trk-cards>div){border-radius:18px!important;border:1px solid #eee2e5!important;box-shadow:none!important;background:#fff}
+body.ptly-appui :is(.calc-card,.conv-dest-card){padding:16px!important}
+body.ptly-appui :is(.calc-card,.pls-card,.conv-dest-card,.trk-cards>div) h3{font-family:inherit;font-size:1rem;font-weight:700;color:#2b2226}
+/* small choices = chips */
+body.ptly-appui .calc-seg{gap:6px}
+body.ptly-appui :is(.calc-seg button,.thc-chip){border-radius:999px!important;border:1px solid #eee2e5!important;background:#fff!important;color:#5a5268!important;font-size:.78rem;font-weight:700;padding:.38rem .8rem;box-shadow:none}
+body.ptly-appui :is(.calc-seg button.active,.thc-chip.active){background:#1a1520!important;border-color:#1a1520!important;color:#fdf9f5!important}
+/* fields: rounder, and 16px text so iPhone does not zoom in */
+body.ptly-appui :is(.calc-container,.pls-card) :is(input[type=number],input[type=text],input[type=search],input[type=email],input:not([type]),select){border-radius:12px!important;border:1px solid #e6d9dd!important;background-color:#fff;min-height:42px;font-size:16px!important;padding:8px 12px;box-shadow:none;color:#2b2226}
+/* main buttons = pills */
+body.ptly-appui :is(#th-find,.pr-cta){border-radius:999px!important}
+/* back links at the top of Tracker pages */
+body.ptly-appui :is(#trk-kits-back,#trk-upload-back,#trk-back-home,.pls-back){font-size:.9rem!important;font-weight:700!important;color:#8B1A2B!important;padding:4px 0!important;margin:0 0 10px!important;text-decoration:none!important}
+/* website-only links and menus that do nothing useful in the app */
+body.ptly-appui #subs-page .calc-container>p:last-child,
+body.ptly-appui #trackerguide-page>div:first-child,
+body.ptly-appui #guide-page .topnav .brand,
+body.ptly-appui #th-browse-view>p:first-child{display:none!important}
+/* confirm / QR boxes (pjm) open as a bottom sheet with pill buttons */
+body.ptly-appui #pjm-overlay{align-items:flex-end;padding:0}
+body.ptly-appui .pjm-box{max-width:640px;border-radius:22px 22px 0 0;padding:20px 18px calc(18px + var(--sa-bottom,0px));box-shadow:0 -10px 40px rgba(43,34,38,.18);font-family:'DM Sans',sans-serif}
+body.ptly-appui .pjm-box h3{font-family:inherit;font-size:1.05rem;font-weight:700}
+body.ptly-appui .pjm-box p{font-size:.88rem}
+body.ptly-appui .pjm-box :is(input[type=text],input[type=url],input:not([type])){border-radius:12px!important;min-height:44px;font-size:16px!important}
+body.ptly-appui .pjm-actions{flex-direction:column-reverse;gap:8px;flex-wrap:nowrap}
+body.ptly-appui .pjm-actions button{width:100%;border-radius:999px;padding:12px 16px;font-size:.92rem;font-weight:700}
+/* Download window (editor) opens as a bottom sheet; choices look like the other app segments */
+@media(max-width:820px){
+body.ptly-appui #export-panel{top:auto!important;bottom:0!important;left:0!important;right:0!important;transform:none!important;width:100%!important;max-height:88vh!important;border-radius:22px 22px 0 0!important;border:0!important;padding-bottom:var(--sa-bottom,0px)}
+}
+body.ptly-appui .xp-seg{background:#f6eef1;border-radius:999px;padding:3px}
+body.ptly-appui .xp-seg button{border-radius:999px;border-color:transparent}
+body.ptly-appui .xp-seg button.active{background:#fff;border-color:transparent;color:#2b2226;box-shadow:0 1px 3px rgba(43,34,38,.14)}
+body.ptly-appui :is(#xp-download,#xp-track){border-radius:999px!important}
+/* dark mode */
+body.dark.ptly-appui .calc-title,body.dark.ptly-appui :is(.calc-card,.pls-card,.conv-dest-card,.trk-cards>div) h3{color:#f1e9f3}
+body.dark.ptly-appui .calc-sub{color:#b6abc2!important}
+body.dark.ptly-appui :is(.calc-card,.pls-card,.conv-dest-card,.th-ccard,.trk-cards>div){background:#221c30!important;border-color:#37303f!important}
+body.dark.ptly-appui :is(.calc-tab,.calc-seg button,.thc-chip){background:#221b2d!important;border-color:#37303f!important;color:#c9bcc4!important}
+body.dark.ptly-appui :is(.calc-tab.active,.calc-seg button.active,.thc-chip.active){background:#e8e3ee!important;border-color:#e8e3ee!important;color:#221b2e!important}
+body.dark.ptly-appui :is(.calc-container,.pls-card) :is(input[type=number],input[type=text],input[type=search],input[type=email],input:not([type]),select){background-color:#1a1424!important;border-color:#37303f!important;color:#ece4ef}
+body.dark.ptly-appui :is(#trk-kits-back,#trk-upload-back,#trk-back-home,.pls-back){color:#f0b3c0!important}
+</style>
+<script id="pal-src">
+/* v753 – app only: the header back button says the More tab's name (it said "Account"), and the
+   Calculators tabs get line icons instead of emoji. */
+(function(){
+  var IC={fabric:'<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M4 15h16M10 4v16M15 4v16"/>',
+          time:'<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
+          thread:'<path d="M7 4h10M7 20h10"/><rect x="8" y="6" width="8" height="12" rx="1.5"/><path d="M8 9l8 2M8 13l8 2"/>'};
+  function fix(){
+    var B=document.body; if(!B||!B.classList.contains('ptly-appui')) return;
+    var nb=document.querySelector('#ptly-appnav button[data-tab="account"]');
+    var sp=document.querySelector('#ptly-appheader-back span');
+    var lab=nb?nb.textContent.trim():'';
+    if(sp&&lab&&sp.textContent!==lab) sp.textContent=lab;
+    var tabs=document.querySelectorAll('.calc-tab[data-calc]');
+    for(var i=0;i<tabs.length;i++){
+      var t=tabs[i], k=t.getAttribute('data-calc');
+      for(var n=t.firstChild;n;n=n.nextSibling){ if(n.nodeType===3&&/\S/.test(n.nodeValue)) n.nodeValue=''; }
+      if(IC[k]&&!t.querySelector('svg')) t.insertAdjacentHTML('afterbegin','<svg class="pal-ic" viewBox="0 0 24 24" aria-hidden="true">'+IC[k]+'</svg>');
+    }
+  }
+  function start(){
+    fix();
+    try{ new MutationObserver(function(){ fix(); }).observe(document.body,{attributes:true,attributeFilter:['class']}); }catch(e){}
+    var nav=document.getElementById('ptly-appnav');
+    if(nav){ try{ new MutationObserver(function(){ fix(); }).observe(nav,{childList:true,subtree:true,characterData:true}); }catch(e){} }
+    else { var n=0, iv=setInterval(function(){ fix(); if(document.getElementById('ptly-appnav')||++n>40) clearInterval(iv); },250); }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start); else start();
 })();
 </script>
 </body>
