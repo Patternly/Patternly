@@ -4,7 +4,7 @@
   Proprietary software: no part of this code may be copied, modified, reused or
   redistributed without written permission from UK Luca-S LTD.
   Third-party parts keep their own licences (noted where they appear).
-  Studio v75
+  Studio v76
 -->
 <html lang="en">
 <head>
@@ -877,6 +877,17 @@
         <div id="fb-box" style="margin-top:.8rem"><div class="note">Loading…</div></div>
       </div>
     </div>
+    <!-- v76: Pattern Assistant (Luca-S team only, "assistant" permission). The page comes from the
+         server only for a signed-in team user (admin/assistant) and runs in this frame. -->
+    <div id="tab-aassist" style="display:none">
+      <div class="card">
+        <h2>Pattern Assistant</h2>
+        <div class="note" style="margin:0 0 .8rem">Drop design pictures and get first-draft charts: fewer colours, a calm background, checker shading and almost no stray stitches. Pictures stay on this computer; nothing is uploaded. Only the Luca-S team sees this page.</div>
+        <div id="as-msg" class="note" style="margin:0"></div>
+        <iframe id="as-frame" title="Pattern Assistant" style="display:none;width:100%;height:640px;border:0;background:transparent"></iframe>
+      </div>
+    </div><!-- /tab-aassist -->
+
     <div id="tab-akits" style="display:none">
       <!-- v56: Kit files (Luca-S team only): design picture + XSPro exports per SKU, kept for legends and covers -->
       <div class="card" id="ks-list-card">
@@ -3282,7 +3293,7 @@ function convUrl(){
 // ── tabs (v7) ────────────────────────────────────────────────────
 let CUST_LOADED=false;
 function showTab(name){
-  ['overview','patterns','converter','customers','account','aov','abrands','apatterns','acustomers','abranding','ausers','apush','afeedback','akits'].forEach(t=>{
+  ['overview','patterns','converter','customers','account','aov','abrands','apatterns','acustomers','abranding','ausers','apush','afeedback','akits','aassist'].forEach(t=>{
     const el=$('tab-'+t); if(el) el.style.display = (t===name)?'':'none';
   });
   document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
@@ -3305,6 +3316,7 @@ function showTab(name){
   if(name==='apush'){ pnBind(); pnLoad(); }
   if(name==='afeedback'){ fbBind(); fbLoad(); }
   if(name==='akits'){ ksBind(); ksFont(); ksShowList(); ksLoad(); }   // v56
+  if(name==='aassist') asLoad();   // v76
 }
 document.querySelectorAll('#tabbar button').forEach(b=>{ b.onclick=()=>showTab(b.dataset.tab); });
 function showPublish(on){
@@ -3402,7 +3414,7 @@ $('ov-refresh').onclick=loadOverview;
 
 // v43: every tab has its own URL (#overview, #users, #notifications …) so a
 // reload lands on the same page. Internal tab ids stay as they are.
-const TAB_SLUGS={aov:'overview',abrands:'brands',apatterns:'patterns',converter:'converter',acustomers:'customers',abranding:'branding',ausers:'users',apush:'notifications',afeedback:'feedback',akits:'kit-files',overview:'overview',patterns:'patterns',customers:'customers',account:'account'};
+const TAB_SLUGS={aov:'overview',abrands:'brands',apatterns:'patterns',converter:'converter',acustomers:'customers',abranding:'branding',ausers:'users',apush:'notifications',afeedback:'feedback',akits:'kit-files',aassist:'pattern-assistant',overview:'overview',patterns:'patterns',customers:'customers',account:'account'};
 function tabFromHash(){
   const h=(location.hash||'').replace(/^#\/?/,'').toLowerCase(); if(!h) return null;
   const admin=!!(SESSION&&SESSION.admin);
@@ -3412,8 +3424,8 @@ function tabFromHash(){
 window.addEventListener('hashchange',()=>{ if(SESSION){ const t=tabFromHash(); if(t) showTab(t); } });
 const TABS_PARTNER=[['overview','Overview'],['patterns','My Patterns'],['converter','Converter'],['customers','My Customers'],['account','My Account']];
 // v37: third element = scope a team user needs; 'owner' = master key only.
-const TABS_ADMIN=[['aov','Overview',null],['abrands','Brands','brands'],['apatterns','Patterns','patterns'],['akits','Kit files','kitfiles'],['converter','Converter','converter'],['acustomers','Customers','customers'],['abranding','Branding','branding'],['ausers','Users','owner'],['apush','Notifications','notifications'],['afeedback','Feedback','feedback']];
-const ALL_SCOPES=['patterns','kitfiles','converter','customers','brands','branding','notifications','feedback'];
+const TABS_ADMIN=[['aov','Overview',null],['abrands','Brands','brands'],['apatterns','Patterns','patterns'],['akits','Kit files','kitfiles'],['aassist','Pattern Assistant','assistant'],['converter','Converter','converter'],['acustomers','Customers','customers'],['abranding','Branding','branding'],['ausers','Users','owner'],['apush','Notifications','notifications'],['afeedback','Feedback','feedback']];
+const ALL_SCOPES=['patterns','kitfiles','assistant','converter','customers','brands','branding','notifications','feedback'];
 function hasScope(s){
   if(!SESSION||!SESSION.admin) return false;
   if(SESSION.master) return true;          // owner key: everything
@@ -4214,6 +4226,26 @@ async function convPublish(){
     st.textContent='Published '+sku+(d.legend?' with its legend PDF':' (no legend PDF was loaded)')+' - it now appears on the Patterns tab.';
   } finally { btn.disabled=false; }
 }
+/* v76: Pattern Assistant tab. The page is fetched with the team key (the server refuses partners and
+   the public) and shown from a blob address, so it never has a public link. '#studio' tells the
+   page it is inside the Studio (no own title, light look, reports its height). */
+let AS_STATE=0;   // 0 = not loaded, 1 = loading, 2 = shown
+async function asLoad(){
+  if(AS_STATE) return; AS_STATE=1;
+  const msg=$('as-msg'), fr=$('as-frame'); msg.textContent='Opening the assistant…';
+  try{
+    const r=await fetch(API+'admin/assistant',{headers:adminHeaders(),cache:'no-store'});
+    const ct=r.headers.get('content-type')||'', body=await r.text();
+    if(!r.ok || /json/.test(ct)){ let e='The assistant could not be opened.'; try{ e=JSON.parse(body).error||e; }catch(_){ } throw new Error(e); }
+    if(body.indexOf('id="pa-engine"')<0) throw new Error('The assistant could not be opened.');
+    fr.src=URL.createObjectURL(new Blob([body],{type:'text/html'}))+'#studio';
+    fr.style.display='block'; msg.textContent=''; AS_STATE=2;
+  }catch(err){ AS_STATE=0; msg.innerHTML='<span class="err">'+escA(err.message)+'</span> <a href="#" id="as-retry">Try again</a>'; const a=$('as-retry'); if(a) a.onclick=e=>{ e.preventDefault(); asLoad(); }; }
+}
+window.addEventListener('message',e=>{
+  const fr=$('as-frame'); if(!fr || e.source!==fr.contentWindow || !e.data || e.data.pa!=='height') return;
+  const h=Math.max(400,Math.min(20000,+e.data.h||0)); fr.style.height=h+'px';
+});
 function adminHeaders(json){ const h={'x-admin-key':SESSION.key}; if(json) h['content-type']='application/json'; return h; }
 const escA=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 /* v52: links typed by the public (partner applications) only become clickable when they are plain http/https,
@@ -6561,7 +6593,7 @@ async function loadBrands(){
 $('brands-refresh').onclick=loadBrands;
 // ===== v37: team users (owner only) =====
 let AUSERS_LOADED=false, USERS=[], USER_EDIT=null;
-const SCOPE_LABEL={patterns:'Patterns',kitfiles:'Kit files',converter:'Converter',customers:'Customers',brands:'Brands',branding:'Branding',notifications:'Notifications',feedback:'Feedback'};
+const SCOPE_LABEL={patterns:'Patterns',kitfiles:'Kit files',assistant:'Pattern Assistant',converter:'Converter',customers:'Customers',brands:'Brands',branding:'Branding',notifications:'Notifications',feedback:'Feedback'};
 function ufChips(){ return [...$('uf-perms').querySelectorAll('.permchip')]; }
 function ufSelected(){ return ufChips().filter(c=>c.classList.contains('on')).map(c=>c.dataset.scope); }
 function ufBuildChips(selected){

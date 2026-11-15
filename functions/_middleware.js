@@ -15,7 +15,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v125";
+const MW_VERSION = "v126";
 
 // v107: the help sheet the in-app AI assistant answers from (/help/chat). Keep it
 // to facts that are true in the live app; update it when a feature changes.
@@ -647,7 +647,7 @@ function partnerJson(status, obj) {
 // User records never carry a prefix, so the partner sign-in and the Brands
 // listing (both keyed on rec.prefix) ignore them. The "users" scope is never
 // granted to a PU key: only the master key can see or mint keys.
-const USER_SCOPES = ["patterns", "kitfiles", "converter", "customers", "brands", "branding", "notifications", "feedback"];   // v119: Kit files, Notifications, Feedback can be given to team users
+const USER_SCOPES = ["patterns", "kitfiles", "assistant", "converter", "customers", "brands", "branding", "notifications", "feedback"];   // v119: Kit files, Notifications, Feedback can be given to team users
 const UKEY_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 function randAlpha(n) {
   const b = new Uint8Array(n); crypto.getRandomValues(b);
@@ -763,6 +763,11 @@ async function sessionsRevoke(env, uid, pkey) {      // v123: pkey = a partner b
     }
     if (!listed.list_complete) cursor = listed.cursor; else break;
   }
+}
+// v126: true when a request asks for the Pattern Assistant file itself on a live host.
+function assistantBlocked(url) {
+  if (!/\/assistant(\.html)?\/?$/i.test(url.pathname)) return false;
+  return !/^[a-z0-9-]+\.patternly\.pages\.dev$/i.test(url.hostname);
 }
 function scopeDenied(adm, scope) {
   if (adm.master || (adm.scopes && adm.scopes.includes(scope))) return null;
@@ -2104,6 +2109,26 @@ async function handlePartnerApi(request, url, env) {
   //   POST admin/kitsrc/upload?sku=&role=&name=  body = the file  -> {item}
   //   POST admin/kitsrc/remove {sku, k}        -> one file out
   //   POST admin/kitsrc/delete {sku}           -> the kit and all its files
+  // v126: Pattern Assistant (Luca-S team only: owner or a team user with the "assistant" scope).
+  // The page is a static file (assistant.html) that the public can never open directly (see
+  // assistantBlocked); the Studio fetches it here with its key and shows it inside the tab.
+  // Sent as text/plain so nothing on the way treats it as a page.
+  if (sub === "admin/assistant") {
+    if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
+    { const d = scopeDenied(ADM, "assistant"); if (d) return d; }
+    if (!env.ASSETS) return partnerJson(503, { ok:false, error:"site files not available" });
+    // Pages serves .html files at their clean address and redirects the other spelling, so try both.
+    let page = null;
+    for (const path of ["/assistant", "/assistant.html"]) {
+      let r = await env.ASSETS.fetch(new Request(new URL(path, url.origin).toString()));
+      const loc = r.status >= 300 && r.status < 400 ? r.headers.get("location") : null;
+      if (loc) r = await env.ASSETS.fetch(new Request(new URL(loc, url.origin).toString()));
+      if (r.ok) { page = r; break; }
+    }
+    if (!page) return partnerJson(404, { ok:false, error:"assistant page not found" });
+    return new Response(await page.text(), { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" } });
+  }
+
   if (sub === "admin/kitsrc" || sub.startsWith("admin/kitsrc/")) {
     if (!adminOk) return partnerJson(401, { ok:false, error:"admin key required" });
     { const d = scopeDenied(ADM, "kitfiles"); if (d) return d; }
@@ -5703,6 +5728,10 @@ async function handleRequest(context) {
     if (key === "kits.json") return serveCatalogue(auth, request, url, env);
     return servePattern(key, auth, request, url, env);
   }
+
+  // v126: the Pattern Assistant page is for the Luca-S team only. Opening the file directly
+  // answers 404 everywhere except on a branch preview (<branch>.patternly.pages.dev).
+  if (assistantBlocked(url)) return new Response("Not found", { status: 404, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } });
 
   // ── everything else: serve the site, injecting auth into the HTML ──
   const res = await next();
