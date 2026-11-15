@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pattern Assistant</title>
+<meta name="robots" content="noindex">
+<style>
+/* Pattern Assistant (preview v1, 15 Nov 2026): one column of result cards under a settings bar. */
+:root{
+  --red:#8B1A2B; --red2:#a63248; --ink:#2b2226; --muted:#7d6b72; --line:#e6d9dd; --bg:#fdf7f8; --card:#ffffff; --soft:#f6eef0; --ok:#1c7c3c; --hot:#ff2d55;
+  --f:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --red:#e0687c; --red2:#f08a9b; --ink:#f3e9ec; --muted:#b59fa7; --line:#3a2d32; --bg:#171214; --card:#211a1d; --soft:#2a2125; --ok:#5cc583; color-scheme:dark } }
+:root[data-theme="dark"]{ --red:#e0687c; --red2:#f08a9b; --ink:#f3e9ec; --muted:#b59fa7; --line:#3a2d32; --bg:#171214; --card:#211a1d; --soft:#2a2125; --ok:#5cc583; color-scheme:dark }
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--f)}
+.wrap{max-width:1180px;margin:0 auto;padding-block:20px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-size:1.6rem;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.lead{color:var(--muted);margin:.3rem 0 1rem;max-width:70ch}
+.tag{display:inline-block;font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--red);border:1.5px solid var(--red);border-radius:99px;padding:.05rem .5rem;margin-left:.4rem;vertical-align:middle}
+.bar{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:flex-end;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fld label{font-size:.72rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.fld input,.fld select{font:inherit;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:9px;padding:.45rem .6rem;min-width:0}
+.fld input[type=number]{width:6.5rem}
+.fld input:focus-visible,.fld select:focus-visible,button:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.drop{flex:1 1 260px;display:flex;align-items:center;justify-content:center;gap:.6rem;min-height:64px;border:2px dashed var(--line);border-radius:12px;color:var(--muted);cursor:pointer;text-align:center;padding:.6rem}
+.drop.over{border-color:var(--red);color:var(--red)}
+.drop b{color:var(--red)}
+button{font:inherit;font-weight:700;border-radius:9px;border:1.5px solid var(--red);background:var(--red);color:#fff;padding:.5rem .9rem;cursor:pointer}
+button.ghost{background:transparent;color:var(--red)}
+button:disabled{opacity:.5;cursor:default}
+#list{display:flex;flex-direction:column;gap:18px;margin-top:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.chead{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.chead h2{font-size:1.05rem;margin:0;min-width:0;overflow-wrap:anywhere;flex:1 1 200px}
+.stats{display:flex;flex-wrap:wrap;gap:6px}
+.pill{font-size:.8rem;background:var(--soft);border-radius:99px;padding:.15rem .6rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill.good{color:var(--ok);font-weight:700}
+.views{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:760px){ .views{grid-template-columns:1fr} }
+.view{min-width:0;display:flex;flex-direction:column;gap:6px}
+.view .cap{font-size:.75rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.view canvas,.view img{width:100%;height:auto;border-radius:8px;background:var(--soft);display:block;image-rendering:pixelated}
+.view img{image-rendering:auto}
+.acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sw{display:inline-flex;gap:.4rem;align-items:center;font-size:.85rem;color:var(--muted);cursor:pointer}
+.busy{color:var(--muted);font-size:.9rem}
+.colours{display:flex;flex-wrap:wrap;gap:3px}
+.colours span{width:16px;height:16px;border-radius:3px;border:1px solid rgba(0,0,0,.15)}
+.note{font-size:.85rem;color:var(--muted);max-width:75ch}
+.empty{color:var(--muted);text-align:center;padding:30px 10px;border:1px dashed var(--line);border-radius:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Pattern Assistant <span class="tag">Preview</span></h1>
+  <p class="lead">Drop one or more design pictures. Each one becomes a first-draft chart: fewer colours, clean edges, almost no confetti. Download the draft and open it in the Patternly editor for the final artistic touches.</p>
+
+  <div class="bar">
+    <div class="fld"><label for="pa-w">Width (stitches)</label><input id="pa-w" type="number" min="40" max="600" value="250"></div>
+    <div class="fld"><label for="pa-k">Colours</label><input id="pa-k" type="number" min="8" max="120" value="60"></div>
+    <div class="fld"><label for="pa-style">Style</label><select id="pa-style"><option value="0">Natural</option><option value="1">Lighter and fresher</option></select></div>
+    <div class="fld"><label for="pa-clean">Clean-up</label><select id="pa-clean"><option value="1">Gentle</option><option value="2" selected>Standard</option><option value="3">Strong</option></select></div>
+    <div class="fld"><label for="pa-brand">Threads</label><select id="pa-brand"><option value="lucas">Luca-S</option><option value="dmc">DMC</option><option value="anchor">Anchor</option></select></div>
+    <label class="drop" id="pa-drop" for="pa-file"><span><b>Choose pictures</b> or drop them here</span></label>
+    <input id="pa-file" type="file" accept="image/*" multiple hidden>
+    <button id="pa-redo" class="ghost" disabled>Redo all with these settings</button>
+  </div>
+
+  <div id="list"><div class="empty" id="pa-empty">No pictures yet. Results appear here, one card per picture.</div></div>
+  <p class="note" style="margin-top:18px">How it works: the picture is smoothed while keeping edges, given a little more contrast, reduced to the best set of real threads, and then specks of one or two stitches are merged into their surroundings when the colours are close. Small strong details (eyes, highlights) are kept. Red dots in "Show single stitches" are the stitches that are still on their own, so the review can start there.</p>
+</div>
+
+<!-- Engine: runs in a Web Worker. Kept self-contained so it can move into Studio and the editor unchanged. -->
+<script id="pa-engine" type="text/plain">
+function toLab(r,g,b){
+  const f=v=>{v/=255;return v>0.04045?Math.pow((v+0.055)/1.055,2.4):v/12.92};
+  const R=f(r),G=f(g),B=f(b);
+  const X=(R*.4124+G*.3576+B*.1805)/.95047,Y=R*.2126+G*.7152+B*.0722,Z=(R*.0193+G*.1192+B*.9505)/1.08883;
+  const h=t=>t>0.008856?Math.cbrt(t):7.787*t+16/116;
+  return [116*h(Y)-16,500*(h(X)-h(Y)),200*(h(Y)-h(Z))];
+}
+function bilateral(L,W,H,rad,ss,sr){
+  const out=new Float32Array(L.length), s2=2*ss*ss, r2=2*sr*sr, sw=[];
+  for(let dy=-rad;dy<=rad;dy++)for(let dx=-rad;dx<=rad;dx++) sw.push([dy,dx,Math.exp(-(dy*dy+dx*dx)/s2)]);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const i=(y*W+x)*3, a=L[i],b=L[i+1],c=L[i+2]; let wl=0,s0=0,s1=0,s2b=0;
+    for(const [dy,dx,ws] of sw){
+      let yy=y+dy,xx=x+dx; if(yy<0)yy=0; else if(yy>=H)yy=H-1; if(xx<0)xx=0; else if(xx>=W)xx=W-1;
+      const j=(yy*W+xx)*3, d0=L[j]-a,d1=L[j+1]-b,d2=L[j+2]-c;
+      const w=ws*Math.exp(-(d0*d0+d1*d1+d2*d2)/r2);
+      wl+=w; s0+=w*L[j]; s1+=w*L[j+1]; s2b+=w*L[j+2];
+    }
+    out[i]=s0/wl; out[i+1]=s1/wl; out[i+2]=s2b/wl;
+  }
+  return out;
+}
+function boxBlur1(v,W,H,r){
+  const o=new Float32Array(v.length), n=(2*r+1)*(2*r+1);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    let s=0;
+    for(let dy=-r;dy<=r;dy++){ let yy=Math.min(H-1,Math.max(0,y+dy));
+      for(let dx=-r;dx<=r;dx++){ let xx=Math.min(W-1,Math.max(0,x+dx)); s+=v[yy*W+xx]; } }
+    o[y*W+x]=s/n;
+  }
+  return o;
+}
+function components(g,W,H){
+  const lab=new Int32Array(W*H).fill(-1), sizes=[], q=new Int32Array(W*H);
+  for(let s=0;s<W*H;s++){
+    if(lab[s]>=0) continue;
+    const id=sizes.length, c=g[s]; let h=0,t=0; q[t++]=s; lab[s]=id;
+    while(h<t){
+      const p=q[h++], x=p%W, y=(p-x)/W;
+      if(x>0&&lab[p-1]<0&&g[p-1]===c){lab[p-1]=id;q[t++]=p-1;}
+      if(x<W-1&&lab[p+1]<0&&g[p+1]===c){lab[p+1]=id;q[t++]=p+1;}
+      if(y>0&&lab[p-W]<0&&g[p-W]===c){lab[p-W]=id;q[t++]=p-W;}
+      if(y<H-1&&lab[p+W]<0&&g[p+W]===c){lab[p+W]=id;q[t++]=p+W;}
+    }
+    sizes.push(t);
+  }
+  return {lab,sizes};
+}
+function singles(g,W,H){ const {lab,sizes}=components(g,W,H); let n=0; for(let i=0;i<W*H;i++) if(sizes[lab[i]]===1) n++; return n; }
+function rng(seed){ let s=seed>>>0||1; return ()=>{ s^=s<<13; s>>>=0; s^=s>>>17; s^=s<<5; s>>>=0; return s/4294967296; }; }
+
+// big: RGBA of the picture at (3W x 3H); threads: [[r,g,b],...]
+function run(o){
+  const {big,W,H,K,threads,fresh,clean}=o, BW=W*3, BH=H*3;
+  const cl=clean===1?1:clean===3?3:2, cd=clean===1?10:clean===3?20:14;
+  // 1) Lab + edge-preserving smoothing at 3x the stitch grid
+  let LB=new Float32Array(BW*BH*3);
+  for(let i=0;i<BW*BH;i++){ const l=toLab(big[i*4],big[i*4+1],big[i*4+2]); LB[i*3]=l[0];LB[i*3+1]=l[1];LB[i*3+2]=l[2]; }
+  LB=bilateral(LB,BW,BH,2,2,5);
+  // 2) average each 3x3 block into one stitch
+  const N=W*H, L=new Float32Array(N*3);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    let a=0,b=0,c=0;
+    for(let dy=0;dy<3;dy++)for(let dx=0;dx<3;dx++){ const j=((y*3+dy)*BW+x*3+dx)*3; a+=LB[j];b+=LB[j+1];c+=LB[j+2]; }
+    const i=(y*W+x)*3; L[i]=a/9;L[i+1]=b/9;L[i+2]=c/9;
+  }
+  // plain conversion for the "before" number: nearest thread per stitch, no smoothing
+  const plainLab=new Float32Array(N*3);
+  const S=o.small;
+  for(let i=0;i<N;i++){ const l=toLab(S[i*4],S[i*4+1],S[i*4+2]); plainLab[i*3]=l[0];plainLab[i*3+1]=l[1];plainLab[i*3+2]=l[2]; }
+  // 3) contrast: stretch lightness, add local contrast, a little more colour
+  const ls=new Float32Array(N); for(let i=0;i<N;i++) ls[i]=L[i*3];
+  const sorted=Float32Array.from(ls).sort(), lo=sorted[Math.floor(N*0.01)], hi=sorted[Math.min(N-1,Math.floor(N*0.995))], span=Math.max(1,hi-lo);
+  for(let i=0;i<N;i++) ls[i]=(ls[i]-lo)/span*95+3;
+  const bl=boxBlur1(ls,W,H,2);
+  for(let i=0;i<N;i++){
+    let l=Math.max(0,Math.min(100,ls[i]+0.8*(ls[i]-bl[i])));
+    let a=L[i*3+1]*1.1, b=L[i*3+2]*1.1;
+    if(fresh){
+      const u=l/100; l=100*(u+0.05*Math.sin(Math.PI*u)*u);
+      const C=Math.hypot(a,b), k=1+0.45*Math.exp(-C/25); a*=k; b=b*k-1.5;
+    }
+    L[i*3]=l; L[i*3+1]=a; L[i*3+2]=b;
+  }
+  // 4) best K colours (k-means in Lab), each snapped to the nearest real thread
+  const TL=threads.map(t=>toLab(t[0],t[1],t[2]));
+  const R=rng(12345), C=new Float32Array(K*3), asg=new Int32Array(N);
+  for(let k=0;k<K;k++){ const j=Math.floor(R()*N)*3; C[k*3]=L[j];C[k*3+1]=L[j+1];C[k*3+2]=L[j+2]; }
+  for(let it=0;it<20;it++){
+    const sum=new Float64Array(K*3), cnt=new Int32Array(K);
+    for(let i=0;i<N;i++){
+      let best=0,bd=Infinity; const a=L[i*3],b=L[i*3+1],c=L[i*3+2];
+      for(let k=0;k<K;k++){ const d0=a-C[k*3],d1=b-C[k*3+1],d2=c-C[k*3+2], d=d0*d0+d1*d1+d2*d2; if(d<bd){bd=d;best=k;} }
+      asg[i]=best; cnt[best]++; sum[best*3]+=a; sum[best*3+1]+=b; sum[best*3+2]+=c;
+    }
+    for(let k=0;k<K;k++){
+      if(cnt[k]){ C[k*3]=sum[k*3]/cnt[k]; C[k*3+1]=sum[k*3+1]/cnt[k]; C[k*3+2]=sum[k*3+2]/cnt[k]; }
+      else { const j=Math.floor(R()*N)*3; C[k*3]=L[j];C[k*3+1]=L[j+1];C[k*3+2]=L[j+2]; }
+    }
+  }
+  const selSet=new Set();
+  for(let k=0;k<K;k++){ let best=0,bd=Infinity; for(let t=0;t<TL.length;t++){ const d0=C[k*3]-TL[t][0],d1=C[k*3+1]-TL[t][1],d2=C[k*3+2]-TL[t][2],d=d0*d0+d1*d1+d2*d2; if(d<bd){bd=d;best=t;} } selSet.add(best); }
+  const sel=[...selSet].sort((a,b)=>a-b), PL=sel.map(t=>TL[t]), P=sel.length;
+  const nearest=(src,i)=>{ let best=0,bd=Infinity; for(let p=0;p<P;p++){ const d0=src[i*3]-PL[p][0],d1=src[i*3+1]-PL[p][1],d2=src[i*3+2]-PL[p][2],d=d0*d0+d1*d1+d2*d2; if(d<bd){bd=d;best=p;} } return best; };
+  let g=new Int32Array(N); for(let i=0;i<N;i++) g[i]=nearest(L,i);
+  const plain=new Int32Array(N); for(let i=0;i<N;i++) plain[i]=nearest(plainLab,i);
+  // 5) clean: specks of 1..cl stitches take the main neighbouring colour when it is close
+  const dist=(p,q)=>Math.hypot(PL[p][0]-PL[q][0],PL[p][1]-PL[q][1],PL[p][2]-PL[q][2]);
+  for(let pass=0;pass<3;pass++){
+    const {lab,sizes}=components(g,W,H), out=g.slice();
+    for(let i=0;i<N;i++){
+      if(sizes[lab[i]]>cl) continue;
+      const x=i%W,y=(i-x)/W, me=g[i], cnt=new Map();
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+        if(!dy&&!dx) continue; const yy=y+dy,xx=x+dx; if(yy<0||yy>=H||xx<0||xx>=W) continue;
+        const v=g[yy*W+xx]; if(v!==me) cnt.set(v,(cnt.get(v)||0)+1);
+      }
+      let n=-1,bn=0; cnt.forEach((c,v)=>{ if(c>bn){bn=c;n=v;} });
+      if(n>=0 && bn>=3 && (dist(n,me)<cd || bn>=6)) out[i]=n;
+    }
+    g=out;
+  }
+  // 6) colours used fewer than 30 times join their nearest used colour
+  const used=new Int32Array(P); for(let i=0;i<N;i++) used[g[i]]++;
+  const order=[...Array(P).keys()].sort((a,b)=>used[a]-used[b]);
+  for(const p of order){
+    if(!used[p]||used[p]>=30) continue;
+    let q=-1,bd=Infinity; for(let r=0;r<P;r++){ if(r===p||used[r]<30) continue; const d=dist(p,r); if(d<bd){bd=d;q=r;} }
+    if(q<0) continue; for(let i=0;i<N;i++) if(g[i]===p) g[i]=q; used[q]+=used[p]; used[p]=0;
+  }
+  const keep=[...Array(P).keys()].filter(p=>used[p]>0), remap=new Int32Array(P).fill(-1); keep.forEach((p,i)=>remap[p]=i);
+  const idx=new Int32Array(N); for(let i=0;i<N;i++) idx[i]=remap[g[i]];
+  return {W,H,idx,threadIdx:keep.map(p=>sel[p]),counts:keep.map(p=>used[p]),singlesAfter:singles(idx,W,H),singlesBefore:singles(plain,W,H),coloursBefore:new Set(plain).size};
+}
+self.onmessage=e=>{ try{ const r=run(e.data); self.postMessage({ok:true,id:e.data.id,r},[r.idx.buffer]); }catch(err){ self.postMessage({ok:false,id:e.data.id,error:String(err&&err.message||err)}); } };
+</script>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  let PAL=null; // filled from the editor's thread tables (pa-threads.json, built from index.html)
+  const worker=new Worker(URL.createObjectURL(new Blob([$('pa-engine').textContent],{type:'text/javascript'})));
+  const jobs=new Map(); let seq=0;
+  worker.onmessage=e=>{ const j=jobs.get(e.data.id); if(!j) return; jobs.delete(e.data.id); e.data.ok?j.res(e.data.r):j.rej(new Error(e.data.error)); };
+  const runJob=d=>new Promise((res,rej)=>{ const id=++seq; jobs.set(id,{res,rej}); worker.postMessage(Object.assign({id},d),[d.big.buffer]); });
+  const items=[]; // {file,img,card,res,brand}
+
+  async function threads(brand){
+    if(!PAL){ const r=await fetch('pa-threads.json'); PAL=await r.json(); }
+    return PAL[brand];
+  }
+  function settings(){
+    return { W:Math.max(40,Math.min(600,+$('pa-w').value||250)), K:Math.max(8,Math.min(120,+$('pa-k').value||60)),
+             fresh:+$('pa-style').value, clean:+$('pa-clean').value, brand:$('pa-brand').value };
+  }
+  function pixels(img,w,h){
+    const c=document.createElement('canvas'); c.width=w; c.height=h;
+    const g=c.getContext('2d'); g.imageSmoothingEnabled=true; g.imageSmoothingQuality='high';
+    // step down in halves for a clean area average
+    let src=img, sw=img.naturalWidth, sh=img.naturalHeight;
+    while(sw/2>w*1.5){ const t=document.createElement('canvas'); t.width=Math.round(sw/2); t.height=Math.round(sh/2); const tg=t.getContext('2d'); tg.imageSmoothingQuality='high'; tg.drawImage(src,0,0,t.width,t.height); src=t; sw=t.width; sh=t.height; }
+    g.drawImage(src,0,0,w,h);
+    return g.getImageData(0,0,w,h).data;
+  }
+  function addFiles(list){
+    [...list].filter(f=>/^image\//.test(f.type)).forEach(file=>{
+      const img=new Image(), it={file,img};
+      it.card=makeCard(it); items.push(it); $('pa-empty').hidden=true; $('pa-redo').disabled=false;
+      img.onload=()=>process(it); img.onerror=()=>setBusy(it,'This picture could not be opened. Try a JPG or PNG.');
+      img.src=URL.createObjectURL(file);
+    });
+  }
+  function makeCard(it){
+    const el=document.createElement('section'); el.className='card';
+    el.innerHTML=`<div class="chead"><h2></h2><div class="stats"></div></div>
+      <div class="busy">Working on it…</div>
+      <div class="views" hidden><div class="view"><span class="cap">Original picture</span><img alt=""></div>
+      <div class="view"><span class="cap">Draft chart</span><canvas></canvas></div></div>
+      <div class="colours" hidden></div>
+      <div class="acts" hidden><button class="dl">Download for Patternly editor (.oxs)</button>
+      <label class="sw"><input type="checkbox" class="conf"> Show single stitches</label></div>`;
+    el.querySelector('h2').textContent=it.file.name.replace(/\.[^.]+$/,'');
+    el.querySelector('.dl').onclick=()=>download(it);
+    el.querySelector('.conf').onchange=()=>draw(it);
+    $('list').appendChild(el); return el;
+  }
+  function setBusy(it,t){ const b=it.card.querySelector('.busy'); b.hidden=!t; b.textContent=t||''; }
+  async function process(it){
+    const s=settings(); setBusy(it,'Working on it…');
+    const W=s.W, H=Math.max(10,Math.round(W*it.img.naturalHeight/it.img.naturalWidth));
+    try{
+      const th=await threads(s.brand);
+      const t0=performance.now();
+      const r=await runJob({big:pixels(it.img,W*3,H*3),small:pixels(it.img,W,H),W,H,K:s.K,threads:th.map(t=>[t.r,t.g,t.b]),fresh:s.fresh,clean:s.clean});
+      r.ms=performance.now()-t0; it.res=r; it.brand=s.brand; it.th=th;
+      setBusy(it,''); show(it);
+    }catch(err){ setBusy(it,'Something went wrong: '+err.message); }
+  }
+  function show(it){
+    const r=it.res, c=it.card, pct=n=>(100*n/(r.W*r.H)).toFixed(1)+'%';
+    c.querySelector('.views').hidden=false; c.querySelector('.acts').hidden=false; c.querySelector('.colours').hidden=false;
+    c.querySelector('img').src=it.img.src;
+    c.querySelector('.stats').innerHTML=`<span class="pill">${r.W} × ${r.H} stitches</span>
+      <span class="pill">${r.threadIdx.length} colours</span>
+      <span class="pill good">Single stitches ${pct(r.singlesAfter)}</span>
+      <span class="pill">${(r.ms/1000).toFixed(1)} s</span>`;
+    const order=r.threadIdx.map((t,i)=>i).sort((a,b)=>r.counts[b]-r.counts[a]);
+    c.querySelector('.colours').innerHTML=order.map(i=>{ const t=it.th[r.threadIdx[i]]; return `<span title="${(t.label||t.sku||'').replace(/"/g,'')} · ${r.counts[i]} stitches" style="background:rgb(${t.r},${t.g},${t.b})"></span>`; }).join('');
+    draw(it);
+  }
+  function draw(it){
+    const r=it.res, cv=it.card.querySelector('canvas'), s=4; cv.width=r.W*s; cv.height=r.H*s;
+    const g=cv.getContext('2d'), cols=r.threadIdx.map(t=>{ const c=it.th[t]; return `rgb(${c.r},${c.g},${c.b})`; });
+    for(let y=0;y<r.H;y++)for(let x=0;x<r.W;x++){ g.fillStyle=cols[r.idx[y*r.W+x]]; g.fillRect(x*s,y*s,s,s); }
+    if(it.card.querySelector('.conf').checked){
+      g.fillStyle='rgba(20,10,14,.45)'; g.fillRect(0,0,cv.width,cv.height); g.fillStyle='#ff2d55';
+      const id=r.idx, W=r.W, H=r.H;
+      for(let y=0;y<H;y++)for(let x=0;x<W;x++){ const i=y*W+x, v=id[i];
+        if((x>0&&id[i-1]===v)||(x<W-1&&id[i+1]===v)||(y>0&&id[i-W]===v)||(y<H-1&&id[i+W]===v)) continue;
+        g.fillRect(x*s,y*s,s,s); }
+    }
+  }
+  function oxs(it){
+    const r=it.res, esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    const hex=c=>[c.r,c.g,c.b].map(v=>v.toString(16).padStart(2,'0')).join('').toUpperCase();
+    const name=it.file.name.replace(/\.[^.]+$/,'');
+    let x='<?xml version="1.0" encoding="UTF-8"?>\n<chart>\n<format comments01="Draft from the Patternly Pattern Assistant (open OXS format)"/>\n';
+    x+=`<properties oxsversion="1.0" software="Patternly Pattern Assistant" software_version="1" chartwidth="${r.W}" chartheight="${r.H}" charttitle="${esc(name)}" author="" copyright="" instructions="" stitchesperinch="14" stitchesperinch_y="14" palettecount="${r.threadIdx.length}"/>\n`;
+    x+='<palette>\n<palette_item index="0" number="cloth" name="cloth" color="FFFFFF"/>\n';
+    r.threadIdx.forEach((t,i)=>{ const c=it.th[t]; x+=`<palette_item index="${i+1}" number="${esc(c.sku||c.label)}" name="${esc(c.label||c.sku)}" color="${hex(c)}" strands="2"/>\n`; });
+    x+='</palette>\n<fullstitches>\n';
+    for(let y=0;y<r.H;y++)for(let xx=0;xx<r.W;xx++) x+=`<stitch x="${xx+1}" y="${y+1}" palindex="${r.idx[y*r.W+xx]+1}"/>\n`;
+    return x+'</fullstitches>\n<backstitches>\n</backstitches>\n</chart>\n';
+  }
+  function download(it){
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([oxs(it)],{type:'application/xml'}));
+    a.download=it.file.name.replace(/\.[^.]+$/,'')+' draft.oxs'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  }
+  $('pa-file').onchange=e=>{ addFiles(e.target.files); e.target.value=''; };
+  const dz=$('pa-drop');
+  ['dragenter','dragover'].forEach(t=>dz.addEventListener(t,e=>{ e.preventDefault(); dz.classList.add('over'); }));
+  ['dragleave','drop'].forEach(t=>dz.addEventListener(t,e=>{ e.preventDefault(); dz.classList.remove('over'); }));
+  dz.addEventListener('drop',e=>addFiles(e.dataTransfer.files));
+  $('pa-redo').onclick=()=>items.forEach(it=>{ if(it.img.complete) process(it); });
+})();
+</script>
+</body>
+</html>
