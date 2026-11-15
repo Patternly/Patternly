@@ -2,8 +2,24 @@ import sys,json,numpy as np
 from PIL import Image
 from prototype import tolab,bilateral,blur,comps
 def smooth01(x,a,b): t=np.clip((x-a)/(b-a),0,1); return t*t*(3-2*t)
-def run(pic,W,H,K,threads,fresh=0,cl=2,cd=14,dith=1,dT=13,bg=1,dr=1,dt=0.25,ret=False):
-    im=Image.open(pic).convert('RGB')
+def trim(im,tol=12):
+    a=np.asarray(im.convert('RGB').resize((im.width//4 or 1,im.height//4 or 1)),float); h,w=a.shape[:2]
+    c=np.median(np.concatenate([a[0],a[-1],a[:,0],a[:,-1]]),0)
+    plain=(np.abs(a-c).max(-1)<tol)
+    rows=plain.mean(1)>0.97; cols=plain.mean(0)>0.97
+    t=0
+    while t<h//4 and rows[t]: t+=1
+    b=0
+    while b<h//4 and rows[h-1-b]: b+=1
+    l=0
+    while l<w//4 and cols[l]: l+=1
+    r=0
+    while r<w//4 and cols[w-1-r]: r+=1
+    if max(t,b,l,r)<2: return im
+    k=4; e=1  # one extra low-res pixel inside to drop the soft edge
+    return im.crop(((l+e)*k if l else 0,(t+e)*k if t else 0,im.width-((r+e)*k if r else 0),im.height-((b+e)*k if b else 0)))
+def run(pic,W,H,K,threads,fresh=0,cl=2,cd=14,dith=1,dT=13,bg=1,dr=1,dt=0.25,s0=0.25,s1=0.7,a1=0.0,a2=0.45,cb=0.12,cmode=0,fin=0,ret=False):
+    im=trim(Image.open(pic).convert('RGB'))
     big=np.asarray(im.resize((W*3,H*3),Image.LANCZOS),float)
     Lb=bilateral(tolab(big),rad=2,ss=2,sr=5,it=1)
     L=Lb.reshape(H,3,W,3,3).mean((1,3))
@@ -11,13 +27,15 @@ def run(pic,W,H,K,threads,fresh=0,cl=2,cd=14,dith=1,dT=13,bg=1,dr=1,dt=0.25,ret=
     l0=blur(L[...,0],1); gy,gx=np.gradient(l0); ga=np.hypot(*np.gradient(blur(L[...,1],1))); gb=np.hypot(*np.gradient(blur(L[...,2],1)))
     G=np.hypot(gx,gy)+0.5*(ga+gb)
     D=blur(blur(G,4),4); D=D/np.percentile(D,90)
-    S=smooth01(D,0.25,0.7)[...,None]
+    S=smooth01(D,s0,s1)[...,None]
     if bg:
         Lblur=blur(blur(L,2),2); L=S*L+(1-S)*Lblur
     # tone
     l=L[...,0]; lo,hi=np.percentile(l,[0.5,99.8]); l=(l-lo)/(hi-lo)*(min(96,hi+4)-max(4,lo-4))+max(4,lo-4)
-    l=l+0.45*S[...,0]*(l-blur(l,2)); 
-    ch=1.0+0.12*S[...,0]
+    l=l+a2*S[...,0]*(l-blur(l,2))+a1*(l-blur(blur(l,4),4))
+    if cmode:
+        C0=np.hypot(L[...,1],L[...,2]); ch=1.0+cb*smooth01(C0,15,40)
+    else: ch=1.0+cb*S[...,0]
     if fresh:
         u=l/100; l=l+fresh*(1-S[...,0])*6*np.sin(np.pi*np.clip(u,0,1))   # lighter calm background
         ch=ch+fresh*0.15*S[...,0]
@@ -74,6 +92,23 @@ def run(pic,W,H,K,threads,fresh=0,cl=2,cd=14,dith=1,dT=13,bg=1,dr=1,dt=0.25,ret=
             if not cnt: continue
             n=max(cnt,key=cnt.get); dist=np.sqrt(((PL[n]-PL[me])**2).sum())
             if cnt[n]>=3 and (dist<cd or cnt[n]>=6): out[y,x]=n
+        g=out
+    for _ in range(2 if fin else 0):
+        # last pass: a stray single (no same colour next to it, also not diagonally) joins the
+        # neighbouring colour closest to its own, unless it is a strong accent
+        P_=np.pad(g,1,constant_values=-1); same=np.zeros((H,W),bool)
+        for dy in (0,1,2):
+            for dx in (0,1,2):
+                if dy!=1 or dx!=1: same|=P_[dy:dy+H,dx:dx+W]==g
+        out=g.copy(); ys,xs=np.nonzero(~same)
+        for y,x in zip(ys,xs):
+            me=g[y,x]; cnt={}
+            for dy in (-1,0,1):
+                for dx in (-1,0,1):
+                    y2,x2=y+dy,x+dx
+                    if (dy or dx) and 0<=y2<H and 0<=x2<W: cnt[g[y2,x2]]=cnt.get(g[y2,x2],0)+1
+            n=min(cnt,key=lambda j:((PL[j]-PL[me])**2).sum()-0.01*cnt[j])
+            if np.sqrt(((PL[n]-PL[me])**2).sum())<fin: out[y,x]=n
         g=out
     used=np.bincount(g.ravel(),minlength=P)
     for i in np.argsort(used):
