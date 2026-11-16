@@ -5497,7 +5497,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v753';
+window.PATTERNLY_BUILD='v754';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -20651,6 +20651,8 @@ function trkDeleteProject(id, name){
       try{ const blob=trkBlobGet(id); if(blob) candIds.push(trkSyncIdFromBlob(blob, id)); }catch(e){}
       try{ candIds.push(String(id).replace(/[^A-Za-z0-9_-]/g,'_').slice(0,64)); }catch(e){}
       const meta={ name:name||rec.name||'', cols:rec.cols, rows:rec.rows };
+      // v754: keep a copy in Recently deleted (30 days, this device) before removing it.
+      try{ if(typeof pbinKeepTrk==='function') pbinKeepTrk(id, rec, candIds, meta); }catch(e){}
       // Tombstone as a BACKSTOP only (not the primary mechanism): if a delete is
       // ever slow to propagate, other devices still prune their local card. The
       // account delete below is what actually frees the slot.
@@ -21785,6 +21787,8 @@ function trkDeleteUserPattern(it, card){
     requireCheck:trkDelTx('dl.check','Yes, delete it everywhere'),
     confirmLabel:trkDelTx('dl.btn','Delete'), danger:true,
     async onConfirm(){
+      // v754: keep a copy in Recently deleted (30 days, this device) before removing it.
+      try{ if(typeof pbinKeepTrkCloud==='function') await pbinKeepTrkCloud(it); }catch(e){}
       // it.id is the server's actual stored id (from the account list), so this
       // targets the right record. Use the confirmed delete so we verify it's gone
       // rather than assuming — RULE #1: a delete must really be a delete.
@@ -33783,18 +33787,20 @@ function pjDeleteProject(id,ev){
   if(ev) ev.stopPropagation();
   const d=pjLoadAll().find(p=>p.id===id);
   const safeName=((d&&d.name)||'this pattern').replace(/</g,'&lt;');
+  const BT=(k,en,v)=>{ let t=(typeof pbinT==='function')?pbinT(k,v):''; if(!t||t===k){ t=en; if(v) for(const x in v) t=t.split('{'+x+'}').join(String(v[x])); } return t; };
   pjShowModal({
-    title:'Delete pattern?',
-    body:`<b>\u201c${safeName}\u201d</b> will be permanently removed from browser storage.`,
-    requireCheck:'I understand this can\u2019t be undone',
-    confirmLabel:'Delete pattern',
+    title:BT('pj.deltitle','Delete pattern?'),
+    body:BT('pj.delbody','{name} will move to Recently deleted. You can restore it for 30 days.',{name:`<b>\u201c${safeName}\u201d</b>`}),
+    confirmLabel:BT('pj.delbtn','Delete'),
     danger:true,
     onConfirm(){
+      // v754: keep a copy in Recently deleted (30 days, this device) before removing it.
+      try{ const r=pjLoadAll().find(p=>p.id===id); if(r && typeof pbinKeepPj==='function') pbinKeepPj(r); }catch(e){}
       pjSaveAll(pjLoadAll().filter(p=>p.id!==id));
       try{ if(typeof edpDelete==='function') edpDelete(id); }catch(e){}
       if(currentProjectId===id) currentProjectId=null;
       renderProjectsPage();
-      toast('Pattern deleted');
+      toast(BT('pj.deleted','Moved to Recently deleted'));
     }
   });
 }
@@ -33939,18 +33945,20 @@ function pjUpdateSelbar(){
 }
 function pjBulkDelete(){
   const n=pjSelected.size; if(!n) return;
+  const BT=(k,en,v)=>{ let t=(typeof pbinT==='function')?pbinT(k,v):''; if(!t||t===k){ t=en; if(v) for(const x in v) t=t.split('{'+x+'}').join(String(v[x])); } return t; };
   pjShowModal({
-    title:'Delete '+n+' pattern'+(n===1?'':'s')+'?',
-    body:'<b>'+n+'</b> selected pattern'+(n===1?'':'s')+' will be permanently removed from browser storage.',
-    requireCheck:'I understand this can\u2019t be undone',
-    confirmLabel:'Delete '+n, danger:true,
+    title:n===1?BT('pj.deltitle','Delete pattern?'):BT('pj.bulktitle','Delete {n} patterns?',{n}),
+    body:n===1?BT('pj.delbody','{name} will move to Recently deleted. You can restore it for 30 days.',{name:'<b>1</b>'}):BT('pj.bulkbody','{n} patterns will move to Recently deleted. You can restore them for 30 days.',{n:'<b>'+n+'</b>'}),
+    confirmLabel:BT('pj.delbtn','Delete')+' ('+n+')', danger:true,
     onConfirm(){
       const kill=new Set(pjSelected);
+      // v754: keep a copy of each in Recently deleted (30 days, this device) first.
+      try{ if(typeof pbinKeepPj==='function') pjLoadAll().filter(p=>kill.has(p.id)).forEach(p=>pbinKeepPj(p)); }catch(e){}
       pjSaveAll(pjLoadAll().filter(p=>!kill.has(p.id)));
       try{ if(typeof edpDelete==='function') kill.forEach(k=>edpDelete(k)); }catch(e){}
       if(kill.has(currentProjectId)) currentProjectId=null;
       pjExitSelect();
-      toast(n+' pattern'+(n===1?'':'s')+' deleted');
+      toast(BT('pj.deleted','Moved to Recently deleted'));
     }
   });
 }
@@ -43595,6 +43603,287 @@ body.dark.ptly-appui :is(#trk-kits-back,#trk-upload-back,#trk-back-home,.pls-bac
     if(nav){ try{ new MutationObserver(function(){ fix(); }).observe(nav,{childList:true,subtree:true,characterData:true}); }catch(e){} }
     else { var n=0, iv=setInterval(function(){ fix(); if(document.getElementById('ptly-appnav')||++n>40) clearInterval(iv); },250); }
   }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start); else start();
+})();
+</script>
+<style id="pbin-style">
+/* v754 – Recently deleted: deleted patterns are kept on this device for 30 days */
+.pbin-link{display:flex;align-items:center;gap:.45rem;margin:1rem auto .4rem;max-width:1000px;padding:.55rem .9rem;border:1.5px solid #eadde1;border-radius:12px;background:#fff;color:#5b4b52;font:inherit;font-size:.86rem;font-weight:600;cursor:pointer;width:max-content}
+.pbin-link svg{width:17px;height:17px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.pbin-link:hover{border-color:#d7bcc5}
+#pbin-ov{position:fixed;inset:0;z-index:100050;background:rgba(30,20,28,.45);display:none;align-items:flex-end;justify-content:center}
+#pbin-ov.on{display:flex}
+@media(min-width:640px){#pbin-ov{align-items:center}}
+.pbin-card{background:#fff;color:#2b2226;width:100%;max-width:520px;max-height:82vh;display:flex;flex-direction:column;border-radius:18px 18px 0 0;box-shadow:0 -6px 30px rgba(0,0,0,.18);padding-bottom:env(safe-area-inset-bottom)}
+@media(min-width:640px){.pbin-card{border-radius:18px}}
+.pbin-head{display:flex;align-items:center;gap:.6rem;padding:1rem 1.1rem .3rem}
+.pbin-head h3{flex:1;margin:0;font-size:1.12rem;font-family:'DM Serif Display',Georgia,serif;font-weight:400}
+.pbin-x{border:0;background:transparent;color:inherit;width:34px;height:34px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.pbin-x svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+.pbin-sub{margin:0;padding:0 1.1rem .7rem;font-size:.82rem;color:#6a626f;line-height:1.4}
+.pbin-list{overflow:auto;padding:0 .8rem .9rem}
+.pbin-row{display:flex;align-items:center;gap:.7rem;padding:.6rem .3rem;border-top:1px solid #f0e6ea}
+.pbin-th{width:52px;height:52px;flex:none;border-radius:9px;background:#f6f0f2;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.pbin-th img,.pbin-th canvas{width:100%;height:100%;object-fit:cover;display:block;image-rendering:pixelated}
+.pbin-tx{flex:1;min-width:0}
+.pbin-tx b{display:block;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pbin-tx span{display:block;font-size:.76rem;color:#6a626f;margin-top:.15rem}
+.pbin-btns{display:flex;gap:.35rem;flex:none}
+.pbin-btns button{border:1.5px solid #eadde1;background:#fff;color:#2b2226;border-radius:9px;padding:.42rem .7rem;font:inherit;font-size:.8rem;font-weight:600;cursor:pointer}
+.pbin-btns .pbin-rs{background:#8B1A2B;border-color:#8B1A2B;color:#fff}
+.pbin-btns .pbin-dl.sure{background:#b3261e;border-color:#b3261e;color:#fff}
+.pbin-btns button:disabled{opacity:.5;cursor:default}
+.pbin-empty{padding:1.2rem .3rem;text-align:center;color:#6a626f;font-size:.86rem}
+body.dark .pbin-link{background:#221c30;border-color:#37303f;color:#ddd0e2}
+body.dark .pbin-card{background:#1d1728;color:#f1e9f3}
+body.dark .pbin-sub,body.dark .pbin-tx span,body.dark .pbin-empty{color:#b6abc2}
+body.dark .pbin-row{border-color:#2f2839}
+body.dark .pbin-th{background:#2a2236}
+body.dark .pbin-btns button{background:#221b2d;border-color:#37303f;color:#ece4ef}
+body.dark .pbin-btns .pbin-rs{background:#c0475d;border-color:#c0475d;color:#fff}
+body.dark .pbin-btns .pbin-dl.sure{background:#c4372d;border-color:#c4372d;color:#fff}
+</style>
+<script id="pbin-src">
+/* v754 – Recently deleted. Deleting an uploaded Tracker pattern or a My Patterns design
+   first copies it into a bin on THIS device (IndexedDB "patternly_bin"). It can be
+   restored for 30 days, then it is removed for good. Kits are not binned (they are only
+   removed from the device and come back from the account). Restoring:
+   - Tracker: chart + marks go back under a free local id with the same account sync id
+     and a fresh ts (so the account's delete list can't prune it again); the local
+     tombstones for it are cleared, and it syncs back to the account the next time it
+     is opened (the server clears its delete marker on that PUT).
+   - My Patterns: the design comes back under a NEW id (old ids stay deleted on the
+     account), respecting the slot cap, and is pushed to the account if sync is on. */
+(function(){
+  var DAY=864e5, KEEP=30*DAY, DBN='patternly_bin', ST='items';
+  var S={
+  en:{"bin.link":"Recently deleted ({n})","bin.title":"Recently deleted","bin.sub":"Deleted patterns stay here on this device for 30 days. After that they are removed for good.","bin.left":"{n} days left","bin.left1":"1 day left","bin.restore":"Restore","bin.del":"Delete now","bin.sure":"Delete for good","bin.restored":"Restored","bin.full":"All {n} slots are full. Delete one first.","bin.empty":"Nothing here.","bin.close":"Close","bin.fail":"Couldn’t restore this pattern on this device.","bin.syncnote":"Restored patterns sync to your account again when you open them.","pj.deltitle":"Delete pattern?","pj.delbody":"{name} will move to Recently deleted. You can restore it for 30 days.","pj.bulktitle":"Delete {n} patterns?","pj.bulkbody":"{n} patterns will move to Recently deleted. You can restore them for 30 days.","pj.delbtn":"Delete","pj.deleted":"Moved to Recently deleted","dl.body":"{name} and its stitching progress will be removed from this device and from your Luca-S account. You can restore it from Recently deleted on this device for 30 days.","dl.done":"Moved to Recently deleted"},
+  fr:{"bin.link":"Supprimés récemment ({n})","bin.title":"Supprimés récemment","bin.sub":"Les grilles supprimées restent ici sur cet appareil pendant 30 jours. Ensuite, elles sont effacées définitivement.","bin.left":"{n} jours restants","bin.left1":"1 jour restant","bin.restore":"Restaurer","bin.del":"Supprimer","bin.sure":"Supprimer définitivement","bin.restored":"Restaurée","bin.full":"Les {n} emplacements sont pleins. Supprimez-en un d’abord.","bin.empty":"Rien ici.","bin.close":"Fermer","bin.fail":"Impossible de restaurer cette grille sur cet appareil.","bin.syncnote":"Une grille restaurée se resynchronise avec votre compte quand vous l\u2019ouvrez.","pj.deltitle":"Supprimer la grille ?","pj.delbody":"{name} ira dans Supprimés récemment. Vous pouvez la restaurer pendant 30 jours.","pj.bulktitle":"Supprimer {n} grilles ?","pj.bulkbody":"{n} grilles iront dans Supprimés récemment. Vous pouvez les restaurer pendant 30 jours.","pj.delbtn":"Supprimer","pj.deleted":"Déplacée dans Supprimés récemment","dl.body":"{name} et sa progression seront retirés de cet appareil et de votre compte Luca-S. Vous pouvez la restaurer depuis Supprimés récemment sur cet appareil pendant 30 jours.","dl.done":"Déplacée dans Supprimés récemment"},
+  de:{"bin.link":"Zuletzt gelöscht ({n})","bin.title":"Zuletzt gelöscht","bin.sub":"Gelöschte Muster bleiben 30 Tage hier auf diesem Gerät. Danach werden sie endgültig entfernt.","bin.left":"Noch {n} Tage","bin.left1":"Noch 1 Tag","bin.restore":"Wiederherstellen","bin.del":"Jetzt löschen","bin.sure":"Endgültig löschen","bin.restored":"Wiederhergestellt","bin.full":"Alle {n} Plätze sind belegt. Lösche zuerst eins.","bin.empty":"Hier ist nichts.","bin.close":"Schließen","bin.fail":"Dieses Muster konnte auf diesem Gerät nicht wiederhergestellt werden.","bin.syncnote":"Wiederhergestellte Muster werden wieder mit deinem Konto synchronisiert, sobald du sie öffnest.","pj.deltitle":"Muster löschen?","pj.delbody":"{name} kommt in „Zuletzt gelöscht“. Du kannst es 30 Tage lang wiederherstellen.","pj.bulktitle":"{n} Muster löschen?","pj.bulkbody":"{n} Muster kommen in „Zuletzt gelöscht“. Du kannst sie 30 Tage lang wiederherstellen.","pj.delbtn":"Löschen","pj.deleted":"In „Zuletzt gelöscht“ verschoben","dl.body":"{name} und dein Stickfortschritt werden von diesem Gerät und aus deinem Luca-S-Konto entfernt. Unter „Zuletzt gelöscht“ kannst du es 30 Tage lang auf diesem Gerät wiederherstellen.","dl.done":"In „Zuletzt gelöscht“ verschoben"},
+  nl:{"bin.link":"Recent verwijderd ({n})","bin.title":"Recent verwijderd","bin.sub":"Verwijderde patronen blijven 30 dagen hier op dit apparaat. Daarna worden ze definitief verwijderd.","bin.left":"Nog {n} dagen","bin.left1":"Nog 1 dag","bin.restore":"Herstellen","bin.del":"Nu verwijderen","bin.sure":"Definitief verwijderen","bin.restored":"Hersteld","bin.full":"Alle {n} plekken zijn vol. Verwijder er eerst een.","bin.empty":"Niets hier.","bin.close":"Sluiten","bin.fail":"Kon dit patroon niet herstellen op dit apparaat.","bin.syncnote":"Herstelde patronen synchroniseren weer met je account zodra je ze opent.","pj.deltitle":"Patroon verwijderen?","pj.delbody":"{name} gaat naar Recent verwijderd. Je kunt het 30 dagen herstellen.","pj.bulktitle":"{n} patronen verwijderen?","pj.bulkbody":"{n} patronen gaan naar Recent verwijderd. Je kunt ze 30 dagen herstellen.","pj.delbtn":"Verwijderen","pj.deleted":"Naar Recent verwijderd verplaatst","dl.body":"{name} en je borduurvoortgang worden van dit apparaat en uit je Luca-S-account verwijderd. Je kunt het 30 dagen herstellen via Recent verwijderd op dit apparaat.","dl.done":"Naar Recent verwijderd verplaatst"},
+  ru:{"bin.link":"Недавно удалённые ({n})","bin.title":"Недавно удалённые","bin.sub":"Удалённые схемы хранятся здесь, на этом устройстве, 30 дней. Потом они удаляются навсегда.","bin.left":"Осталось дней: {n}","bin.left1":"Остался 1 день","bin.restore":"Восстановить","bin.del":"Удалить","bin.sure":"Удалить навсегда","bin.restored":"Восстановлено","bin.full":"Все {n} мест заняты. Сначала удалите одну схему.","bin.empty":"Здесь пусто.","bin.close":"Закрыть","bin.fail":"Не удалось восстановить схему на этом устройстве.","bin.syncnote":"Восстановленные схемы снова синхронизируются с аккаунтом, когда вы их открываете.","pj.deltitle":"Удалить схему?","pj.delbody":"{name} попадёт в «Недавно удалённые». Её можно восстановить в течение 30 дней.","pj.bulktitle":"Удалить схемы ({n})?","pj.bulkbody":"Схемы ({n}) попадут в «Недавно удалённые». Их можно восстановить в течение 30 дней.","pj.delbtn":"Удалить","pj.deleted":"Перемещено в «Недавно удалённые»","dl.body":"{name} и прогресс вышивки будут убраны с этого устройства и из вашего аккаунта Luca-S. Схему можно восстановить в «Недавно удалённых» на этом устройстве в течение 30 дней.","dl.done":"Перемещено в «Недавно удалённые»"},
+  uk:{"bin.link":"Нещодавно видалені ({n})","bin.title":"Нещодавно видалені","bin.sub":"Видалені схеми зберігаються тут, на цьому пристрої, 30 днів. Потім вони видаляються назавжди.","bin.left":"Залишилось днів: {n}","bin.left1":"Залишився 1 день","bin.restore":"Відновити","bin.del":"Видалити","bin.sure":"Видалити назавжди","bin.restored":"Відновлено","bin.full":"Усі {n} місць зайняті. Спочатку видаліть одну схему.","bin.empty":"Тут порожньо.","bin.close":"Закрити","bin.fail":"Не вдалося відновити схему на цьому пристрої.","bin.syncnote":"Відновлені схеми знову синхронізуються з акаунтом, коли ви їх відкриваєте.","pj.deltitle":"Видалити схему?","pj.delbody":"{name} потрапить до «Нещодавно видалених». Її можна відновити протягом 30 днів.","pj.bulktitle":"Видалити схеми ({n})?","pj.bulkbody":"Схеми ({n}) потраплять до «Нещодавно видалених». Їх можна відновити протягом 30 днів.","pj.delbtn":"Видалити","pj.deleted":"Переміщено до «Нещодавно видалених»","dl.body":"{name} і прогрес вишивки буде прибрано з цього пристрою та з вашого акаунта Luca-S. Схему можна відновити в «Нещодавно видалених» на цьому пристрої протягом 30 днів.","dl.done":"Переміщено до «Нещодавно видалених»"},
+  es:{"bin.link":"Eliminados recientemente ({n})","bin.title":"Eliminados recientemente","bin.sub":"Los patrones eliminados se quedan aquí en este dispositivo 30 días. Después se borran para siempre.","bin.left":"Quedan {n} días","bin.left1":"Queda 1 día","bin.restore":"Restaurar","bin.del":"Eliminar ya","bin.sure":"Eliminar para siempre","bin.restored":"Restaurado","bin.full":"Los {n} espacios están llenos. Elimina uno primero.","bin.empty":"No hay nada.","bin.close":"Cerrar","bin.fail":"No se pudo restaurar este patrón en este dispositivo.","bin.syncnote":"Los patrones restaurados vuelven a sincronizarse con tu cuenta cuando los abres.","pj.deltitle":"¿Eliminar el patrón?","pj.delbody":"{name} irá a Eliminados recientemente. Puedes restaurarlo durante 30 días.","pj.bulktitle":"¿Eliminar {n} patrones?","pj.bulkbody":"{n} patrones irán a Eliminados recientemente. Puedes restaurarlos durante 30 días.","pj.delbtn":"Eliminar","pj.deleted":"Movido a Eliminados recientemente","dl.body":"{name} y tu progreso se quitarán de este dispositivo y de tu cuenta Luca-S. Puedes restaurarlo desde Eliminados recientemente en este dispositivo durante 30 días.","dl.done":"Movido a Eliminados recientemente"},
+  it:{"bin.link":"Eliminati di recente ({n})","bin.title":"Eliminati di recente","bin.sub":"Gli schemi eliminati restano qui su questo dispositivo per 30 giorni. Poi vengono rimossi per sempre.","bin.left":"Ancora {n} giorni","bin.left1":"Ancora 1 giorno","bin.restore":"Ripristina","bin.del":"Elimina ora","bin.sure":"Elimina per sempre","bin.restored":"Ripristinato","bin.full":"Tutti i {n} posti sono pieni. Eliminane prima uno.","bin.empty":"Non c’è niente.","bin.close":"Chiudi","bin.fail":"Impossibile ripristinare questo schema su questo dispositivo.","bin.syncnote":"Gli schemi ripristinati si sincronizzano di nuovo con il tuo account quando li apri.","pj.deltitle":"Eliminare lo schema?","pj.delbody":"{name} andrà in Eliminati di recente. Puoi ripristinarlo per 30 giorni.","pj.bulktitle":"Eliminare {n} schemi?","pj.bulkbody":"{n} schemi andranno in Eliminati di recente. Puoi ripristinarli per 30 giorni.","pj.delbtn":"Elimina","pj.deleted":"Spostato in Eliminati di recente","dl.body":"{name} e i tuoi progressi verranno tolti da questo dispositivo e dal tuo account Luca-S. Puoi ripristinarlo da Eliminati di recente su questo dispositivo per 30 giorni.","dl.done":"Spostato in Eliminati di recente"}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k, vars){
+    var s=(window.plT?plT(k):k); if(!s||s===k) s=S.en[k]||k;
+    if(vars) for(var v in vars) s=s.split('{'+v+'}').join(String(vars[v]));
+    return s;
+  }
+  window.pbinT=tx;
+  function esc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+
+  // ── storage ──────────────────────────────────────────────────────────────
+  var dbP=null, cache=[];
+  function db(){
+    if(dbP) return dbP;
+    dbP=new Promise(function(res){
+      try{
+        var r=indexedDB.open(DBN,1);
+        r.onupgradeneeded=function(){ try{ r.result.createObjectStore(ST,{keyPath:'key'}); }catch(e){} };
+        r.onsuccess=function(){ res(r.result); };
+        r.onerror=function(){ res(null); };
+        r.onblocked=function(){ res(null); };
+      }catch(e){ res(null); }
+    });
+    return dbP;
+  }
+  function op(mode, fn){
+    return db().then(function(d){
+      if(!d) return null;
+      return new Promise(function(res){
+        try{
+          var t=d.transaction(ST,mode), s=t.objectStore(ST), out=fn(s);
+          t.oncomplete=function(){ res(out&&out.result!==undefined?out.result:true); };
+          t.onerror=function(){ res(null); }; t.onabort=function(){ res(null); };
+        }catch(e){ res(null); }
+      });
+    });
+  }
+  function load(){
+    return op('readonly', function(s){ return s.getAll(); }).then(function(all){
+      all=Array.isArray(all)?all:[];
+      var now=Date.now(), keep=[], gone=[];
+      all.forEach(function(e){ (e && now-(e.ts||0) < KEEP ? keep : gone).push(e); });
+      if(gone.length) op('readwrite', function(s){ gone.forEach(function(e){ if(e&&e.key) s.delete(e.key); }); });
+      keep.sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+      cache=keep; links(); return keep;
+    });
+  }
+  function put(e){
+    cache=[e].concat(cache.filter(function(x){ return x.key!==e.key; })); links();
+    return op('readwrite', function(s){ s.put(e); });
+  }
+  function drop(key){
+    cache=cache.filter(function(x){ return x.key!==key; }); links();
+    return op('readwrite', function(s){ s.delete(key); });
+  }
+  function newKey(kind){ return kind+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+  // ── capture (called by the delete paths BEFORE they remove anything) ─────
+  window.pbinKeepTrk=function(id, rec, candIds, meta){
+    var blob=null, prog=null;
+    try{ blob=trkBlobGet(id); }catch(e){}
+    if(!blob) return false;                       // nothing restorable on this device
+    try{ prog=trkProgGet(id); }catch(e){}
+    var r=Object.assign({}, rec||{}, {id:id});
+    put({key:newKey('trk'), kind:'trk', ts:Date.now(), name:(meta&&meta.name)||r.name||'',
+         cols:r.cols, rows:r.rows, thumb:r.thumb||null,
+         data:{rec:r, blob:blob, prog:prog, ids:(candIds||[]).filter(Boolean)}});
+    return true;
+  };
+  // An account card (may or may not have a copy on this device).
+  window.pbinKeepTrkCloud=async function(it){
+    try{
+      var loc=(trkIndex()||[]).find(function(p){ return !p.sku && trkAccountId(p)===it.id; });
+      if(loc && pbinKeepTrk(loc.id, loc, [it.id], {name:it.name||loc.name})) return true;
+    }catch(e){}
+    var blob=null, prog=null;
+    try{ blob=await trkUserPatternFetch(it.id); }catch(e){}
+    if(!blob) return false;
+    try{ var p=await trkUserPatternFetchProgress(it.id); if(p && typeof p==='string' && p.indexOf('|')>=0) prog=JSON.stringify({cols:it.cols, rows:it.rows, data:p}); }catch(e){}
+    var rec={id:String(it.name||'pattern').replace(/[^A-Za-z0-9_]/g,'_')||'pattern', name:it.name||'My pattern',
+      cols:it.cols, rows:it.rows, total:it.total, done:it.done, sku:null, threads:it.threads,
+      sessions:{}, syncId:it.id, thumb:it.thumb||null, timeMs:it.timeMs|0};
+    put({key:newKey('trk'), kind:'trk', ts:Date.now(), name:rec.name, cols:rec.cols, rows:rec.rows,
+         thumb:rec.thumb, data:{rec:rec, blob:blob, prog:prog, ids:[it.id]}});
+    return true;
+  };
+  window.pbinKeepPj=function(rec){
+    if(!rec || !rec.id) return false;
+    var copy; try{ copy=JSON.parse(JSON.stringify(rec)); }catch(e){ return false; }
+    put({key:newKey('pj'), kind:'pj', ts:Date.now(), name:copy.name||'', cols:copy.cols, rows:copy.rows, data:{rec:copy}});
+    return true;
+  };
+
+  // ── restore ──────────────────────────────────────────────────────────────
+  async function restore(e){
+    var d=e.data||{};
+    if(e.kind==='pj'){
+      try{ await pjHydrate(); }catch(_){}
+      var list=pjLoadAll(), cap=(typeof pjSlotCap==='function')?pjSlotCap():10;
+      if(list.length>=cap){ toast(tx('bin.full',{n:cap})); return false; }
+      var rec=Object.assign({}, d.rec);
+      rec.id='pj_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+      rec.savedAt=Date.now();
+      pjSaveAll([rec].concat(list));
+      if(!pjLoadAll().some(function(p){ return p.id===rec.id; })){ toast(tx('bin.fail')); return false; }
+      try{ if(typeof edpEnabled==='function' && edpEnabled()) edpPush(rec.id); }catch(_){}
+      await drop(e.key);
+      try{ var pg=document.getElementById('projects-page'); if(pg && pg.offsetParent!==null) renderProjectsPage(); }catch(_){}
+      toast(tx('bin.restored'));
+      return true;
+    }
+    // Tracker pattern
+    var r=Object.assign({}, d.rec||{});
+    if(!d.blob){ toast(tx('bin.fail')); return false; }
+    var id=String(r.id||'pattern');
+    if(trkIndex().some(function(p){ return p.id===id; })) id=trkUniqueLocalKey(id);
+    try{ trkBlobSet(id, d.blob); }catch(_){ toast(tx('bin.fail')); return false; }
+    if(d.prog){ try{ trkProgSet(id, d.prog); }catch(_){} }
+    r.id=id; r.ts=Date.now(); r.sku=null;
+    try{
+      var idx=trkIndex().filter(function(p){ return p.id!==id; }); idx.unshift(r); trkIndexWrite(idx);
+    }catch(_){ try{ trkBlobDel(id); }catch(__){} toast(tx('bin.fail')); return false; }
+    // Forget this pattern's local delete markers so its account card/sync come back.
+    try{
+      var ids=(d.ids||[]).concat(r.syncId?[r.syncId]:[]);
+      var strip=function(s){ return String(s||'').replace(/\s*\(\d+\)\s*$/,'').trim().toLowerCase(); };
+      var tomb=JSON.parse(localStorage.getItem('patternly_trk_tombstones')||'[]');
+      tomb=tomb.filter(function(t){
+        if(t.syncId && ids.indexOf(t.syncId)>=0) return false;
+        if(strip(t.name) && strip(t.name)===strip(e.name) && t.cols===e.cols && t.rows===e.rows) return false;
+        return true;
+      });
+      localStorage.setItem('patternly_trk_tombstones', JSON.stringify(tomb));
+    }catch(_){}
+    await drop(e.key);
+    try{ var w=document.getElementById('trk-projects'); if(w && w.style.display!=='none') trkShowHome(); }catch(_){}
+    toast(tx('bin.restored'));
+    return true;
+  }
+
+  // ── UI ───────────────────────────────────────────────────────────────────
+  var BIN_IC='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
+  function ensureLink(kind){
+    var id='pbin-link-'+kind, b=document.getElementById(id);
+    if(b) return b;
+    var host = kind==='trk' ? document.getElementById('trk-projects') : document.getElementById('pj-grid');
+    if(!host) return null;
+    b=document.createElement('button'); b.type='button'; b.id=id; b.className='pbin-link'; b.style.display='none';
+    b.addEventListener('click', function(){ openBin(kind); });
+    if(kind==='trk') host.appendChild(b); else host.after(b);
+    return b;
+  }
+  function links(){
+    ['trk','pj'].forEach(function(kind){
+      var n=cache.filter(function(e){ return e.kind===kind; }).length;
+      var b=ensureLink(kind); if(!b) return;
+      b.innerHTML=BIN_IC+'<span>'+esc(tx('bin.link',{n:n}))+'</span>';
+      b.style.display=n?'':'none';
+    });
+  }
+  window.pbinRefresh=links;
+  function thumbOf(e){
+    if(e.kind==='trk'){ return e.thumb ? '<img src="'+esc(e.thumb)+'" alt="">' : ''; }
+    return '';
+  }
+  function daysLeft(e){ var n=Math.max(1, Math.ceil((e.ts+KEEP-Date.now())/DAY)); return n===1?tx('bin.left1'):tx('bin.left',{n:n}); }
+  var curKind='trk';
+  function render(){
+    var ov=document.getElementById('pbin-ov'); if(!ov) return;
+    var items=cache.filter(function(e){ return e.kind===curKind; });
+    var L=ov.querySelector('.pbin-list');
+    if(!items.length){ L.innerHTML='<div class="pbin-empty">'+esc(tx('bin.empty'))+'</div>'; return; }
+    L.innerHTML=items.map(function(e){
+      return '<div class="pbin-row" data-k="'+esc(e.key)+'"><div class="pbin-th">'+thumbOf(e)+'</div>'+
+        '<div class="pbin-tx"><b>'+esc(e.name||'My pattern')+'</b><span>'+(e.cols|0)+'×'+(e.rows|0)+' · '+esc(daysLeft(e))+'</span></div>'+
+        '<div class="pbin-btns"><button type="button" class="pbin-dl">'+esc(tx('bin.del'))+'</button><button type="button" class="pbin-rs">'+esc(tx('bin.restore'))+'</button></div></div>';
+    }).join('');
+    // Editor designs: draw the preview from the saved design itself.
+    items.forEach(function(e){
+      if(e.kind!=='pj' || typeof pjMakeThumb!=='function') return;
+      try{ var cv=pjMakeThumb(e.data.rec); var th=L.querySelector('.pbin-row[data-k="'+e.key+'"] .pbin-th'); if(cv && th && cv.nodeType===1) th.appendChild(cv); }catch(_){}
+    });
+  }
+  function build(){
+    var ov=document.getElementById('pbin-ov'); if(ov) return ov;
+    ov=document.createElement('div'); ov.id='pbin-ov';
+    ov.innerHTML='<div class="pbin-card" role="dialog" aria-modal="true"><div class="pbin-head"><h3></h3>'+
+      '<button type="button" class="pbin-x"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>'+
+      '<p class="pbin-sub"></p><div class="pbin-list"></div></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click', function(ev){
+      if(ev.target===ov || ev.target.closest('.pbin-x')){ ov.classList.remove('on'); return; }
+      var row=ev.target.closest('.pbin-row'); if(!row) return;
+      var e=cache.find(function(x){ return x.key===row.getAttribute('data-k'); }); if(!e) return;
+      var b=ev.target.closest('button'); if(!b) return;
+      if(b.classList.contains('pbin-rs')){
+        b.disabled=true;
+        restore(e).then(function(ok){ if(ok){ render(); if(!cache.some(function(x){ return x.kind===curKind; })) ov.classList.remove('on'); } else b.disabled=false; });
+      } else if(b.classList.contains('pbin-dl')){
+        if(!b.classList.contains('sure')){ b.classList.add('sure'); b.textContent=tx('bin.sure'); return; }
+        drop(e.key).then(render);
+      }
+    });
+    document.addEventListener('keydown', function(ev){ if(ev.key==='Escape') ov.classList.remove('on'); });
+    return ov;
+  }
+  function openBin(kind){
+    curKind=kind||'trk';
+    var ov=build();
+    ov.querySelector('h3').textContent=tx('bin.title');
+    ov.querySelector('.pbin-sub').textContent=tx('bin.sub')+(curKind==='trk'?' '+tx('bin.syncnote'):'');
+    ov.querySelector('.pbin-x').setAttribute('aria-label', tx('bin.close'));
+    load().then(render);
+    render();
+    ov.classList.add('on');
+  }
+  window.pbinOpen=openBin;
+
+  function start(){ load(); setInterval(function(){ if(!document.hidden) links(); }, 60000); }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start); else start();
 })();
 </script>
