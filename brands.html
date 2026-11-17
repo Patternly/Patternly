@@ -4,7 +4,7 @@
   Proprietary software: no part of this code may be copied, modified, reused or
   redistributed without written permission from UK Luca-S LTD.
   Third-party parts keep their own licences (noted where they appear).
-  Studio v78
+  Studio v79
 -->
 <html lang="en">
 <head>
@@ -4873,8 +4873,11 @@ async function ksLegendKit(doc,P,meta){
   K.picH=(w,max)=>meta.picture?Math.min(max,w*meta.picture.h/meta.picture.w):Math.min(max,w*1.4);
   K.qr=(x,y,s,bg)=>{ if(bg!==false){ doc.setFillColor(255,255,255); doc.roundedRect(x-1,y-1,s+2,s+2,1,1,'F'); }
     if(!meta.qr){ doc.setDrawColor(...K.RULE); doc.setLineWidth(.4); doc.setLineDashPattern([1,1],0); doc.roundedRect(x,y,s,s,1,1,'S'); doc.setLineDashPattern([],0); K.font('Inter','normal',6,K.INK2); doc.text('QR',x+s/2,y+s/2+1,{align:'center'}); return; }
-    try{ const q=qrcode(0,'M'); q.addData(meta.qr); q.make(); const n=q.getModuleCount(), cell=s/n; doc.setFillColor(...K.INK);
-      for(let r=0;r<n;r++) for(let c=0;c<n;c++) if(q.isDark(r,c)) doc.rect(x+c*cell,y+r*cell,cell+.02,cell+.02,'F'); }catch(e){} };
+    // v79: the kit's unique code printed under the QR (for typing it in when the camera will not scan); the QR shrinks to make room
+    const code=decodeURIComponent((/[?&]code=([^&#]+)/.exec(meta.qr)||[])[1]||''), qs=code?s-3.6:s, qx=x+(s-qs)/2;
+    try{ const q=qrcode(0,'M'); q.addData(meta.qr); q.make(); const n=q.getModuleCount(), cell=qs/n; doc.setFillColor(...K.INK);
+      for(let r=0;r<n;r++) for(let c=0;c<n;c++) if(q.isDark(r,c)) doc.rect(qx+c*cell,y+r*cell,cell+.02,cell+.02,'F'); }catch(e){}
+    if(code){ K.font('Inter','bold',Math.min(6.4,s*.3),K.INK); doc.text(code,x+s/2,y+s-.25,{align:'center'}); } };
   K.logoH=w=>lg?w*lg.ar:w*.75;
   K.logo=(x,y,w,grey)=>{ if(!lg) return 0; doc.addImage(grey?lg.grey:KS_LF.logo,'PNG',x,y,w,w*lg.ar); return w*lg.ar; };
   K.sw=(x,y,w,h,rgb,r,stroke)=>{ doc.setFillColor(...ksRgb(rgb)); if(stroke!==false){ doc.setDrawColor(0,0,0); doc.setLineWidth(.1); } doc.roundedRect(x,y,w,h,r||0,r||0,stroke===false?'F':'FD'); };
