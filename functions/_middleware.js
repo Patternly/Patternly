@@ -15,7 +15,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v126";
+const MW_VERSION = "v127";
 
 // v107: the help sheet the in-app AI assistant answers from (/help/chat). Keep it
 // to facts that are true in the live app; update it when a feature changes.
@@ -2149,6 +2149,15 @@ async function handlePartnerApi(request, url, env) {
       const items = (await Promise.all(names.slice(0, 500).map(ksGet))).filter(Boolean);
       items.sort((a, b) => (b.updated || 0) - (a.updated || 0));
       return partnerJson(200, { ok:true, items });
+    }
+    // v127: the kit's Patternly link for the legend QR, from the SKU alone (works before the kit is in Patterns;
+    // codeFor is the same stable SKU code the app checks, so the printed QR keeps working once the chart is uploaded)
+    if (sub === "admin/kitsrc/qr" && request.method === "GET") {
+      const sku = ksSku(url.searchParams.get("sku"));
+      if (!sku) return partnerJson(400, { ok:false, error:"bad SKU" });
+      let code = null; try { code = await codeFor(sku, env); } catch (e) {}
+      if (!code) return partnerJson(503, { ok:false, error:"code not available" });
+      return partnerJson(200, { ok:true, sku, code, link: "https://luca-s.com/apps/patternly?sku=" + encodeURIComponent(sku) + "&code=" + encodeURIComponent(code) + "#tracker" });
     }
     if (sub === "admin/kitsrc/file" && request.method === "GET") {
       const k = String(url.searchParams.get("k") || "");
