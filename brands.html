@@ -4,7 +4,7 @@
   Proprietary software: no part of this code may be copied, modified, reused or
   redistributed without written permission from UK Luca-S LTD.
   Third-party parts keep their own licences (noted where they appear).
-  Studio v76
+  Studio v77
 -->
 <html lang="en">
 <head>
@@ -4380,6 +4380,8 @@ function ksFonts(s){
     out[m[1]]={cs,name,sym:/crossstitch/i.test(name)}; }
   return out;
 }
+// v77: RTF writes some Windows-1252 characters as words (\\rquote, \\bullet …); in the symbol font they are symbols
+const KS_RTF_CH={lquote:0x91,rquote:0x92,ldblquote:0x93,rdblquote:0x94,bullet:0x95,endash:0x96,emdash:0x97};
 const KS_DEC={};
 function ksDec(cs){ const n=KS_CP[cs]||'windows-1252'; if(!KS_DEC[n]){ try{ KS_DEC[n]=new TextDecoder(n); }catch(e){ KS_DEC[n]=new TextDecoder('windows-1252'); } } return KS_DEC[n]; }
 // Returns {rows:[[{t,sym:[codes]}]], text}
@@ -4404,6 +4406,7 @@ function ksRtf(s){
         else if(w==='row'||w==='nestrow'){ if(row.length) rows.push(row); row=[]; text+='\n'; }
         else if(w==='par'||w==='line'||w==='tab'){ put(' '); }
         else if(w==='uc') uc=+arg||1;
+        else if(KS_RTF_CH[w]) put(ksDec(0).decode(new Uint8Array([KS_RTF_CH[w]])), KS_RTF_CH[w]); // v77: \rquote, \bullet … are symbols too
         else if(w==='u'){ let v=+arg; if(v<0) v+=65536; put(String.fromCharCode(v)); i+=uc; }
         continue;
       }
@@ -4787,7 +4790,8 @@ async function ksLegendPdf(P,meta){
     sec('Backstitch · Contur · Контур',yy+1); yy+=4; const bh=Math.max(rh,5.4), perB=Math.ceil(nB/cols);
     const rh0=rh; rh=bh;
     P.back.forEach((b,i)=>{ const ci=Math.floor(i/perB), ri=i%perB; const ix=P.colours.findIndex(c=>c.thread===b.thread);
-      row(M+ci*(colW+GAP),yy+ri*bh,{nr:ix>=0?ix+1:'',rgb:b.rgb||(ix>=0?P.colours[ix].rgb:null),thread:b.thread,small:b.strands>1?'2 strands':'1 strand',line:b.line||'#1d1a1f',strands:b.strands,stitches:b.stitches,metres:b.metres}); });
+      const rgb=b.rgb||(ix>=0?P.colours[ix].rgb:null);   // v77: line in the thread's colour
+      row(M+ci*(colW+GAP),yy+ri*bh,{nr:ix>=0?ix+1:'',rgb,thread:b.thread,small:b.strands>1?'2 strands':'1 strand',line:rgb||b.line||'#1d1a1f',strands:b.strands,stitches:b.stitches,metres:b.metres}); });
     rh=rh0;
   }
   // bottom strip: the Icon strip from layout I (v67)
@@ -4842,7 +4846,8 @@ async function ksLegendKit(doc,P,meta){
   K.nr=n=>n===''||n==null?'':String(n).padStart(2,'0');
   K.C=P.colours.map((c,i)=>({nr:i+1,rgb:c.rgb,sym:c.sym,thread:c.thread,str:c.strands||2,st:c.stitches,m:c.metres}));
   K.B=P.back.map(b=>{ const ix=P.colours.findIndex(c=>c.thread===b.thread);
-    return {nr:ix>=0?ix+1:'',ix,rgb:b.rgb||(ix>=0?P.colours[ix].rgb:null),thread:b.thread,str:b.strands>1?2:1,line:b.line||'#1d1a1f',st:b.stitches,m:b.metres}; });
+    const rgb=b.rgb||(ix>=0?P.colours[ix].rgb:null);   // v77: the line is drawn in the thread's colour, not the program's screen pen colour
+    return {nr:ix>=0?ix+1:'',ix,rgb,thread:b.thread,str:b.strands>1?2:1,line:rgb||b.line||'#1d1a1f',st:b.stitches,m:b.metres}; });
   K.crossStr=[...new Set(K.C.map(c=>c.str))];
   K.backStr=[...new Set(K.B.map(b=>b.str))].sort();
   K.crossLine=K.crossStr.length===1?K.str(K.crossStr[0]):'strands as in the key';
