@@ -4,7 +4,7 @@
   Proprietary software: no part of this code may be copied, modified, reused or
   redistributed without written permission from UK Luca-S LTD.
   Third-party parts keep their own licences (noted where they appear).
-  Studio v81
+  Studio v82
 -->
 <html lang="en">
 <head>
@@ -4449,7 +4449,7 @@ function ksKindOf(name,s){
   return 'other';
 }
 async function ksReadAll(files){
-  const P={colours:[],back:[],src:{}}; const warn=[];
+  const P={colours:[],back:[],knots:[],src:{}}; const warn=[];
   const byKind={};
   for(const f of files){ if(f.raw) byKind[f.role]=f; }
   // English key: fabric, size, symbols, strands, backstitch
@@ -4460,10 +4460,13 @@ async function ksReadAll(files){
     if((m=/Fabric:\s*(.+?)\s+Stitches:/.exec(T))){ P.fabric=m[1].trim(); const c=/(\d+)\s*count/i.exec(P.fabric); if(c) P.count=+c[1]; }
     if((m=/Stitches:\s*(\d+)\s*x\s*(\d+)/i.exec(T))){ P.w=+m[1]; P.h=+m[2]; }
     if((m=/Size:\s*([\d.]+)\s*x\s*([\d.]+)\s*inches\s*or\s*([\d.]+)\s*x\s*([\d.]+)\s*cm/i.exec(T))){ P.sizeIn=[+m[1],+m[2]]; P.sizeCm=[+m[3],+m[4]]; }
-    let inBack=false;
+    let inBack=false, inKnot=false;
     for(const row of R.rows){
       const joined=row.map(c=>c.t).join(' ');
       if(/Backstitch/i.test(joined)&&!row.some(c=>c.sym.length)) inBack=true;
+      // v82: the "French Knots" table comes after the backstitch one; its rows look the same, so they were counted as backstitch
+      if(/French\s*Knot/i.test(joined)&&!row.some(c=>c.sym.length)){ inKnot=true; inBack=false; continue; }
+      if(inKnot){ for(let k=0;k<row.length;k++){ const m2=/^(\d+)\s*strand/i.exec(row[k].t); if(m2){ const th=(row[k+2]&&row[k+2].t)||String((row[k+1]&&row[k+1].t)||'').replace(/^.*?(\S+)$/,'$1'); P.knots.push({thread:th,strands:+m2[1],name:(row[k+1]&&row[k+1].t)||''}); break; } } continue; }
       if(!inBack){
         for(let k=0;k+3<row.length;k+=4){ const a=row[k],no=row[k+1],nm=row[k+2],str=row[k+3];
           if(a.sym.length&&no.t&&/^\d+$/.test(str.t)) P.colours.push({sym:a.sym[0],thread:no.t,name:nm.t,strands:+str.t}); }
@@ -4472,9 +4475,9 @@ async function ksReadAll(files){
       }
     }
     // the separate "Backstitch" table can also sit outside the inBack switch: fall back to any "N strand" rows
-    if(!P.back.length){ for(const row of R.rows){ for(let k=0;k<row.length;k++){ const m2=/^(\d+)\s*strand/i.exec(row[k].t); if(m2){ P.back.push({thread:(row[k+2]&&row[k+2].t)||'',strands:+m2[1],name:(row[k+1]&&row[k+1].t)||''}); break; } } } }
+    if(!P.back.length&&!P.knots.length){ for(const row of R.rows){ for(let k=0;k<row.length;k++){ const m2=/^(\d+)\s*strand/i.exec(row[k].t); if(m2){ P.back.push({thread:(row[k+2]&&row[k+2].t)||'',strands:+m2[1],name:(row[k+1]&&row[k+1].t)||''}); break; } } } }
     const wm=ksBlips(s,'wmetafile').map(ksWmfPen).filter(Boolean);
-    if(wm.length>=P.back.length) P.back.forEach((b,i)=>{ b.line=wm[wm.length-P.back.length+i]; });
+    if(wm.length>=P.back.length) P.back.forEach((b,i)=>{ b.line=wm[wm.length-P.back.length-P.knots.length+i]||wm[wm.length-P.back.length+i]; });
   }
   // Key with swatches (often the Russian one): thread colours, and symbols/sizes if there is no English key
   if(byKind.key){
@@ -4489,6 +4492,7 @@ async function ksReadAll(files){
     P.colours.forEach((c,i)=>{ const hit=(rowsC[i]&&rowsC[i].thread===c.thread)?rowsC[i]:rowsC.find(r=>r.thread===c.thread); if(hit&&hit.rgb) c.rgb=hit.rgb; });
     // swatches after the cross-stitch rows belong to the backstitch threads, in order
     const extra=cols.slice(rowsC.length); P.back.forEach((b,i)=>{ if(extra[i]) b.rgb=extra[i]; });
+    P.knots.forEach((k,i)=>{ if(extra[P.back.length+i]) k.rgb=extra[P.back.length+i]; });   // v82: then the French knot threads
     if(!P.w){ const m=/(\d+)\s*x\s*(\d+)/.exec(R.text); if(m){ P.w=+m[1]; P.h=+m[2]; } }
   }
   // Thread lengths: stitches and metres
@@ -4542,8 +4546,14 @@ function ksRenderXs(){
 }
 async function ksRead(){
   const any=KS_XS.some(x=>x.raw);
-  if(!any){ if(!(KS_CUR&&KS_CUR.parsed)){ $('ks-read').style.display='none'; KS_PARSED=null; } else ksRenderRead(KS_CUR.parsed,[]); return; }
-  const {P,warn}=await ksReadAll(KS_XS);
+  // v82: a saved kit is read again from its stored XSPro files, so reader fixes reach kits made before them
+  let src=KS_XS;
+  if(!any&&KS_CUR&&KS_CUR.files){ const st=[];
+    for(const f of KS_CUR.files){ if(!/^(key|keycolor|notes)$/.test(f.role)) continue;
+      try{ const r=await fetch(API+'admin/kitsrc/file?k='+encodeURIComponent(f.k),{headers:adminHeaders()}); if(r.ok) st.push({role:f.role,name:f.n,file:{name:f.n},raw:new TextDecoder('latin1').decode(await r.arrayBuffer())}); }catch(e){} }
+    if(st.length) src=st; }
+  if(!src.some(x=>x.raw)){ if(!(KS_CUR&&KS_CUR.parsed)){ $('ks-read').style.display='none'; KS_PARSED=null; } else ksRenderRead(KS_CUR.parsed,[]); return; }
+  const {P,warn}=await ksReadAll(src);
   KS_PARSED=P;
   if(P.sku&&!$('ks-sku').value.trim()) $('ks-sku').value=P.sku.toUpperCase().replace(/[^A-Z0-9]/g,'');
   ksRenderRead(P,warn);
@@ -4554,7 +4564,7 @@ function ksRenderRead(P,warn){
   if(P.w) f.push('<b>'+P.w+' × '+P.h+'</b> stitches');
   if(P.sizeCm) f.push('<b>'+P.sizeCm[0]+' × '+P.sizeCm[1]+' cm</b> · '+P.sizeIn[0]+' × '+P.sizeIn[1]+' in');
   if(P.fabric) f.push('<b>'+ksEsc(P.fabric)+'</b>');
-  f.push('<b>'+P.colours.length+'</b> colours'); if(P.back.length) f.push('<b>'+P.back.length+'</b> backstitch lines');
+  f.push('<b>'+P.colours.length+'</b> colours'); if(P.back.length) f.push('<b>'+P.back.length+'</b> backstitch lines'); if((P.knots||[]).length) f.push('<b>'+P.knots.length+'</b> French knot colours');
   const tot=P.colours.reduce((a,c)=>a+(c.stitches||0),0); if(tot) f.push('<b>'+tot.toLocaleString('en-GB')+'</b> cross stitches');
   $('ks-facts').innerHTML=f.map(x=>'<span>'+x+'</span>').join('');
   $('ks-warn').innerHTML=(warn||[]).map(w=>'<div class="ks-w">'+ksEsc(w)+'</div>').join('');
@@ -4627,6 +4637,7 @@ function ksOpen(it){
   $('ks-leg').style.display='none'; $('ks-leg-frame').removeAttribute('src'); KS_LEG_DOC=null; $('ks-cov').style.display='none'; $('ks-cov-frame').removeAttribute('src'); KS_COV_DOC=null; $('ks-ins').style.display='none'; $('ks-amz').style.display='none'; $('ks-amz-grid').innerHTML=''; KS_AMZ=[]; $('ks-ins-frame').removeAttribute('src'); KS_INS_DOC=null;
   if(it&&it.parsed) ksRenderRead(it.parsed,[]); else { $('ks-read').style.display='none'; }
   ksRenderSaved();
+  if(it&&(it.files||[]).some(f=>/^(key|keycolor|notes)$/.test(f.role))) ksRead();   // v82: read the stored files again with today's reader
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function ksRenderSaved(){
@@ -4755,9 +4766,12 @@ async function ksLegendPdf(P,meta){
   const crossStr=[...new Set(P.colours.map(c=>c.strands||2))];
   const cards=[{x:true,t:'Cross stitch',s:crossStr.length===1?(crossStr[0]===1?'1 strand · 1 fir · 1 нитка':crossStr[0]+' strands · '+crossStr[0]+' fire · '+crossStr[0]+' нитки'):'strands as in the key'}];
   strandsB.forEach(n=>cards.push({line:n,t:'Backstitch',s:n===1?'1 strand · 1 fir · 1 нитка':'2 strands · 2 fire · 2 нитки'}));
-  const cw=(TW-2.6*2)/3, chh=12.5;
+  const KN=P.knots||[];   // v82: French knots
+  if(KN.length){ const kn=[...new Set(KN.map(k=>k.strands>1?2:1))]; cards.push({knot:true,t:'French knot',s:kn.length===1?(kn[0]===1?'1 strand · 1 fir · 1 нитка':'2 strands · 2 fire · 2 нитки'):'strands as in the key'}); }
+  const cw=(TW-2.6*(Math.max(3,cards.length)-1))/Math.max(3,cards.length), chh=12.5;
   cards.forEach((c,i)=>{ const x=X+i*(cw+2.6); doc.setDrawColor(...RULE); doc.setLineWidth(.3); doc.roundedRect(x,y,cw,chh,2.2,2.2,'S');
     if(c.x){ font('Inter','bold',11,INK); doc.text('X '+(crossStr.length===1?crossStr[0]:''),x+3,y+7.8); }
+    else if(c.knot){ doc.setFillColor(...INK); doc.circle(x+8,y+chh/2,1.5,'F'); }
     else { doc.setFillColor(...INK); doc.roundedRect(x+3,y+chh/2-(c.line>1?.55:.32),10,c.line>1?1.1:.64,.3,.3,'F'); }
     font('Inter','bold',8,INK); doc.text(c.t,x+15.5,y+5.4); font('Inter','normal',6.4,INK2); doc.text(doc.splitTextToSize(c.s,cw-17.5)[0],x+15.5,y+9.2); });
   y+=chh;
@@ -4766,10 +4780,10 @@ async function ksLegendPdf(P,meta){
   const BH=27, BY=H-M-BH;
   const sec=(label,yy)=>{ font('Inter','bold',7,RED); doc.setCharSpace(.35); doc.text(label.toUpperCase(),M,yy); const lw=doc.getTextWidth(label.toUpperCase())+label.length*.35; doc.setCharSpace(0);
     doc.setDrawColor(...RULE); doc.setLineWidth(.3); doc.line(M+lw+3,yy-1.1,W-M,yy-1.1); };
-  const nC=P.colours.length, nB=P.back.length;
+  const nC=P.colours.length, nB=P.back.length, nK=KN.length;
   const avail=BY-5-top;                         // rows + section headers
   let cols=2, rh=7.4;   // rows grow up to 7.4 mm to use the page, shrink to 4.4 mm before a third column
-  const need=(c,h)=>8+Math.ceil(nC/c)*h+(nB?10+Math.ceil(nB/c)*Math.max(h,5.4):0);
+  const need=(c,h)=>8+Math.ceil(nC/c)*h+(nB?10+Math.ceil(nB/c)*Math.max(h,5.4):0)+(nK?10+Math.ceil(nK/c)*Math.max(h,5.4):0);
   while(need(cols,rh)>avail&&rh>4.4) rh-=.1;
   if(need(cols,rh)>avail){ cols=3; rh=6.2; while(need(cols,rh)>avail&&rh>3.4) rh-=.1; }
   const GAP=6, colW=(W-2*M-GAP*(cols-1))/cols, sc=Math.min(1.12,rh/6.2);
@@ -4779,6 +4793,7 @@ async function ksLegendPdf(P,meta){
     let tx=x+6+sw+2.5;
     if(o.sym!=null){ font('CS3','normal',11*Math.max(.8,sc),INK); doc.text(ksSymCh(o.sym),tx+2.6,mid+1.6,{align:'center'}); tx+=7.5; }
     if(o.line){ doc.setFillColor(...ksRgb(o.line)); const lh=o.strands>1?1.0:.6; doc.roundedRect(x+colW-(cols>2?36:44),mid-lh/2,cols>2?9:12,lh,.3,.3,'F'); }
+    if(o.knot){ doc.setFillColor(...ksRgb(o.knot)); doc.setDrawColor(0,0,0); doc.setLineWidth(.1); doc.circle(x+colW-(cols>2?31.5:38),mid,1.3,'FD'); }
     font('Inter','bold',9*Math.max(.85,sc),INK); doc.text(String(o.thread),tx,mid+1.3);
     if(o.small){ const tw2=doc.getTextWidth(String(o.thread)); font('Inter','normal',6.6,INK2); doc.text(o.small,tx+tw2+2,mid+1.2); }
     const mt=ksMt(o.metres); if(mt){ font('Inter','normal',6.4*Math.max(.85,sc),INK2); doc.text(cols>2?ksMt(o.metres,true):mt,x+colW,mid+1.2,{align:'right'}); }
@@ -4786,7 +4801,7 @@ async function ksLegendPdf(P,meta){
     doc.setDrawColor(...RULE); doc.setLineWidth(.2); doc.line(x,yy+rh,x+colW,yy+rh); };
   let yy=top; sec('Cross stitch · Cruciuliță · Крест',yy+1); yy+=4;
   const per=Math.ceil(nC/cols);
-  P.colours.forEach((c,i)=>{ const ci=Math.floor(i/per), ri=i%per; row(M+ci*(colW+GAP),yy+ri*rh,{nr:i+1,rgb:c.rgb,sym:c.sym,thread:c.thread,stitches:c.stitches,metres:c.metres}); });
+  P.colours.forEach((c,i)=>{ const ci=Math.floor(i/per), ri=i%per; row(M+ci*(colW+GAP),yy+ri*rh,{nr:i+1,rgb:c.rgb,sym:c.sym,thread:c.thread,small:(c.strands||2)===1?'1 strand':(c.strands||2)+' strands',stitches:c.stitches,metres:c.metres}); });   // v82: strands after every number
   yy+=per*rh+7;
   if(nB){
     sec('Backstitch · Contur · Контур',yy+1); yy+=4; const bh=Math.max(rh,5.4), perB=Math.ceil(nB/cols);
@@ -4794,6 +4809,14 @@ async function ksLegendPdf(P,meta){
     P.back.forEach((b,i)=>{ const ci=Math.floor(i/perB), ri=i%perB; const ix=P.colours.findIndex(c=>c.thread===b.thread);
       const rgb=b.rgb||(ix>=0?P.colours[ix].rgb:null);   // v77: line in the thread's colour
       row(M+ci*(colW+GAP),yy+ri*bh,{nr:ix>=0?ix+1:'',rgb,thread:b.thread,small:b.strands>1?'2 strands':'1 strand',line:rgb||b.line||'#1d1a1f',strands:b.strands,stitches:b.stitches,metres:b.metres}); });
+    rh=rh0; yy+=perB*bh+7;
+  }
+  if(nK){   // v82: French knots
+    sec('French knots · Noduri franceze · Французские узелки',yy+1); yy+=4; const bh=Math.max(rh,5.4), perK=Math.ceil(nK/cols);
+    const rh0=rh; rh=bh;
+    KN.forEach((k,i)=>{ const ci=Math.floor(i/perK), ri=i%perK; const ix=P.colours.findIndex(c=>c.thread===k.thread);
+      const rgb=k.rgb||(ix>=0?P.colours[ix].rgb:null)||'#1d1a1f';
+      row(M+ci*(colW+GAP),yy+ri*bh,{nr:ix>=0?ix+1:'',rgb,thread:k.thread,small:k.strands>1?'2 strands':'1 strand',knot:rgb,stitches:k.stitches,metres:k.metres}); });
     rh=rh0;
   }
   // bottom strip: the Icon strip from layout I (v67)
