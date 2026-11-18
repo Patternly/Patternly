@@ -4,7 +4,7 @@
   Proprietary software: no part of this code may be copied, modified, reused or
   redistributed without written permission from UK Luca-S LTD.
   Third-party parts keep their own licences (noted where they appear).
-  Studio v82
+  Studio v83
 -->
 <html lang="en">
 <head>
@@ -237,6 +237,9 @@
   .ks-f .ks-role{margin-left:auto;font-size:.7rem;font-weight:700;color:var(--red);white-space:nowrap}
   .ks-f button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:.9rem;padding:0 .2rem}
   .ks-facts{display:flex;flex-wrap:wrap;gap:.45rem;margin-bottom:.6rem}
+  .ks-edcols{margin:.2rem 0 1rem;border:1px solid var(--line,#e6dde2);border-radius:12px;padding:.6rem .8rem}.ks-edcols summary{cursor:pointer;font-weight:700;font-size:.88rem}
+  .ks-edrow{display:flex;align-items:center;gap:.5rem;padding:.25rem 0;border-bottom:1px solid var(--line,#eee2e5);font-size:.82rem}.ks-edrow .sw{width:22px;height:16px;border-radius:4px;border:1px solid rgba(0,0,0,.25);flex:none}
+  .ks-edrow .nr{width:2.2rem;color:var(--muted)}.ks-edrow .og{width:4.5rem;color:var(--muted)}.ks-edrow input{width:8rem;padding:.3rem .5rem;font-size:.85rem}.ks-edrow select{padding:.3rem;font-size:.85rem}.ks-edsec{font-weight:700;font-size:.78rem;margin:.7rem 0 .2rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
   .ks-facts span{background:var(--bg);border:1px solid var(--border);border-radius:999px;padding:.25rem .7rem;font-size:.78rem;color:var(--muted)}
   .ks-facts b{color:var(--ink)}
   .ks-legwrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#f2eef0;aspect-ratio:210/297;max-width:760px}
@@ -936,6 +939,7 @@
         <div id="ks-read" style="display:none;margin-top:1rem">
           <div id="ks-facts" class="ks-facts"></div>
           <div id="ks-warn"></div>
+          <details id="ks-edcols" class="ks-edcols"><summary>Change thread names and strands</summary><div class="note" style="margin:.4rem 0">Type a new name or pick the strands; the legend and cover change at once. Press Save to keep the changes. Empty the box to go back to the name from the files.</div><div id="ks-edrows"></div></details>
           <div id="ks-leg" style="display:none">
             <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin:.2rem 0 .6rem">
               <h3 style="margin:0;font-size:.95rem">Legend preview <span id="ks-lay-name" style="font-weight:500;color:var(--muted)"></span></h3>
@@ -4363,6 +4367,7 @@ function alertMsg(m){ const s=$('fb-sum'); if(s){ s.textContent=m; s.style.color
    XSPro writes RTF: KeyColor.rtf (English key: fabric, size, symbols, strands, backstitch lines),
    Key<SKU>.rtf (Russian key with a colour swatch per thread), "Nota <SKU> Calcul.rtf" (stitches and
    metres per thread) and <SKU>.bmp (stitched preview, 10 px a stitch; saved as PNG to keep it small). */
+let KS_EDITS={c:{},b:{},k:{}};   // v83: hand changes to thread names / strands, saved with the kit
 let KS_ITEMS=[], KS_BOUND=false, KS_CUR=null, KS_PIC=null, KS_XS=[], KS_PARSED=null, KS_FONT=false;
 const ksEsc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 const ksSize=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round((n||0)/1024))+' KB';
@@ -4558,6 +4563,28 @@ async function ksRead(){
   if(P.sku&&!$('ks-sku').value.trim()) $('ks-sku').value=P.sku.toUpperCase().replace(/[^A-Z0-9]/g,'');
   ksRenderRead(P,warn);
 }
+// v83: the colour key with the team's hand changes on top (names, strands). A colour rename also renames its backstitch / knot rows
+function ksP(){
+  const B=KS_PARSED||(KS_CUR&&KS_CUR.parsed); if(!B) return B;
+  const P=JSON.parse(JSON.stringify(B)), E=KS_EDITS||{};
+  const ap=(r,e,ec)=>{ const x=e&&e[r.thread], y=ec&&ec[r.thread]; const n=(x&&x.n)||(y&&y.n); if(x&&x.s) r.strands=x.s; if(n) r.thread=n; };
+  (P.colours||[]).forEach(r=>ap(r,E.c)); (P.back||[]).forEach(r=>ap(r,E.b,E.c)); (P.knots||[]).forEach(r=>ap(r,E.k,E.c));
+  return P;
+}
+let KS_ED_T=0;
+function ksEditTable(P){
+  const box=$('ks-edrows'); if(!box||!P) return;
+  const secs=[['c','Cross stitch',P.colours||[]],['b','Backstitch',P.back||[]],['k','French knots',P.knots||[]]];
+  box.innerHTML=secs.filter(s=>s[2].length).map(([k,t,list])=>'<div class="ks-edsec">'+t+'</div>'+list.map((r,i)=>{ const e=(KS_EDITS[k]||{})[r.thread]||{}, st=e.s||r.strands||2;
+    return '<div class="ks-edrow"><span class="nr">'+(k==='c'?i+1:'')+'</span><span class="sw" style="background:'+ksEsc(r.rgb||'#ddd')+'"></span><span class="og">'+ksEsc(r.thread)+'</span>'+
+      '<input type="text" maxlength="40" data-s="'+k+'" data-t="'+ksEsc(r.thread)+'" value="'+ksEsc(e.n||'')+'" placeholder="'+ksEsc(r.thread)+'" aria-label="Thread name for '+ksEsc(r.thread)+'">'+
+      '<select data-s="'+k+'" data-t="'+ksEsc(r.thread)+'" aria-label="Strands">'+[1,2,3,4,5,6].map(n=>'<option value="'+n+'"'+(n===st?' selected':'')+'>'+n+(n===1?' strand':' strands')+'</option>').join('')+'</select></div>'; }).join('')).join('');
+  const upd=(el,f)=>{ const s=el.dataset.s, t=el.dataset.t; KS_EDITS[s]=KS_EDITS[s]||{}; const e=KS_EDITS[s][t]||{}; f(e); if(!e.n) delete e.n; if(!e.s) delete e.s;
+    if(e.n||e.s) KS_EDITS[s][t]=e; else delete KS_EDITS[s][t]; clearTimeout(KS_ED_T); KS_ED_T=setTimeout(()=>ksLegendRender(),500); };
+  box.querySelectorAll('input').forEach(el=>el.oninput=()=>upd(el,e=>{ e.n=el.value.trim(); }));
+  box.querySelectorAll('select').forEach(el=>el.onchange=()=>{ const base=secs.find(x=>x[0]===el.dataset.s)[2].find(r=>r.thread===el.dataset.t); upd(el,e=>{ const v=+el.value; e.s=(base&&(base.strands||2)===v)?0:v; }); });
+  $('ks-edcols').open=Object.keys(KS_EDITS).some(k=>Object.keys(KS_EDITS[k]||{}).length);
+}
 function ksRenderRead(P,warn){
   ksFont(); $('ks-read').style.display='';
   const f=[];
@@ -4568,6 +4595,7 @@ function ksRenderRead(P,warn){
   const tot=P.colours.reduce((a,c)=>a+(c.stitches||0),0); if(tot) f.push('<b>'+tot.toLocaleString('en-GB')+'</b> cross stitches');
   $('ks-facts').innerHTML=f.map(x=>'<span>'+x+'</span>').join('');
   $('ks-warn').innerHTML=(warn||[]).map(w=>'<div class="ks-w">'+ksEsc(w)+'</div>').join('');
+  ksEditTable(P);
   ksLegendRender();   // v57: the legend itself is the preview
 }
 function ksSetPic(file){
@@ -4626,6 +4654,7 @@ function ksRenderList(){
 function ksShowList(){ $('ks-edit').style.display='none'; $('ks-list-card').style.display=''; ksRenderList(); }
 function ksOpen(it){
   KS_CUR=it||null; KS_PIC=null; KS_XS=[]; KS_PARSED=it&&it.parsed||null;
+  KS_EDITS=Object.assign({c:{},b:{},k:{}},JSON.parse(JSON.stringify((it&&it.edits)||{})));
   $('ks-list-card').style.display='none'; $('ks-edit').style.display='';
   $('ks-title').textContent=it?(it.sku+' · '+(it.name||'')):'New kit';
   $('ks-sku').value=it?it.sku:''; $('ks-sku').disabled=!!it; $('ks-name').value=it?it.name||'':'';
@@ -4668,7 +4697,7 @@ async function ksSave(){
   if(!KS_CUR&&KS_ITEMS.some(x=>x.sku===sku)){ ksMsg('There is already a kit '+ksEsc(sku)+'. Open it from the list to add files.','err'); return; }
   const btn=$('ks-save'); btn.disabled=true;
   const fields={nameRo:$('ks-ro').value,nameRu:$('ks-ru').value,designer:$('ks-designer').value,skill:$('ks-skill').value,ean:$('ks-ean').value.replace(/\s+/g,''),notes:$('ks-notes').value,layout:KS_LAYOUT,cover:KS_COVER,covcol:KS_COVCOL,legcol:KS_LEGCOL};
-  const body={sku,name,fields}; if(KS_PARSED&&KS_XS.some(x=>x.raw)) body.parsed=KS_PARSED;
+  const body={sku,name,fields,edits:KS_EDITS}; if(KS_PARSED) body.parsed=KS_PARSED;
   const up=[]; if(KS_PIC) up.push({blob:KS_PIC,name:KS_PIC.name,type:KS_PIC.type||'application/octet-stream',role:'picture'}); KS_XS.forEach(x=>up.push({blob:x.blob,name:x.name,type:x.type,role:x.role}));
   try{
     ksMsg('Saving…');
@@ -5686,7 +5715,7 @@ function ksPicTone(pic){ return new Promise(res=>{ const im=new Image(); im.onlo
   const d=x.getImageData(0,0,24,24).data; let r=0,g=0,b=0,n=0; for(let i=0;i<d.length;i+=4){ r+=d[i]; g+=d[i+1]; b+=d[i+2]; n++; } r/=n; g/=n; b/=n;
   const l=.299*r+.587*g+.114*b, k=Math.min(1,62/Math.max(1,l)); res([Math.round(r*k),Math.round(g*k),Math.round(b*k)]); }catch(e){ res(null); } }; im.onerror=()=>res(null); im.src=pic.url; }); }
 async function ksCoverRender(){
-  const P=KS_PARSED||(KS_CUR&&KS_CUR.parsed); const box=$('ks-cov');
+  const P=ksP(); const box=$('ks-cov');
   if(!P||!P.colours||!P.colours.length){ box.style.display='none'; return; }
   box.style.display=''; const tok=++KS_COV_BUSY; ksCoverUi();
   $('ks-cov-dl').disabled=true; $('ks-cov-tif').disabled=true;
@@ -5937,7 +5966,7 @@ function ksInstrFig(K,n,T,s,C){ const d=K.doc;
 
 let KS_INS_DOC=null, KS_INS_URL=null, KS_INS_BUSY=0;
 async function ksInstrRender(){
-  const P=KS_PARSED||(KS_CUR&&KS_CUR.parsed); const box=$('ks-ins'); if(!box) return;
+  const P=ksP(); const box=$('ks-ins'); if(!box) return;
   if(!P||!P.colours||!P.colours.length){ box.style.display='none'; return; }
   box.style.display=''; const tok=++KS_INS_BUSY; $('ks-ins-dl').disabled=true;
   try{
@@ -6254,7 +6283,7 @@ async function ksAmzMake(P,meta){
 }
 let KS_AMZ=[], KS_AMZ_BUSY=0;
 async function ksAmzRender(){
-  const P=KS_PARSED||(KS_CUR&&KS_CUR.parsed); const box=$('ks-amz'); if(!box) return;
+  const P=ksP(); const box=$('ks-amz'); if(!box) return;
   if(!P||!P.colours||!P.colours.length){ box.style.display='none'; return; }
   box.style.display=''; const tok=++KS_AMZ_BUSY; $('ks-amz-all').disabled=true; $('ks-amz-msg').textContent='Making the Amazon images…';
   try{
@@ -6281,7 +6310,7 @@ function ksLayoutUi(){ if(!$('ks-lay')) return;   // v65: modern dropdown + colo
   const c=KS_LAYOUTS.find(x=>x[0]===KS_LAYOUT); $('ks-lay-name').textContent=c?'· '+c[0]+' '+c[1]:'';
 }
 async function ksLegendRender(onlyLegend){
-  const P=KS_PARSED||(KS_CUR&&KS_CUR.parsed); const box=$('ks-leg');
+  const P=ksP(); const box=$('ks-leg');
   if(!P||!P.colours||!P.colours.length){ box.style.display='none'; return; }
   box.style.display=''; const tok=++KS_LEG_BUSY;
   $('ks-leg-msg').textContent='Making the legend…'; $('ks-leg-dl').disabled=true; $('ks-leg-tif').disabled=true;

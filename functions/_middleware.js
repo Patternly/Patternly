@@ -15,7 +15,7 @@
 
 // Bump on every edit. /whoami reports it, so you can see at a glance whether
 // the deploy that is actually running is the file you think you pushed.
-const MW_VERSION = "v127";
+const MW_VERSION = "v128";
 
 // v107: the help sheet the in-app AI assistant answers from (/help/chat). Keep it
 // to facts that are true in the live app; update it when a feature changes.
@@ -2217,10 +2217,28 @@ async function handlePartnerApi(request, url, env) {
         if (js.length > 200000) return partnerJson(400, { ok:false, error:"The colour key is too large." });
         parsed = b.parsed || null;
       }
+      // v128: hand changes to the colour key (thread name, strands) per section c/b/k, keyed by the thread number read from the files
+      let edits = undefined;
+      if (b.edits !== undefined) {
+        edits = {}; let cnt = 0;
+        for (const sec of ["c", "b", "k"]) {
+          const src = b.edits && b.edits[sec]; if (!src || typeof src !== "object") continue;
+          const o = {};
+          for (const [k0, v] of Object.entries(src)) {
+            if (++cnt > 400) break;
+            const kk = ksClean(k0, 24); if (!kk || !v || typeof v !== "object") continue;
+            const r = {}; const nm = ksClean(v.n, 40); if (nm) r.n = nm;
+            const st = Math.round(+v.s); if (st >= 1 && st <= 6) r.s = st;
+            if (r.n || r.s) o[kk] = r;
+          }
+          if (Object.keys(o).length) edits[sec] = o;
+        }
+      }
       const old = await ksGet(sku);
       const rec = old || { sku, files: [], created: Date.now() };
       rec.name = name; rec.fields = fields;
       if (parsed !== undefined) rec.parsed = parsed;
+      if (edits !== undefined) rec.edits = edits;
       rec.updated = Date.now(); rec.by = who;
       await ksPut(rec);
       return partnerJson(200, { ok:true, item: rec, created: !old });
