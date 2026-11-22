@@ -5497,7 +5497,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v757';
+window.PATTERNLY_BUILD='v758';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -33289,7 +33289,7 @@ function goHomeGuarded(){ pjGuardedLeave(goHome); }
       return '<button data-tab="'+id+'" aria-label="'+label+'"><svg viewBox="0 0 24 24">'+ICON[id]+'</svg><span data-i18n="nav.'+id+'">'+label+'</span></button>';
     }
     var nav=document.createElement('div'); nav.id='ptly-appnav';
-    nav.innerHTML='<div class="pn-row">'+tabBtn('home','Home')+tabBtn('editor','Editor')+tabBtn('tracker','Tracker')+tabBtn('account','More')+'</div>';
+    nav.innerHTML='<div class="pn-row">'+tabBtn('home','Home')+tabBtn('tracker','Tracker')+tabBtn('editor','Editor')+tabBtn('account','More')+'</div>';
     document.body.appendChild(nav);
     try{ if(window.plApplyLang) plApplyLang(); }catch(e){}
     // #3: the bottom nav tracks the scroll 1:1 — it moves at the same speed as
@@ -44410,6 +44410,58 @@ body.dark.ptly-appui.pks-scan :is(.pls-legwrap,.pls-legtable,.pls-legtabs button
       var al=window.plApplyLang; window.plApplyLang=function(){ var r=al.apply(this,arguments); try{ render(); }catch(e){} return r; }; window.plApplyLang._pks=1;
     }
     state();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
+  else setTimeout(init,0);
+})();
+</script>
+<style id="pnv-style">
+/* v758 – app only: floating bottom menu (Cristian, 22 Nov: "like Shopify's"). The four tabs sit in a
+   rounded floating bar with icons only (labels stay as aria-labels), the active tab in a soft pill, and the
+   help chat is a round button beside the bar instead of the floating chat bubble over the page.
+   Tab order is Home, Tracker, Editor, More (Cristian: Tracker before Editor). */
+body.ptly-appui #ptly-appnav{left:0;right:0;background:none!important;border-top:0!important;box-shadow:none!important;
+  display:flex;align-items:center;gap:10px;padding:0 14px calc(var(--sa-bottom,0px) + 10px);pointer-events:none}
+body.ptly-appui #ptly-appnav::before{content:'';position:absolute;left:0;right:0;bottom:0;height:calc(100% + 18px);z-index:-1;pointer-events:none;
+  background:linear-gradient(to top,rgba(253,249,245,.92) 35%,rgba(253,249,245,0))}
+body.dark.ptly-appui #ptly-appnav::before{background:linear-gradient(to top,rgba(23,18,32,.92) 35%,rgba(23,18,32,0))}
+body.ptly-appui #ptly-appnav > *{pointer-events:auto}
+body.ptly-appui #ptly-appnav .pn-row{flex:1;min-width:0;height:62px;display:flex;align-items:center;gap:2px;padding:0 7px;border-radius:999px;
+  background:#fff;border:1px solid #eee2e5;box-shadow:0 6px 22px rgba(43,34,38,.10),0 1px 3px rgba(43,34,38,.06)}
+body.ptly-appui #ptly-appnav .pn-row button{height:48px;padding:0;border-radius:999px;justify-content:center;color:#6f6168;gap:0;transition:background .15s,color .15s}
+body.ptly-appui #ptly-appnav .pn-row button span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+body.ptly-appui #ptly-appnav .pn-row button svg{width:25px;height:25px;stroke-width:1.9}
+body.ptly-appui #ptly-appnav .pn-row button.active{background:#f3ecee;color:#1a1520}
+body.ptly-appui #ptly-appnav .pn-row button.active svg{stroke-width:2.3}
+body.ptly-appui #ptly-appnav .pn-chat{flex:none;width:62px;height:62px;border-radius:50%;border:1px solid #eee2e5;background:#fff;color:#8B1A2B;
+  display:grid;place-items:center;cursor:pointer;padding:0;box-shadow:0 6px 22px rgba(43,34,38,.10),0 1px 3px rgba(43,34,38,.06);-webkit-tap-highlight-color:transparent}
+body.ptly-appui #ptly-appnav .pn-chat svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+body.ptly-appui #ptly-appnav .pn-chat:active,body.ptly-appui #ptly-appnav .pn-row button:active{transform:scale(.95)}
+body.dark.ptly-appui #ptly-appnav .pn-row,body.dark.ptly-appui #ptly-appnav .pn-chat{background:#221c30;border-color:#37303f;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+body.dark.ptly-appui #ptly-appnav .pn-row button{color:#b6abc2}
+body.dark.ptly-appui #ptly-appnav .pn-row button.active{background:#352c42;color:#f1e9f3}
+body.dark.ptly-appui #ptly-appnav .pn-chat{color:#f0b3c0}
+/* the chat lives in the menu now, so the floating bubble is not needed in the app */
+body.ptly-appui #plfb-fab{display:none!important}
+</style>
+<script id="pnv-src">
+/* v758 – app only: adds the help chat button to the bottom menu (see pnv-style). */
+(function(){
+  function add(){
+    var nav=document.getElementById('ptly-appnav'); if(!nav) return false;
+    if(nav.querySelector('.pn-chat')) return true;
+    var b=document.createElement('button'); b.type='button'; b.className='pn-chat';
+    var t=(window.plT&&plT('fb.entry'))||''; if(!t||t==='fb.entry') t='Help & suggestions';
+    b.setAttribute('aria-label',t); b.title=t;
+    b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"/><path d="M8.5 10.5h7M8.5 13.5h4.5"/></svg>';
+    b.onclick=function(){ try{ navigator.vibrate&&navigator.vibrate(8); }catch(e){} if(typeof plFeedbackOpen==='function') plFeedbackOpen('nav'); };
+    nav.appendChild(b);
+    return true;
+  }
+  function init(){
+    if(!document.body.classList.contains('ptly-appui')) return;
+    if(add()) return;
+    var n=0, iv=setInterval(function(){ if(add()||++n>40) clearInterval(iv); },250);
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
   else setTimeout(init,0);
