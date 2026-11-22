@@ -5497,7 +5497,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v756';
+window.PATTERNLY_BUILD='v757';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -44197,6 +44197,222 @@ body.ptly-appui #pstash .st-x{display:grid;place-items:center;color:var(--pap-mu
     var n=0, iv=setInterval(function(){ run(); if(++n>20) clearInterval(iv); },500);
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start); else start();
+})();
+</script>
+<style id="pks-style">
+/* v757 – app only (body.ptly-appui): the Tracker's three "add a pattern" pages in the app design.
+   Kit patterns (Luca-S + partner catalogue), Upload a chart file and Scan a paper chart get one
+   compact header (round back button + serif title + one short line), 18px cards, icon/number chips,
+   pill controls and shorter texts. Ids, handlers and the website layout are unchanged.
+   body.pks-on + pks-kits / pks-up / pks-scan are set by pks-src from what is visible. */
+#pks-head{display:none}
+body.ptly-appui.pks-on #pks-head{display:flex}
+body.ptly-appui.pks-on #tracker-page .calc-title,
+body.ptly-appui.pks-on #tracker-page .calc-sub,
+body.ptly-appui.pks-on #trk-kits-back,
+body.ptly-appui.pks-on #trk-upload-back,
+body.ptly-appui.pks-on #trk-back-home,
+body.ptly-appui.pks-on #trk-source-back,
+body.ptly-appui.pks-on #trk-scan .pls-head{display:none!important}
+#pks-head{align-items:flex-start;gap:12px;max-width:640px;margin:.4rem auto 16px;font-family:'DM Sans',system-ui,sans-serif}
+#pks-head .bk{flex:none;width:38px;height:38px;border-radius:50%;border:1px solid var(--pap-line);background:var(--pap-card);color:var(--pap-ink);display:grid;place-items:center;cursor:pointer;padding:0;margin-top:1px}
+#pks-head .bk svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#pks-head h1{font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:1.6rem;line-height:1.15;margin:3px 0 0;color:var(--pap-ink)}
+#pks-head h1 .beta{font-family:'DM Sans',system-ui,sans-serif;font-size:.6rem;font-weight:700;letter-spacing:.04em;color:#6b4fb0;background:#f0ebfc;border-radius:6px;padding:2px 6px;margin-left:8px;vertical-align:5px}
+body.dark #pks-head h1 .beta{background:#2b2338;color:#c4b0f0}
+#pks-head p{margin:3px 0 0;font-size:.86rem;line-height:1.4;color:var(--pap-mute)}
+#pks-head p:empty{display:none}
+
+/* ── Kit patterns (catalogue) ── */
+body.ptly-appui.pks-kits #trk-kits{max-width:640px;margin:0 auto}
+body.ptly-appui.pks-kits #trk-kits > div:first-of-type{gap:8px!important;margin-bottom:10px!important}
+body.ptly-appui.pks-kits #trk-kits-search{flex:1 1 100%!important;order:-1;height:44px!important;border-radius:999px!important;border:1px solid var(--pap-line)!important;background:var(--pap-card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239a8890' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='6.5'/%3E%3Cpath d='M16 16l4.5 4.5'/%3E%3C/svg%3E") no-repeat 14px 50%/18px!important;padding:0 14px 0 42px!important;font-size:.92rem!important;color:var(--pap-ink)!important;box-shadow:none!important}
+body.ptly-appui.pks-kits #trk-kits-count{flex:1;font-size:.8rem!important;color:var(--pap-mute)!important}
+body.ptly-appui.pks-kits #trk-kits-sort{height:34px!important;border-radius:999px!important;border:1px solid var(--pap-line)!important;background-color:var(--pap-card)!important;color:var(--pap-ink)!important;font-size:.8rem!important;font-weight:700;padding:0 .8rem!important}
+body.ptly-appui.pks-kits #trk-view-catalogue{border:1px solid var(--pap-line);border-radius:999px;background:var(--pap-card)}
+body.ptly-appui.pks-kits #trk-view-catalogue button{background:none;color:var(--pap-mute);padding:.42rem .62rem}
+body.ptly-appui.pks-kits #trk-view-catalogue button.active{background:#1a1520;color:#fff}
+body.dark.ptly-appui.pks-kits #trk-view-catalogue button.active{background:#e8e3ee;color:#171220}
+body.ptly-appui.pks-kits #trk-kits-brands{gap:6px!important;margin:0 0 12px!important}
+body.ptly-appui.pks-kits #trk-kits-brands button{border:1px solid var(--pap-line)!important;background:var(--pap-card)!important;color:var(--pap-mute)!important;font-size:.8rem!important;padding:.36rem .85rem!important}
+body.ptly-appui.pks-kits #trk-kits-brands button.pks-on{background:#1a1520!important;border-color:#1a1520!important;color:#fff!important}
+body.dark.ptly-appui.pks-kits #trk-kits-brands button.pks-on{background:#e8e3ee!important;border-color:#e8e3ee!important;color:#171220!important}
+body.ptly-appui.pks-kits #trk-kits-grid{gap:10px!important;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))!important}
+body.ptly-appui.pks-kits .cat-card{background:var(--pap-card)!important;border:1px solid var(--pap-line)!important;border-radius:18px!important;box-shadow:none!important;overflow:hidden}
+body.ptly-appui.pks-kits .cat-thumb{background:var(--pap-soft)!important}
+body.ptly-appui.pks-kits .cat-body{padding:.6rem .75rem .7rem!important;color:var(--pap-ink)}
+body.ptly-appui.pks-kits .cat-body > div:first-child{font-size:.9rem!important;line-height:1.3!important}
+body.ptly-appui.pks-kits .cat-body > div + div{font-size:.72rem!important;color:var(--pap-mute)!important;margin-top:.15rem!important}
+body.ptly-appui.pks-kits .cat-body > div[style*="lp-red"]{color:var(--pap-acc)!important;font-weight:700}
+body.ptly-appui.pks-kits #trk-kits-grid.cat-list{grid-template-columns:1fr!important;gap:8px!important}
+body.ptly-appui.pks-kits #trk-kits-grid.cat-list .cat-thumb{border-radius:12px!important;margin:8px 0 8px 8px!important}
+body.ptly-appui.pks-kits #trk-kits-status:empty{display:none}
+body.ptly-appui.pks-kits #trk-kits-status{font-size:.86rem!important;color:var(--pap-mute)!important}
+body.ptly-appui.pks-kits #trk-kits-status a{color:var(--pap-acc)!important}
+
+/* ── Upload a chart file ── */
+body.ptly-appui.pks-up #trk-upload > .trk-cards:not(#trk-source):not(#trk-newpat){flex-direction:column;gap:10px;margin:0 auto;max-width:640px}
+body.ptly-appui.pks-up :is(#trk-chart-card,#trk-legend-card){position:relative;min-width:0;min-height:0;display:block;text-align:left;padding:16px 16px 16px 66px;cursor:pointer}
+body.ptly-appui.pks-up :is(#trk-chart-card,#trk-legend-card):hover{background:var(--pap-card)!important}
+body.ptly-appui.pks-up :is(#trk-chart-card,#trk-legend-card).done{border-color:#7dbb93!important}
+body.dark.ptly-appui.pks-up :is(#trk-chart-card,#trk-legend-card).done{border-color:#3f7a55!important}
+body.ptly-appui.pks-up .trk-card-icon{display:none}
+body.ptly-appui.pks-up .pks-num{position:absolute;left:16px;top:16px;width:36px;height:36px;border-radius:11px;background:var(--pap-chip);color:var(--pap-acc);display:grid;place-items:center;font-weight:800;font-size:.95rem}
+body.ptly-appui.pks-up .done > .pks-num{background:#e4f3ea;color:#2e7d4f;font-size:0}
+body.dark.ptly-appui.pks-up .done > .pks-num{background:#1f3328;color:#8fd1a8}
+body.ptly-appui.pks-up .done > .pks-num::after{content:'';width:18px;height:18px;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E") center/contain no-repeat}
+body.ptly-appui.pks-up :is(#trk-chart-card,#trk-legend-card) h3{margin:0 0 2px!important;font-size:1rem!important}
+body.ptly-appui.pks-up :is(#trk-chart-card,#trk-legend-card) > p{max-width:none;margin:0;font-size:.84rem;line-height:1.4;color:var(--pap-mute)}
+body.ptly-appui.pks-up #trk-chart-card > p:not(#trk-chart-desc){display:none}
+body.ptly-appui.pks-up .pks-row{display:flex!important;align-items:center;justify-content:flex-start!important;gap:8px;margin:10px 0 0!important;font-size:.8rem!important;font-weight:700;color:var(--pap-mute)!important;cursor:default}
+body.ptly-appui.pks-up .pks-row label{font-size:.8rem;color:var(--pap-mute)}
+body.ptly-appui.pks-up .pks-row select{height:34px;width:auto!important;min-width:0;border-radius:999px!important;border:1px solid var(--pap-line)!important;background-color:var(--pap-soft)!important;color:var(--pap-ink)!important;font-size:.84rem!important;font-weight:700;padding:0 .8rem!important}
+body.ptly-appui.pks-up #trk-convert-btn{display:inline-block;border:0!important;background:none!important;padding:0!important;margin:10px 0 0!important;font-size:.82rem!important;font-weight:700;color:var(--pap-acc)!important}
+body.ptly-appui.pks-up .trk-status:empty{display:none}
+body.ptly-appui.pks-up .trk-status{margin-top:8px;font-size:.8rem}
+body.ptly-appui.pks-up .trk-clear{margin-top:6px;font-size:.78rem;text-decoration:none}
+body.ptly-appui.pks-up :is(#trk-manual-btn,#trk-skip-btn,#trk-exact-continue){width:100%;margin:10px 0 0!important;border-radius:999px!important;padding:.62rem .9rem!important;font-size:.84rem!important;border:1px solid var(--pap-line)!important;background:var(--pap-card)!important;color:var(--pap-ink)!important}
+body.ptly-appui.pks-up #trk-manual-btn{margin-top:14px!important;color:var(--pap-acc)!important}
+body.ptly-appui.pks-up #trk-skip-btn{margin-top:8px!important}
+body.ptly-appui.pks-up #trk-exact-continue{background:var(--pap-acc)!important;border-color:var(--pap-acc)!important;color:#fff!important}
+body.dark.ptly-appui.pks-up #trk-exact-continue{color:#171220!important}
+body.ptly-appui.pks-up .trk-advisory{display:none!important}
+#pks-tip{display:none}
+body.ptly-appui.pks-up #pks-tip{display:flex;gap:10px;align-items:flex-start;max-width:640px;margin:2px auto 0;padding:2px 4px;font-size:.8rem;line-height:1.45;color:var(--pap-mute)}
+#pks-tip svg{flex:none;width:17px;height:17px;margin-top:1px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── Scan a paper chart ── */
+body.ptly-appui.pks-scan #trk-scan{max-width:640px;margin:0 auto 1.5rem;padding:0}
+body.ptly-appui.pks-scan .pls-card{gap:12px;padding:16px;margin:0 0 10px}
+body.ptly-appui.pks-scan .pls-step{width:36px;height:36px;border-radius:11px;background:var(--pap-chip);color:var(--pap-acc);font-size:.95rem}
+body.ptly-appui.pks-scan .pls-body h3{margin:7px 0 2px!important}
+body.ptly-appui.pks-scan .pls-body > p{font-size:.84rem;color:var(--pap-mute);margin:0 0 10px}
+body.ptly-appui.pks-scan .pls-size input{width:88px;height:42px}
+body.ptly-appui.pks-scan .pls-unit{color:var(--pap-mute)!important}
+body.ptly-appui.pks-scan .pls-brand{color:var(--pap-mute);font-weight:700;font-size:.8rem}
+body.ptly-appui.pks-scan .pls-brand select{height:34px;border-radius:999px!important;border:1px solid var(--pap-line)!important;background-color:var(--pap-soft)!important;font-weight:700;font-size:.84rem!important;padding:0 .8rem!important}
+body.ptly-appui.pks-scan .pls-pages{grid-template-columns:1fr 1fr;gap:8px}
+body.ptly-appui.pks-scan .pls-add{flex-direction:row;gap:8px;min-height:48px;border-radius:999px;border:1px solid var(--pap-line);background:var(--pap-soft);color:var(--pap-ink);font-size:.84rem;padding:0 12px}
+body.ptly-appui.pks-scan .pls-add:first-of-type{background:var(--pap-acc);border-color:var(--pap-acc);color:#fff}
+body.dark.ptly-appui.pks-scan .pls-add:first-of-type{color:#171220}
+body.ptly-appui.pks-scan .pls-add span{font-size:1.1rem;line-height:0}
+body.ptly-appui.pks-scan .pls-add span svg{width:19px;height:19px}
+body.ptly-appui.pks-scan .pls-page{border-radius:14px;border:1px solid var(--pap-line);background:var(--pap-soft)}
+body.ptly-appui.pks-scan .pls-meta{color:var(--pap-ink)}
+body.ptly-appui.pks-scan .pls-actions{margin:4px 0 0;gap:8px}
+body.ptly-appui.pks-scan #pls-convert{width:100%;border-radius:999px!important;padding:.85rem 1.2rem!important;background:var(--pap-acc)!important;border:0!important;color:#fff!important;font-size:.95rem;font-weight:700}
+body.dark.ptly-appui.pks-scan #pls-convert{color:#171220!important}
+body.ptly-appui.pks-scan #pls-convert:disabled{opacity:.4}
+body.ptly-appui.pks-scan .pls-note,body.ptly-appui.pks-scan .pls-status{font-size:.82rem;color:var(--pap-mute)}
+body.dark.ptly-appui.pks-scan :is(.pls-legwrap,.pls-legtable,.pls-legtabs button){background:#1a1424;border-color:var(--pap-line);color:var(--pap-ink)}
+</style>
+<script id="pks-src">
+/* v757 – app only: header, short texts and state classes for Kit patterns / Upload / Scan (see pks-style). */
+(function(){
+  var S={
+    en:{'pks.kits':'Kit patterns','pks.upsub':'Add the chart, then its colour key.','pks.scansub':'Photograph each page flat, in good light.','pks.chart':'Chart file','pks.key':'Colour key','pks.keysub':'PDF with the symbols and thread codes.','pks.fmt':'Format','pks.brand':'Thread brand','pks.conv':'Other file type? Convert it first','pks.tip':'Black-and-white pages read best. Always check against your printed chart.','pks.size':'Optional. It’s printed on the colour key.','pks.keyhint':'Photograph the colour key, every page of it.','pks.pages':'In reading order: left to right, row by row.','pks.back':'Back'},
+    fr:{'pks.kits':'Grilles des kits','pks.upsub':'Ajoutez la grille, puis sa légende.','pks.scansub':'Photographiez chaque page à plat, bien éclairée.','pks.chart':'Fichier de la grille','pks.key':'Légende','pks.keysub':'PDF avec les symboles et les codes de fils.','pks.fmt':'Format','pks.brand':'Marque de fil','pks.conv':'Autre format ? Convertissez-le d’abord','pks.tip':'Les pages en noir et blanc se lisent le mieux. Vérifiez toujours avec votre grille imprimée.','pks.size':'Facultatif. Indiquée sur la légende.','pks.keyhint':'Photographiez la légende, toutes ses pages.','pks.pages':'Dans l’ordre de lecture : de gauche à droite, rangée par rangée.','pks.back':'Retour'},
+    de:{'pks.kits':'Kit-Vorlagen','pks.upsub':'Füge die Vorlage hinzu, dann ihren Farbschlüssel.','pks.scansub':'Fotografiere jede Seite flach und bei gutem Licht.','pks.chart':'Vorlagendatei','pks.key':'Farbschlüssel','pks.keysub':'PDF mit Symbolen und Garnnummern.','pks.fmt':'Format','pks.brand':'Garnmarke','pks.conv':'Anderes Format? Erst umwandeln','pks.tip':'Schwarz-weiße Seiten werden am besten gelesen. Vergleiche immer mit deiner gedruckten Vorlage.','pks.size':'Optional. Steht auf dem Farbschlüssel.','pks.keyhint':'Fotografiere den Farbschlüssel, alle Seiten.','pks.pages':'In Lesereihenfolge: von links nach rechts, Reihe für Reihe.','pks.back':'Zurück'},
+    nl:{'pks.kits':'Kitpatronen','pks.upsub':'Voeg het patroon toe, daarna de kleurlegenda.','pks.scansub':'Fotografeer elke pagina plat en in goed licht.','pks.chart':'Patroonbestand','pks.key':'Kleurlegenda','pks.keysub':'PDF met de symbolen en garencodes.','pks.fmt':'Formaat','pks.brand':'Garenmerk','pks.conv':'Ander bestandstype? Eerst omzetten','pks.tip':'Zwart-witpagina’s worden het best gelezen. Controleer altijd met je geprinte patroon.','pks.size':'Optioneel. Staat op de kleurlegenda.','pks.keyhint':'Fotografeer de kleurlegenda, alle pagina’s.','pks.pages':'In leesvolgorde: van links naar rechts, rij voor rij.','pks.back':'Terug'},
+    ru:{'pks.kits':'Схемы наборов','pks.upsub':'Добавьте схему, затем её ключ.','pks.scansub':'Снимайте каждую страницу ровно, при хорошем свете.','pks.chart':'Файл схемы','pks.key':'Ключ цветов','pks.keysub':'PDF с символами и номерами ниток.','pks.fmt':'Формат','pks.brand':'Бренд ниток','pks.conv':'Другой формат? Сначала конвертируйте','pks.tip':'Лучше всего читаются чёрно-белые страницы. Всегда сверяйтесь с печатной схемой.','pks.size':'Необязательно. Указан в ключе.','pks.keyhint':'Сфотографируйте ключ, все его страницы.','pks.pages':'По порядку: слева направо, ряд за рядом.','pks.back':'Назад'},
+    uk:{'pks.kits':'Схеми наборів','pks.upsub':'Додайте схему, потім її ключ.','pks.scansub':'Знімайте кожну сторінку рівно, при гарному світлі.','pks.chart':'Файл схеми','pks.key':'Ключ кольорів','pks.keysub':'PDF із символами та номерами ниток.','pks.fmt':'Формат','pks.brand':'Бренд ниток','pks.conv':'Інший формат? Спершу конвертуйте','pks.tip':'Найкраще читаються чорно-білі сторінки. Завжди звіряйтеся з друкованою схемою.','pks.size':'Необов’язково. Вказано в ключі.','pks.keyhint':'Сфотографуйте ключ, усі його сторінки.','pks.pages':'По порядку: зліва направо, ряд за рядом.','pks.back':'Назад'},
+    es:{'pks.kits':'Patrones de kits','pks.upsub':'Añade el patrón y luego su leyenda.','pks.scansub':'Fotografía cada página plana y con buena luz.','pks.chart':'Archivo del patrón','pks.key':'Leyenda de colores','pks.keysub':'PDF con los símbolos y los códigos de hilo.','pks.fmt':'Formato','pks.brand':'Marca de hilo','pks.conv':'¿Otro formato? Conviértelo primero','pks.tip':'Las páginas en blanco y negro se leen mejor. Compara siempre con tu patrón impreso.','pks.size':'Opcional. Viene en la leyenda.','pks.keyhint':'Fotografía la leyenda, todas sus páginas.','pks.pages':'En orden de lectura: de izquierda a derecha, fila a fila.','pks.back':'Volver'},
+    it:{'pks.kits':'Schemi dei kit','pks.upsub':'Aggiungi lo schema, poi la sua legenda.','pks.scansub':'Fotografa ogni pagina in piano, con buona luce.','pks.chart':'File dello schema','pks.key':'Legenda colori','pks.keysub':'PDF con i simboli e i codici dei fili.','pks.fmt':'Formato','pks.brand':'Marca del filo','pks.conv':'Altro formato? Convertilo prima','pks.tip':'Le pagine in bianco e nero si leggono meglio. Controlla sempre con lo schema stampato.','pks.size':'Facoltativo. È indicata sulla legenda.','pks.keyhint':'Fotografa la legenda, tutte le pagine.','pks.pages':'In ordine di lettura: da sinistra a destra, riga per riga.','pks.back':'Indietro'}
+  };
+  try{ var T=window.PL_I18N; if(T) for(var l in S){ T[l]=T[l]||{}; for(var k in S[l]) T[l][k]=S[l][k]; } }catch(e){}
+  function tx(k){ var s=(window.plT?plT(k):null); if(!s||s===k) s=S.en[k]||k; return s; }
+  function $(id){ return document.getElementById(id); }
+  function app(){ return document.body.classList.contains('ptly-appui'); }
+  function shown(el){ return !!el && el.style.display!=='none'; }
+  function upCards(){ return document.querySelector('#trk-upload > .trk-cards:not(#trk-source):not(#trk-newpat)'); }
+  var head, tip, mode='';
+  function which(){
+    var b=document.body.classList;
+    if(!app() || !b.contains('tracker-mode') || shown($('trk-workspace'))) return '';
+    if(shown($('trk-scan'))) return 'scan';
+    if(shown($('trk-kits'))) return 'kits';
+    var ub=$('trk-upload-back'); if(ub && ub.style.display && ub.style.display!=='none' && shown(upCards())) return 'up';
+    return '';
+  }
+  function setText(el, t){ if(el && el.textContent!==t) el.textContent=t; }
+  function render(){
+    if(!head) return;
+    var h=head.querySelector('h1'), p=head.querySelector('p');
+    var t = mode==='kits' ? tx('pks.kits') : mode==='up' ? tx('tl.up') : mode==='scan' ? tx('tl.scan') : '';
+    if(t==='tl.up') t='Upload a chart file'; if(t==='tl.scan') t='Scan a paper chart';
+    var html=esc(t)+(mode==='scan'?'<span class="beta">BETA</span>':'');
+    if(h._h!==html){ h._h=html; h.innerHTML=html; }
+    setText(p, mode==='up' ? tx('pks.upsub') : mode==='scan' ? tx('pks.scansub') : '');
+    head.querySelector('.bk').setAttribute('aria-label', tx('pks.back'));
+    if(mode==='up') upTexts();
+    if(mode==='scan') scanTexts();
+  }
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  // Upload: number chips instead of emoji, shorter titles, labelled pill selects, short tip.
+  function upTexts(){
+    var cc=$('trk-chart-card'), lc=$('trk-legend-card'); if(!cc||!lc) return;
+    [[cc,'1','pks.chart'],[lc,'2','pks.key']].forEach(function(a){
+      var c=a[0];
+      if(!c.querySelector(':scope > .pks-num')){ var n=document.createElement('span'); n.className='pks-num'; n.textContent=a[1]; c.insertBefore(n, c.firstChild); }
+      setText(c.querySelector('h3'), tx(a[2]));
+    });
+    var lp=lc.querySelector(':scope > p'); setText(lp, tx('pks.keysub'));
+    var fmt=cc.querySelector('.trk-fmt'); if(fmt){ fmt.classList.add('pks-row'); setText(fmt.querySelector('label'), tx('pks.fmt')); }
+    var bs=$('trk-legend-brand'), br=bs && bs.parentNode;
+    if(br && br!==lc){
+      br.classList.add('pks-row');
+      var lab=br.querySelector('.pks-lbl');
+      if(!lab){ for(var i=br.childNodes.length-1;i>=0;i--){ var nd=br.childNodes[i]; if(nd.nodeType===3) br.removeChild(nd); } lab=document.createElement('span'); lab.className='pks-lbl'; br.insertBefore(lab, bs); }
+      setText(lab, tx('pks.brand'));
+    }
+    setText($('trk-convert-btn'), tx('pks.conv'));
+    var cards=upCards();
+    if(cards && !tip){ tip=document.createElement('div'); tip.id='pks-tip'; tip.innerHTML='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.01"/></svg><span></span>'; cards.parentNode.insertBefore(tip, cards.nextSibling); }
+    if(tip) setText(tip.querySelector('span'), tx('pks.tip'));
+  }
+  // Scan: the long hints become one short line each (matched by their own text, so nothing else moves).
+  function scanTexts(){
+    var root=$('trk-scan'); if(!root) return;
+    var map=[['sc.sizehint','pks.size'],['sc.keyintro','pks.keyhint'],['sc.pageshint','pks.pages']], full={};
+    map.forEach(function(m){ var s=window.plT?plT(m[0]):null; if(s && s!==m[0]) full[s.trim()]=m[1]; });
+    root.querySelectorAll('.pls-body > p').forEach(function(p){ var k=full[p.textContent.trim()]; if(k) p.textContent=tx(k); });
+  }
+  function state(){
+    var m=which();
+    var b=document.body.classList;
+    if(b.contains('pks-on')!==!!m) b.toggle('pks-on',!!m);
+    ['kits','up','scan'].forEach(function(x){ if(b.contains('pks-'+x)!==(m===x)) b.toggle('pks-'+x, m===x); });
+    if(m!==mode){ mode=m; if(m) try{ window.scrollTo(0,0); }catch(e){} }
+    if(m) render();
+  }
+  function init(){
+    if(!app()) return;
+    var up=$('trk-upload'); if(!up) return;
+    head=document.createElement('div'); head.id='pks-head';
+    head.innerHTML='<button type="button" class="bk"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><div><h1></h1><p></p></div>';
+    up.insertBefore(head, up.firstChild);
+    head.querySelector('.bk').onclick=function(){
+      var t = mode==='kits' ? $('trk-kits-back') : mode==='up' ? $('trk-upload-back') : mode==='scan' ? document.querySelector('#trk-scan .pls-back') : null;
+      if(t) t.click(); else { try{ trkShowHome(); }catch(e){} }
+    };
+    var mo=new MutationObserver(state);
+    mo.observe(document.body,{attributes:true,attributeFilter:['class']});
+    ['trk-workspace','trk-kits','trk-scan','trk-upload-back','trk-projects'].forEach(function(id){ var el=$(id); if(el) mo.observe(el,{attributes:true,attributeFilter:['style']}); });
+    var uc=upCards(); if(uc) mo.observe(uc,{attributes:true,attributeFilter:['style']});
+    // The scan page re-renders its whole card list on every change: shorten the hints each time.
+    // Brand chips are rebuilt on every search keystroke with inline colours: mark the chosen one for the app style.
+    var br=$('trk-kits-brands'); if(br) new MutationObserver(function(){
+      var cur='all'; try{ cur=trkCatBrand; }catch(e){}
+      br.querySelectorAll('button').forEach(function(b,i){ var on=(i===0?'all':b.textContent)===cur; if(b.classList.contains('pks-on')!==on) b.classList.toggle('pks-on',on); });
+    }).observe(br,{childList:true});
+    var sc=$('trk-scan'); if(sc) new MutationObserver(function(){ if(mode==='scan') scanTexts(); }).observe(sc,{childList:true});
+    if(typeof window.plApplyLang==='function' && !window.plApplyLang._pks){
+      var al=window.plApplyLang; window.plApplyLang=function(){ var r=al.apply(this,arguments); try{ render(); }catch(e){} return r; }; window.plApplyLang._pks=1;
+    }
+    state();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(init,0); });
+  else setTimeout(init,0);
 })();
 </script>
 </body>
