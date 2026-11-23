@@ -5497,7 +5497,7 @@ body:not(.app-mode) #qb-left-btn,body:not(.app-mode) #qb-right-btn{display:none!
 /* Build stamp — lets us confirm which editor build is actually running, since a
    Capacitor bundle or a CDN cache can serve a stale file. Check in the console,
    or type PATTERNLY_BUILD, or read it from the Account page footer. */
-window.PATTERNLY_BUILD='v758';
+window.PATTERNLY_BUILD='v759';
 function openBrandsPage(){
   let p=location.pathname;
   if(/\/[^/]*\.[^/]*$/.test(p)) p=p.replace(/\/[^/]*$/,'');   // drop a file name
@@ -43335,6 +43335,16 @@ body.dark #pwn .pwn-ic{background:#2f2638;color:#f0b3c0}
    nothing to tell, and nobody sees anything. */
 (function(){
   var NOTES=[
+    {id:'v759', notes:[
+      {icon:'sparkle',
+       t:{"en": "A new bottom menu", "fr": "Un nouveau menu en bas", "de": "Neues Menü unten", "nl": "Een nieuw menu onderaan", "ru": "Новое нижнее меню", "uk": "Нове нижнє меню", "es": "Un nuevo menú inferior", "it": "Un nuovo menu in basso"},
+       d:{"en": "The tabs float in one bar with Tracker next to Home, and help is one tap away on the right.", "fr": "Les onglets flottent dans une barre, le Tracker juste après l’Accueil, et l’aide est à un geste à droite.", "de": "Die Tabs schweben in einer Leiste, der Tracker direkt neben Start, und die Hilfe ist rechts nur einen Tipp entfernt.", "nl": "De tabbladen zweven in één balk met de Tracker naast Home, en hulp zit rechts op één tik afstand.", "ru": "Вкладки теперь в одной плавающей панели, трекер рядом с главной, а помощь справа в одно касание.", "uk": "Вкладки тепер в одній плаваючій панелі, трекер поруч із головною, а допомога праворуч в один дотик.", "es": "Las pestañas flotan en una barra con el Tracker junto a Inicio, y la ayuda está a un toque a la derecha.", "it": "Le schede fluttuano in una barra con il Tracker accanto a Home, e l’aiuto è a un tocco sulla destra."}},
+      {icon:'camera',
+       t:{"en": "Easier kits, uploads and scans", "fr": "Kits, imports et scans plus simples", "de": "Packungen, Uploads und Scans einfacher", "nl": "Makkelijker kits, uploads en scans", "ru": "Проще наборы, загрузка и сканирование", "uk": "Простіше набори, завантаження і сканування", "es": "Kits, subidas y escaneos más fáciles", "it": "Kit, caricamenti e scansioni più semplici"},
+       d:{"en": "Opening a kit, uploading a chart or scanning a paper chart now has less text and clear numbered steps.", "fr": "Ouvrir un kit, importer une grille ou scanner une grille papier demande moins de lecture, avec des étapes numérotées.", "de": "Eine Packung öffnen, eine Vorlage hochladen oder eine Papiervorlage scannen geht jetzt mit weniger Text und klaren nummerierten Schritten.", "nl": "Een kit openen, een patroon uploaden of een papieren patroon scannen heeft nu minder tekst en duidelijke genummerde stappen.", "ru": "Открыть набор, загрузить или отсканировать бумажную схему теперь проще: меньше текста и понятные шаги.", "uk": "Відкрити набір, завантажити чи відсканувати паперову схему тепер простіше: менше тексту і зрозумілі кроки.", "es": "Abrir un kit, subir un patrón o escanear uno en papel ahora tiene menos texto y pasos numerados claros.", "it": "Aprire un kit, caricare uno schema o scansionarne uno cartaceo ora ha meno testo e passaggi numerati chiari."}},
+      {icon:'sparkle',
+       t:{"en": "One look on every page", "fr": "Le même style partout", "de": "Ein Stil auf jeder Seite", "nl": "Eén stijl op elke pagina", "ru": "Единый вид всех страниц", "uk": "Єдиний вигляд усіх сторінок", "es": "Un solo estilo en cada página", "it": "Uno stile su ogni pagina"},
+       d:{"en": "Guides, prices, the file converter, help chat and About now match the rest of the app.", "fr": "Guides, tarifs, convertisseur de fichiers, aide et À propos suivent désormais le style de l’app.", "de": "Anleitungen, Preise, Dateikonverter, Hilfe-Chat und Über passen jetzt zum Rest der App.", "nl": "Handleidingen, prijzen, de bestandsconverter, de helpchat en Over passen nu bij de rest van de app.", "ru": "Руководства, цены, конвертер файлов, чат помощи и «О приложении» теперь в стиле приложения.", "uk": "Посібники, ціни, конвертер файлів, чат допомоги і «Про застосунок» тепер у стилі застосунку.", "es": "Guías, precios, el conversor de archivos, el chat de ayuda y Acerca de ahora siguen el estilo de la app.", "it": "Guide, prezzi, convertitore di file, chat di aiuto e Info ora seguono lo stile dell’app."}}]},
     {id:'v755', notes:[
       {icon:'trash',
        t:{"en": "Recently deleted", "fr": "Récemment supprimés", "de": "Zuletzt gelöscht", "nl": "Onlangs verwijderd", "ru": "Недавно удалённые", "uk": "Нещодавно видалені", "es": "Eliminados recientemente", "it": "Eliminati di recente"},
