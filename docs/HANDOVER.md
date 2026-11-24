@@ -426,7 +426,7 @@ Sign in with Luca-S (Shopify) or Apple; Account page: subscription, thread colou
 
 ## Open items and known anomalies
 
-- [ ] App 2.0: iOS in review since 23 Nov 11:30Z (Android live). Check App Store state with an `asc-20-state-N` request.
+- [x] App 2.0 live on both stores: Android production 23 Nov; iOS READY_FOR_SALE (checked 24 Nov 07:30Z, `asc-20-state-1`).
 - [ ] (v758) Check the floating bottom menu on a real iPhone and Android after the next store build (safe area at the bottom, editor ☰ menu, keyboard open).
 - [ ] (v757) Check Kit patterns, Upload a chart file and Scan a paper chart on a phone after the next store build (light + dark).
 - [ ] (v756) Check the restyled app pages on a phone after the next store build (Guide, Pricing, File converter, Subscription, About sheet, Help chat); Pricing in the app still shows the web trial button as before.
