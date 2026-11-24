@@ -4,7 +4,7 @@
   Proprietary software: no part of this code may be copied, modified, reused or
   redistributed without written permission from UK Luca-S LTD.
   Third-party parts keep their own licences (noted where they appear).
-  Studio v84
+  Studio v85
 -->
 <html lang="en">
 <head>
@@ -12,6 +12,16 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patternly Partner Studio</title>
 <meta name="robots" content="noindex">
+<!-- v85: Studio can be added to the iPhone / Android home screen and opens like an app (own icon, no browser bars). -->
+<link rel="manifest" href="studio.webmanifest">
+<link rel="apple-touch-icon" href="studio-icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="studio-icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Studio">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f8f7f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#131114" media="(prefers-color-scheme: dark)">
 <style>
   :root{ --red:#8B1A2B; --red2:#a63248; --ink:#2b2226; --muted:#7d6b72; --border:#e6d9dd; --bg:#fdf7f8; --ok:#1c7c3c; --warn:#b25f10; }
   *{box-sizing:border-box}
@@ -468,6 +478,12 @@
   @media (max-width:720px){
     #mine-box td:last-child,#mine-box th:last-child,#apat-box td:last-child,#apat-box th:last-child{background:var(--surface)}
   }
+  /* v85: home-screen app (html.sd-pwa) – no rubber-band bounce, no zoom when a field is tapped,
+     room for the iPhone home bar, no grey tap flash. */
+  html.sd-pwa,html.sd-pwa body{overscroll-behavior:none}
+  html.sd-pwa body{-webkit-tap-highlight-color:transparent;padding-bottom:env(safe-area-inset-bottom)}
+  html.sd-pwa .sd-side{padding-bottom:calc(.8rem + env(safe-area-inset-bottom))}
+  @media (pointer:coarse){ html.sd-pwa :is(input,select,textarea){font-size:16px!important} }
 </style>
 </head>
 <body>
@@ -3442,9 +3458,15 @@ const $ = id => document.getElementById(id);
 let SESSION = null;   // {brand, prefix, email, buy, key}
 let MINE = [];        // last-loaded pattern list (for the codes CSV)
 
-function saveSession(){ try{ sessionStorage.setItem('patternly_partner', JSON.stringify(SESSION)); }catch(e){} }
-function loadSession(){ try{ return JSON.parse(sessionStorage.getItem('patternly_partner')||'null'); }catch(e){ return null; } }
-function clearSession(){ SESSION=null; try{ sessionStorage.removeItem('patternly_partner'); }catch(e){} }
+// v85: opened from the home screen, Studio keeps you signed in (iOS wipes sessionStorage whenever the
+// home-screen app is closed). In a browser tab it still forgets on close, as before. The server session
+// lasts 30 days either way, and Sign out clears both stores.
+const SD_PWA=(()=>{ try{ return !!(navigator.standalone || matchMedia('(display-mode: standalone)').matches); }catch(e){ return false; } })();
+if(SD_PWA) document.documentElement.classList.add('sd-pwa');
+function sdStore(){ return SD_PWA ? localStorage : sessionStorage; }
+function saveSession(){ try{ sdStore().setItem('patternly_partner', JSON.stringify(SESSION)); }catch(e){} }
+function loadSession(){ try{ return JSON.parse(sdStore().getItem('patternly_partner')||'null'); }catch(e){ return null; } }
+function clearSession(){ SESSION=null; try{ sessionStorage.removeItem('patternly_partner'); }catch(e){} try{ localStorage.removeItem('patternly_partner'); }catch(e){} }
 
 function show(state){
   $('landing').style.display = state==='landing' ? '' : 'none';
@@ -3634,6 +3656,11 @@ function sdTheme(v){
   try{ if(v) localStorage.setItem('sd_theme',v); else v=localStorage.getItem('sd_theme')||'auto'; }catch(e){ v=v||'auto'; }
   if(v==='auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme',v);
   document.querySelectorAll('.sd-theme button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  // v85: the phone's status bar follows the Studio theme, not only the phone's own setting
+  try{ document.querySelectorAll('meta[name="theme-color"]').forEach(m=>{
+    if(v==='auto'){ m.setAttribute('content', /dark/.test(m.getAttribute('media')||'')?'#131114':'#f8f7f8'); }
+    else m.setAttribute('content', v==='dark'?'#131114':'#f8f7f8');
+  }); }catch(e){}
 }
 function sdFrame(){
   const ws=$('signedin'); if(!ws || $('sd-side')) return;
@@ -7388,7 +7415,7 @@ if(SETUP_TOKEN){
   };
   ['su-pw1','su-pw2'].forEach(id=>{ $(id).onkeydown=(e)=>{ if(e.key==='Enter') $('su-go').click(); }; });
 }
-else if(SESSION && SESSION.key){ enterWorkspace(); } else { show('landing'); }
+else if(SESSION && SESSION.key){ enterWorkspace(); } else { show(SD_PWA ? 'in' : 'landing'); }   // v85: the home-screen app opens straight on Sign in
 // v19: landing wiring + the stitched heart (drawn as pixel "stitches", each
 // fading in like a stitch being made).
 $('land-signin').onclick=()=>{ show('in'); window.scrollTo({top:0}); };
