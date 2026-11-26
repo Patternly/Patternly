@@ -4,7 +4,7 @@
   Proprietary software: no part of this code may be copied, modified, reused or
   redistributed without written permission from UK Luca-S LTD.
   Third-party parts keep their own licences (noted where they appear).
-  Studio v86
+  Studio v87
 -->
 <html lang="en">
 <head>
@@ -92,10 +92,10 @@
   .rvtile.hero .ovnum{color:var(--red);font-size:1.9rem}
   .rvchart{position:relative;margin-top:1rem;border:1px solid var(--border);border-radius:12px;background:#fff;padding:.9rem .9rem .6rem}
   .rvchart svg{display:block;width:100%;height:auto}
-  .rvlegend{display:flex;gap:1rem;flex-wrap:wrap;font-size:.76rem;font-weight:700;color:var(--muted);margin:0 0 .5rem}
-  .rvlegend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:.35rem;vertical-align:-1px;background:var(--c)}
-  .rvtip{position:absolute;pointer-events:none;background:#2b2226;color:#fff;font-size:.74rem;border-radius:8px;padding:.4rem .6rem;box-shadow:0 8px 24px rgba(43,34,38,.25);white-space:nowrap;display:none;z-index:5}
-  .rvtip b{display:block;font-size:.72rem;opacity:.75;margin-bottom:.15rem}
+  .rvlegend{display:flex;gap:.4rem 1rem;flex-wrap:wrap;align-items:center;justify-content:space-between;font-size:.85rem;color:var(--muted);margin:0 0 .6rem}
+  .rvlg-k{display:flex;gap:.9rem;flex-wrap:wrap;font-weight:600;color:var(--ink)}
+  .rvlegend span::before,.rvd-rows div::before{content:"";display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:.4rem;vertical-align:-1px;background:var(--c)}
+  .rvlg-m{font-size:.78rem}
   .rvsplit{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.7rem;margin-top:.8rem}
   .rvsplit table{font-size:.8rem}
   .rvsplit th,.rvsplit td{padding:.35rem .5rem}
@@ -390,6 +390,27 @@
   .rvchart,.rvdates input[type=date]{background:var(--surface);border-color:var(--line)}
   .pbar{background:var(--surface2)}
   .rvchart line{stroke:var(--line)}
+  /* v87: revenue chart readable on phones (real-size labels, tap a bar for its day) */
+  :root{--rv-web:#B83A4B;--rv-ios:#2F6FB3;--rv-android:#B07512}
+  @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){--rv-web:#E8697C;--rv-ios:#5B9DEB;--rv-android:#E0A640} }
+  :root[data-theme="dark"]{--rv-web:#E8697C;--rv-ios:#5B9DEB;--rv-android:#E0A640}
+  #rv-chart{overflow:hidden}
+  #rv-chart svg{width:100%;height:auto;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:pan-y}
+  .rvchart .rvbase{stroke:var(--muted);stroke-opacity:.45}
+  .rvax{fill:var(--muted);font-variant-numeric:tabular-nums}
+  .rvselbg{fill:var(--muted);fill-opacity:.14}
+  .rvcol.dim{opacity:.35}
+  .rvday{margin-top:.55rem;border-top:1px solid var(--line);padding-top:.6rem;min-height:2.4rem;font-size:.88rem}
+  .rvd-hint{color:var(--muted)}
+  .rvd-hint b{color:var(--ink);font-weight:600}
+  .rvd-top{display:flex;align-items:center;gap:.6rem}
+  .rvd-top b{font-weight:650}
+  .rvd-top span{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums}
+  .rvd-x{border:0;background:var(--surface2);color:var(--muted);width:28px;height:28px;border-radius:50%;font-size:1.05rem;line-height:1;cursor:pointer}
+  .rvd-rows{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,200px));gap:.35rem .9rem;margin-top:.45rem}
+  .rvd-rows div{display:flex;align-items:center;color:var(--muted)}
+  .rvd-rows div b{margin-left:auto;color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+  @media (max-width:560px){ .rvchart{padding:.8rem .6rem .7rem} .rvlegend{font-size:.82rem} .rvd-rows{grid-template-columns:1fr} .rvsplit .ovtile{overflow-x:auto;padding:.8rem .6rem} .rvsplit th,.rvsplit td{padding:.35rem .35rem} }
   .pn-prog{background:var(--surface2);border-color:var(--line)}
   .pn-prev{background:var(--surface2);border-color:var(--line)}
   /* modal */
@@ -821,14 +842,14 @@
           <button class="ghost" id="rv-refresh" style="float:right;padding:.3rem .7rem;font-size:.76rem">Refresh</button></h2>
         <div class="rvbar">
           <div class="seg" id="rv-plat"><button type="button" data-v="all" class="on">All</button><button type="button" data-v="web">Web</button><button type="button" data-v="ios">iOS</button><button type="button" data-v="android">Android</button></div>
-          <select id="rv-range" class="rvsel" aria-label="Date range"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option><option value="ytd">This year</option><option value="all">All time</option><option value="custom">Custom dates…</option></select>
+          <select id="rv-range" class="rvsel" aria-label="Date range"><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option><option value="ytd">This year</option><option value="all">All time</option><option value="custom">Custom dates…</option></select>
           <div class="rvdates" id="rv-dates"><input type="date" id="rv-from"> <span>to</span> <input type="date" id="rv-to"> <button class="ghost" id="rv-apply" style="padding:.25rem .7rem;font-size:.74rem">Apply</button></div>
         </div>
         <div id="rv-tiles" class="ovgrid"><div class="note">Loading…</div></div>
         <div class="rvchart" id="rv-chartwrap" style="display:none">
           <div class="rvlegend" id="rv-legend"></div>
           <div id="rv-chart"></div>
-          <div class="rvtip" id="rv-tip"></div>
+          <div class="rvday" id="rv-day"></div>
         </div>
         <div class="rvsplit" id="rv-split"></div>
         <div class="note" id="rv-notes" style="margin:.7rem 0 0"></div>
@@ -6782,13 +6803,15 @@ async function pnSend(test){
   PN_BUSY=false; $('pn-send').disabled=$('pn-test').disabled=false; setTimeout(()=>{ $('pn-prog').style.display='none'; },1500);
 }
 // ===== v40: Plus revenue (owner only) =====
-const RV_COL={web:'#B83A4B',ios:'#2F6FB3',android:'#B07512'};
+const RV_COL={web:'var(--rv-web)',ios:'var(--rv-ios)',android:'var(--rv-android)'}; // v87: colours follow light/dark
 const RV_LABEL={web:'Web (Shopify)',ios:'iOS (App Store)',android:'Android (Play Store)'};
 let RV={plat:'all',range:'30',from:'',to:'',data:null,loading:false};
 const rvDay=d=>d.toISOString().slice(0,10);
 function rvRangeDates(){
   const now=new Date(); const to=rvDay(now);
   if(RV.range==='custom') return {from:RV.from||to,to:RV.to||to};
+  if(RV.range==='today') return {from:to,to}; // v87
+  if(RV.range==='yesterday'){ const y=rvDay(new Date(now.getTime()-86400000)); return {from:y,to:y}; }
   if(RV.range==='all') return {from:'2026-08-01',to};
   if(RV.range==='ytd') return {from:now.getUTCFullYear()+'-01-01',to};
   const n=parseInt(RV.range,10)||30; return {from:rvDay(new Date(now.getTime()-(n-1)*86400000)),to};
@@ -6823,8 +6846,9 @@ function rvRender(){
   const act=plats.reduce((a,p)=>a+(p==='web'?(d.active.web|0):(d.active[p]|0)),0)+(RV.plat==='all'?(d.active.storeUnknown|0):0);
   const days=Math.round((Date.parse(d.to)-Date.parse(d.from))/86400000)+1;
   const tile=(num,lab,sub,hero)=>'<div class="ovtile rvtile'+(hero?' hero':'')+'"><div class="ovnum">'+num+'</div><div class="ovlab">'+lab+'</div>'+(sub?'<div class="rvsub">'+sub+'</div>':'')+'</div>';
-  let h=tile(rvGBP(gross),'Gross revenue',d.from+' \u2192 '+d.to+' \u00b7 '+days+' day'+(days===1?'':'s'),true)
-       +tile(String(tx),'Transactions',tx&&days?rvGBP(gross/days)+' per day':'')
+  const oneDay=d.from===d.to, dayName=oneDay?(RV.range==='today'?'Today \u00b7 ':RV.range==='yesterday'?'Yesterday \u00b7 ':'')+rvRangeLabel({start:d.from,end:d.to}):'';
+  let h=tile(rvGBP(gross),'Gross revenue',oneDay?dayName:d.from+' \u2192 '+d.to+' \u00b7 '+days+' days',true)
+       +tile(String(tx),'Transactions',tx&&days>1?rvGBP(gross/days)+' per day':'')
        +tile(String(cnt.new),'New subscriptions',(cnt.renewal?cnt.renewal+' renewal'+(cnt.renewal===1?'':'s'):'')+(cnt.refund?(cnt.renewal?' \u00b7 ':'')+cnt.refund+' refund'+(cnt.refund===1?'':'s'):''))
        +tile(d.active.web==null&&RV.plat==='web'?'\u2014':String(act),'Active subscribers',RV.plat==='all'?('web '+(d.active.web==null?'?':d.active.web)+' \u00b7 iOS '+d.active.ios+' \u00b7 Android '+d.active.android+(d.active.storeUnknown?' \u00b7 app '+d.active.storeUnknown:'')):'right now');
   if(storeP.length) h+=tile(rvGBP(netStore),'Est. net from stores',(netEst?'after ~'+Math.round((1-d.net.storeTakeHomeAssumed)*100)+'% store fee (estimated)':'after store fees')+(RV.plat==='all'?' \u00b7 web not included':''));
@@ -6841,10 +6865,13 @@ function rvRender(){
   const notes=(d.notes||[]).slice(); notes.push('Store amounts converted from USD at '+d.fxUsdGbp+' (set FX_USD_GBP in Cloudflare to change).');
   $('rv-notes').innerHTML=notes.map(escA).join('<br>');
 }
+// v87: chart drawn at the real width of the card (no shrinking viewBox), so labels stay
+// 12px on a phone; taller on phones; tap or hover a bar to see that day under the chart.
+let RV_CH=null;
 function rvChart(d,plats){
-  const wrap=$('rv-chartwrap'), box=$('rv-chart'), tip=$('rv-tip');
+  const wrap=$('rv-chartwrap'), box=$('rv-chart');
   const from=Date.parse(d.from), to=Date.parse(d.to); const nDays=Math.round((to-from)/86400000)+1;
-  if(nDays<2){ wrap.style.display='none'; return; }
+  if(nDays<2){ wrap.style.display='none'; RV_CH=null; return; }
   wrap.style.display='';
   // bucket: daily up to 45 days, weekly up to 400, else monthly
   const mode=nDays<=45?'day':nDays<=400?'week':'month';
@@ -6857,35 +6884,68 @@ function rvChart(d,plats){
     for(let t=cur.getTime();t<=end.getTime();t+=86400000){ const s=byDay.get(rvDay(new Date(t))); if(s){ b.web+=s.web; b.ios+=s.ios; b.android+=s.android; } }
     buckets.push(b); cur=new Date(end.getTime()+86400000);
   }
-  const W=720,H=220,L=44,R=10,T=12,B=28; const n=buckets.length;
+  const prevSel=RV_CH&&RV_CH.mode===mode&&RV_CH.from===d.from&&RV_CH.to===d.to?RV_CH.sel:-1;
+  RV_CH={d,plats,mode,buckets,from:d.from,to:d.to,sel:prevSel};
+  const per=mode==='day'?'Daily':mode==='week'?'Weekly':'Monthly';
+  $('rv-legend').innerHTML='<div class="rvlg-k">'+plats.map(p=>'<span style="--c:'+RV_COL[p]+'">'+RV_LABEL[p].split(' ')[0]+'</span>').join('')+'</div><div class="rvlg-m">'+per+' · GBP</div>';
+  rvDraw();
+}
+function rvDraw(){
+  const C=RV_CH; if(!C) return; const box=$('rv-chart'); const {plats,mode,buckets}=C;
+  const W=Math.max(280,Math.round(box.clientWidth||680)); const phone=W<560;
+  const H=phone?250:260, L=phone?40:48, R=6, T=10, B=28, FS=12; const n=buckets.length;
   const max=Math.max(1,...buckets.map(b=>plats.reduce((a,p)=>a+b[p],0)));
   const niceStep=(()=>{ const raw=max/4; const p=Math.pow(10,Math.floor(Math.log10(raw))); const m=raw/p; const k=m<=1?1:m<=2?2:m<=2.5?2.5:m<=5?5:10; return k*p; })();
   const niceMax=niceStep*4;
-  const y=v=>T+(H-T-B)*(1-v/niceMax); const bw=(W-L-R)/n; const gap=Math.min(2,bw*0.15); const barW=Math.max(1,bw-gap-Math.max(2,bw*0.25));
-  let svg='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Revenue by '+mode+'">';
-  for(let i=0;i<=4;i++){ const v=niceStep*i; svg+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v).toFixed(1)+'" y2="'+y(v).toFixed(1)+'" stroke="#eee6e8" stroke-width="1"/><text x="'+(L-6)+'" y="'+(y(v)+3.5).toFixed(1)+'" text-anchor="end" font-size="10" fill="#8a7f83">'+(v>=1000?Math.round(v/1000)+'k':Math.round(v))+'</text>'; }
+  const y=v=>T+(H-T-B)*(1-v/niceMax); const bw=(W-L-R)/n;
+  const barW=Math.max(2,Math.min(bw*(phone?0.74:0.66),48));
+  C.geo={L,bw,W};
+  let svg='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Revenue by '+mode+'">';
+  for(let i=0;i<=4;i++){ const v=niceStep*i, yy=y(v).toFixed(1); svg+='<line class="'+(i?'rvgrid':'rvbase')+'" x1="'+L+'" x2="'+(W-R)+'" y1="'+yy+'" y2="'+yy+'"/><text class="rvax" x="'+(L-7)+'" y="'+(y(v)+4).toFixed(1)+'" text-anchor="end" font-size="'+FS+'">£'+(v>=1000?(v/1000).toFixed(v%1000?1:0)+'k':Math.round(v))+'</text>'; }
+  const sel=C.sel;
   buckets.forEach((b,i)=>{
     const x=L+i*bw+(bw-barW)/2; let acc=0;
     const present=plats.filter(p=>b[p]>0); const top=present[present.length-1];
-    plats.forEach((p)=>{ const v=b[p]; if(v<=0) return; const y1=y(acc+v), y0=y(acc); const hh=Math.max(0,y0-y1-(acc>0?2:0));
-      if(p===top){ const r=Math.min(3,barW/3,hh/2); svg+='<path d="M'+x.toFixed(1)+' '+(y1+hh).toFixed(1)+'V'+(y1+r).toFixed(1)+'a'+r+' '+r+' 0 0 1 '+r+' -'+r+'h'+(barW-2*r).toFixed(1)+'a'+r+' '+r+' 0 0 1 '+r+' '+r+'V'+(y1+hh).toFixed(1)+'z" fill="'+RV_COL[p]+'"/>'; }
-      else svg+='<rect x="'+x.toFixed(1)+'" y="'+y1.toFixed(1)+'" width="'+barW.toFixed(1)+'" height="'+hh.toFixed(1)+'" fill="'+RV_COL[p]+'"/>';
+    if(i===sel) svg+='<rect class="rvselbg" x="'+(L+i*bw).toFixed(1)+'" y="'+T+'" width="'+bw.toFixed(1)+'" height="'+(H-T-B)+'" rx="4"/>';
+    svg+='<g class="rvcol'+(sel>=0&&i!==sel?' dim':'')+'">';
+    plats.forEach((p)=>{ const v=b[p]; if(v<=0) return; const y1=y(acc+v), y0=y(acc); const hh=Math.max(1.5,y0-y1-(acc>0?1.5:0));
+      if(p===top){ const r=Math.min(3,barW/3,hh/2); svg+='<path d="M'+x.toFixed(1)+' '+(y1+hh).toFixed(1)+'V'+(y1+r).toFixed(1)+'a'+r+' '+r+' 0 0 1 '+r+' -'+r+'h'+(barW-2*r).toFixed(1)+'a'+r+' '+r+' 0 0 1 '+r+' '+r+'V'+(y1+hh).toFixed(1)+'z" style="fill:'+RV_COL[p]+'"/>'; }
+      else svg+='<rect x="'+x.toFixed(1)+'" y="'+(y0-hh).toFixed(1)+'" width="'+barW.toFixed(1)+'" height="'+hh.toFixed(1)+'" style="fill:'+RV_COL[p]+'"/>';
       acc+=v; });
-    svg+='<rect class="rvhit" data-i="'+i+'" x="'+(L+i*bw).toFixed(1)+'" y="'+T+'" width="'+bw.toFixed(1)+'" height="'+(H-T-B)+'" fill="transparent"/>';
+    svg+='</g>';
   });
-  // x labels: at most ~8
-  const lstep=Math.max(1,Math.ceil(n/8));
-  buckets.forEach((b,i)=>{ if(i%lstep) return; const lab=mode==='month'?new Date(b.start).toLocaleDateString('en-GB',{month:'short',year:'2-digit',timeZone:'UTC'}):new Date(b.start).toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'}); svg+='<text x="'+(L+i*bw+bw/2).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10" fill="#8a7f83">'+lab+'</text>'; });
+  // x labels: one every ~72px so they never collide
+  const lstep=Math.max(1,Math.ceil(n/Math.max(2,Math.floor((W-L)/72))));
+  const lab=b=>mode==='month'?new Date(b.start).toLocaleDateString('en-GB',{month:'short',year:'2-digit',timeZone:'UTC'}):new Date(b.start).toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'});
+  buckets.forEach((b,i)=>{ if(i%lstep) return; const cx=L+i*bw+bw/2; const anchor=i===0&&cx-L<24?'start':'middle'; svg+='<text class="rvax" x="'+(anchor==='start'?L:cx).toFixed(1)+'" y="'+(H-8)+'" text-anchor="'+anchor+'" font-size="'+FS+'">'+lab(b)+'</text>'; });
   svg+='</svg>';
   box.innerHTML=svg;
-  $('rv-legend').innerHTML=plats.map(p=>'<span style="--c:'+RV_COL[p]+'">'+RV_LABEL[p]+'</span>').join('')+'<span style="margin-left:auto;font-weight:400">'+(mode==='day'?'daily':mode==='week'?'weekly':'monthly')+' \u00b7 GBP</span>';
-  box.querySelectorAll('.rvhit').forEach(r=>{
-    r.onmousemove=(ev)=>{ const b=buckets[+r.dataset.i]; const tot=plats.reduce((a,p)=>a+b[p],0);
-      tip.innerHTML='<b>'+(b.start===b.end?b.start:b.start+' \u2192 '+b.end)+'</b>'+plats.map(p=>'<span style="color:'+RV_COL[p]+'">\u25a0</span> '+RV_LABEL[p].split(' ')[0]+' '+rvGBP(b[p])).join('<br>')+(plats.length>1?'<br><b style="margin-top:.2rem">Total '+rvGBP(tot)+'</b>':'');
-      const wr=wrap.getBoundingClientRect(); tip.style.display='block'; let lx=ev.clientX-wr.left+12, ty=ev.clientY-wr.top-10; if(lx+tip.offsetWidth>wr.width-8) lx=ev.clientX-wr.left-tip.offsetWidth-12; tip.style.left=lx+'px'; tip.style.top=ty+'px'; };
-    r.onmouseleave=()=>{ tip.style.display='none'; };
-  });
+  rvDetail();
+  const svgEl=box.firstChild;
+  const pick=(ev,keep)=>{ const r=svgEl.getBoundingClientRect(); const i=Math.floor((ev.clientX-r.left-L)/bw); if(i<0||i>=n) return; if(keep&&C.sel===i) return; C.sel=i; rvDraw(); };
+  svgEl.onclick=ev=>pick(ev);
+  svgEl.onmousemove=ev=>{ if(matchMedia('(hover:hover)').matches) pick(ev,true); };
 }
+function rvDetail(){
+  const C=RV_CH, el=$('rv-day'); if(!C||!el) return;
+  const b=C.buckets[C.sel];
+  if(!b){
+    // nothing picked: period summary + hint
+    let best=null; C.buckets.forEach(x=>{ const t=C.plats.reduce((a,p)=>a+x[p],0); if(!best||t>best.t) best={x,t}; });
+    el.innerHTML='<div class="rvd-hint">Tap a bar to see that '+(C.mode==='day'?'day':C.mode)+'.'+(best&&best.t>0?' Best '+(C.mode==='day'?'day':C.mode)+': <b>'+rvRangeLabel(best.x)+'</b> · '+rvGBP(best.t):'')+'</div>';
+    return;
+  }
+  const tot=C.plats.reduce((a,p)=>a+b[p],0);
+  el.innerHTML='<div class="rvd-top"><b>'+rvRangeLabel(b)+'</b><span>'+rvGBP(tot)+'</span><button type="button" class="rvd-x" aria-label="Close">×</button></div>'
+    +'<div class="rvd-rows">'+C.plats.map(p=>'<div style="--c:'+RV_COL[p]+'"><span>'+RV_LABEL[p].split(' ')[0]+'</span><b>'+rvGBP(b[p])+'</b></div>').join('')+'</div>';
+  el.querySelector('.rvd-x').onclick=()=>{ C.sel=-1; rvDraw(); };
+}
+function rvRangeLabel(b){
+  const f=s=>new Date(s).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'});
+  if(b.start===b.end) return f(b.start);
+  return new Date(b.start).toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'})+' – '+new Date(b.end).toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'});
+}
+{ let rvRT=0; window.addEventListener('resize',()=>{ clearTimeout(rvRT); rvRT=setTimeout(()=>{ if(RV_CH&&$('rv-chart')&&$('rv-chart').clientWidth) rvDraw(); },150); }); }
 let RV_BOUND=false;
 // ── brands ──
 function brandFormShow(mode, rec){
